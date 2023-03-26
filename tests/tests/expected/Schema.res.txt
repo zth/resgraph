@@ -1,0 +1,23 @@
+generating schema from tests/Schema.res
+++> User.t
+
+---
+Found type User
+Fields: 
+# age
+  Type: Int
+  Resolver style: Property(age)
+# id
+  Type: ID
+  Resolver style: Resolver
+# name
+  Type: String
+  Args: [includeFullName: Nullable(Boolean)]
+
+---
+Found type Query
+Fields: 
+# me
+  Type: Nullable(Named(User.t))
+  Resolver style: Resolver
+
