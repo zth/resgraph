@@ -11,7 +11,7 @@ module Scalars = {
   @module("graphql") @val external int: t = "GraphQLInt"
   @module("graphql") @val external id: t = "GraphQLID"
   @module("graphql") @val external float: t = "GraphQLFloat"
-  @module("graphql") @val external boolean: t = "GraphQL"
+  @module("graphql") @val external boolean: t = "GraphQLBoolean"
 }
 
 type arg = {@as("type") typ: graphqlType}

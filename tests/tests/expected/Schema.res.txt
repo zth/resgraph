@@ -28,6 +28,7 @@ t_User.contents = GraphQLObjectType.make({
     {
       "name": {
         typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        args: {"includeFullName": {typ: Scalars.boolean->Scalars.toGraphQLType}}->makeArgs,
         resolve: makeResolveFn((src, args, ctx) => {
           Schema.UserFields.name(
             src,

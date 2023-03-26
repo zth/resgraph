@@ -41,9 +41,20 @@ let rec printReturnType ~state ?(nullable = false) (returnType : returnType) =
   | Named {path} ->
     Printf.printf "Named! %s\n" (SharedTypes.pathIdentToString path);
     "Obj.magic()"
+
+let printArg ~state (arg : gqlArg) =
+  Printf.sprintf "{typ: %s}" (printReturnType arg.typ ~state)
+let printArgs ~state (args : gqlArg list) =
+  args
+  |> List.map (fun (arg : gqlArg) ->
+         Printf.sprintf "\"%s\": %s" arg.name (printArg ~state arg))
+  |> String.concat ", "
 let printField ~state (field : gqlField) =
-  Printf.sprintf "{typ: %s, resolve: makeResolveFn(%s)}"
+  Printf.sprintf "{typ: %s,%sresolve: makeResolveFn(%s)}"
     (printReturnType ~state field.typ)
+    (if field.args |> List.length > 0 then
+     Printf.sprintf " args: {%s}->makeArgs, " (printArgs ~state field.args)
+    else " ")
     (printResolverForField ~state field)
 let printFields ~state (fields : gqlField list) =
   Printf.sprintf "{%s}->makeFields"

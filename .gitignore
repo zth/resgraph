@@ -1,4 +1,5 @@
 tests/lib
+tests/node_modules
 tests/.bsb.lock
 _build
 tests/.merlin

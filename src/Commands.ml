@@ -1,3 +1,6 @@
+let diagnosticSyntax ~path =
+  print_endline (Diagnostics.document_syntax ~path |> Protocol.array)
+
 let test ~path =
   Uri.stripPath := true;
   match Files.readFile path with
@@ -40,7 +43,9 @@ let test ~path =
           (match String.sub rest 0 3 with
           | "db+" -> Log.verbose := true
           | "db-" -> Log.verbose := false
-          | "gen" -> GenerateSchema.generateSchema ~path ~debug:true
+          | "gen" ->
+            GenerateSchema.generateSchema ~path ~debug:true
+              ~outputPath:"./src/ResGraphSchema.res"
           | "ast" ->
             print_endline
               ("Dump AST " ^ path ^ " " ^ string_of_int line ^ ":"

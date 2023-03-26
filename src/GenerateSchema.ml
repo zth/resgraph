@@ -172,7 +172,7 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
            | _ -> ())
          | _ -> ())
 
-let generateSchema ~path ~debug =
+let generateSchema ~path ~debug ~outputPath =
   if debug then Printf.printf "generating schema from %s\n\n" path;
   match Cmt.loadFullCmtFromPath ~path with
   | None -> ()
@@ -183,4 +183,8 @@ let generateSchema ~path ~debug =
     let env = QueryEnv.fromFile file in
     let state = ref {types = Hashtbl.create 50; query = None} in
     traverseStructure structure ~state ~env ~full;
-    printSchemaJsFile !state |> formatCode |> print_endline
+    let schemaCode = printSchemaJsFile !state |> formatCode in
+    let oc = open_out outputPath in
+    output_string oc schemaCode;
+    close_out oc;
+    if debug then schemaCode |> print_endline

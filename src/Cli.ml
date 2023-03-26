@@ -86,7 +86,8 @@ Options:
 
 let main () =
   match Array.to_list Sys.argv with
-  | [_; "generate-schema"; path] -> GenerateSchema.generateSchema ~path ~debug:false
+  | [_; "generate-schema"; path; outputPath] ->
+    GenerateSchema.generateSchema ~path ~debug:false ~outputPath
   | [_; "test"; path] ->
     Cfg.supportsSnippets := true;
     Commands.test ~path
