@@ -2,7 +2,7 @@
   "scripts": {
     "build": "rescript",
     "clean": "rescript clean -with-deps",
-    "watch-testapp": "nodemon ./src/testApp.js --watch ./lib/js --watch ./src/*.js"
+    "watch-testapp": "export DUMP_SCHEMA=true && nodemon ./src/testApp.js --watch ./lib/js --watch ./src/*.js"
   },
   "private": true,
   "devDependencies": {

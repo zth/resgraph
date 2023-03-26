@@ -48,6 +48,9 @@ module GraphQLObjectType = {
 
 module GraphQLSchemaType = {
   type t
+
   @module("graphql") @new
   external make: {..} => t = "GraphQLSchema"
+
+  @module("graphql") external print: t => string = "printSchema"
 }
