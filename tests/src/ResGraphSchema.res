@@ -1,20 +1,3 @@
-generating schema from tests/Schema.res
-
-Found potential resolver fn: id
-Checking for type to attaach resolver to
-user
-already seen User
-ResGraph.id
-Found potential resolver fn: name
-Checking for type to attaach resolver to
-user
-already seen User
-Found potential resolver fn: me
-Checking for type to attaach resolver to
-query
-already seen Query
-user
-already seen User
 open ResGraph__GraphQLJs
 
 let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
@@ -57,5 +40,3 @@ t_Query.contents = GraphQLObjectType.make({
 })
 
 let schema = GraphQLSchemaType.make({"query": get_Query()})
-
-

@@ -1,10 +1,10 @@
 @gql.type
-module User = {
-  type t = {name: string, @gql.field age: int}
+type user = {name: string, @gql.field age: int}
 
+module UserFields = {
   @gql.field
   let id = user => {
-    ("User" ++ user.name)->ResGraph.id
+    ("User:" ++ user.name)->ResGraph.id
   }
 
   @gql.field
@@ -20,12 +20,12 @@ module User = {
 }
 
 @gql.type
-module Query = {
-  type t = {}
+type query = {}
 
+module QueryFields = {
   @gql.field
-  let me = _ => {
-    Some({User.name: "Hello", age: 35})
+  let me = (_: query): option<user> => {
+    Some({name: "Hello", age: 35})
   }
 }
 

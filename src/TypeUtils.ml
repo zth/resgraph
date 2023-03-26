@@ -566,3 +566,9 @@ let unwrapCompletionTypeIfOption (t : SharedTypes.completionType) =
   match t with
   | Toption (_, ExtractedType unwrapped) -> unwrapped
   | _ -> t
+
+let rec pathForTyp ~env (typ : Types.type_expr) =
+  match typ.desc with
+  | Tlink te | Tsubst te | Tpoly (te, []) -> pathForTyp te ~env
+  | Tconstr (path, _, _) -> path |> Utils.expandPath
+  | _ -> []
