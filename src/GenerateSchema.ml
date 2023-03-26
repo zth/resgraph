@@ -7,6 +7,11 @@ open GenerateSchemaUtils
      funktioner
 *)
 
+let variantCasesToEnumValues (cases : SharedTypes.Constructor.t list) =
+  cases
+  |> List.map (fun (case : SharedTypes.Constructor.t) ->
+         {value = case.cname.txt})
+
 let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
     (typ : Types.type_expr) =
   (* TODO: Array/List *)
@@ -35,9 +40,14 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
          type, to make sure it's a valid GraphQL type. *)
       match References.digConstructor ~env ~package:full.package path with
       | Some (env, {item}) -> (
-        match returnTypeFromItem item with
-        | Some (GraphQLObjectType {name} as returnType) ->
+        match (returnTypeFromItem item, item.kind) with
+        | Some (GraphQLObjectType {name} as returnType), _ ->
           noticeObjectType name ~state;
+          Some returnType
+        | Some (GraphQLEnum {name} as returnType), Variant cases ->
+          Printf.printf "matched enum and variant\n";
+          addEnum name ~state
+            ~enum:{name; values = variantCasesToEnumValues cases};
           Some returnType
         | _ -> Some (Named {path; env}))
       | _ -> Some (Named {path; env})))
@@ -53,7 +63,7 @@ let extractResolverFunctionInfo ~env ~(full : SharedTypes.full) ~(state : state)
     (* The first arg should point to the type this resolver is for. *)
     match List.nth_opt args 0 with
     | Some (Nolabel, typ) -> (
-      Printf.printf "Checking for type to attaach resolver to\n";
+      Printf.printf "Checking for type to attach resolver to\n";
       match
         ( findGraphQLType typ ~env ~full ~state,
           findGraphQLType returnType ~env ~full ~state )
@@ -83,9 +93,23 @@ let fieldsOfRecordFields ~env ~state ~(full : SharedTypes.full)
          })
 
 let printSchemaJsFile state =
-  let code = ref "open ResGraph__GraphQLJs\n\n" in
+  let code = ref "@@warning(\"-27\")\n\nopen ResGraph__GraphQLJs\n\n" in
   let addWithNewLine text = code := !code ^ text ^ "\n" in
-  (* First print the type holders and getters *)
+  (* Print all enums. These won't have any other dependencies, so they can be printed as is. *)
+  state.enums
+  |> Hashtbl.iter (fun _name (enum : gqlEnum) ->
+         addWithNewLine
+           (Printf.sprintf
+              "let enum_%s = GraphQLEnumType.make({name: \"%s\", values: \
+               {%s}->makeEnumValues})"
+              enum.name enum.name
+              (enum.values
+              |> List.map (fun (v : gqlEnumValue) ->
+                     Printf.sprintf "\"%s\": {GraphQLEnumType.value: \"%s\"}"
+                       v.value v.value)
+              |> String.concat ", ")));
+
+  (* Print the type holders and getters *)
   state.types
   |> Hashtbl.iter (fun _name typ ->
          addWithNewLine
@@ -131,6 +155,9 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
            in
            Hashtbl.add !state.types name typ;
            if name = "Query" then state := {!state with query = Some typ}
+         | Type ({kind = Variant cases}, _), Some Enum ->
+           addEnum item.name ~state:!state
+             ~enum:{name = item.name; values = variantCasesToEnumValues cases}
          | Value typ, Some Field -> (
            (* Values with a field annotation could be a resolver. *)
            match typ |> TypeUtils.extractType ~env ~package:full.package with
@@ -181,7 +208,9 @@ let generateSchema ~path ~debug ~outputPath =
     let structure = file.structure in
     let open SharedTypes in
     let env = QueryEnv.fromFile file in
-    let state = ref {types = Hashtbl.create 50; query = None} in
+    let state =
+      ref {types = Hashtbl.create 50; enums = Hashtbl.create 50; query = None}
+    in
     traverseStructure structure ~state ~env ~full;
     let schemaCode = printSchemaJsFile !state |> formatCode in
     let oc = open_out outputPath in

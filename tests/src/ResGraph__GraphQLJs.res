@@ -46,6 +46,28 @@ module GraphQLObjectType = {
   @module("graphql") @new external make: config => t = "GraphQLObjectType"
 }
 
+type enumValues
+
+external makeEnumValues: {..} => enumValues = "%identity"
+
+module GraphQLEnumType = {
+  type t
+
+  external toGraphQLType: t => graphqlType = "%identity"
+
+  type enumValueConfig = {
+    value?: string,
+    deprecationReason?: string,
+    description?: string,
+  }
+
+  type config = {
+    name: string,
+    values: enumValues,
+  }
+  @module("graphql") @new external make: config => t = "GraphQLEnumType"
+}
+
 module GraphQLSchemaType = {
   type t
 

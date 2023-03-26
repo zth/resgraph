@@ -7,6 +7,7 @@ let extractAttributes (attributes : Parsetree.attributes) =
            match String.split_on_char '.' name.txt with
            | ["gql"; "type"] -> Some ObjectType
            | ["gql"; "field"] -> Some Field
+           | ["gql"; "enum"] -> Some Enum
            | _ -> (* TODO: Warn about invalid gql annotation*) None
          else None)
 
@@ -51,6 +52,8 @@ let returnTypeFromItem (item : SharedTypes.Type.t) =
   match (gqlAttribute, item) with
   | Some ObjectType, {kind = Record _; name} ->
     Some (GraphQLObjectType {name = capitalizeFirstChar name})
+  | Some Enum, {kind = Variant _; name} ->
+    Some (GraphQLEnum {name = capitalizeFirstChar name})
   | _ -> None
 
 let noticeObjectType typeName ~state =
@@ -59,6 +62,10 @@ let noticeObjectType typeName ~state =
   else (
     Printf.printf "noticing %s\n" typeName;
     Hashtbl.add state.types typeName {name = typeName; fields = []})
+
+let addEnum enumName ~(enum : gqlEnum) ~state =
+  Printf.printf "Adding enum %s\n" enumName;
+  Hashtbl.replace state.enums enumName enum
 
 let addFieldToObjectType typeName ~field ~state =
   let typ =

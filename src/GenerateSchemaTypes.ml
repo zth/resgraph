@@ -10,12 +10,17 @@ type returnType =
   | Scalar of scalar
   | Named of {path: Path.t; env: SharedTypes.QueryEnv.t}
   | GraphQLObjectType of {name: string}
+  | GraphQLEnum of {name: string}
 
 type fieldResolverStyle =
   | Resolver of {moduleName: string; fnName: string; pathToFn: string list}
   | Property of string
 
 type gqlArg = {name: string; typ: returnType (* TODO: Default value. *)}
+
+type gqlEnumValue = {value: string}
+
+type gqlEnum = {name: string; values: gqlEnumValue list}
 
 let argIsOptional arg =
   match arg.typ with
@@ -31,15 +36,20 @@ type gqlField = {
 
 type typ = {name: string; fields: gqlField list}
 
-type state = {types: (string, typ) Hashtbl.t; query: typ option}
+type state = {
+  types: (string, typ) Hashtbl.t;
+  enums: (string, gqlEnum) Hashtbl.t;
+  query: typ option;
+}
 
-type gqlAttributes = ObjectType | Field
+type gqlAttributes = ObjectType | Field | Enum
 
 let rec returnTypeToString returnType =
   match returnType with
   | Nullable inner -> "Nullable(" ^ returnTypeToString inner ^ ")"
   | Named {path} -> "Named(" ^ SharedTypes.pathIdentToString path ^ ")"
   | GraphQLObjectType {name} -> "ObjectType(" ^ name ^ ")"
+  | GraphQLEnum {name} -> "Enum(" ^ name ^ ")"
   | Scalar scalar -> (
     match scalar with
     | Int -> "Int"

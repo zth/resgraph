@@ -3,7 +3,14 @@ type Query {
 }
 
 type User {
+  currentStatus: UserStatus!
   name(includeFullName: Boolean): String!
   id: ID!
   age: Int!
+}
+
+enum UserStatus {
+  Online
+  Offline
+  Idle
 }

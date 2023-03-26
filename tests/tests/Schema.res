@@ -1,6 +1,9 @@
 @gql.type
 type user = {name: string, @gql.field age: int}
 
+@gql.enum
+type userStatus = Online | Offline | Idle
+
 module UserFields = {
   @gql.field
   let id = user => {
@@ -16,6 +19,11 @@ module UserFields = {
     } else {
       user.name->Js.String2.slice(~from=0, ~to_=3)
     }
+  }
+
+  @gql.field
+  let currentStatus = (_user: user) => {
+    Online
   }
 }
 

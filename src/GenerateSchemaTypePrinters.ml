@@ -38,6 +38,9 @@ let rec printReturnType ~state ?(nullable = false) (returnType : returnType) =
   | GraphQLObjectType {name} ->
     Printf.sprintf "get_%s()->GraphQLObjectType.toGraphQLType%s" name
       nullablePrefix
+  | GraphQLEnum {name} ->
+    Printf.sprintf "enum_%s->GraphQLEnumType.toGraphQLType%s" name
+      nullablePrefix
   | Named {path} ->
     Printf.printf "Named! %s\n" (SharedTypes.pathIdentToString path);
     "Obj.magic()"
