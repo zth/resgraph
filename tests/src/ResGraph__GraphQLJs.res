@@ -64,6 +64,7 @@ module GraphQLEnumType = {
   type config = {
     name: string,
     values: enumValues,
+    description?: string,
   }
   @module("graphql") @new external make: config => t = "GraphQLEnumType"
 }

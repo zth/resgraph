@@ -10,7 +10,11 @@ open GenerateSchemaUtils
 let variantCasesToEnumValues (cases : SharedTypes.Constructor.t list) =
   cases
   |> List.map (fun (case : SharedTypes.Constructor.t) ->
-         {value = case.cname.txt})
+         {
+           value = case.cname.txt;
+           description = List.nth_opt case.docstring 0;
+           deprecationReason = case.deprecated;
+         })
 
 let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
     (typ : Types.type_expr) =
@@ -47,7 +51,13 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
         | Some (GraphQLEnum {name} as returnType), Variant cases ->
           Printf.printf "matched enum and variant\n";
           addEnum name ~state
-            ~enum:{name; values = variantCasesToEnumValues cases};
+            ~enum:
+              {
+                name;
+                values = variantCasesToEnumValues cases;
+                description =
+                  item.attributes |> ProcessAttributes.findDocAttribute;
+              };
           Some returnType
         | _ -> Some (Named {path; env}))
       | _ -> Some (Named {path; env})))
@@ -100,13 +110,18 @@ let printSchemaJsFile state =
   |> Hashtbl.iter (fun _name (enum : gqlEnum) ->
          addWithNewLine
            (Printf.sprintf
-              "let enum_%s = GraphQLEnumType.make({name: \"%s\", values: \
-               {%s}->makeEnumValues})"
+              "let enum_%s = GraphQLEnumType.make({name: \"%s\", description: \
+               %s, values: {%s}->makeEnumValues})"
               enum.name enum.name
+              (undefinedOrValueAsString enum.description)
               (enum.values
               |> List.map (fun (v : gqlEnumValue) ->
-                     Printf.sprintf "\"%s\": {GraphQLEnumType.value: \"%s\"}"
-                       v.value v.value)
+                     Printf.sprintf
+                       "\"%s\": {GraphQLEnumType.value: \"%s\", description: \
+                        %s, deprecationReason: %s}"
+                       v.value v.value
+                       (undefinedOrValueAsString v.description)
+                       (undefinedOrValueAsString v.deprecationReason))
               |> String.concat ", ")));
 
   (* Print the type holders and getters *)
@@ -155,9 +170,15 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
            in
            Hashtbl.add !state.types name typ;
            if name = "Query" then state := {!state with query = Some typ}
-         | Type ({kind = Variant cases}, _), Some Enum ->
+         | Type (({kind = Variant cases} as item), _), Some Enum ->
            addEnum item.name ~state:!state
-             ~enum:{name = item.name; values = variantCasesToEnumValues cases}
+             ~enum:
+               {
+                 name = item.name;
+                 values = variantCasesToEnumValues cases;
+                 description =
+                   item.attributes |> ProcessAttributes.findDocAttribute;
+               }
          | Value typ, Some Field -> (
            (* Values with a field annotation could be a resolver. *)
            match typ |> TypeUtils.extractType ~env ~package:full.package with

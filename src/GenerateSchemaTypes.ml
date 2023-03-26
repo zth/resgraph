@@ -18,9 +18,17 @@ type fieldResolverStyle =
 
 type gqlArg = {name: string; typ: returnType (* TODO: Default value. *)}
 
-type gqlEnumValue = {value: string}
+type gqlEnumValue = {
+  value: string;
+  description: string option;
+  deprecationReason: string option;
+}
 
-type gqlEnum = {name: string; values: gqlEnumValue list}
+type gqlEnum = {
+  name: string;
+  values: gqlEnumValue list;
+  description: string option;
+}
 
 let argIsOptional arg =
   match arg.typ with

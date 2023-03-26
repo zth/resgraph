@@ -9,8 +9,14 @@ type User {
   age: Int!
 }
 
+""" Indicates what status a user currently has. """
 enum UserStatus {
+  """ User is online. """
   Online
+
+  """ User is offline. """
   Offline
-  Idle
+
+  """ User is idle. """
+  Idle @deprecated(reason: "Use 'Offline' instead.")
 }

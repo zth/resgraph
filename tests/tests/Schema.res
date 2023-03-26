@@ -1,8 +1,14 @@
 @gql.type
 type user = {name: string, @gql.field age: int}
 
+/** Indicates what status a user currently has. */
 @gql.enum
-type userStatus = Online | Offline | Idle
+type userStatus =
+  | /** User is online. */ Online
+  | /** User is offline. */ Offline
+  | /** User is idle. */
+  @deprecated("Use 'Offline' instead.")
+  Idle
 
 module UserFields = {
   @gql.field

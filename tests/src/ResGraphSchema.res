@@ -4,18 +4,44 @@ open ResGraph__GraphQLJs
 
 let enum_UserStatus = GraphQLEnumType.make({
   name: "UserStatus",
+  description: " Indicates what status a user currently has. ",
   values: {
-    "Online": {GraphQLEnumType.value: "Online"},
-    "Offline": {GraphQLEnumType.value: "Offline"},
-    "Idle": {GraphQLEnumType.value: "Idle"},
+    "Online": {
+      GraphQLEnumType.value: "Online",
+      description: " User is online. ",
+      deprecationReason: ?None,
+    },
+    "Offline": {
+      GraphQLEnumType.value: "Offline",
+      description: " User is offline. ",
+      deprecationReason: ?None,
+    },
+    "Idle": {
+      GraphQLEnumType.value: "Idle",
+      description: " User is idle. ",
+      deprecationReason: "Use 'Offline' instead.",
+    },
   }->makeEnumValues,
 })
 let enum_userStatus = GraphQLEnumType.make({
   name: "userStatus",
+  description: " Indicates what status a user currently has. ",
   values: {
-    "Online": {GraphQLEnumType.value: "Online"},
-    "Offline": {GraphQLEnumType.value: "Offline"},
-    "Idle": {GraphQLEnumType.value: "Idle"},
+    "Online": {
+      GraphQLEnumType.value: "Online",
+      description: " User is online. ",
+      deprecationReason: ?None,
+    },
+    "Offline": {
+      GraphQLEnumType.value: "Offline",
+      description: " User is offline. ",
+      deprecationReason: ?None,
+    },
+    "Idle": {
+      GraphQLEnumType.value: "Idle",
+      description: " User is idle. ",
+      deprecationReason: "Use 'Offline' instead.",
+    },
   }->makeEnumValues,
 })
 let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})

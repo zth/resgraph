@@ -79,3 +79,8 @@ let getOrRaise opt msg =
   match opt with
   | None -> raise (Failure msg)
   | Some v -> v
+
+let undefinedOrValueAsString v =
+  match v with
+  | None -> "?(None)"
+  | Some v -> Printf.sprintf "\"%s\"" v
