@@ -68,8 +68,9 @@ module QueryFields = {
   }
 
   @gql.field
-  let entity = (_: query, ~id: ResGraph.id) => {
+  let entity = (_: query, ~id: ResGraph.id, ~ctx: ResGraphContext.context) => {
     ignore(id)
+    ignore(ctx)
     User({name: "Hello", age: 35, lastAge: None})
   }
 }

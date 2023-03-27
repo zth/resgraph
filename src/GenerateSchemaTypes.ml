@@ -8,7 +8,8 @@ type graphqlType =
   | List of graphqlType
   | Nullable of graphqlType
   | Scalar of scalar
-  | Named of {path: Path.t; env: SharedTypes.QueryEnv.t}
+  | (* TODO: Get rid of *) Named of {path: Path.t; env: SharedTypes.QueryEnv.t}
+  | InjectContext
   | GraphQLObjectType of {name: string}
   | GraphQLEnum of {name: string}
   | GraphQLUnion of {name: string}

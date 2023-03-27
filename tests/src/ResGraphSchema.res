@@ -134,7 +134,7 @@ t_Query.contents = GraphQLObjectType.make({
         args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
-          Schema.QueryFields.entity(src, ~id=args["id"])
+          Schema.QueryFields.entity(src, ~id=args["id"], ~ctx)
         }),
       },
       "me": {

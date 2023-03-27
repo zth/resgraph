@@ -7,6 +7,8 @@ let printResolverForField (field : gqlField) =
     Printf.sprintf
       "(src, _args, _ctx) => {let src = typeUnwrapper(src); src[\"%s\"]}" name
   | Resolver {moduleName; fnName; pathToFn} ->
+    let ctxArgName = findContextArgName field.args in
+    let hasCtxArg = ctxArgName |> Option.is_some in
     let resolverCode =
       Printf.sprintf "(src, args, ctx) => {let src = typeUnwrapper(src); %s(src"
         ([moduleName] @ pathToFn @ [fnName] |> String.concat ".")
@@ -15,11 +17,14 @@ let printResolverForField (field : gqlField) =
       resolverCode ^ ", "
       ^ (field.args
         |> List.map (fun (arg : gqlArg) ->
-               Printf.sprintf "~%s=args[\"%s\"]%s" arg.name arg.name
-                 (if argIsOptional arg then
-                  (* TODO: Convert lists and nullables too when appropriate *)
-                  "->Js.Nullable.toOption"
-                 else ""))
+               if hasCtxArg && Some arg.name = ctxArgName then
+                 Printf.sprintf "~%s=ctx" (ctxArgName |> Option.get)
+               else
+                 Printf.sprintf "~%s=args[\"%s\"]%s" arg.name arg.name
+                   (if argIsOptional arg then
+                    (* TODO: Convert lists and nullables too when appropriate *)
+                    "->Js.Nullable.toOption"
+                   else ""))
         |> String.concat ", ")
       ^ ")}"
     else resolverCode ^ ")}"
@@ -50,6 +55,7 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
   | GraphQLUnion {name} ->
     Printf.sprintf "get_%s()->GraphQLUnionType.toGraphQLType%s" name
       nullablePrefix
+  | InjectContext -> "Obj.magic()"
   | Named {path} ->
     Printf.printf "Named! %s\n" (SharedTypes.pathIdentToString path);
     "Obj.magic()"
@@ -58,8 +64,9 @@ let printArg (arg : gqlArg) =
   Printf.sprintf "{typ: %s}" (printGraphQLType arg.typ)
 let printArgs (args : gqlArg list) =
   args
-  |> List.map (fun (arg : gqlArg) ->
-         Printf.sprintf "\"%s\": %s" arg.name (printArg arg))
+  |> List.filter_map (fun (arg : gqlArg) ->
+         if arg.typ = InjectContext then None
+         else Some (Printf.sprintf "\"%s\": %s" arg.name (printArg arg)))
   |> String.concat ", "
 let printField (field : gqlField) =
   Printf.sprintf

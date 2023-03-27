@@ -42,6 +42,7 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
     Printf.printf "%s\n" (pathIdentToList path |> String.concat ".");
     match pathIdentToList path with
     | ["ResGraph"; "id"] -> Some (Scalar ID)
+    | ["ResGraphContext"; "context"] -> Some InjectContext
     | ["Js"; ("String2" | "String"); "t"] ->
       (* TODO: Smarter way to resolve these... *) Some (Scalar String)
     | _ -> (

@@ -170,3 +170,10 @@ let attributesToDocstring attributes =
   match ProcessAttributes.findDocAttribute attributes with
   | None -> None
   | Some doc -> Some (doc |> trimString)
+
+let findContextArgName (args : gqlArg list) =
+  args
+  |> List.find_map (fun (arg : gqlArg) ->
+         match arg.typ with
+         | InjectContext -> Some arg.name
+         | _ -> None)
