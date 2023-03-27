@@ -49,6 +49,24 @@ module GraphQLObjectType = {
   @module("graphql") @new external make: config => t = "GraphQLObjectType"
 }
 
+module GraphQLUnionType = {
+  type t
+
+  external toGraphQLType: t => graphqlType = "%identity"
+
+  type resolveUnionTypeFn
+
+  external makeResolveUnionTypeFn: ('source => 'return) => resolveUnionTypeFn = "%identity"
+
+  type config = {
+    name: string,
+    types: unit => array<GraphQLObjectType.t>,
+    resolveType: resolveUnionTypeFn,
+    description?: string,
+  }
+  @module("graphql") @new external make: config => t = "GraphQLUnionType"
+}
+
 type enumValues
 
 external makeEnumValues: {..} => enumValues = "%identity"

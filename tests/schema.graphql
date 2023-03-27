@@ -1,10 +1,14 @@
 type Query {
+  entity(id: ID!): userOrGroup!
   me: User
 }
 
+"""A user or a group."""
+union userOrGroup = User | Group
+
 """A user in the system."""
 type User {
-  currentStatus: UserStatus!
+  currentStatus: userStatus!
   name(includeFullName: Boolean): String!
   id: ID!
 
@@ -16,7 +20,7 @@ type User {
 }
 
 """Indicates what status a user currently has."""
-enum UserStatus {
+enum userStatus {
   """User is online."""
   Online
 
@@ -25,4 +29,10 @@ enum UserStatus {
 
   """User is idle."""
   Idle @deprecated(reason: "Use 'Offline' instead.")
+}
+
+"""A group in the system."""
+type Group {
+  """The group name."""
+  name: String!
 }

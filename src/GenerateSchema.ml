@@ -58,9 +58,29 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
                 description = item.attributes |> attributesToDocstring;
               };
           Some returnType
+        | Some (GraphQLUnion {name} as returnType), Variant cases ->
+          addUnion ~state
+            {
+              name;
+              types = variantCasesToUnionValues cases ~env ~full ~state;
+              description = item.attributes |> attributesToDocstring;
+              typeLocation = findTypeLocation ~env ~expectedType:Union name;
+            };
+          Some returnType
         | _ -> Some (Named {path; env}))
       | _ -> Some (Named {path; env})))
   | _ -> raise (Fail ("Invalid GraphQL type: " ^ Shared.typeToString typ))
+
+and variantCasesToUnionValues ~env ~state ~full
+    (cases : SharedTypes.Constructor.t list) =
+  cases
+  |> List.filter_map (fun (case : SharedTypes.Constructor.t) ->
+         match case.args with
+         | Args [(typ, _)] -> (
+           match findGraphQLType ~env ~state ~full typ with
+           | Some (GraphQLObjectType {name}) -> Some {objectTypeName = name}
+           | _ -> None)
+         | _ -> None)
 
 let extractResolverFunctionInfo ~env ~(full : SharedTypes.full) ~(state : state)
     (typ : Types.type_expr) =
@@ -107,6 +127,11 @@ let fieldsOfRecordFields ~env ~state ~(full : SharedTypes.full)
 let printSchemaJsFile state =
   let code = ref "@@warning(\"-27\")\n\nopen ResGraph__GraphQLJs\n\n" in
   let addWithNewLine text = code := !code ^ text ^ "\n" in
+  (* Add the type unwrapper. TODO: Explain what this is and does. *)
+  addWithNewLine
+    "let typeUnwrapper: ('src) => 'return = %raw(`function typeUnwrapper(src) \
+     { if (src == null) return null; if (typeof src === 'object' && \
+     src.hasOwnProperty('_0')) return src['_0']; return src;}`)";
   (* Print all enums. These won't have any other dependencies, so they can be printed as is. *)
   state.enums
   |> Hashtbl.iter (fun _name (enum : gqlEnum) ->
@@ -126,7 +151,7 @@ let printSchemaJsFile state =
                        (undefinedOrValueAsString v.deprecationReason))
               |> String.concat ", ")));
 
-  (* Print the type holders and getters *)
+  (* Print the object type holders and getters *)
   state.types
   |> Hashtbl.iter (fun _name typ ->
          addWithNewLine
@@ -137,14 +162,46 @@ let printSchemaJsFile state =
          addWithNewLine
            (Printf.sprintf "let get_%s = () => t_%s.contents" typ.name typ.name));
 
+  (* Print the union type holders and getters *)
+  state.unions
+  |> Hashtbl.iter (fun _name (union : gqlUnion) ->
+         addWithNewLine
+           (Printf.sprintf
+              "let union_%s: ref<GraphQLUnionType.t> = \
+               Obj.magic({\"contents\": Js.null})"
+              union.name);
+         addWithNewLine
+           (Printf.sprintf "let get_%s = () => union_%s.contents" union.name
+              union.name));
+
   addWithNewLine "";
+
+  (* Print support functions for union type resolution *)
+  state.unions
+  |> Hashtbl.iter (fun _name (union : gqlUnion) ->
+         addWithNewLine
+           (Printf.sprintf
+              "let union_%s_resolveType = (v: %s) => switch v {%s}\n" union.name
+              (typeLocationToAccessor union.typeLocation)
+              (union.types
+              |> List.map (fun (member : gqlUnionMember) ->
+                     Printf.sprintf " | %s(_) => get_%s()" member.objectTypeName
+                       member.objectTypeName)
+              |> String.concat "\n")));
 
   (* Now we can print all of the code that fills these in. *)
   state.types
   |> Hashtbl.iter (fun _name typ ->
          addWithNewLine
            (Printf.sprintf "t_%s.contents = GraphQLObjectType.make(%s)" typ.name
-              (typ |> GenerateSchemaTypePrinters.printObjectType ~state)));
+              (typ |> GenerateSchemaTypePrinters.printObjectType)));
+
+  state.unions
+  |> Hashtbl.iter (fun _name (union : gqlUnion) ->
+         addWithNewLine
+           (Printf.sprintf "union_%s.contents = GraphQLUnionType.make(%s)"
+              union.name
+              (union |> GenerateSchemaTypePrinters.printUnionType)));
 
   (* Print the schema gluing it all together. *)
   addWithNewLine "";
@@ -181,6 +238,16 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
                  values = variantCasesToEnumValues cases;
                  description = item.attributes |> attributesToDocstring;
                }
+         | Type (({kind = Variant cases} as item), _), Some Union ->
+           addUnion
+             {
+               name = item.name;
+               description = item.attributes |> attributesToDocstring;
+               types = variantCasesToUnionValues cases ~env ~full ~state:!state;
+               typeLocation =
+                 findTypeLocation ~env ~expectedType:Union item.name;
+             }
+             ~state:!state
          | Value typ, Some Field -> (
            (* Values with a field annotation could be a resolver. *)
            match typ |> TypeUtils.extractType ~env ~package:full.package with
@@ -236,7 +303,13 @@ let generateSchema ~path ~debug ~outputPath =
     let open SharedTypes in
     let env = QueryEnv.fromFile file in
     let state =
-      ref {types = Hashtbl.create 50; enums = Hashtbl.create 50; query = None}
+      ref
+        {
+          types = Hashtbl.create 50;
+          enums = Hashtbl.create 50;
+          unions = Hashtbl.create 50;
+          query = None;
+        }
     in
     traverseStructure structure ~state ~env ~full;
     let schemaCode = printSchemaJsFile !state |> formatCode in

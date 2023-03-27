@@ -1,12 +1,14 @@
 open GenerateSchemaTypes
 open GenerateSchemaUtils
 
-let printResolverForField ~state (field : gqlField) =
+let printResolverForField (field : gqlField) =
   match field.resolverStyle with
-  | Property name -> Printf.sprintf "(src, _args, _ctx) => src[\"%s\"]" name
+  | Property name ->
+    Printf.sprintf
+      "(src, _args, _ctx) => {let src = typeUnwrapper(src); src[\"%s\"]}" name
   | Resolver {moduleName; fnName; pathToFn} ->
     let resolverCode =
-      Printf.sprintf "(src, args, ctx) => {%s(src"
+      Printf.sprintf "(src, args, ctx) => {let src = typeUnwrapper(src); %s(src"
         ([moduleName] @ pathToFn @ [fnName] |> String.concat ".")
     in
     if List.length field.args > 0 then
@@ -21,10 +23,10 @@ let printResolverForField ~state (field : gqlField) =
         |> String.concat ", ")
       ^ ")}"
     else resolverCode ^ ")}"
-let rec printReturnType ~state ?(nullable = false) (returnType : returnType) =
+let rec printReturnType ?(nullable = false) (returnType : returnType) =
   let nullablePrefix = if nullable then "" else "->nonNull" in
   match returnType with
-  | Nullable inner -> printReturnType ~state ~nullable:true inner
+  | Nullable inner -> printReturnType ~nullable:true inner
   | Scalar scalar ->
     let scalarStr =
       match scalar with
@@ -42,35 +44,50 @@ let rec printReturnType ~state ?(nullable = false) (returnType : returnType) =
   | GraphQLEnum {name} ->
     Printf.sprintf "enum_%s->GraphQLEnumType.toGraphQLType%s" name
       nullablePrefix
+  | GraphQLUnion {name} ->
+    Printf.sprintf "get_%s()->GraphQLUnionType.toGraphQLType%s" name
+      nullablePrefix
   | Named {path} ->
     Printf.printf "Named! %s\n" (SharedTypes.pathIdentToString path);
     "Obj.magic()"
 
-let printArg ~state (arg : gqlArg) =
-  Printf.sprintf "{typ: %s}" (printReturnType arg.typ ~state)
-let printArgs ~state (args : gqlArg list) =
+let printArg (arg : gqlArg) =
+  Printf.sprintf "{typ: %s}" (printReturnType arg.typ)
+let printArgs (args : gqlArg list) =
   args
   |> List.map (fun (arg : gqlArg) ->
-         Printf.sprintf "\"%s\": %s" arg.name (printArg ~state arg))
+         Printf.sprintf "\"%s\": %s" arg.name (printArg arg))
   |> String.concat ", "
-let printField ~state (field : gqlField) =
+let printField (field : gqlField) =
   Printf.sprintf
     "{typ: %s, description: %s, deprecationReason: %s, %sresolve: \
      makeResolveFn(%s)}"
-    (printReturnType ~state field.typ)
+    (printReturnType field.typ)
     (field.description |> undefinedOrValueAsString)
     (field.deprecationReason |> undefinedOrValueAsString)
     (if field.args |> List.length > 0 then
-     Printf.sprintf " args: {%s}->makeArgs, " (printArgs ~state field.args)
+     Printf.sprintf " args: {%s}->makeArgs, " (printArgs field.args)
     else " ")
-    (printResolverForField ~state field)
-let printFields ~state (fields : gqlField list) =
+    (printResolverForField field)
+let printFields (fields : gqlField list) =
   Printf.sprintf "{%s}->makeFields"
     (fields
     |> List.map (fun (field : gqlField) ->
-           Printf.sprintf "\"%s\": %s" field.name (printField ~state field))
+           Printf.sprintf "\"%s\": %s" field.name (printField field))
     |> String.concat ",\n")
-let printObjectType ~state (typ : gqlObjectType) =
+let printObjectType (typ : gqlObjectType) =
   Printf.sprintf "{name: \"%s\", description: %s, fields: () => %s}" typ.name
     (undefinedOrValueAsString typ.description)
-    (printFields typ.fields ~state)
+    (printFields typ.fields)
+
+let printUnionType (union : gqlUnion) =
+  Printf.sprintf
+    "{name: \"%s\", description: %s, types: () => [%s], resolveType: \
+     GraphQLUnionType.makeResolveUnionTypeFn(%s)}"
+    union.name
+    (undefinedOrValueAsString union.description)
+    (union.types
+    |> List.map (fun (member : gqlUnionMember) ->
+           Printf.sprintf "get_%s()" member.objectTypeName)
+    |> String.concat ", ")
+    (Printf.sprintf "union_%s_resolveType" union.name)

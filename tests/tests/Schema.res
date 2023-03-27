@@ -8,6 +8,19 @@ type user = {
   lastAge: option<int>,
 }
 
+/** A group in the system. */
+@gql.type
+type group = {
+  /** The group name.*/
+  @gql.field
+  name: string,
+  memberIds: array<string>,
+}
+
+/** A user or a group. */
+@gql.union
+type userOrGroup = | /** This is a user.*/ User(user) | /** And this is a group. */ Group(group)
+
 /** Indicates what status a user currently has. */
 @gql.enum
 type userStatus =
@@ -19,12 +32,12 @@ type userStatus =
 
 module UserFields = {
   @gql.field
-  let id = user => {
+  let id = (user: user) => {
     ("User:" ++ user.name)->ResGraph.id
   }
 
   @gql.field
-  let name = (user, ~includeFullName) => {
+  let name = (user: user, ~includeFullName) => {
     let includeFullName = includeFullName->Belt.Option.getWithDefault(false)
 
     if includeFullName {
@@ -47,6 +60,12 @@ module QueryFields = {
   @gql.field
   let me = (_: query): option<user> => {
     Some({name: "Hello", age: 35, lastAge: None})
+  }
+
+  @gql.field
+  let entity = (_: query, ~id: ResGraph.id) => {
+    ignore(id)
+    User({name: "Hello", age: 35, lastAge: None})
   }
 }
 

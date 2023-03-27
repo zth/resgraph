@@ -11,10 +11,17 @@ type returnType =
   | Named of {path: Path.t; env: SharedTypes.QueryEnv.t}
   | GraphQLObjectType of {name: string}
   | GraphQLEnum of {name: string}
+  | GraphQLUnion of {name: string}
 
 type fieldResolverStyle =
   | Resolver of {moduleName: string; fnName: string; pathToFn: string list}
   | Property of string
+
+type typeLocation = {
+  fileName: string;
+  modulePath: string list;
+  typeName: string;
+}
 
 type gqlArg = {name: string; typ: returnType (* TODO: Default value. *)}
 
@@ -28,6 +35,15 @@ type gqlEnum = {
   name: string;
   values: gqlEnumValue list;
   description: string option;
+}
+
+type gqlUnionMember = {objectTypeName: string}
+
+type gqlUnion = {
+  name: string;
+  description: string option;
+  types: gqlUnionMember list;
+  typeLocation: typeLocation;
 }
 
 let argIsOptional arg =
@@ -53,24 +69,11 @@ type gqlObjectType = {
 type state = {
   types: (string, gqlObjectType) Hashtbl.t;
   enums: (string, gqlEnum) Hashtbl.t;
+  unions: (string, gqlUnion) Hashtbl.t;
   query: gqlObjectType option;
 }
 
-type gqlAttributes = ObjectType | Field | Enum
-
-let rec returnTypeToString returnType =
-  match returnType with
-  | Nullable inner -> "Nullable(" ^ returnTypeToString inner ^ ")"
-  | Named {path} -> "Named(" ^ SharedTypes.pathIdentToString path ^ ")"
-  | GraphQLObjectType {name} -> "ObjectType(" ^ name ^ ")"
-  | GraphQLEnum {name} -> "Enum(" ^ name ^ ")"
-  | Scalar scalar -> (
-    match scalar with
-    | Int -> "Int"
-    | Float -> "Float"
-    | String -> "String"
-    | Boolean -> "Boolean"
-    | ID -> "ID")
+type gqlAttributes = ObjectType | Field | Enum | Union
 
 let pathIdentToList (p : Path.t) =
   let rec pathIdentToListInner ?(acc = []) (p : Path.t) =
