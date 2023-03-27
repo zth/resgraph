@@ -7,7 +7,12 @@ type User {
   currentStatus: UserStatus!
   name(includeFullName: Boolean): String!
   id: ID!
+
+  """The age of the user."""
   age: Int!
+
+  """The last age of the user."""
+  lastAge: Int @deprecated(reason: "Use 'age' instead.")
 }
 
 """Indicates what status a user currently has."""

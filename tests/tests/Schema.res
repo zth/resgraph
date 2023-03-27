@@ -1,6 +1,12 @@
 /** A user in the system. */
 @gql.type
-type user = {name: string, @gql.field age: int}
+type user = {
+  /** The users name.*/ name: string,
+  @gql.field /** The age of the user. */
+  age: int,
+  @gql.field @deprecated("Use 'age' instead.") /** The last age of the user. */
+  lastAge: option<int>,
+}
 
 /** Indicates what status a user currently has. */
 @gql.enum
@@ -40,7 +46,7 @@ type query = {}
 module QueryFields = {
   @gql.field
   let me = (_: query): option<user> => {
-    Some({name: "Hello", age: 35})
+    Some({name: "Hello", age: 35, lastAge: None})
   }
 }
 

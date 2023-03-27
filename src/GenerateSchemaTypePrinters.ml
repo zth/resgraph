@@ -54,8 +54,12 @@ let printArgs ~state (args : gqlArg list) =
          Printf.sprintf "\"%s\": %s" arg.name (printArg ~state arg))
   |> String.concat ", "
 let printField ~state (field : gqlField) =
-  Printf.sprintf "{typ: %s,%sresolve: makeResolveFn(%s)}"
+  Printf.sprintf
+    "{typ: %s, description: %s, deprecationReason: %s, %sresolve: \
+     makeResolveFn(%s)}"
     (printReturnType ~state field.typ)
+    (field.description |> undefinedOrValueAsString)
+    (field.deprecationReason |> undefinedOrValueAsString)
     (if field.args |> List.length > 0 then
      Printf.sprintf " args: {%s}->makeArgs, " (printArgs ~state field.args)
     else " ")

@@ -32,6 +32,8 @@ type typeField = {
   @as("type") typ: graphqlType,
   args?: args,
   resolve: resolveFn,
+  description?: string,
+  deprecationReason?: string,
 }
 
 module GraphQLObjectType = {

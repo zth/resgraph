@@ -56,10 +56,14 @@ t_User.contents = GraphQLObjectType.make({
     {
       "currentStatus": {
         typ: enum_UserStatus->GraphQLEnumType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
         resolve: makeResolveFn((src, args, ctx) => {Schema.UserFields.currentStatus(src)}),
       },
       "name": {
         typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
         args: {"includeFullName": {typ: Scalars.boolean->Scalars.toGraphQLType}}->makeArgs,
         resolve: makeResolveFn((src, args, ctx) => {
           Schema.UserFields.name(
@@ -70,11 +74,21 @@ t_User.contents = GraphQLObjectType.make({
       },
       "id": {
         typ: Scalars.id->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
         resolve: makeResolveFn((src, args, ctx) => {Schema.UserFields.id(src)}),
       },
       "age": {
         typ: Scalars.int->Scalars.toGraphQLType->nonNull,
+        description: "The age of the user.",
+        deprecationReason: ?None,
         resolve: makeResolveFn((src, _args, _ctx) => src["age"]),
+      },
+      "lastAge": {
+        typ: Scalars.int->Scalars.toGraphQLType,
+        description: "The last age of the user.",
+        deprecationReason: "Use 'age' instead.",
+        resolve: makeResolveFn((src, _args, _ctx) => src["lastAge"]),
       },
     }->makeFields,
 })
@@ -85,6 +99,8 @@ t_Query.contents = GraphQLObjectType.make({
     {
       "me": {
         typ: get_User()->GraphQLObjectType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
         resolve: makeResolveFn((src, args, ctx) => {Schema.QueryFields.me(src)}),
       },
     }->makeFields,

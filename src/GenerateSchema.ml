@@ -89,16 +89,19 @@ let fieldsOfRecordFields ~env ~state ~(full : SharedTypes.full)
   |> List.filter_map (fun (field : SharedTypes.field) ->
          match field.attributes |> getFieldAttributeFromRawAttributes with
          | None -> None
-         | Some attr -> Some (field.fname.txt, attr, field.typ))
-  |> List.map (fun (name, _attr, typ) ->
+         | Some attr -> Some (field, attr))
+  |> List.map (fun ((field : SharedTypes.field), _attr) ->
+         let name = field.fname.txt in
          {
            name;
            resolverStyle = Property name;
            typ =
              getOrRaise
-               (findGraphQLType typ ~full ~env ~state)
+               (findGraphQLType field.typ ~full ~env ~state)
                (Printf.sprintf "Field %s had invalid GraphQL type." name);
            args = [];
+           description = field.attributes |> attributesToDocstring;
+           deprecationReason = field.deprecated;
          })
 
 let printSchemaJsFile state =
@@ -188,6 +191,10 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
                let field =
                  {
                    name = item.name;
+                   description = item.attributes |> attributesToDocstring;
+                   deprecationReason =
+                     item.attributes
+                     |> ProcessAttributes.findDeprecatedAttribute;
                    resolverStyle =
                      Resolver
                        {

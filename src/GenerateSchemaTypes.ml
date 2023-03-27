@@ -40,6 +40,8 @@ type gqlField = {
   resolverStyle: fieldResolverStyle;
   typ: returnType;
   args: gqlArg list;
+  deprecationReason: string option;
+  description: string option;
 }
 
 type gqlObjectType = {
