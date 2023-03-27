@@ -4,42 +4,42 @@ open ResGraph__GraphQLJs
 
 let enum_UserStatus = GraphQLEnumType.make({
   name: "UserStatus",
-  description: " Indicates what status a user currently has. ",
+  description: "Indicates what status a user currently has.",
   values: {
     "Online": {
       GraphQLEnumType.value: "Online",
-      description: " User is online. ",
+      description: "User is online.",
       deprecationReason: ?None,
     },
     "Offline": {
       GraphQLEnumType.value: "Offline",
-      description: " User is offline. ",
+      description: "User is offline.",
       deprecationReason: ?None,
     },
     "Idle": {
       GraphQLEnumType.value: "Idle",
-      description: " User is idle. ",
+      description: "User is idle.",
       deprecationReason: "Use 'Offline' instead.",
     },
   }->makeEnumValues,
 })
 let enum_userStatus = GraphQLEnumType.make({
   name: "userStatus",
-  description: " Indicates what status a user currently has. ",
+  description: "Indicates what status a user currently has.",
   values: {
     "Online": {
       GraphQLEnumType.value: "Online",
-      description: " User is online. ",
+      description: "User is online.",
       deprecationReason: ?None,
     },
     "Offline": {
       GraphQLEnumType.value: "Offline",
-      description: " User is offline. ",
+      description: "User is offline.",
       deprecationReason: ?None,
     },
     "Idle": {
       GraphQLEnumType.value: "Idle",
-      description: " User is idle. ",
+      description: "User is idle.",
       deprecationReason: "Use 'Offline' instead.",
     },
   }->makeEnumValues,
@@ -51,6 +51,7 @@ let get_Query = () => t_Query.contents
 
 t_User.contents = GraphQLObjectType.make({
   name: "User",
+  description: "A user in the system.",
   fields: () =>
     {
       "currentStatus": {
@@ -79,6 +80,7 @@ t_User.contents = GraphQLObjectType.make({
 })
 t_Query.contents = GraphQLObjectType.make({
   name: "Query",
+  description: ?None,
   fields: () =>
     {
       "me": {

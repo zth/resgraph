@@ -111,6 +111,7 @@ let rec forTypeSignatureItem ~(env : SharedTypes.Env.t) ~(exported : Exported.t)
                              deprecated =
                                ProcessAttributes.findDeprecatedAttribute
                                  cd_attributes;
+                             attributes = cd_attributes;
                            }
                          in
                          let declared =
@@ -224,6 +225,7 @@ let forTypeDeclaration ~env ~(exported : Exported.t)
                        let item =
                          {
                            Constructor.stamp;
+                           attributes = cd_attributes;
                            cname;
                            deprecated =
                              ProcessAttributes.findDeprecatedAttribute

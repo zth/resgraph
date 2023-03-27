@@ -41,6 +41,7 @@ module GraphQLObjectType = {
 
   type config = {
     name: string,
+    description?: string,
     fields: unit => fields,
   }
   @module("graphql") @new external make: config => t = "GraphQLObjectType"

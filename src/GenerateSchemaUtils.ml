@@ -56,21 +56,21 @@ let returnTypeFromItem (item : SharedTypes.Type.t) =
     Some (GraphQLEnum {name = capitalizeFirstChar name})
   | _ -> None
 
-let noticeObjectType typeName ~state =
+let noticeObjectType ~state ?description typeName =
   if Hashtbl.mem state.types typeName then
     Printf.printf "already seen %s\n" typeName
   else (
     Printf.printf "noticing %s\n" typeName;
-    Hashtbl.add state.types typeName {name = typeName; fields = []})
+    Hashtbl.add state.types typeName {name = typeName; fields = []; description})
 
 let addEnum enumName ~(enum : gqlEnum) ~state =
   Printf.printf "Adding enum %s\n" enumName;
   Hashtbl.replace state.enums enumName enum
 
-let addFieldToObjectType typeName ~field ~state =
+let addFieldToObjectType ?description ~field ~state typeName =
   let typ =
     match Hashtbl.find_opt state.types typeName with
-    | None -> {name = typeName; fields = [field]}
+    | None -> {name = typeName; fields = [field]; description}
     | Some typ -> {typ with fields = field :: typ.fields}
   in
   Hashtbl.replace state.types typeName typ
@@ -84,3 +84,28 @@ let undefinedOrValueAsString v =
   match v with
   | None -> "?(None)"
   | Some v -> Printf.sprintf "\"%s\"" v
+
+let trimString str =
+  let isSpace = function
+    | ' ' | '\t' | '\r' | '\n' -> true
+    | _ -> false
+  in
+  let len = String.length str in
+  let rec find_start i =
+    if i >= len then len
+    else if not (isSpace str.[i]) then i
+    else find_start (i + 1)
+  in
+  let rec find_end i =
+    if i < 0 then 0
+    else if not (isSpace str.[i]) then i + 1
+    else find_end (i - 1)
+  in
+  let start = find_start 0 in
+  let stop = find_end (len - 1) in
+  if start >= stop then "" else String.sub str start (stop - start)
+
+let attributesToDocstring attributes =
+  match ProcessAttributes.findDocAttribute attributes with
+  | None -> None
+  | Some doc -> Some (doc |> trimString)

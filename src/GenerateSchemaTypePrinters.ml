@@ -1,4 +1,5 @@
 open GenerateSchemaTypes
+open GenerateSchemaUtils
 
 let printResolverForField ~state (field : gqlField) =
   match field.resolverStyle with
@@ -65,6 +66,7 @@ let printFields ~state (fields : gqlField list) =
     |> List.map (fun (field : gqlField) ->
            Printf.sprintf "\"%s\": %s" field.name (printField ~state field))
     |> String.concat ",\n")
-let printObjectType ~state (typ : typ) =
-  Printf.sprintf "{name: \"%s\", fields: () => %s}" typ.name
+let printObjectType ~state (typ : gqlObjectType) =
+  Printf.sprintf "{name: \"%s\", description: %s, fields: () => %s}" typ.name
+    (undefinedOrValueAsString typ.description)
     (printFields typ.fields ~state)

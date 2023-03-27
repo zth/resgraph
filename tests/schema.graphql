@@ -2,6 +2,7 @@ type Query {
   me: User
 }
 
+"""A user in the system."""
 type User {
   currentStatus: UserStatus!
   name(includeFullName: Boolean): String!
@@ -9,14 +10,14 @@ type User {
   age: Int!
 }
 
-""" Indicates what status a user currently has. """
+"""Indicates what status a user currently has."""
 enum UserStatus {
-  """ User is online. """
+  """User is online."""
   Online
 
-  """ User is offline. """
+  """User is offline."""
   Offline
 
-  """ User is idle. """
+  """User is idle."""
   Idle @deprecated(reason: "Use 'Offline' instead.")
 }

@@ -49,6 +49,7 @@ module Constructor = struct
     typeDecl: string * Types.type_declaration;
     docstring: string list;
     deprecated: string option;
+    attributes: Parsetree.attributes;
   }
 end
 

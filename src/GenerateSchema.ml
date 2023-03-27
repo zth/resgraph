@@ -12,7 +12,7 @@ let variantCasesToEnumValues (cases : SharedTypes.Constructor.t list) =
   |> List.map (fun (case : SharedTypes.Constructor.t) ->
          {
            value = case.cname.txt;
-           description = List.nth_opt case.docstring 0;
+           description = case.attributes |> attributesToDocstring;
            deprecationReason = case.deprecated;
          })
 
@@ -55,8 +55,7 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
               {
                 name;
                 values = variantCasesToEnumValues cases;
-                description =
-                  item.attributes |> ProcessAttributes.findDocAttribute;
+                description = item.attributes |> attributesToDocstring;
               };
           Some returnType
         | _ -> Some (Named {path; env}))
@@ -158,7 +157,7 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
            traverseStructure
              ~modulePath:(structure.name :: modulePath)
              ~state ~env ~full structure
-         | Type ({kind = Record fields}, _), Some ObjectType ->
+         | Type ({kind = Record fields; attributes}, _), Some ObjectType ->
            (* Records can be object types *)
            (* TODO: Add input objects, interfaces etc*)
            let name = capitalizeFirstChar item.name in
@@ -166,6 +165,7 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
              {
                name;
                fields = fieldsOfRecordFields fields ~env ~full ~state:!state;
+               description = attributesToDocstring attributes;
              }
            in
            Hashtbl.add !state.types name typ;
@@ -176,8 +176,7 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
                {
                  name = item.name;
                  values = variantCasesToEnumValues cases;
-                 description =
-                   item.attributes |> ProcessAttributes.findDocAttribute;
+                 description = item.attributes |> attributesToDocstring;
                }
          | Value typ, Some Field -> (
            (* Values with a field annotation could be a resolver. *)

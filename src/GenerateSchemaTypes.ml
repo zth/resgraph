@@ -42,12 +42,16 @@ type gqlField = {
   args: gqlArg list;
 }
 
-type typ = {name: string; fields: gqlField list}
+type gqlObjectType = {
+  name: string;
+  fields: gqlField list;
+  description: string option;
+}
 
 type state = {
-  types: (string, typ) Hashtbl.t;
+  types: (string, gqlObjectType) Hashtbl.t;
   enums: (string, gqlEnum) Hashtbl.t;
-  query: typ option;
+  query: gqlObjectType option;
 }
 
 type gqlAttributes = ObjectType | Field | Enum

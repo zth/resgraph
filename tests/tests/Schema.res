@@ -1,3 +1,4 @@
+/** A user in the system. */
 @gql.type
 type user = {name: string, @gql.field age: int}
 
