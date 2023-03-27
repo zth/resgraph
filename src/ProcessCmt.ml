@@ -60,6 +60,7 @@ let rec forTypeSignatureItem ~(env : SharedTypes.Env.t) ~(exported : Exported.t)
         Module.kind = Module.Value declared.item;
         name = declared.name.txt;
         attributes = val_attributes;
+        loc = declared.extentLoc;
       };
     ]
   | Sig_type
@@ -134,6 +135,7 @@ let rec forTypeSignatureItem ~(env : SharedTypes.Env.t) ~(exported : Exported.t)
         Module.kind = Type (declared.item, recStatus);
         name = declared.name.txt;
         attributes = type_attributes;
+        loc = declared.extentLoc;
       };
     ]
   | Sig_module (ident, {md_type; md_attributes; md_loc}, _) ->
@@ -151,6 +153,7 @@ let rec forTypeSignatureItem ~(env : SharedTypes.Env.t) ~(exported : Exported.t)
         Module.kind = Module declared.item;
         name = declared.name.txt;
         attributes = md_attributes;
+        loc = declared.extentLoc;
       };
     ]
   | _ -> []
@@ -317,6 +320,7 @@ let forTypeDeclaration ~env ~(exported : Exported.t)
     Module.kind = Module.Type (declared.item, recStatus);
     name = declared.name.txt;
     attributes = typ_attributes;
+    loc = declared.extentLoc;
   }
 
 let rec forSignatureItem ~env ~(exported : Exported.t)
@@ -335,6 +339,7 @@ let rec forSignatureItem ~env ~(exported : Exported.t)
         Module.kind = Module.Value declared.item;
         name = declared.name.txt;
         attributes = val_attributes;
+        loc = declared.extentLoc;
       };
     ]
   | Tsig_type (recFlag, decls) ->
@@ -365,6 +370,7 @@ let rec forSignatureItem ~env ~(exported : Exported.t)
         Module.kind = Module declared.item;
         name = declared.name.txt;
         attributes = md_attributes;
+        loc = declared.extentLoc;
       };
     ]
   | Tsig_recmodule modDecls ->
@@ -440,6 +446,7 @@ let rec forStructureItem ~env ~(exported : Exported.t) item =
             Module.kind = Module.Value declared.item;
             name = declared.name.txt;
             attributes;
+            loc = declared.extentLoc;
           }
           :: !items
       | Tpat_tuple pats | Tpat_array pats | Tpat_construct (_, _, pats) ->
@@ -474,6 +481,7 @@ let rec forStructureItem ~env ~(exported : Exported.t) item =
         Module.kind = Module declared.item;
         name = declared.name.txt;
         attributes = mb_attributes;
+        loc = declared.extentLoc;
       };
     ]
   | Tstr_recmodule modDecls ->
@@ -504,6 +512,7 @@ let rec forStructureItem ~env ~(exported : Exported.t) item =
         Module.kind = Module modTypeItem;
         name = declared.name.txt;
         attributes = mtd_attributes;
+        loc = declared.extentLoc;
       };
     ]
   | Tstr_include {incl_mod; incl_type} ->
@@ -532,6 +541,7 @@ let rec forStructureItem ~env ~(exported : Exported.t) item =
         Module.kind = Value declared.item;
         name = declared.name.txt;
         attributes = vd.val_attributes;
+        loc = declared.extentLoc;
       };
     ]
   | Tstr_type (recFlag, decls) ->

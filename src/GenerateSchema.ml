@@ -14,6 +14,7 @@ let variantCasesToEnumValues (cases : SharedTypes.Constructor.t list) =
            value = case.cname.txt;
            description = case.attributes |> attributesToDocstring;
            deprecationReason = case.deprecated;
+           loc = case.cname.loc;
          })
 
 let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
@@ -50,7 +51,7 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
       | Some (env, {item}) -> (
         match (graphqlTypeFromItem item, item.kind) with
         | Some (GraphQLObjectType {name} as graphqlType), _ ->
-          noticeObjectType name ~state;
+          noticeObjectType name ~state ~env ~loc:item.decl.type_loc;
           Some graphqlType
         | Some (GraphQLEnum {name} as graphqlType), Variant cases ->
           Printf.printf "matched enum and variant\n";
@@ -60,6 +61,7 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
                 name;
                 values = variantCasesToEnumValues cases;
                 description = item.attributes |> attributesToDocstring;
+                loc = item.decl.type_loc;
               };
           Some graphqlType
         | Some (GraphQLUnion {name} as graphqlType), Variant cases ->
@@ -68,7 +70,9 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
               name;
               types = variantCasesToUnionValues cases ~env ~full ~state;
               description = item.attributes |> attributesToDocstring;
-              typeLocation = findTypeLocation ~env ~expectedType:Union name;
+              typeLocation =
+                findTypeLocation ~loc:item.decl.type_loc ~env
+                  ~expectedType:Union name;
             };
           Some graphqlType
         | _ -> Some (Named {path; env}))
@@ -82,7 +86,8 @@ and variantCasesToUnionValues ~env ~state ~full
          match case.args with
          | Args [(typ, _)] -> (
            match findGraphQLType ~env ~state ~full typ with
-           | Some (GraphQLObjectType {name}) -> Some {objectTypeName = name}
+           | Some (GraphQLObjectType {name}) ->
+             Some {objectTypeName = name; loc = case.cname.loc}
            | _ -> None)
          | _ -> None)
 
@@ -126,6 +131,7 @@ let fieldsOfRecordFields ~env ~state ~(full : SharedTypes.full)
            args = [];
            description = field.attributes |> attributesToDocstring;
            deprecationReason = field.deprecated;
+           loc = field.fname.loc;
          })
 
 let printSchemaJsFile state =
@@ -221,7 +227,8 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
            traverseStructure
              ~modulePath:(structure.name :: modulePath)
              ~state ~env ~full structure
-         | Type ({kind = Record fields; attributes}, _), Some ObjectType ->
+         | Type ({kind = Record fields; attributes; decl}, _), Some ObjectType
+           ->
            (* Records can be object types *)
            (* TODO: Add input objects, interfaces etc*)
            let name = capitalizeFirstChar item.name in
@@ -230,6 +237,9 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
                name;
                fields = fieldsOfRecordFields fields ~env ~full ~state:!state;
                description = attributesToDocstring attributes;
+               typeLocation =
+                 findTypeLocation item.name ~env ~loc:decl.type_loc
+                   ~expectedType:ObjectType;
              }
            in
            Hashtbl.add !state.types name typ;
@@ -241,6 +251,7 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
                  name = item.name;
                  values = variantCasesToEnumValues cases;
                  description = item.attributes |> attributesToDocstring;
+                 loc = item.decl.type_loc;
                }
          | Type (({kind = Variant cases} as item), _), Some Union ->
            addUnion
@@ -249,7 +260,8 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
                description = item.attributes |> attributesToDocstring;
                types = variantCasesToUnionValues cases ~env ~full ~state:!state;
                typeLocation =
-                 findTypeLocation ~env ~expectedType:Union item.name;
+                 findTypeLocation ~loc:item.decl.type_loc ~env
+                   ~expectedType:Union item.name;
              }
              ~state:!state
          | Value typ, Some Field -> (
@@ -261,6 +273,7 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
              | Some (GraphQLObjectType {name}, args, returnType) ->
                let field =
                  {
+                   loc = item.loc;
                    name = item.name;
                    description = item.attributes |> attributesToDocstring;
                    deprecationReason =
@@ -292,7 +305,7 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
                                 });
                  }
                in
-               addFieldToObjectType name ~field ~state:!state
+               addFieldToObjectType ~env ~loc:item.loc ~field ~state:!state name
              | _ -> ())
            | _ -> ())
          | _ -> ())

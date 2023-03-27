@@ -44,6 +44,47 @@ let formatCode code =
     ^ "\n\n== CODE ==\n" ^ printed
   else printed
 
+exception Module_path_cannot_be_determined
+
+let rec findModulePathOfType ~(env : SharedTypes.QueryEnv.t)
+    ~(expectedType : gqlAttributes) ?(modulePath = [])
+    ?(structure = env.file.structure) name =
+  let open SharedTypes.Module in
+  structure.items
+  |> List.find_map (fun (item : item) ->
+         match
+           (item.kind, expectedType, item.attributes |> extractGqlAttribute)
+         with
+         | Type ({kind = Variant _}, _), Enum, Some Enum when item.name = name
+           ->
+           Some modulePath
+         | Type ({kind = Variant _}, _), Union, Some Union when item.name = name
+           ->
+           Some modulePath
+         | Type ({kind = Record _}, _), ObjectType, Some ObjectType
+           when item.name = name ->
+           Some modulePath
+         | Module (Structure structure), _, _ ->
+           name
+           |> findModulePathOfType ~env ~expectedType
+                ~modulePath:(structure.name :: modulePath)
+                ~structure
+         | _ -> None)
+
+let findTypeLocation ~(env : SharedTypes.QueryEnv.t)
+    ~(expectedType : gqlAttributes) ~loc name =
+  match findModulePathOfType ~env ~expectedType name with
+  | None -> raise Module_path_cannot_be_determined
+  | Some modulePath ->
+    let typeLocation : typeLocation =
+      {fileName = env.file.moduleName; modulePath; typeName = name; loc}
+    in
+    typeLocation
+
+let typeLocationToAccessor (typeLocation : typeLocation) =
+  [typeLocation.fileName] @ typeLocation.modulePath @ [typeLocation.typeName]
+  |> String.concat "."
+
 let capitalizeFirstChar s =
   if String.length s = 0 then s
   else String.mapi (fun i c -> if i = 0 then Char.uppercase_ascii c else c) s
@@ -58,12 +99,19 @@ let graphqlTypeFromItem (item : SharedTypes.Type.t) =
   | Some Union, {kind = Variant _; name} -> Some (GraphQLUnion {name})
   | _ -> None
 
-let noticeObjectType ~state ?description typeName =
+let noticeObjectType ~env ~loc ~state ?description typeName =
   if Hashtbl.mem state.types typeName then
     Printf.printf "already seen %s\n" typeName
   else (
     Printf.printf "noticing %s\n" typeName;
-    Hashtbl.add state.types typeName {name = typeName; fields = []; description})
+    Hashtbl.add state.types typeName
+      {
+        name = typeName;
+        fields = [];
+        description;
+        typeLocation =
+          findTypeLocation typeName ~env ~loc ~expectedType:ObjectType;
+      })
 
 let addEnum enumName ~(enum : gqlEnum) ~state =
   Printf.printf "Adding enum %s\n" enumName;
@@ -73,10 +121,17 @@ let addUnion (union : gqlUnion) ~state =
   Printf.printf "Adding union %s\n" union.name;
   Hashtbl.replace state.unions union.name union
 
-let addFieldToObjectType ?description ~field ~state typeName =
+let addFieldToObjectType ?description ~env ~loc ~field ~state typeName =
   let typ =
     match Hashtbl.find_opt state.types typeName with
-    | None -> {name = typeName; fields = [field]; description}
+    | None ->
+      {
+        name = typeName;
+        fields = [field];
+        description;
+        typeLocation =
+          findTypeLocation typeName ~env ~loc ~expectedType:ObjectType;
+      }
     | Some typ -> {typ with fields = field :: typ.fields}
   in
   Hashtbl.replace state.types typeName typ
@@ -115,44 +170,3 @@ let attributesToDocstring attributes =
   match ProcessAttributes.findDocAttribute attributes with
   | None -> None
   | Some doc -> Some (doc |> trimString)
-
-exception Module_path_cannot_be_determined
-
-let rec findModulePathOfType ~(env : SharedTypes.QueryEnv.t)
-    ~(expectedType : gqlAttributes) ?(modulePath = [])
-    ?(structure = env.file.structure) name =
-  let open SharedTypes.Module in
-  structure.items
-  |> List.find_map (fun (item : item) ->
-         match
-           (item.kind, expectedType, item.attributes |> extractGqlAttribute)
-         with
-         | Type ({kind = Variant _}, _), Enum, Some Enum when item.name = name
-           ->
-           Some modulePath
-         | Type ({kind = Variant _}, _), Union, Some Union when item.name = name
-           ->
-           Some modulePath
-         | Type ({kind = Record _}, _), ObjectType, Some ObjectType
-           when item.name = name ->
-           Some modulePath
-         | Module (Structure structure), _, _ ->
-           name
-           |> findModulePathOfType ~env ~expectedType
-                ~modulePath:(structure.name :: modulePath)
-                ~structure
-         | _ -> None)
-
-let findTypeLocation ~(env : SharedTypes.QueryEnv.t)
-    ~(expectedType : gqlAttributes) name =
-  match findModulePathOfType ~env ~expectedType name with
-  | None -> raise Module_path_cannot_be_determined
-  | Some modulePath ->
-    let typeLocation : typeLocation =
-      {fileName = env.file.moduleName; modulePath; typeName = name}
-    in
-    typeLocation
-
-let typeLocationToAccessor (typeLocation : typeLocation) =
-  [typeLocation.fileName] @ typeLocation.modulePath @ [typeLocation.typeName]
-  |> String.concat "."

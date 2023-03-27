@@ -3,6 +3,7 @@
 - [ ] Validate uniqueness of names? (just let graphql-js do that?)
 - [ ] Tag loc properly on all items
 - [ ] Fix all names (so they're uppercased)
+- [ ] Inject ctx
 - [ ] Clear up logic that handles when something is persisted. Just going from the types artifacts is probably not enough, we might need to ensure that we always find the correct module path from the right file.
 
 ## Validations

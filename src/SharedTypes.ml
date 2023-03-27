@@ -124,7 +124,12 @@ module Module = struct
     | Type of Type.t * Types.rec_status
     | Module of t
 
-  and item = {kind: kind; name: string; attributes: Parsetree.attribute list}
+  and item = {
+    kind: kind;
+    name: string;
+    attributes: Parsetree.attribute list;
+    loc: Location.t;
+  }
 
   and structure = {
     name: string;

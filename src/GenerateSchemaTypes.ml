@@ -21,6 +21,7 @@ type typeLocation = {
   fileName: string;
   modulePath: string list;
   typeName: string;
+  loc: Location.t;
 }
 
 type gqlArg = {name: string; typ: graphqlType (* TODO: Default value. *)}
@@ -29,15 +30,17 @@ type gqlEnumValue = {
   value: string;
   description: string option;
   deprecationReason: string option;
+  loc: Location.t;
 }
 
 type gqlEnum = {
   name: string;
   values: gqlEnumValue list;
   description: string option;
+  loc: Location.t;
 }
 
-type gqlUnionMember = {objectTypeName: string}
+type gqlUnionMember = {objectTypeName: string; loc: Location.t}
 
 type gqlUnion = {
   name: string;
@@ -58,12 +61,14 @@ type gqlField = {
   args: gqlArg list;
   deprecationReason: string option;
   description: string option;
+  loc: Location.t;
 }
 
 type gqlObjectType = {
   name: string;
   fields: gqlField list;
   description: string option;
+  typeLocation: typeLocation;
 }
 
 type state = {
