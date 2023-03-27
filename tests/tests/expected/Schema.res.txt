@@ -22,6 +22,10 @@ already seen User
 userStatus
 matched enum and variant
 Adding enum userStatus
+Found potential resolver fn: allNames
+Checking for type to attach resolver to
+user
+already seen User
 Found potential resolver fn: me
 Checking for type to attach resolver to
 query
@@ -101,6 +105,17 @@ t_User.contents = GraphQLObjectType.make({
   description: "A user in the system.",
   fields: () =>
     {
+      "allNames": {
+        typ: GraphQLListType.make(
+          Scalars.string->Scalars.toGraphQLType,
+        )->GraphQLListType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.UserFields.allNames(src)
+        }),
+      },
       "currentStatus": {
         typ: enum_userStatus->GraphQLEnumType.toGraphQLType->nonNull,
         description: ?None,

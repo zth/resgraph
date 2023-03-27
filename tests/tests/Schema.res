@@ -51,6 +51,11 @@ module UserFields = {
   let currentStatus = (_user: user) => {
     Online
   }
+
+  @gql.field
+  let allNames = (user: user) => {
+    [user.name]
+  }
 }
 
 @gql.type

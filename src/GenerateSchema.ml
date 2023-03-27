@@ -18,7 +18,6 @@ let variantCasesToEnumValues (cases : SharedTypes.Constructor.t list) =
 
 let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
     (typ : Types.type_expr) =
-  (* TODO: Array/List *)
   match typ.desc with
   | Tlink te | Tsubst te | Tpoly (te, []) ->
     findGraphQLType te ~env ~state ~full
@@ -27,6 +26,11 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
     match inner with
     | None -> None
     | Some inner -> Some (Nullable inner))
+  | Tconstr (Path.Pident {name = "array"}, [unwrappedType], _) -> (
+    let inner = findGraphQLType ~env ~state ~full unwrappedType in
+    match inner with
+    | None -> None
+    | Some inner -> Some (List inner))
   | Tconstr (Path.Pident {name = "promise"}, [unwrappedType], _) ->
     findGraphQLType unwrappedType ~env ~state ~full
   | Tconstr (Path.Pident {name = "string"}, [], _) -> Some (Scalar String)
@@ -44,11 +48,11 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
          type, to make sure it's a valid GraphQL type. *)
       match References.digConstructor ~env ~package:full.package path with
       | Some (env, {item}) -> (
-        match (returnTypeFromItem item, item.kind) with
-        | Some (GraphQLObjectType {name} as returnType), _ ->
+        match (graphqlTypeFromItem item, item.kind) with
+        | Some (GraphQLObjectType {name} as graphqlType), _ ->
           noticeObjectType name ~state;
-          Some returnType
-        | Some (GraphQLEnum {name} as returnType), Variant cases ->
+          Some graphqlType
+        | Some (GraphQLEnum {name} as graphqlType), Variant cases ->
           Printf.printf "matched enum and variant\n";
           addEnum name ~state
             ~enum:
@@ -57,8 +61,8 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
                 values = variantCasesToEnumValues cases;
                 description = item.attributes |> attributesToDocstring;
               };
-          Some returnType
-        | Some (GraphQLUnion {name} as returnType), Variant cases ->
+          Some graphqlType
+        | Some (GraphQLUnion {name} as graphqlType), Variant cases ->
           addUnion ~state
             {
               name;
@@ -66,7 +70,7 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
               description = item.attributes |> attributesToDocstring;
               typeLocation = findTypeLocation ~env ~expectedType:Union name;
             };
-          Some returnType
+          Some graphqlType
         | _ -> Some (Named {path; env}))
       | _ -> Some (Named {path; env})))
   | _ -> raise (Fail ("Invalid GraphQL type: " ^ Shared.typeToString typ))

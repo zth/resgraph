@@ -60,6 +60,17 @@ t_User.contents = GraphQLObjectType.make({
   description: "A user in the system.",
   fields: () =>
     {
+      "allNames": {
+        typ: GraphQLListType.make(
+          Scalars.string->Scalars.toGraphQLType,
+        )->GraphQLListType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.UserFields.allNames(src)
+        }),
+      },
       "currentStatus": {
         typ: enum_userStatus->GraphQLEnumType.toGraphQLType->nonNull,
         description: ?None,

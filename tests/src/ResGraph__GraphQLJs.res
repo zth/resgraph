@@ -49,6 +49,14 @@ module GraphQLObjectType = {
   @module("graphql") @new external make: config => t = "GraphQLObjectType"
 }
 
+module GraphQLListType = {
+  type t
+
+  external toGraphQLType: t => graphqlType = "%identity"
+
+  @module("graphql") @new external make: graphqlType => t = "GraphQLList"
+}
+
 module GraphQLUnionType = {
   type t
 

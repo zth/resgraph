@@ -23,10 +23,13 @@ let printResolverForField (field : gqlField) =
         |> String.concat ", ")
       ^ ")}"
     else resolverCode ^ ")}"
-let rec printReturnType ?(nullable = false) (returnType : returnType) =
+let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
   let nullablePrefix = if nullable then "" else "->nonNull" in
   match returnType with
-  | Nullable inner -> printReturnType ~nullable:true inner
+  | List inner ->
+    Printf.sprintf "GraphQLListType.make(%s)->GraphQLListType.toGraphQLType"
+      (printGraphQLType ~nullable:true inner)
+  | Nullable inner -> printGraphQLType ~nullable:true inner
   | Scalar scalar ->
     let scalarStr =
       match scalar with
@@ -52,7 +55,7 @@ let rec printReturnType ?(nullable = false) (returnType : returnType) =
     "Obj.magic()"
 
 let printArg (arg : gqlArg) =
-  Printf.sprintf "{typ: %s}" (printReturnType arg.typ)
+  Printf.sprintf "{typ: %s}" (printGraphQLType arg.typ)
 let printArgs (args : gqlArg list) =
   args
   |> List.map (fun (arg : gqlArg) ->
@@ -62,7 +65,7 @@ let printField (field : gqlField) =
   Printf.sprintf
     "{typ: %s, description: %s, deprecationReason: %s, %sresolve: \
      makeResolveFn(%s)}"
-    (printReturnType field.typ)
+    (printGraphQLType field.typ)
     (field.description |> undefinedOrValueAsString)
     (field.deprecationReason |> undefinedOrValueAsString)
     (if field.args |> List.length > 0 then

@@ -4,9 +4,9 @@ exception Fail of string
 
 type scalar = Int | Float | String | Boolean | ID
 
-(* TODO: List *)
-type returnType =
-  | Nullable of returnType
+type graphqlType =
+  | List of graphqlType
+  | Nullable of graphqlType
   | Scalar of scalar
   | Named of {path: Path.t; env: SharedTypes.QueryEnv.t}
   | GraphQLObjectType of {name: string}
@@ -23,7 +23,7 @@ type typeLocation = {
   typeName: string;
 }
 
-type gqlArg = {name: string; typ: returnType (* TODO: Default value. *)}
+type gqlArg = {name: string; typ: graphqlType (* TODO: Default value. *)}
 
 type gqlEnumValue = {
   value: string;
@@ -54,7 +54,7 @@ let argIsOptional arg =
 type gqlField = {
   name: string;
   resolverStyle: fieldResolverStyle;
-  typ: returnType;
+  typ: graphqlType;
   args: gqlArg list;
   deprecationReason: string option;
   description: string option;

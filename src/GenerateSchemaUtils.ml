@@ -49,7 +49,7 @@ let capitalizeFirstChar s =
   else String.mapi (fun i c -> if i = 0 then Char.uppercase_ascii c else c) s
 
 (* TODO: Capitalize names here, but also track the underlying typename so we can look that up. *)
-let returnTypeFromItem (item : SharedTypes.Type.t) =
+let graphqlTypeFromItem (item : SharedTypes.Type.t) =
   let gqlAttribute = extractGqlAttribute item.attributes in
   match (gqlAttribute, item) with
   | Some ObjectType, {kind = Record _; name} ->

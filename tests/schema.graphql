@@ -8,6 +8,7 @@ union userOrGroup = User | Group
 
 """A user in the system."""
 type User {
+  allNames: [String]
   currentStatus: userStatus!
   name(includeFullName: Boolean): String!
   id: ID!
