@@ -94,11 +94,11 @@ let graphqlTypeFromItem (item : SharedTypes.Type.t) =
   let gqlAttribute = extractGqlAttribute item.attributes in
   match (gqlAttribute, item) with
   | Some ObjectType, {kind = Record _; name} ->
-    Some (GraphQLObjectType {name; displayName = capitalizeFirstChar name})
+    Some (GraphQLObjectType {id = name; displayName = capitalizeFirstChar name})
   | Some Enum, {kind = Variant _; name} ->
-    Some (GraphQLEnum {name; displayName = capitalizeFirstChar name})
+    Some (GraphQLEnum {id = name; displayName = capitalizeFirstChar name})
   | Some Union, {kind = Variant _; name} ->
-    Some (GraphQLUnion {name; displayName = capitalizeFirstChar name})
+    Some (GraphQLUnion {id = name; displayName = capitalizeFirstChar name})
   | _ -> None
 
 let noticeObjectType ~env ~loc ~state ?description typeName =
@@ -108,7 +108,7 @@ let noticeObjectType ~env ~loc ~state ?description typeName =
     Printf.printf "noticing %s\n" typeName;
     Hashtbl.add state.types typeName
       {
-        name = typeName;
+        id = typeName;
         displayName = capitalizeFirstChar typeName;
         fields = [];
         description;
@@ -121,15 +121,15 @@ let addEnum enumName ~(enum : gqlEnum) ~state =
   Hashtbl.replace state.enums enumName enum
 
 let addUnion (union : gqlUnion) ~state =
-  Printf.printf "Adding union %s\n" union.name;
-  Hashtbl.replace state.unions union.name union
+  Printf.printf "Adding union %s\n" union.id;
+  Hashtbl.replace state.unions union.id union
 
 let addFieldToObjectType ?description ~env ~loc ~field ~state typeName =
   let typ =
     match Hashtbl.find_opt state.types typeName with
     | None ->
       {
-        name = typeName;
+        id = typeName;
         displayName = capitalizeFirstChar typeName;
         fields = [field];
         description;

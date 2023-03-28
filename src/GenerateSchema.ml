@@ -51,31 +51,31 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
       match References.digConstructor ~env ~package:full.package path with
       | Some (env, {item}) -> (
         match (graphqlTypeFromItem item, item.kind) with
-        | Some (GraphQLObjectType {name} as graphqlType), _ ->
-          noticeObjectType name ~state ~env ~loc:item.decl.type_loc;
+        | Some (GraphQLObjectType {id} as graphqlType), _ ->
+          noticeObjectType id ~state ~env ~loc:item.decl.type_loc;
           Some graphqlType
-        | Some (GraphQLEnum {name} as graphqlType), Variant cases ->
+        | Some (GraphQLEnum {id} as graphqlType), Variant cases ->
           Printf.printf "matched enum and variant\n";
-          addEnum name ~state
+          addEnum id ~state
             ~enum:
               {
-                name;
-                displayName = capitalizeFirstChar name;
+                id;
+                displayName = capitalizeFirstChar id;
                 values = variantCasesToEnumValues cases;
                 description = item.attributes |> attributesToDocstring;
                 loc = item.decl.type_loc;
               };
           Some graphqlType
-        | Some (GraphQLUnion {name} as graphqlType), Variant cases ->
+        | Some (GraphQLUnion {id} as graphqlType), Variant cases ->
           addUnion ~state
             {
-              name;
-              displayName = capitalizeFirstChar name;
+              id;
+              displayName = capitalizeFirstChar id;
               types = variantCasesToUnionValues cases ~env ~full ~state;
               description = item.attributes |> attributesToDocstring;
               typeLocation =
                 findTypeLocation ~loc:item.decl.type_loc ~env
-                  ~expectedType:Union name;
+                  ~expectedType:Union id;
             };
           Some graphqlType
         | _ -> Some (Named {path; env}))
@@ -89,8 +89,8 @@ and variantCasesToUnionValues ~env ~state ~full
          match case.args with
          | Args [(typ, _)] -> (
            match findGraphQLType ~env ~state ~full typ with
-           | Some (GraphQLObjectType {name; displayName}) ->
-             Some {objectTypeName = name; displayName; loc = case.cname.loc}
+           | Some (GraphQLObjectType {id; displayName}) ->
+             Some {objectTypeId = id; displayName; loc = case.cname.loc}
            | _ -> None)
          | _ -> None)
 
@@ -237,11 +237,12 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
            ->
            (* Records can be object types *)
            (* TODO: Add input objects, interfaces etc*)
-           let name = item.name in
+           let id = item.name in
+           let displayName = capitalizeFirstChar item.name in
            let typ =
              {
-               name;
-               displayName = capitalizeFirstChar name;
+               id;
+               displayName;
                fields = fieldsOfRecordFields fields ~env ~full ~state:!state;
                description = attributesToDocstring attributes;
                typeLocation =
@@ -249,13 +250,13 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
                    ~expectedType:ObjectType;
              }
            in
-           Hashtbl.add !state.types name typ;
-           if name = "Query" then state := {!state with query = Some typ}
+           Hashtbl.add !state.types id typ;
+           if displayName = "Query" then state := {!state with query = Some typ}
          | Type (({kind = Variant cases} as item), _), Some Enum ->
            addEnum item.name ~state:!state
              ~enum:
                {
-                 name = item.name;
+                 id = item.name;
                  displayName = capitalizeFirstChar item.name;
                  values = variantCasesToEnumValues cases;
                  description = item.attributes |> attributesToDocstring;
@@ -264,7 +265,7 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
          | Type (({kind = Variant cases} as item), _), Some Union ->
            addUnion
              {
-               name = item.name;
+               id = item.name;
                displayName = capitalizeFirstChar item.name;
                description = item.attributes |> attributesToDocstring;
                types = variantCasesToUnionValues cases ~env ~full ~state:!state;
@@ -279,7 +280,7 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
            | Some (Tfunction {typ; env}) -> (
              Printf.printf "Found potential resolver fn: %s\n" item.name;
              match extractResolverFunctionInfo ~env ~full ~state:!state typ with
-             | Some (GraphQLObjectType {name}, args, returnType) ->
+             | Some (GraphQLObjectType {id}, args, returnType) ->
                let field =
                  {
                    loc = item.loc;
@@ -314,7 +315,7 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
                                 });
                  }
                in
-               addFieldToObjectType ~env ~loc:item.loc ~field ~state:!state name
+               addFieldToObjectType ~env ~loc:item.loc ~field ~state:!state id
              | _ -> ())
            | _ -> ())
          | _ -> ())
