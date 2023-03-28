@@ -1,10 +1,8 @@
 type Query {
+  searchForUser(input: UserConfig!): User
   entity(id: ID!): UserOrGroup!
   me: User
 }
-
-"""A user or a group."""
-union UserOrGroup = User | Group
 
 """A user in the system."""
 type User {
@@ -31,6 +29,18 @@ enum UserStatus {
   """User is idle."""
   Idle @deprecated(reason: "Use 'Offline' instead.")
 }
+
+"""Configuration for searching for a user."""
+input UserConfig {
+  """The ID of a user to search for."""
+  id: String!
+
+  """The name of the user to search for."""
+  name: String @deprecated(reason: "This is going away")
+}
+
+"""A user or a group."""
+union UserOrGroup = User | Group
 
 """A group in the system."""
 type Group {

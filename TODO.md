@@ -1,4 +1,4 @@
-- [ ] Input objects
+- [x] Input objects
 - [ ] Interfaces
 - [ ] Validate that enums are only variant cases without payloads
 - [ ] Have some way to propagate diagnostics somewhere
@@ -8,6 +8,8 @@
 - [ ] Allow customizing typename
 - [x] Inject ctx
 - [ ] Clear up logic that handles when something is persisted. Just going from the types artifacts is probably not enough, we might need to ensure that we always find the correct module path from the right file.
+- [ ] Nullability in input object fields
+- [ ] Nullability in arguments
 
 ## Future
 
@@ -16,7 +18,8 @@
 
 ## Validations
 
-- Object/input object has no fields (annotate at least one with @gql.field, or create a resolver)
+- Object has no fields (annotate at least one with @gql.field, or create a resolver)
+- Input object has invalid field types
 
 ## Code actions
 

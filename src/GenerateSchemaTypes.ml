@@ -11,6 +11,7 @@ type graphqlType =
   | (* TODO: Get rid of *) Named of {path: Path.t; env: SharedTypes.QueryEnv.t}
   | InjectContext
   | GraphQLObjectType of {id: string; displayName: string}
+  | GraphQLInputObject of {id: string; displayName: string}
   | GraphQLEnum of {id: string; displayName: string}
   | GraphQLUnion of {id: string; displayName: string}
 
@@ -79,14 +80,23 @@ type gqlObjectType = {
   typeLocation: typeLocation;
 }
 
+type gqlInputObjectType = {
+  id: string;
+  displayName: string;
+  fields: gqlField list;
+  description: string option;
+  typeLocation: typeLocation;
+}
+
 type state = {
   types: (string, gqlObjectType) Hashtbl.t;
+  inputObjects: (string, gqlInputObjectType) Hashtbl.t;
   enums: (string, gqlEnum) Hashtbl.t;
   unions: (string, gqlUnion) Hashtbl.t;
   query: gqlObjectType option;
 }
 
-type gqlAttributes = ObjectType | Field | Enum | Union
+type gqlAttributes = ObjectType | InputObject | Field | Enum | Union
 
 let pathIdentToList (p : Path.t) =
   let rec pathIdentToListInner ?(acc = []) (p : Path.t) =

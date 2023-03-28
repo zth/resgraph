@@ -54,6 +54,9 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
         | Some (GraphQLObjectType {id} as graphqlType), _ ->
           noticeObjectType id ~state ~env ~loc:item.decl.type_loc;
           Some graphqlType
+        | Some (GraphQLInputObject _ as graphqlType), _ ->
+          Printf.printf "Found input obj\n";
+          (* TODO: Add here? *) Some graphqlType
         | Some (GraphQLEnum {id} as graphqlType), Variant cases ->
           Printf.printf "matched enum and variant\n";
           addEnum id ~state
@@ -137,6 +140,24 @@ let fieldsOfRecordFields ~env ~state ~(full : SharedTypes.full)
            loc = field.fname.loc;
          })
 
+let inputObjectfieldsOfRecordFields ~env ~state ~(full : SharedTypes.full)
+    (fields : SharedTypes.field list) =
+  fields
+  |> List.map (fun (field : SharedTypes.field) ->
+         let name = field.fname.txt in
+         {
+           name;
+           resolverStyle = Property name;
+           typ =
+             getOrRaise
+               (findGraphQLType field.typ ~full ~env ~state)
+               (Printf.sprintf "Field %s had invalid GraphQL type." name);
+           args = [];
+           description = field.attributes |> attributesToDocstring;
+           deprecationReason = field.deprecated;
+           loc = field.fname.loc;
+         })
+
 let printSchemaJsFile state =
   let code = ref "@@warning(\"-27\")\n\nopen ResGraph__GraphQLJs\n\n" in
   let addWithNewLine text = code := !code ^ text ^ "\n" in
@@ -166,7 +187,7 @@ let printSchemaJsFile state =
 
   (* Print the object type holders and getters *)
   state.types
-  |> Hashtbl.iter (fun _name typ ->
+  |> Hashtbl.iter (fun _name (typ : gqlObjectType) ->
          addWithNewLine
            (Printf.sprintf
               "let t_%s: ref<GraphQLObjectType.t> = Obj.magic({\"contents\": \
@@ -175,6 +196,18 @@ let printSchemaJsFile state =
          addWithNewLine
            (Printf.sprintf "let get_%s = () => t_%s.contents" typ.displayName
               typ.displayName));
+
+  (* Print the input object type holders and getters *)
+  state.inputObjects
+  |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
+         addWithNewLine
+           (Printf.sprintf
+              "let input_%s: ref<GraphQLInputObjectType.t> = \
+               Obj.magic({\"contents\": Js.null})"
+              typ.displayName);
+         addWithNewLine
+           (Printf.sprintf "let get_%s = () => input_%s.contents"
+              typ.displayName typ.displayName));
 
   (* Print the union type holders and getters *)
   state.unions
@@ -206,11 +239,19 @@ let printSchemaJsFile state =
 
   (* Now we can print all of the code that fills these in. *)
   state.types
-  |> Hashtbl.iter (fun _name typ ->
+  |> Hashtbl.iter (fun _name (typ : gqlObjectType) ->
          addWithNewLine
            (Printf.sprintf "t_%s.contents = GraphQLObjectType.make(%s)"
               typ.displayName
               (typ |> GenerateSchemaTypePrinters.printObjectType)));
+
+  (* Now we can print all of the code that fills these in. *)
+  state.inputObjects
+  |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
+         addWithNewLine
+           (Printf.sprintf "input_%s.contents = GraphQLInputObjectType.make(%s)"
+              typ.displayName
+              (typ |> GenerateSchemaTypePrinters.printInputObjectType)));
 
   state.unions
   |> Hashtbl.iter (fun _name (union : gqlUnion) ->
@@ -239,7 +280,7 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
            (* TODO: Add input objects, interfaces etc*)
            let id = item.name in
            let displayName = capitalizeFirstChar item.name in
-           let typ =
+           let typ : gqlObjectType =
              {
                id;
                displayName;
@@ -250,8 +291,27 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
                    ~expectedType:ObjectType;
              }
            in
+           (* TODO: Use proper add *)
            Hashtbl.add !state.types id typ;
            if displayName = "Query" then state := {!state with query = Some typ}
+         | Type ({kind = Record fields; attributes; decl}, _), Some InputObject
+           ->
+           let id = item.name in
+           let displayName = capitalizeFirstChar item.name in
+           let typ : gqlInputObjectType =
+             {
+               id;
+               displayName;
+               fields =
+                 inputObjectfieldsOfRecordFields fields ~env ~full ~state:!state;
+               description = attributesToDocstring attributes;
+               typeLocation =
+                 findTypeLocation item.name ~env ~loc:decl.type_loc
+                   ~expectedType:InputObject;
+             }
+           in
+           (* TODO: Use proper add *)
+           Hashtbl.add !state.inputObjects id typ
          | Type (({kind = Variant cases} as item), _), Some Enum ->
            addEnum item.name ~state:!state
              ~enum:
@@ -333,8 +393,9 @@ let generateSchema ~path ~debug ~outputPath =
       ref
         {
           types = Hashtbl.create 50;
-          enums = Hashtbl.create 50;
-          unions = Hashtbl.create 50;
+          enums = Hashtbl.create 10;
+          unions = Hashtbl.create 10;
+          inputObjects = Hashtbl.create 10;
           query = None;
         }
     in

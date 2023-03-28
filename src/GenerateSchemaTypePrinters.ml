@@ -49,6 +49,9 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
   | GraphQLObjectType {displayName} ->
     Printf.sprintf "get_%s()->GraphQLObjectType.toGraphQLType%s" displayName
       nullablePrefix
+  | GraphQLInputObject {displayName} ->
+    Printf.sprintf "get_%s()->GraphQLInputObjectType.toGraphQLType%s"
+      displayName nullablePrefix
   | GraphQLEnum {displayName} ->
     Printf.sprintf "enum_%s->GraphQLEnumType.toGraphQLType%s" displayName
       nullablePrefix
@@ -79,17 +82,42 @@ let printField (field : gqlField) =
      Printf.sprintf " args: {%s}->makeArgs, " (printArgs field.args)
     else " ")
     (printResolverForField field)
+
+let printInputObjectField (field : gqlField) =
+  Printf.sprintf
+    "{GraphQLInputObjectType.typ: %s, description: %s, deprecationReason: %s}"
+    (printGraphQLType field.typ)
+    (field.description |> undefinedOrValueAsString)
+    (field.deprecationReason |> undefinedOrValueAsString)
+
 let printFields (fields : gqlField list) =
   Printf.sprintf "{%s}->makeFields"
-    (fields
-    |> List.map (fun (field : gqlField) ->
-           Printf.sprintf "\"%s\": %s" field.name (printField field))
-    |> String.concat ",\n")
+    (if fields |> List.length = 0 then "%raw(`{}`)"
+    else
+      fields
+      |> List.map (fun (field : gqlField) ->
+             Printf.sprintf "\"%s\": %s" field.name (printField field))
+      |> String.concat ",\n")
+let printInputObjectFields (fields : gqlField list) =
+  Printf.sprintf "{%s}->makeFields"
+    (if fields |> List.length = 0 then "%raw(`{}`)"
+    else
+      fields
+      |> List.map (fun (field : gqlField) ->
+             Printf.sprintf "\"%s\": %s" field.name
+               (printInputObjectField field))
+      |> String.concat ",\n")
 let printObjectType (typ : gqlObjectType) =
   Printf.sprintf "{name: \"%s\", description: %s, fields: () => %s}"
     typ.displayName
     (undefinedOrValueAsString typ.description)
     (printFields typ.fields)
+
+let printInputObjectType (typ : gqlInputObjectType) =
+  Printf.sprintf "{name: \"%s\", description: %s, fields: () => %s}"
+    typ.displayName
+    (undefinedOrValueAsString typ.description)
+    (printInputObjectFields typ.fields)
 
 let printUnionType (union : gqlUnion) =
   Printf.sprintf

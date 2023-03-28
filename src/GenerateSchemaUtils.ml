@@ -9,6 +9,7 @@ let extractAttributes (attributes : Parsetree.attributes) =
            | ["gql"; "field"] -> Some Field
            | ["gql"; "enum"] -> Some Enum
            | ["gql"; "union"] -> Some Union
+           | ["gql"; "inputObject"] -> Some InputObject
            | _ -> (* TODO: Warn about invalid gql annotation*) None
          else None)
 
@@ -64,6 +65,9 @@ let rec findModulePathOfType ~(env : SharedTypes.QueryEnv.t)
          | Type ({kind = Record _}, _), ObjectType, Some ObjectType
            when item.name = name ->
            Some modulePath
+         | Type ({kind = Record _}, _), InputObject, Some InputObject
+           when item.name = name ->
+           Some modulePath
          | Module (Structure structure), _, _ ->
            name
            |> findModulePathOfType ~env ~expectedType
@@ -95,6 +99,9 @@ let graphqlTypeFromItem (item : SharedTypes.Type.t) =
   match (gqlAttribute, item) with
   | Some ObjectType, {kind = Record _; name} ->
     Some (GraphQLObjectType {id = name; displayName = capitalizeFirstChar name})
+  | Some InputObject, {kind = Record _; name} ->
+    Some
+      (GraphQLInputObject {id = name; displayName = capitalizeFirstChar name})
   | Some Enum, {kind = Variant _; name} ->
     Some (GraphQLEnum {id = name; displayName = capitalizeFirstChar name})
   | Some Union, {kind = Variant _; name} ->
@@ -124,8 +131,12 @@ let addUnion (union : gqlUnion) ~state =
   Printf.printf "Adding union %s\n" union.id;
   Hashtbl.replace state.unions union.id union
 
+let addInputObject (obj : gqlInputObjectType) ~state =
+  Printf.printf "Adding input object %s\n" obj.id;
+  Hashtbl.replace state.inputObjects obj.id obj
+
 let addFieldToObjectType ?description ~env ~loc ~field ~state typeName =
-  let typ =
+  let typ : gqlObjectType =
     match Hashtbl.find_opt state.types typeName with
     | None ->
       {

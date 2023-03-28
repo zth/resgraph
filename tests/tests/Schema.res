@@ -61,6 +61,14 @@ module UserFields = {
 @gql.type
 type query = {}
 
+@gql.inputObject /** Configuration for searching for a user.*/
+type userConfig = {
+  /** The ID of a user to search for. */ id: string,
+  /** The name of the user to search for. */
+  @deprecated("This is going away")
+  name?: string,
+}
+
 module QueryFields = {
   @gql.field
   let me = (_: query): option<user> => {
@@ -72,6 +80,11 @@ module QueryFields = {
     ignore(id)
     ignore(ctx)
     User({name: "Hello", age: 35, lastAge: None})
+  }
+
+  @gql.field
+  let searchForUser = (_: query, ~input: userConfig): option<user> => {
+    Some({name: input.name->Belt.Option.getWithDefault("Hello"), age: 35, lastAge: None})
   }
 }
 

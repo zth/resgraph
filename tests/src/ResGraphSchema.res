@@ -30,6 +30,8 @@ let t_Group: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Group = () => t_Group.contents
 let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Query = () => t_Query.contents
+let input_UserConfig: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let get_UserConfig = () => input_UserConfig.contents
 let union_UserOrGroup: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
 let get_UserOrGroup = () => union_UserOrGroup.contents
 
@@ -127,6 +129,18 @@ t_Query.contents = GraphQLObjectType.make({
   description: ?None,
   fields: () =>
     {
+      "searchForUser": {
+        typ: get_User()->GraphQLObjectType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {
+          "input": {typ: get_UserConfig()->GraphQLInputObjectType.toGraphQLType->nonNull},
+        }->makeArgs,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.QueryFields.searchForUser(src, ~input=args["input"])
+        }),
+      },
       "entity": {
         typ: get_UserOrGroup()->GraphQLUnionType.toGraphQLType->nonNull,
         description: ?None,
@@ -145,6 +159,23 @@ t_Query.contents = GraphQLObjectType.make({
           let src = typeUnwrapper(src)
           Schema.QueryFields.me(src)
         }),
+      },
+    }->makeFields,
+})
+input_UserConfig.contents = GraphQLInputObjectType.make({
+  name: "UserConfig",
+  description: "Configuration for searching for a user.",
+  fields: () =>
+    {
+      "id": {
+        GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: "The ID of a user to search for.",
+        deprecationReason: ?None,
+      },
+      "name": {
+        GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType,
+        description: "The name of the user to search for.",
+        deprecationReason: "This is going away",
       },
     }->makeFields,
 })
