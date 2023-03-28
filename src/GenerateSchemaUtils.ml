@@ -193,7 +193,7 @@ let rec dumpContents (graphqlType : graphqlType) =
 let rec typeNeedsConversion (graphqlType : graphqlType) =
   match graphqlType with
   | List inner -> typeNeedsConversion inner
-  | Nullable _ | RescriptNullable _ -> true
+  | Nullable _ | RescriptNullable _ | GraphQLInputObject _ -> true
   | _ -> false
 
 let rec generateConverter lastValue (graphqlType : graphqlType) =
@@ -217,4 +217,23 @@ let rec generateConverter lastValue (graphqlType : graphqlType) =
       Printf.sprintf "(%s->Js.Nullable.bind((. v) => %s))" lastValue
         innerConverter
     else lastValue
+  | GraphQLInputObject {displayName} ->
+    Printf.sprintf
+      "applyConversionToInputObject(%s, input_%s_conversionInstructions)"
+      lastValue displayName
   | _ -> lastValue
+
+let printInputObjectAssets (inputObject : gqlInputObjectType) =
+  Printf.sprintf
+    "let _ = input_%s_conversionInstructions->Js.Array2.pushMany([%s]);"
+    inputObject.displayName
+    (inputObject.fields
+    |> List.filter_map (fun (field : gqlField) ->
+           let converter = generateConverter "v" field.typ in
+           if converter = "v" then None
+           else
+             Some
+               (Printf.sprintf
+                  "(\"%s\", makeInputObjectFieldConverterFn((v) => %s))"
+                  field.name converter))
+    |> String.concat ", ")

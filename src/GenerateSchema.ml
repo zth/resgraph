@@ -173,6 +173,28 @@ let printSchemaJsFile state =
     "let typeUnwrapper: ('src) => 'return = %raw(`function typeUnwrapper(src) \
      { if (src == null) return null; if (typeof src === 'object' && \
      src.hasOwnProperty('_0')) return src['_0']; return src;}`)";
+
+  (* Add conversion assets. *)
+  addWithNewLine
+    "type inputObjectFieldConverterFn; external \
+     makeInputObjectFieldConverterFn: ('a => 'b) => \
+     inputObjectFieldConverterFn = \"%identity\";";
+
+  addWithNewLine
+    {|
+
+let applyConversionToInputObject: ('a, array<(string, inputObjectFieldConverterFn)>) => 'a = %raw(`function applyConversionToInputObject(obj, instructions) {
+  if (instructions.length === 0) return obj;
+  let newObj = Object.assign({}, obj);
+  instructions.forEach(instruction => {
+    let value = newObj[instruction[0]];
+     newObj[instruction[0]] = instruction[1](value);
+  })
+  return newObj;
+}`)
+
+|};
+
   (* Print all enums. These won't have any other dependencies, so they can be printed as is. *)
   state.enums
   |> Hashtbl.iter (fun _name (enum : gqlEnum) ->
@@ -214,7 +236,15 @@ let printSchemaJsFile state =
               typ.displayName);
          addWithNewLine
            (Printf.sprintf "let get_%s = () => input_%s.contents"
-              typ.displayName typ.displayName));
+              typ.displayName typ.displayName);
+         addWithNewLine
+           (Printf.sprintf "let input_%s_conversionInstructions = [];"
+              typ.displayName));
+
+  (* Now add all of the conversion instructions. *)
+  state.inputObjects
+  |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
+         addWithNewLine (printInputObjectAssets typ));
 
   (* Print the union type holders and getters *)
   state.unions

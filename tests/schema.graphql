@@ -39,6 +39,13 @@ input UserConfig {
 
   """The name of the user to search for."""
   name: String @deprecated(reason: "This is going away")
+  context: UserConfigContext
+}
+
+"""Additional for searching for a user."""
+input UserConfigContext {
+  groupId: String
+  name: String
 }
 
 """A user or a group."""

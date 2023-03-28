@@ -66,6 +66,22 @@ v
 open ResGraph__GraphQLJs
 
 let typeUnwrapper: 'src => 'return = %raw(`function typeUnwrapper(src) { if (src == null) return null; if (typeof src === 'object' && src.hasOwnProperty('_0')) return src['_0']; return src;}`)
+type inputObjectFieldConverterFn
+external makeInputObjectFieldConverterFn: ('a => 'b) => inputObjectFieldConverterFn = "%identity"
+
+let applyConversionToInputObject: (
+  'a,
+  array<(string, inputObjectFieldConverterFn)>,
+) => 'a = %raw(`function applyConversionToInputObject(obj, instructions) {
+  if (instructions.length === 0) return obj;
+  let newObj = Object.assign({}, obj);
+  instructions.forEach(instruction => {
+    let value = newObj[instruction[0]];
+     newObj[instruction[0]] = instruction[1](value);
+  })
+  return newObj;
+}`)
+
 let enum_UserStatus = GraphQLEnumType.make({
   name: "UserStatus",
   description: "Indicates what status a user currently has.",
@@ -95,6 +111,27 @@ let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Query = () => t_Query.contents
 let input_UserConfig: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
 let get_UserConfig = () => input_UserConfig.contents
+let input_UserConfig_conversionInstructions = []
+let input_UserConfigContext: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let get_UserConfigContext = () => input_UserConfigContext.contents
+let input_UserConfigContext_conversionInstructions = []
+let _ = input_UserConfig_conversionInstructions->Js.Array2.pushMany([
+  ("name", makeInputObjectFieldConverterFn(v => v->Js.Nullable.toOption)),
+  (
+    "context",
+    makeInputObjectFieldConverterFn(v =>
+      switch v->Js.Nullable.toOption {
+      | None => None
+      | Some(v) =>
+        applyConversionToInputObject(v, input_UserConfigContext_conversionInstructions)->Some
+      }
+    ),
+  ),
+])
+let _ =
+  input_UserConfigContext_conversionInstructions->Js.Array2.pushMany([
+    ("name", makeInputObjectFieldConverterFn(v => v->Js.Nullable.toOption)),
+  ])
 let union_UserOrGroup: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
 let get_UserOrGroup = () => union_UserOrGroup.contents
 
@@ -295,7 +332,13 @@ t_Query.contents = GraphQLObjectType.make({
         }->makeArgs,
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
-          Schema.QueryFields.searchForUser(src, ~input=args["input"])
+          Schema.QueryFields.searchForUser(
+            src,
+            ~input=applyConversionToInputObject(
+              args["input"],
+              input_UserConfig_conversionInstructions,
+            ),
+          )
         }),
       },
       "entity": {
@@ -333,6 +376,28 @@ input_UserConfig.contents = GraphQLInputObjectType.make({
         GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType,
         description: "The name of the user to search for.",
         deprecationReason: "This is going away",
+      },
+      "context": {
+        GraphQLInputObjectType.typ: get_UserConfigContext()->GraphQLInputObjectType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+})
+input_UserConfigContext.contents = GraphQLInputObjectType.make({
+  name: "UserConfigContext",
+  description: "Additional for searching for a user.",
+  fields: () =>
+    {
+      "groupId": {
+        GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "name": {
+        GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
       },
     }->makeFields,
 })

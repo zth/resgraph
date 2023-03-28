@@ -8,11 +8,14 @@
 - [x] Inject ctx
 - [ ] Default values for arguments
 - [ ] Clear up logic that handles when something is persisted. Just going from the types artifacts is probably not enough, we might need to ensure that we always find the correct module path from the right file.
-- [ ] Nullability in input object fields
+- [x] Nullability in input object fields
 - [x] Nullability in arguments
 - [x] Runtime conversion for arguments to match ReScript representation
-- [ ] Runtime conversion for input objects to match ReScript representation
+- [x] Runtime conversion for input objects to match ReScript representation
 - [ ] Allow customizing typename
+- [ ] Directives
+- [ ] Custom scalars
+- [ ] How to import and use existing things from the ecosystem?
 
 ## Future
 
