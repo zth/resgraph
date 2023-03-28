@@ -3,8 +3,8 @@
 open ResGraph__GraphQLJs
 
 let typeUnwrapper: 'src => 'return = %raw(`function typeUnwrapper(src) { if (src == null) return null; if (typeof src === 'object' && src.hasOwnProperty('_0')) return src['_0']; return src;}`)
-let enum_userStatus = GraphQLEnumType.make({
-  name: "userStatus",
+let enum_UserStatus = GraphQLEnumType.make({
+  name: "UserStatus",
   description: "Indicates what status a user currently has.",
   values: {
     "Online": {
@@ -24,37 +24,21 @@ let enum_userStatus = GraphQLEnumType.make({
     },
   }->makeEnumValues,
 })
-let t_Group: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
-let get_Group = () => t_Group.contents
 let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_User = () => t_User.contents
+let t_Group: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let get_Group = () => t_Group.contents
 let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Query = () => t_Query.contents
-let union_userOrGroup: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
-let get_userOrGroup = () => union_userOrGroup.contents
+let union_UserOrGroup: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
+let get_UserOrGroup = () => union_UserOrGroup.contents
 
-let union_userOrGroup_resolveType = (v: Schema.userOrGroup) =>
+let union_UserOrGroup_resolveType = (v: Schema.userOrGroup) =>
   switch v {
   | User(_) => get_User()
   | Group(_) => get_Group()
   }
 
-t_Group.contents = GraphQLObjectType.make({
-  name: "Group",
-  description: "A group in the system.",
-  fields: () =>
-    {
-      "name": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: "The group name.",
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
-          let src = typeUnwrapper(src)
-          src["name"]
-        }),
-      },
-    }->makeFields,
-})
 t_User.contents = GraphQLObjectType.make({
   name: "User",
   description: "A user in the system.",
@@ -72,7 +56,7 @@ t_User.contents = GraphQLObjectType.make({
         }),
       },
       "currentStatus": {
-        typ: enum_userStatus->GraphQLEnumType.toGraphQLType->nonNull,
+        typ: enum_UserStatus->GraphQLEnumType.toGraphQLType->nonNull,
         description: ?None,
         deprecationReason: ?None,
         resolve: makeResolveFn((src, args, ctx) => {
@@ -122,13 +106,29 @@ t_User.contents = GraphQLObjectType.make({
       },
     }->makeFields,
 })
+t_Group.contents = GraphQLObjectType.make({
+  name: "Group",
+  description: "A group in the system.",
+  fields: () =>
+    {
+      "name": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: "The group name.",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["name"]
+        }),
+      },
+    }->makeFields,
+})
 t_Query.contents = GraphQLObjectType.make({
   name: "Query",
   description: ?None,
   fields: () =>
     {
       "entity": {
-        typ: get_userOrGroup()->GraphQLUnionType.toGraphQLType->nonNull,
+        typ: get_UserOrGroup()->GraphQLUnionType.toGraphQLType->nonNull,
         description: ?None,
         deprecationReason: ?None,
         args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,
@@ -148,11 +148,11 @@ t_Query.contents = GraphQLObjectType.make({
       },
     }->makeFields,
 })
-union_userOrGroup.contents = GraphQLUnionType.make({
-  name: "userOrGroup",
+union_UserOrGroup.contents = GraphQLUnionType.make({
+  name: "UserOrGroup",
   description: "A user or a group.",
   types: () => [get_User(), get_Group()],
-  resolveType: GraphQLUnionType.makeResolveUnionTypeFn(union_userOrGroup_resolveType),
+  resolveType: GraphQLUnionType.makeResolveUnionTypeFn(union_UserOrGroup_resolveType),
 })
 
 let schema = GraphQLSchemaType.make({"query": get_Query()})

@@ -46,14 +46,14 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
     in
     Printf.sprintf "Scalars.%s->Scalars.toGraphQLType%s" scalarStr
       nullablePrefix
-  | GraphQLObjectType {name} ->
-    Printf.sprintf "get_%s()->GraphQLObjectType.toGraphQLType%s" name
+  | GraphQLObjectType {displayName} ->
+    Printf.sprintf "get_%s()->GraphQLObjectType.toGraphQLType%s" displayName
       nullablePrefix
-  | GraphQLEnum {name} ->
-    Printf.sprintf "enum_%s->GraphQLEnumType.toGraphQLType%s" name
+  | GraphQLEnum {displayName} ->
+    Printf.sprintf "enum_%s->GraphQLEnumType.toGraphQLType%s" displayName
       nullablePrefix
-  | GraphQLUnion {name} ->
-    Printf.sprintf "get_%s()->GraphQLUnionType.toGraphQLType%s" name
+  | GraphQLUnion {displayName} ->
+    Printf.sprintf "get_%s()->GraphQLUnionType.toGraphQLType%s" displayName
       nullablePrefix
   | InjectContext -> "Obj.magic()"
   | Named {path} ->
@@ -86,7 +86,8 @@ let printFields (fields : gqlField list) =
            Printf.sprintf "\"%s\": %s" field.name (printField field))
     |> String.concat ",\n")
 let printObjectType (typ : gqlObjectType) =
-  Printf.sprintf "{name: \"%s\", description: %s, fields: () => %s}" typ.name
+  Printf.sprintf "{name: \"%s\", description: %s, fields: () => %s}"
+    typ.displayName
     (undefinedOrValueAsString typ.description)
     (printFields typ.fields)
 
@@ -94,10 +95,10 @@ let printUnionType (union : gqlUnion) =
   Printf.sprintf
     "{name: \"%s\", description: %s, types: () => [%s], resolveType: \
      GraphQLUnionType.makeResolveUnionTypeFn(%s)}"
-    union.name
+    union.displayName
     (undefinedOrValueAsString union.description)
     (union.types
     |> List.map (fun (member : gqlUnionMember) ->
-           Printf.sprintf "get_%s()" member.objectTypeName)
+           Printf.sprintf "get_%s()" member.displayName)
     |> String.concat ", ")
-    (Printf.sprintf "union_%s_resolveType" union.name)
+    (Printf.sprintf "union_%s_resolveType" union.displayName)

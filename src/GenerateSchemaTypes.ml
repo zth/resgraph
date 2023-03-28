@@ -10,9 +10,9 @@ type graphqlType =
   | Scalar of scalar
   | (* TODO: Get rid of *) Named of {path: Path.t; env: SharedTypes.QueryEnv.t}
   | InjectContext
-  | GraphQLObjectType of {name: string}
-  | GraphQLEnum of {name: string}
-  | GraphQLUnion of {name: string}
+  | GraphQLObjectType of {name: string; displayName: string}
+  | GraphQLEnum of {name: string; displayName: string}
+  | GraphQLUnion of {name: string; displayName: string}
 
 type fieldResolverStyle =
   | Resolver of {moduleName: string; fnName: string; pathToFn: string list}
@@ -36,15 +36,21 @@ type gqlEnumValue = {
 
 type gqlEnum = {
   name: string;
+  displayName: string;
   values: gqlEnumValue list;
   description: string option;
   loc: Location.t;
 }
 
-type gqlUnionMember = {objectTypeName: string; loc: Location.t}
+type gqlUnionMember = {
+  objectTypeName: string;
+  displayName: string;
+  loc: Location.t;
+}
 
 type gqlUnion = {
   name: string;
+  displayName: string;
   description: string option;
   types: gqlUnionMember list;
   typeLocation: typeLocation;
@@ -67,6 +73,7 @@ type gqlField = {
 
 type gqlObjectType = {
   name: string;
+  displayName: string;
   fields: gqlField list;
   description: string option;
   typeLocation: typeLocation;

@@ -60,6 +60,7 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
             ~enum:
               {
                 name;
+                displayName = capitalizeFirstChar name;
                 values = variantCasesToEnumValues cases;
                 description = item.attributes |> attributesToDocstring;
                 loc = item.decl.type_loc;
@@ -69,6 +70,7 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
           addUnion ~state
             {
               name;
+              displayName = capitalizeFirstChar name;
               types = variantCasesToUnionValues cases ~env ~full ~state;
               description = item.attributes |> attributesToDocstring;
               typeLocation =
@@ -87,8 +89,8 @@ and variantCasesToUnionValues ~env ~state ~full
          match case.args with
          | Args [(typ, _)] -> (
            match findGraphQLType ~env ~state ~full typ with
-           | Some (GraphQLObjectType {name}) ->
-             Some {objectTypeName = name; loc = case.cname.loc}
+           | Some (GraphQLObjectType {name; displayName}) ->
+             Some {objectTypeName = name; displayName; loc = case.cname.loc}
            | _ -> None)
          | _ -> None)
 
@@ -150,7 +152,7 @@ let printSchemaJsFile state =
            (Printf.sprintf
               "let enum_%s = GraphQLEnumType.make({name: \"%s\", description: \
                %s, values: {%s}->makeEnumValues})"
-              enum.name enum.name
+              enum.displayName enum.displayName
               (undefinedOrValueAsString enum.description)
               (enum.values
               |> List.map (fun (v : gqlEnumValue) ->
@@ -169,9 +171,10 @@ let printSchemaJsFile state =
            (Printf.sprintf
               "let t_%s: ref<GraphQLObjectType.t> = Obj.magic({\"contents\": \
                Js.null})"
-              typ.name);
+              typ.displayName);
          addWithNewLine
-           (Printf.sprintf "let get_%s = () => t_%s.contents" typ.name typ.name));
+           (Printf.sprintf "let get_%s = () => t_%s.contents" typ.displayName
+              typ.displayName));
 
   (* Print the union type holders and getters *)
   state.unions
@@ -180,10 +183,10 @@ let printSchemaJsFile state =
            (Printf.sprintf
               "let union_%s: ref<GraphQLUnionType.t> = \
                Obj.magic({\"contents\": Js.null})"
-              union.name);
+              union.displayName);
          addWithNewLine
-           (Printf.sprintf "let get_%s = () => union_%s.contents" union.name
-              union.name));
+           (Printf.sprintf "let get_%s = () => union_%s.contents"
+              union.displayName union.displayName));
 
   addWithNewLine "";
 
@@ -192,26 +195,28 @@ let printSchemaJsFile state =
   |> Hashtbl.iter (fun _name (union : gqlUnion) ->
          addWithNewLine
            (Printf.sprintf
-              "let union_%s_resolveType = (v: %s) => switch v {%s}\n" union.name
+              "let union_%s_resolveType = (v: %s) => switch v {%s}\n"
+              union.displayName
               (typeLocationToAccessor union.typeLocation)
               (union.types
               |> List.map (fun (member : gqlUnionMember) ->
-                     Printf.sprintf " | %s(_) => get_%s()" member.objectTypeName
-                       member.objectTypeName)
+                     Printf.sprintf " | %s(_) => get_%s()" member.displayName
+                       member.displayName)
               |> String.concat "\n")));
 
   (* Now we can print all of the code that fills these in. *)
   state.types
   |> Hashtbl.iter (fun _name typ ->
          addWithNewLine
-           (Printf.sprintf "t_%s.contents = GraphQLObjectType.make(%s)" typ.name
+           (Printf.sprintf "t_%s.contents = GraphQLObjectType.make(%s)"
+              typ.displayName
               (typ |> GenerateSchemaTypePrinters.printObjectType)));
 
   state.unions
   |> Hashtbl.iter (fun _name (union : gqlUnion) ->
          addWithNewLine
            (Printf.sprintf "union_%s.contents = GraphQLUnionType.make(%s)"
-              union.name
+              union.displayName
               (union |> GenerateSchemaTypePrinters.printUnionType)));
 
   (* Print the schema gluing it all together. *)
@@ -232,10 +237,11 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
            ->
            (* Records can be object types *)
            (* TODO: Add input objects, interfaces etc*)
-           let name = capitalizeFirstChar item.name in
+           let name = item.name in
            let typ =
              {
                name;
+               displayName = capitalizeFirstChar name;
                fields = fieldsOfRecordFields fields ~env ~full ~state:!state;
                description = attributesToDocstring attributes;
                typeLocation =
@@ -250,6 +256,7 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
              ~enum:
                {
                  name = item.name;
+                 displayName = capitalizeFirstChar item.name;
                  values = variantCasesToEnumValues cases;
                  description = item.attributes |> attributesToDocstring;
                  loc = item.decl.type_loc;
@@ -258,6 +265,7 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
            addUnion
              {
                name = item.name;
+               displayName = capitalizeFirstChar item.name;
                description = item.attributes |> attributesToDocstring;
                types = variantCasesToUnionValues cases ~env ~full ~state:!state;
                typeLocation =

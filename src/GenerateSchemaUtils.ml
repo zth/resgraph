@@ -41,7 +41,7 @@ let formatCode code =
   if List.length diagnostics > 0 then
     "\n\n== SYNTAX ERRORS ==\n"
     ^ (Diagnostics.get_diagnostics diagnostics |> String.concat "\n\n")
-    ^ "\n\n== CODE ==\n" ^ printed
+    ^ "\n\n== RAW CODE ==\n" ^ code ^ "\n\n === END ==\n" ^ printed
   else printed
 
 exception Module_path_cannot_be_determined
@@ -94,9 +94,11 @@ let graphqlTypeFromItem (item : SharedTypes.Type.t) =
   let gqlAttribute = extractGqlAttribute item.attributes in
   match (gqlAttribute, item) with
   | Some ObjectType, {kind = Record _; name} ->
-    Some (GraphQLObjectType {name = capitalizeFirstChar name})
-  | Some Enum, {kind = Variant _; name} -> Some (GraphQLEnum {name})
-  | Some Union, {kind = Variant _; name} -> Some (GraphQLUnion {name})
+    Some (GraphQLObjectType {name; displayName = capitalizeFirstChar name})
+  | Some Enum, {kind = Variant _; name} ->
+    Some (GraphQLEnum {name; displayName = capitalizeFirstChar name})
+  | Some Union, {kind = Variant _; name} ->
+    Some (GraphQLUnion {name; displayName = capitalizeFirstChar name})
   | _ -> None
 
 let noticeObjectType ~env ~loc ~state ?description typeName =
@@ -107,6 +109,7 @@ let noticeObjectType ~env ~loc ~state ?description typeName =
     Hashtbl.add state.types typeName
       {
         name = typeName;
+        displayName = capitalizeFirstChar typeName;
         fields = [];
         description;
         typeLocation =
@@ -127,6 +130,7 @@ let addFieldToObjectType ?description ~env ~loc ~field ~state typeName =
     | None ->
       {
         name = typeName;
+        displayName = capitalizeFirstChar typeName;
         fields = [field];
         description;
         typeLocation =
