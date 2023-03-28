@@ -3,18 +3,20 @@
 - [ ] Validate that enums are only variant cases without payloads
 - [ ] Have some way to propagate diagnostics somewhere
 - [ ] Validate uniqueness of names? (just let graphql-js do that?)
-- [ ] Tag loc properly on all items
+- [x] Tag loc properly on all items
 - [x] Fix all names (so they're uppercased)
-- [ ] Allow customizing typename
 - [x] Inject ctx
+- [ ] Default values for arguments
 - [ ] Clear up logic that handles when something is persisted. Just going from the types artifacts is probably not enough, we might need to ensure that we always find the correct module path from the right file.
 - [ ] Nullability in input object fields
 - [ ] Nullability in arguments
+- [ ] Allow customizing typename
 
 ## Future
 
 - [ ] Relay helpers
 - [ ] One-off generated types for polyvariants. Input objects, input enums, etc
+- [ ] Custom scalars with automatic conversion (is this already natively supported perhaps?)
 
 ## Validations
 
