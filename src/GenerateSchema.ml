@@ -38,25 +38,26 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
   | Tconstr (Path.Pident {name = "bool"}, [], _) -> Some (Scalar Boolean)
   | Tconstr (Path.Pident {name = "int"}, [], _) -> Some (Scalar Int)
   | Tconstr (Path.Pident {name = "float"}, [], _) -> Some (Scalar Float)
-  | Tconstr (path, innerTypes, _) -> (
-    Printf.printf "%s\n" (pathIdentToList path |> String.concat ".");
+  | Tconstr (path, typeArgs, _) -> (
     match pathIdentToList path with
     | ["ResGraph"; "id"] -> Some (Scalar ID)
     | ["ResGraphContext"; "context"] -> Some InjectContext
     | ["Js"; "Nullable"; "t"] -> (
-      match innerTypes with
-      | [innerType] -> (
-        let inner = findGraphQLType ~env ~state ~full innerType in
+      match typeArgs with
+      | [typeArg] -> (
+        let inner = findGraphQLType ~env ~state ~full typeArg in
         match inner with
         | None -> None
         | Some inner -> Some (RescriptNullable inner))
       | _ -> None)
-    | ["Js"; ("String2" | "String"); "t"] ->
-      (* TODO: Smarter way to resolve these... *) Some (Scalar String)
     | _ -> (
       (* If none of the above matches we'll see if we can dig to the underlying
          type, to make sure it's a valid GraphQL type. *)
       match References.digConstructor ~env ~package:full.package path with
+      | Some (env, {item = {decl = {type_params; type_manifest = Some te}}}) ->
+        let typeParams = type_params in
+        let te = TypeUtils.instantiateType ~typeParams ~typeArgs te in
+        findGraphQLType te ~env ~state ~full
       | Some (env, {item}) -> (
         match (graphqlTypeFromItem item, item.kind) with
         | Some (GraphQLObjectType {id} as graphqlType), _ ->

@@ -47,9 +47,9 @@ t_User.contents = GraphQLObjectType.make({
   fields: () =>
     {
       "allNames": {
-        typ: GraphQLListType.make(
-          Scalars.string->Scalars.toGraphQLType,
-        )->GraphQLListType.toGraphQLType,
+        typ: GraphQLListType.make(Scalars.string->Scalars.toGraphQLType->nonNull)
+        ->GraphQLListType.toGraphQLType
+        ->nonNull,
         description: ?None,
         deprecationReason: ?None,
         resolve: makeResolveFn((src, args, ctx) => {
@@ -129,6 +129,45 @@ t_Query.contents = GraphQLObjectType.make({
   description: ?None,
   fields: () =>
     {
+      "listAsArgs": {
+        typ: GraphQLListType.make(Scalars.string->Scalars.toGraphQLType->nonNull)
+        ->GraphQLListType.toGraphQLType
+        ->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {
+          "regularList": {
+            typ: GraphQLListType.make(Scalars.string->Scalars.toGraphQLType)
+            ->GraphQLListType.toGraphQLType
+            ->nonNull,
+          },
+          "optionalList": {
+            typ: GraphQLListType.make(
+              Scalars.string->Scalars.toGraphQLType->nonNull,
+            )->GraphQLListType.toGraphQLType,
+          },
+          "nullableList": {
+            typ: GraphQLListType.make(
+              Scalars.string->Scalars.toGraphQLType,
+            )->GraphQLListType.toGraphQLType,
+          },
+          "nullableInnerList": {
+            typ: GraphQLListType.make(
+              Scalars.string->Scalars.toGraphQLType,
+            )->GraphQLListType.toGraphQLType,
+          },
+        }->makeArgs,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.QueryFields.listAsArgs(
+            src,
+            ~regularList=args["regularList"],
+            ~optionalList=?args["optionalList"]->Js.Nullable.toOption,
+            ~nullableList=args["nullableList"],
+            ~nullableInnerList=args["nullableInnerList"],
+          )
+        }),
+      },
       "allowExplicitNull": {
         typ: Scalars.string->Scalars.toGraphQLType->nonNull,
         description: ?None,

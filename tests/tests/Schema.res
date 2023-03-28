@@ -100,6 +100,29 @@ module QueryFields = {
       someNullable->Js.Nullable.toOption->Belt.Option.getExn
     }
   }
+
+  @gql.field
+  let listAsArgs = (_: query, ~regularList, ~optionalList=?, ~nullableList, ~nullableInnerList) => {
+    let regularList = regularList->Belt.Array.keepMap(v => v)
+    let optionalList = optionalList->Belt.Option.getWithDefault([])
+    let nullableList =
+      nullableList->Js.Nullable.toOption->Belt.Option.getWithDefault([])->Belt.Array.keepMap(v => v)
+    let nullableInnerList =
+      nullableInnerList
+      ->Js.Nullable.toOption
+      ->Belt.Option.getWithDefault([])
+      ->Belt.Array.keepMap(Js.Nullable.toOption)
+
+    let arr =
+      Belt.Array.concatMany([
+        regularList,
+        optionalList,
+        nullableList,
+        nullableInnerList,
+      ])->Js.Array2.map(str => "v " ++ str)
+
+    arr
+  }
 }
 
 // ^gen

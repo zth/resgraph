@@ -1,4 +1,5 @@
 type Query {
+  listAsArgs(regularList: [String]!, optionalList: [String!], nullableList: [String], nullableInnerList: [String]): [String!]!
   allowExplicitNull(someNullable: String): String!
   searchForUser(input: UserConfig!): User
   entity(id: ID!): UserOrGroup!
@@ -7,7 +8,7 @@ type Query {
 
 """A user in the system."""
 type User {
-  allNames: [String]
+  allNames: [String!]!
   currentStatus: UserStatus!
   name(includeFullName: Boolean): String!
   id: ID!

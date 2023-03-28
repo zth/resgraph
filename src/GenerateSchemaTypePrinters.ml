@@ -34,11 +34,11 @@ let printResolverForField (field : gqlField) =
       ^ ")}"
     else resolverCode ^ ")}"
 let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
-  let nullablePrefix = if nullable then "" else "->nonNull" in
+  let nullablePostfix = if nullable then "" else "->nonNull" in
   match returnType with
   | List inner ->
-    Printf.sprintf "GraphQLListType.make(%s)->GraphQLListType.toGraphQLType"
-      (printGraphQLType ~nullable:true inner)
+    Printf.sprintf "GraphQLListType.make(%s)->GraphQLListType.toGraphQLType%s"
+      (printGraphQLType inner) nullablePostfix
   | RescriptNullable inner | Nullable inner ->
     printGraphQLType ~nullable:true inner
   | Scalar scalar ->
@@ -51,19 +51,19 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
       | Boolean -> "boolean"
     in
     Printf.sprintf "Scalars.%s->Scalars.toGraphQLType%s" scalarStr
-      nullablePrefix
+      nullablePostfix
   | GraphQLObjectType {displayName} ->
     Printf.sprintf "get_%s()->GraphQLObjectType.toGraphQLType%s" displayName
-      nullablePrefix
+      nullablePostfix
   | GraphQLInputObject {displayName} ->
     Printf.sprintf "get_%s()->GraphQLInputObjectType.toGraphQLType%s"
-      displayName nullablePrefix
+      displayName nullablePostfix
   | GraphQLEnum {displayName} ->
     Printf.sprintf "enum_%s->GraphQLEnumType.toGraphQLType%s" displayName
-      nullablePrefix
+      nullablePostfix
   | GraphQLUnion {displayName} ->
     Printf.sprintf "get_%s()->GraphQLUnionType.toGraphQLType%s" displayName
-      nullablePrefix
+      nullablePostfix
   | InjectContext -> "Obj.magic()"
   | Named {path} ->
     Printf.printf "Named! %s\n" (SharedTypes.pathIdentToString path);
