@@ -345,7 +345,6 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
            (* Values with a field annotation could be a resolver. *)
            match typ |> TypeUtils.extractType ~env ~package:full.package with
            | Some (Tfunction {typ; env}) -> (
-             Printf.printf "Found potential resolver fn: %s\n" item.name;
              match extractResolverFunctionInfo ~env ~full ~state:!state typ with
              | Some (GraphQLObjectType {id}, args, returnType) ->
                let field =

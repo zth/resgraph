@@ -16,6 +16,6 @@ if [[ $diff = "" ]]; then
   printf "${successGreen}✅ No unstaged tests difference.${reset}\n"
 else
   printf "${warningYellow}⚠️ There are unstaged differences in tests/! Did you break a test?\n${diff}\n${reset}"
-  git --no-pager diff src/expected
+  git --no-pager diff tests/expected
   exit 1
 fi

@@ -4,37 +4,28 @@ already seen user
 already seen group
 Adding union userOrGroup
 Adding enum userStatus
-Found potential resolver fn: id
 Checking for type to attach resolver to
 already seen user
-Found potential resolver fn: name
 Checking for type to attach resolver to
 already seen user
-Found potential resolver fn: currentStatus
 Checking for type to attach resolver to
 already seen user
 Adding enum userStatus
-Found potential resolver fn: allNames
 Checking for type to attach resolver to
 already seen user
-Found potential resolver fn: me
 Checking for type to attach resolver to
 already seen query
 already seen user
-Found potential resolver fn: entity
 Checking for type to attach resolver to
 already seen query
 already seen user
 already seen group
 Adding union userOrGroup
-Found potential resolver fn: searchForUser
 Checking for type to attach resolver to
 already seen query
 already seen user
-Found potential resolver fn: allowExplicitNull
 Checking for type to attach resolver to
 already seen query
-Found potential resolver fn: listAsArgs
 Checking for type to attach resolver to
 already seen query
 @@warning("-27")
