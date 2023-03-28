@@ -372,6 +372,10 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
                               Some
                                 {
                                   name;
+                                  isOptionLabelled =
+                                    (match label with
+                                    | Optional _ -> true
+                                    | _ -> false);
                                   typ =
                                     getOrRaise
                                       (findGraphQLType ~full ~env ~state:!state

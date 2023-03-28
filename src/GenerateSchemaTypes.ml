@@ -27,7 +27,12 @@ type typeLocation = {
   loc: Location.t;
 }
 
-type gqlArg = {name: string; typ: graphqlType (* TODO: Default value. *)}
+type gqlArg = {
+  name: string;
+  isOptionLabelled: bool;
+      (* If the argument in ReScript is an optional label. *)
+  typ: graphqlType; (* TODO: Default value. *)
+}
 
 type gqlEnumValue = {
   value: string;
