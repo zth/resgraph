@@ -34,7 +34,8 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
   | List inner ->
     Printf.sprintf "GraphQLListType.make(%s)->GraphQLListType.toGraphQLType"
       (printGraphQLType ~nullable:true inner)
-  | Nullable inner -> printGraphQLType ~nullable:true inner
+  | RescriptNullable inner | Nullable inner ->
+    printGraphQLType ~nullable:true inner
   | Scalar scalar ->
     let scalarStr =
       match scalar with

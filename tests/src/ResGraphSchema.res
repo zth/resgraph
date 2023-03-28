@@ -129,6 +129,16 @@ t_Query.contents = GraphQLObjectType.make({
   description: ?None,
   fields: () =>
     {
+      "allowExplicitNull": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {"someNullable": {typ: Scalars.string->Scalars.toGraphQLType}}->makeArgs,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.QueryFields.allowExplicitNull(src, ~someNullable=args["someNullable"])
+        }),
+      },
       "searchForUser": {
         typ: get_User()->GraphQLObjectType.toGraphQLType,
         description: ?None,

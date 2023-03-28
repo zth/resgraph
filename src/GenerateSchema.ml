@@ -38,11 +38,19 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
   | Tconstr (Path.Pident {name = "bool"}, [], _) -> Some (Scalar Boolean)
   | Tconstr (Path.Pident {name = "int"}, [], _) -> Some (Scalar Int)
   | Tconstr (Path.Pident {name = "float"}, [], _) -> Some (Scalar Float)
-  | Tconstr (path, _, _) -> (
+  | Tconstr (path, innerTypes, _) -> (
     Printf.printf "%s\n" (pathIdentToList path |> String.concat ".");
     match pathIdentToList path with
     | ["ResGraph"; "id"] -> Some (Scalar ID)
     | ["ResGraphContext"; "context"] -> Some InjectContext
+    | ["Js"; "Nullable"; "t"] -> (
+      match innerTypes with
+      | [innerType] -> (
+        let inner = findGraphQLType ~env ~state ~full innerType in
+        match inner with
+        | None -> None
+        | Some inner -> Some (RescriptNullable inner))
+      | _ -> None)
     | ["Js"; ("String2" | "String"); "t"] ->
       (* TODO: Smarter way to resolve these... *) Some (Scalar String)
     | _ -> (
@@ -55,10 +63,8 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
           noticeObjectType id ~state ~env ~loc:item.decl.type_loc;
           Some graphqlType
         | Some (GraphQLInputObject _ as graphqlType), _ ->
-          Printf.printf "Found input obj\n";
           (* TODO: Add here? *) Some graphqlType
         | Some (GraphQLEnum {id} as graphqlType), Variant cases ->
-          Printf.printf "matched enum and variant\n";
           addEnum id ~state
             ~enum:
               {

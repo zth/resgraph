@@ -20,7 +20,6 @@ Checking for type to attach resolver to
 user
 already seen user
 userStatus
-matched enum and variant
 Adding enum userStatus
 Found potential resolver fn: allNames
 Checking for type to attach resolver to
@@ -51,7 +50,11 @@ already seen query
 user
 already seen user
 userConfig
-Found input obj
+Found potential resolver fn: allowExplicitNull
+Checking for type to attach resolver to
+query
+already seen query
+Js.Nullable.t
 @@warning("-27")
 
 open ResGraph__GraphQLJs
@@ -183,6 +186,16 @@ t_Query.contents = GraphQLObjectType.make({
   description: ?None,
   fields: () =>
     {
+      "allowExplicitNull": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {"someNullable": {typ: Scalars.string->Scalars.toGraphQLType}}->makeArgs,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.QueryFields.allowExplicitNull(src, ~someNullable=args["someNullable"])
+        }),
+      },
       "searchForUser": {
         typ: get_User()->GraphQLObjectType.toGraphQLType,
         description: ?None,

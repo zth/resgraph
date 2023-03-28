@@ -1,4 +1,5 @@
 type Query {
+  allowExplicitNull(someNullable: String): String!
   searchForUser(input: UserConfig!): User
   entity(id: ID!): UserOrGroup!
   me: User

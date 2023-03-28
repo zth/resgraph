@@ -86,6 +86,20 @@ module QueryFields = {
   let searchForUser = (_: query, ~input: userConfig): option<user> => {
     Some({name: input.name->Belt.Option.getWithDefault("Hello"), age: 35, lastAge: None})
   }
+
+  @gql.field
+  let allowExplicitNull = (_: query, ~someNullable) => {
+    let wasNull = someNullable == Js.Nullable.null
+    let wasUndefined = someNullable == Js.Nullable.undefined
+
+    if wasNull {
+      "Was null"
+    } else if wasUndefined {
+      "Was undefined"
+    } else {
+      someNullable->Js.Nullable.toOption->Belt.Option.getExn
+    }
+  }
 }
 
 // ^gen

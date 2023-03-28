@@ -7,6 +7,7 @@ type scalar = Int | Float | String | Boolean | ID
 type graphqlType =
   | List of graphqlType
   | Nullable of graphqlType
+  | RescriptNullable of graphqlType
   | Scalar of scalar
   | (* TODO: Get rid of *) Named of {path: Path.t; env: SharedTypes.QueryEnv.t}
   | InjectContext
