@@ -441,7 +441,14 @@ let generateSchema ~path ~debug ~outputPath =
     in
     traverseStructure structure ~state ~env ~full;
     let schemaCode = printSchemaJsFile !state |> formatCode in
+
+    (* Write implementation file *)
     let oc = open_out outputPath in
     output_string oc schemaCode;
+    close_out oc;
+
+    (* Write resi file *)
+    let oc = open_out (outputPath ^ "i") in
+    output_string oc "let schema: ResGraph.schema";
     close_out oc;
     if debug then schemaCode |> print_endline
