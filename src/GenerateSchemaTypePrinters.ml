@@ -19,17 +19,19 @@ let printResolverForField (field : gqlField) =
         |> List.map (fun (arg : gqlArg) ->
                if hasCtxArg && Some arg.name = ctxArgName then
                  Printf.sprintf "~%s=ctx" (ctxArgName |> Option.get)
-               else
+               else (
+                 print_endline arg.name;
+                 print_endline (dumpContents arg.typ);
+                 print_endline "";
+
                  let argsText =
-                   Printf.sprintf "args[\"%s\"]%s" arg.name
-                     (if argIsOptional arg then
-                      (* TODO: Convert lists and nullables too when appropriate *)
-                      "->Js.Nullable.toOption"
-                     else "")
+                   generateConverter
+                     (Printf.sprintf "args[\"%s\"]" arg.name)
+                     arg.typ
                  in
                  Printf.sprintf "~%s=%s" arg.name
                    (if arg.isOptionLabelled then Printf.sprintf "?(%s)" argsText
-                   else argsText))
+                   else argsText)))
         |> String.concat ", ")
       ^ ")}"
     else resolverCode ^ ")}"

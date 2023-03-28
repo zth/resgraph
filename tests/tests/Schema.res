@@ -102,7 +102,19 @@ module QueryFields = {
   }
 
   @gql.field
-  let listAsArgs = (_: query, ~regularList, ~optionalList=?, ~nullableList, ~nullableInnerList) => {
+  let listAsArgs = (
+    _: query,
+    ~regularList,
+    ~optionalList=?,
+    ~nullableList,
+    ~nullableInnerList,
+    ~list1: option<array<option<string>>>,
+    ~list2: option<array<option<array<option<string>>>>>,
+    ~list3: option<array<option<array<array<string>>>>>,
+  ) => {
+    ignore(list1)
+    ignore(list2)
+    ignore(list3)
     let regularList = regularList->Belt.Array.keepMap(v => v)
     let optionalList = optionalList->Belt.Option.getWithDefault([])
     let nullableList =

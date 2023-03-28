@@ -1,5 +1,5 @@
 type Query {
-  listAsArgs(regularList: [String]!, optionalList: [String!], nullableList: [String], nullableInnerList: [String]): [String!]!
+  listAsArgs(regularList: [String]!, optionalList: [String!], nullableList: [String], nullableInnerList: [String], list1: [String], list2: [[String]], list3: [[[String!]!]]): [String!]!
   allowExplicitNull(someNullable: String): String!
   searchForUser(input: UserConfig!): User
   entity(id: ID!): UserOrGroup!

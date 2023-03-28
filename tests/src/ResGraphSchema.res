@@ -156,15 +156,60 @@ t_Query.contents = GraphQLObjectType.make({
               Scalars.string->Scalars.toGraphQLType,
             )->GraphQLListType.toGraphQLType,
           },
+          "list1": {
+            typ: GraphQLListType.make(
+              Scalars.string->Scalars.toGraphQLType,
+            )->GraphQLListType.toGraphQLType,
+          },
+          "list2": {
+            typ: GraphQLListType.make(
+              GraphQLListType.make(
+                Scalars.string->Scalars.toGraphQLType,
+              )->GraphQLListType.toGraphQLType,
+            )->GraphQLListType.toGraphQLType,
+          },
+          "list3": {
+            typ: GraphQLListType.make(
+              GraphQLListType.make(
+                GraphQLListType.make(Scalars.string->Scalars.toGraphQLType->nonNull)
+                ->GraphQLListType.toGraphQLType
+                ->nonNull,
+              )->GraphQLListType.toGraphQLType,
+            )->GraphQLListType.toGraphQLType,
+          },
         }->makeArgs,
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
           Schema.QueryFields.listAsArgs(
             src,
-            ~regularList=args["regularList"],
+            ~regularList=args["regularList"]->Js.Array2.map(v => v->Js.Nullable.toOption),
             ~optionalList=?args["optionalList"]->Js.Nullable.toOption,
-            ~nullableList=args["nullableList"],
-            ~nullableInnerList=args["nullableInnerList"],
+            ~nullableList=args["nullableList"]->Js.Nullable.bind((. v) =>
+              v->Js.Array2.map(v => v->Js.Nullable.toOption)
+            ),
+            ~nullableInnerList=args["nullableInnerList"]->Js.Nullable.bind((. v) =>
+              v->Js.Array2.map(v => v)
+            ),
+            ~list1=switch args["list1"]->Js.Nullable.toOption {
+            | None => None
+            | Some(v) => v->Js.Array2.map(v => v->Js.Nullable.toOption)->Some
+            },
+            ~list2=switch args["list2"]->Js.Nullable.toOption {
+            | None => None
+            | Some(v) =>
+              v
+              ->Js.Array2.map(v =>
+                switch v->Js.Nullable.toOption {
+                | None => None
+                | Some(v) => v->Js.Array2.map(v => v->Js.Nullable.toOption)->Some
+                }
+              )
+              ->Some
+            },
+            ~list3=switch args["list3"]->Js.Nullable.toOption {
+            | None => None
+            | Some(v) => v->Js.Array2.map(v => v->Js.Nullable.toOption)->Some
+            },
           )
         }),
       },

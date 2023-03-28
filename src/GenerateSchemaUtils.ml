@@ -182,3 +182,39 @@ let findContextArgName (args : gqlArg list) =
          match arg.typ with
          | InjectContext -> Some arg.name
          | _ -> None)
+
+let rec dumpContents (graphqlType : graphqlType) =
+  match graphqlType with
+  | Nullable inner -> Printf.sprintf "Nullable(%s)" (dumpContents inner)
+  | List inner -> Printf.sprintf "List(%s)" (dumpContents inner)
+  | RescriptNullable inner -> dumpContents inner
+  | _ -> "v"
+
+let rec typeNeedsConversion (graphqlType : graphqlType) =
+  match graphqlType with
+  | List inner -> typeNeedsConversion inner
+  | Nullable _ | RescriptNullable _ -> true
+  | _ -> false
+
+let rec generateConverter lastValue (graphqlType : graphqlType) =
+  match graphqlType with
+  | Nullable inner ->
+    if typeNeedsConversion inner then
+      let innerConverter = generateConverter "v" inner in
+      Printf.sprintf
+        "(switch %s->Js.Nullable.toOption { | None => None | Some(v) => \
+         %s->Some})"
+        lastValue innerConverter
+    else Printf.sprintf "(%s->Js.Nullable.toOption)" lastValue
+  | List inner ->
+    if typeNeedsConversion inner then
+      let innerConverter = generateConverter "v" inner in
+      Printf.sprintf "(%s->Js.Array2.map(v => %s))" lastValue innerConverter
+    else lastValue
+  | RescriptNullable inner ->
+    if typeNeedsConversion inner then
+      let innerConverter = generateConverter "v" inner in
+      Printf.sprintf "(%s->Js.Nullable.bind((. v) => %s))" lastValue
+        innerConverter
+    else lastValue
+  | _ -> lastValue
