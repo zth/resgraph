@@ -219,7 +219,7 @@ let rec generateConverter lastValue (graphqlType : graphqlType) =
     else lastValue
   | GraphQLInputObject {displayName} ->
     Printf.sprintf
-      "applyConversionToInputObject(%s, input_%s_conversionInstructions)"
+      "%s->applyConversionToInputObject(input_%s_conversionInstructions)"
       lastValue displayName
   | _ -> lastValue
 

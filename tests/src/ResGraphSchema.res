@@ -60,7 +60,7 @@ let _ = input_UserConfig_conversionInstructions->Js.Array2.pushMany([
       switch v->Js.Nullable.toOption {
       | None => None
       | Some(v) =>
-        applyConversionToInputObject(v, input_UserConfigContext_conversionInstructions)->Some
+        v->applyConversionToInputObject(input_UserConfigContext_conversionInstructions)->Some
       }
     ),
   ),
@@ -271,8 +271,7 @@ t_Query.contents = GraphQLObjectType.make({
           let src = typeUnwrapper(src)
           Schema.QueryFields.searchForUser(
             src,
-            ~input=applyConversionToInputObject(
-              args["input"],
+            ~input=args["input"]->applyConversionToInputObject(
               input_UserConfig_conversionInstructions,
             ),
           )
