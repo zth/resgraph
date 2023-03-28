@@ -1,34 +1,24 @@
 open GenerateSchemaTypes
 
-let extractAttributes (attributes : Parsetree.attributes) =
-  attributes
-  |> List.filter_map (fun ((name, _payload) : Parsetree.attribute) ->
-         if Utils.startsWith name.txt "gql." then
-           match String.split_on_char '.' name.txt with
-           | ["gql"; "type"] -> Some ObjectType
-           | ["gql"; "field"] -> Some Field
-           | ["gql"; "enum"] -> Some Enum
-           | ["gql"; "union"] -> Some Union
-           | ["gql"; "inputObject"] -> Some InputObject
-           | _ -> (* TODO: Warn about invalid gql annotation*) None
-         else None)
-
-(* TODO: Refactor to only allow one gql attribute. Leverage payloads instead *)
-
 let extractGqlAttribute (attributes : Parsetree.attributes) =
-  match extractAttributes attributes with
-  | attr :: _ -> Some attr
-  | _ -> None
-
-let getFieldAttribute gqlAttributes =
-  gqlAttributes
-  |> List.find_map (fun attr ->
-         match attr with
-         | Field -> Some attr
+  attributes
+  |> List.find_map (fun ((name, _payload) : Parsetree.attribute) ->
+         match String.split_on_char '.' name.txt with
+         | ["gql"; "type"] -> Some ObjectType
+         | ["gql"; "field"] -> Some Field
+         | ["gql"; "enum"] -> Some Enum
+         | ["gql"; "union"] -> Some Union
+         | ["gql"; "inputObject"] -> Some InputObject
+         | "gql" :: _ -> (* TODO: Warn about invalid gql annotation*) None
          | _ -> None)
 
+let getFieldAttribute gqlAttribute =
+  match gqlAttribute with
+  | Some Field -> Some gqlAttribute
+  | _ -> None
+
 let getFieldAttributeFromRawAttributes attributes =
-  attributes |> extractAttributes |> getFieldAttribute
+  attributes |> extractGqlAttribute |> getFieldAttribute
 
 let formatCode code =
   let {Res_driver.parsetree = structure; comments; diagnostics} =
