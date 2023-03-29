@@ -98,7 +98,7 @@ let graphqlTypeFromItem (item : SharedTypes.Type.t) =
   | _ -> None
 
 let noticeObjectType ~env ~loc ~state ?description ?makeFields typeName =
-  if Hashtbl.mem state.types typeName then None
+  if Hashtbl.mem state.types typeName then ()
   else (
     Printf.printf "noticing %s\n" typeName;
     let typ : gqlObjectType =
@@ -115,7 +115,11 @@ let noticeObjectType ~env ~loc ~state ?description ?makeFields typeName =
       }
     in
     Hashtbl.add state.types typeName typ;
-    Some typ)
+    match typeName with
+    | "query" -> state.query <- Some typ
+    | "mutation" -> state.mutation <- Some typ
+    | "subscription" -> state.subscription <- Some typ
+    | _ -> ())
 
 let addEnum id ~(makeEnum : unit -> gqlEnum) ~state =
   if Hashtbl.mem state.enums id then ()

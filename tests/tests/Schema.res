@@ -145,4 +145,25 @@ module QueryFields = {
   }
 }
 
+@gql.type
+type mutation = {}
+
+module Mutations = {
+  @gql.field
+  let addUser = (_: mutation, ~name) => {
+    Some({name, age: 35, lastAge: None})
+  }
+}
+
+@gql.type
+type subscription = {}
+
+module Subscriptons = {
+  @gql.field
+  let userUpdated = (_: mutation, ~id: ResGraph.id) => {
+    ignore(id)
+    Some({name: "Hello", age: 35, lastAge: None})
+  }
+}
+
 // ^gen

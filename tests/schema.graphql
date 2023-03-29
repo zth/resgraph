@@ -56,3 +56,10 @@ type Group {
   """The group name."""
   name: String!
 }
+
+type Mutation {
+  userUpdated(id: ID!): User
+  addUser(name: String!): User
+}
+
+type Subscription

@@ -99,7 +99,9 @@ type state = {
   inputObjects: (string, gqlInputObjectType) Hashtbl.t;
   enums: (string, gqlEnum) Hashtbl.t;
   unions: (string, gqlUnion) Hashtbl.t;
-  query: gqlObjectType option;
+  mutable query: gqlObjectType option;
+  mutable subscription: gqlObjectType option;
+  mutable mutation: gqlObjectType option;
   mutable diagnostics: diagnostic list;
 }
 

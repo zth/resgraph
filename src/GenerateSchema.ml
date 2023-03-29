@@ -79,7 +79,7 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
       | Some (env, {item}) -> (
         match (graphqlTypeFromItem item, item.kind) with
         | Some (GraphQLObjectType {id} as graphqlType), _ ->
-          noticeObjectType id ~state ~env ~loc:item.decl.type_loc |> ignore;
+          noticeObjectType id ~state ~env ~loc:item.decl.type_loc;
           Some graphqlType
         | Some (GraphQLInputObject _ as graphqlType), _ ->
           (* TODO: Add here? *) Some graphqlType
@@ -349,7 +349,15 @@ let applyConversionToInputObject: ('a, array<(string, inputObjectFieldConverterF
 
   (* Print the schema gluing it all together. *)
   addWithNewLine "";
-  addWithNewLine "let schema = GraphQLSchemaType.make({\"query\": get_Query()})";
+  addWithNewLine
+    (Printf.sprintf
+       "let schema = GraphQLSchemaType.make({\"query\": get_Query()%s%s})"
+       (match state.mutation with
+       | None -> ""
+       | Some _ -> ", \"mutation\": get_Mutation()")
+       (match state.subscription with
+       | None -> ""
+       | Some _ -> ", \"subscription\": get_Subscription()"));
   !code
 
 let rec traverseStructure ?(modulePath = []) ~state ~env ~full
@@ -362,20 +370,13 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
              ~modulePath:(structure.name :: modulePath)
              ~state ~env ~full structure
          | Type ({kind = Record fields; attributes; decl}, _), Some ObjectType
-           -> (
+           ->
            let id = item.name in
-           let displayName = capitalizeFirstChar item.name in
-
-           let addedTyp =
-             noticeObjectType ~env ~loc:decl.type_loc ~state:!state
-               ?description:(attributesToDocstring attributes)
-               ~makeFields:(fun () ->
-                 fieldsOfRecordFields fields ~env ~full ~state:!state)
-               id
-           in
-           match (addedTyp, displayName) with
-           | Some typ, "Query" -> state := {!state with query = Some typ}
-           | _ -> ())
+           noticeObjectType ~env ~loc:decl.type_loc ~state:!state
+             ?description:(attributesToDocstring attributes)
+             ~makeFields:(fun () ->
+               fieldsOfRecordFields fields ~env ~full ~state:!state)
+             id
          | Type ({kind = Record fields; attributes; decl}, _), Some InputObject
            ->
            let id = item.name in
@@ -480,6 +481,8 @@ let generateSchema ~path ~debug ~outputPath =
           unions = Hashtbl.create 10;
           inputObjects = Hashtbl.create 10;
           query = None;
+          subscription = None;
+          mutation = None;
           diagnostics = [];
         }
     in
