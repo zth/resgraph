@@ -6,7 +6,6 @@
 - [x] Tag loc properly on all items
 - [x] Fix all names (so they're uppercased)
 - [x] Inject ctx
-- [ ] Default values for arguments
 - [ ] Clear up logic that handles when something is persisted. Just going from the types artifacts is probably not enough, we might need to ensure that we always find the correct module path from the right file.
 - [x] Nullability in input object fields
 - [x] Nullability in arguments
@@ -22,6 +21,7 @@
 - [ ] Relay helpers
 - [ ] One-off generated types for polyvariants. Input objects, input enums, etc
 - [ ] Custom scalars with automatic conversion (is this already natively supported perhaps?)
+- [ ] Default values for arguments. Would need to parse the AST which I'm trying to avoid (can maybe do it lazily only if there are resolvers?)
 
 ## Validations
 
