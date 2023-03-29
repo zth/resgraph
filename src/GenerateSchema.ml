@@ -7,15 +7,33 @@ open GenerateSchemaUtils
      funktioner
 *)
 
-let variantCasesToEnumValues (cases : SharedTypes.Constructor.t list) =
+let variantCasesToEnumValues ~state ~(env : SharedTypes.QueryEnv.t)
+    (cases : SharedTypes.Constructor.t list) =
   cases
-  |> List.map (fun (case : SharedTypes.Constructor.t) ->
-         {
-           value = case.cname.txt;
-           description = case.attributes |> attributesToDocstring;
-           deprecationReason = case.deprecated;
-           loc = case.cname.loc;
-         })
+  |> List.filter_map (fun (case : SharedTypes.Constructor.t) ->
+         match case.args with
+         | Args [] ->
+           Some
+             {
+               value = case.cname.txt;
+               description = case.attributes |> attributesToDocstring;
+               deprecationReason = case.deprecated;
+               loc = case.cname.loc;
+             }
+         | _ ->
+           addDiagnostic state
+             ~diagnostic:
+               {
+                 loc = case.cname.loc;
+                 message =
+                   Printf.sprintf
+                     "The variant member `%s` of the GraphQL enum variant `%s` \
+                      has a payload. Variants tagged as @gql.enum can only \
+                      have members without payloads. "
+                     case.cname.txt (case.typeDecl |> fst);
+                 fileUri = env.file.uri;
+               };
+           None)
 
 let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
     (typ : Types.type_expr) =
@@ -70,7 +88,7 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
               {
                 id;
                 displayName = capitalizeFirstChar id;
-                values = variantCasesToEnumValues cases;
+                values = variantCasesToEnumValues ~state ~env cases;
                 description = item.attributes |> attributesToDocstring;
                 loc = item.decl.type_loc;
               });
@@ -107,15 +125,29 @@ and variantCasesToUnionValues ~env ~state ~full
                    loc = case.cname.loc;
                    message =
                      Printf.sprintf
-                       "The payload of the variant member `%s` of the variant \
-                        `%s` is not a GraphL object. The payload needs to be a \
-                        type representing a GraphQL object, meaning it's \
-                        annotated with @gql.type."
+                       "The payload of the variant member `%s` of the GraphQL \
+                        union variant `%s` is not a GraphL object. The payload \
+                        needs to be a single type representing a GraphQL \
+                        object, meaning it's annotated with @gql.type."
                        case.cname.txt (case.typeDecl |> fst);
                    fileUri = env.file.uri;
                  };
              None)
-         | _ -> None)
+         | _ ->
+           addDiagnostic state
+             ~diagnostic:
+               {
+                 loc = case.cname.loc;
+                 message =
+                   Printf.sprintf
+                     "The payload of the variant member `%s` of the GraphQL \
+                      union variant `%s` is not a single payload. The payload \
+                      needs to be a single type representing a GraphQL object, \
+                      meaning it's annotated with @gql.type."
+                     case.cname.txt (case.typeDecl |> fst);
+                 fileUri = env.file.uri;
+               };
+           None)
 
 let extractResolverFunctionInfo ~env ~(full : SharedTypes.full) ~(state : state)
     (typ : Types.type_expr) =
@@ -364,7 +396,7 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
                {
                  id = item.name;
                  displayName = capitalizeFirstChar item.name;
-                 values = variantCasesToEnumValues cases;
+                 values = variantCasesToEnumValues ~state:!state ~env cases;
                  description = item.attributes |> attributesToDocstring;
                  loc = item.decl.type_loc;
                })

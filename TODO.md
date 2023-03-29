@@ -2,7 +2,7 @@
 - [ ] Mutations
 - [ ] Subscriptions
 - [ ] Interfaces
-- [ ] Validate that enums are only variant cases without payloads
+- [x] Validate that enums are only variant cases without payloads
 - [x] Have some way to propagate diagnostics somewhere
 - [ ] Validate uniqueness of names? (just let graphql-js do that?)
 - [x] Tag loc properly on all items
@@ -17,6 +17,7 @@
 - [ ] Directives
 - [ ] Custom scalars
 - [ ] How to import and use existing things from the ecosystem?
+- [ ] Think about and fix compilation
 
 ## Future
 
