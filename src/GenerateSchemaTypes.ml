@@ -1,5 +1,3 @@
-(* TODO: Granular exceptions. Loc-linked errors. All errors at the same time,
-   not just the first encountered. *)
 exception Fail of string
 
 type scalar = Int | Float | String | Boolean | ID
@@ -26,6 +24,8 @@ type typeLocation = {
   typeName: string;
   loc: Location.t;
 }
+
+type diagnostic = {loc: Location.t; fileUri: Uri.t; message: string}
 
 type gqlArg = {
   name: string;
@@ -100,6 +100,7 @@ type state = {
   enums: (string, gqlEnum) Hashtbl.t;
   unions: (string, gqlUnion) Hashtbl.t;
   query: gqlObjectType option;
+  mutable diagnostics: diagnostic list;
 }
 
 type gqlAttributes = ObjectType | InputObject | Field | Enum | Union

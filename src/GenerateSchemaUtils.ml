@@ -83,7 +83,6 @@ let capitalizeFirstChar s =
   if String.length s = 0 then s
   else String.mapi (fun i c -> if i = 0 then Char.uppercase_ascii c else c) s
 
-(* TODO: Capitalize names here, but also track the underlying typename so we can look that up. *)
 let graphqlTypeFromItem (item : SharedTypes.Type.t) =
   let gqlAttribute = extractGqlAttribute item.attributes in
   match (gqlAttribute, item) with
@@ -98,32 +97,43 @@ let graphqlTypeFromItem (item : SharedTypes.Type.t) =
     Some (GraphQLUnion {id = name; displayName = capitalizeFirstChar name})
   | _ -> None
 
-let noticeObjectType ~env ~loc ~state ?description typeName =
-  if Hashtbl.mem state.types typeName then
-    Printf.printf "already seen %s\n" typeName
+let noticeObjectType ~env ~loc ~state ?description ?makeFields typeName =
+  if Hashtbl.mem state.types typeName then None
   else (
     Printf.printf "noticing %s\n" typeName;
-    Hashtbl.add state.types typeName
+    let typ : gqlObjectType =
       {
         id = typeName;
         displayName = capitalizeFirstChar typeName;
-        fields = [];
+        fields =
+          (match makeFields with
+          | None -> []
+          | Some mk -> mk ());
         description;
         typeLocation =
           findTypeLocation typeName ~env ~loc ~expectedType:ObjectType;
-      })
+      }
+    in
+    Hashtbl.add state.types typeName typ;
+    Some typ)
 
-let addEnum enumName ~(enum : gqlEnum) ~state =
-  Printf.printf "Adding enum %s\n" enumName;
-  Hashtbl.replace state.enums enumName enum
+let addEnum id ~(makeEnum : unit -> gqlEnum) ~state =
+  if Hashtbl.mem state.enums id then ()
+  else (
+    Printf.printf "Adding enum %s\n" id;
+    Hashtbl.replace state.enums id (makeEnum ()))
 
-let addUnion (union : gqlUnion) ~state =
-  Printf.printf "Adding union %s\n" union.id;
-  Hashtbl.replace state.unions union.id union
+let addUnion id ~(makeUnion : unit -> gqlUnion) ~state =
+  if Hashtbl.mem state.unions id then ()
+  else (
+    Printf.printf "Adding union %s\n" id;
+    Hashtbl.replace state.unions id (makeUnion ()))
 
-let addInputObject (obj : gqlInputObjectType) ~state =
-  Printf.printf "Adding input object %s\n" obj.id;
-  Hashtbl.replace state.inputObjects obj.id obj
+let addInputObject id ~(makeInputObject : unit -> gqlInputObjectType) ~state =
+  if Hashtbl.mem state.inputObjects id then ()
+  else (
+    Printf.printf "Adding input object %s\n" id;
+    Hashtbl.replace state.inputObjects id (makeInputObject ()))
 
 let addFieldToObjectType ?description ~env ~loc ~field ~state typeName =
   let typ : gqlObjectType =
@@ -183,13 +193,6 @@ let findContextArgName (args : gqlArg list) =
          | InjectContext -> Some arg.name
          | _ -> None)
 
-let rec dumpContents (graphqlType : graphqlType) =
-  match graphqlType with
-  | Nullable inner -> Printf.sprintf "Nullable(%s)" (dumpContents inner)
-  | List inner -> Printf.sprintf "List(%s)" (dumpContents inner)
-  | RescriptNullable inner -> dumpContents inner
-  | _ -> "v"
-
 let rec typeNeedsConversion (graphqlType : graphqlType) =
   match graphqlType with
   | List inner -> typeNeedsConversion inner
@@ -237,3 +240,12 @@ let printInputObjectAssets (inputObject : gqlInputObjectType) =
                   "(\"%s\", makeInputObjectFieldConverterFn((v) => %s))"
                   field.name converter))
     |> String.concat ", ")
+
+let addDiagnostic state ~diagnostic =
+  state.diagnostics <- diagnostic :: state.diagnostics
+
+let printDiagnostic (diagnostic : diagnostic) =
+  Printf.sprintf "Error at %s in file '%s':\n%s"
+    (diagnostic.loc |> Loc.toString)
+    (diagnostic.fileUri |> Uri.toString)
+    diagnostic.message

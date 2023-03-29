@@ -1,7 +1,9 @@
 - [x] Input objects
+- [ ] Mutations
+- [ ] Subscriptions
 - [ ] Interfaces
 - [ ] Validate that enums are only variant cases without payloads
-- [ ] Have some way to propagate diagnostics somewhere
+- [x] Have some way to propagate diagnostics somewhere
 - [ ] Validate uniqueness of names? (just let graphql-js do that?)
 - [x] Tag loc properly on all items
 - [x] Fix all names (so they're uppercased)

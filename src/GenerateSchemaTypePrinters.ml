@@ -19,11 +19,7 @@ let printResolverForField (field : gqlField) =
         |> List.map (fun (arg : gqlArg) ->
                if hasCtxArg && Some arg.name = ctxArgName then
                  Printf.sprintf "~%s=ctx" (ctxArgName |> Option.get)
-               else (
-                 print_endline arg.name;
-                 print_endline (dumpContents arg.typ);
-                 print_endline "";
-
+               else
                  let argsText =
                    generateConverter
                      (Printf.sprintf "args[\"%s\"]" arg.name)
@@ -31,7 +27,7 @@ let printResolverForField (field : gqlField) =
                  in
                  Printf.sprintf "~%s=%s" arg.name
                    (if arg.isOptionLabelled then Printf.sprintf "?(%s)" argsText
-                   else argsText)))
+                   else argsText))
         |> String.concat ", ")
       ^ ")}"
     else resolverCode ^ ")}"

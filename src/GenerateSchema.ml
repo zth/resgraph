@@ -61,32 +61,31 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
       | Some (env, {item}) -> (
         match (graphqlTypeFromItem item, item.kind) with
         | Some (GraphQLObjectType {id} as graphqlType), _ ->
-          noticeObjectType id ~state ~env ~loc:item.decl.type_loc;
+          noticeObjectType id ~state ~env ~loc:item.decl.type_loc |> ignore;
           Some graphqlType
         | Some (GraphQLInputObject _ as graphqlType), _ ->
           (* TODO: Add here? *) Some graphqlType
         | Some (GraphQLEnum {id} as graphqlType), Variant cases ->
-          addEnum id ~state
-            ~enum:
+          addEnum id ~state ~makeEnum:(fun () ->
               {
                 id;
                 displayName = capitalizeFirstChar id;
                 values = variantCasesToEnumValues cases;
                 description = item.attributes |> attributesToDocstring;
                 loc = item.decl.type_loc;
-              };
+              });
           Some graphqlType
         | Some (GraphQLUnion {id} as graphqlType), Variant cases ->
-          addUnion ~state
-            {
-              id;
-              displayName = capitalizeFirstChar id;
-              types = variantCasesToUnionValues cases ~env ~full ~state;
-              description = item.attributes |> attributesToDocstring;
-              typeLocation =
-                findTypeLocation ~loc:item.decl.type_loc ~env
-                  ~expectedType:Union id;
-            };
+          addUnion id ~state ~makeUnion:(fun () ->
+              {
+                id;
+                displayName = capitalizeFirstChar id;
+                types = variantCasesToUnionValues cases ~env ~full ~state;
+                description = item.attributes |> attributesToDocstring;
+                typeLocation =
+                  findTypeLocation ~loc:item.decl.type_loc ~env
+                    ~expectedType:Union id;
+              });
           Some graphqlType
         | _ -> Some (Named {path; env}))
       | _ -> Some (Named {path; env})))
@@ -101,7 +100,21 @@ and variantCasesToUnionValues ~env ~state ~full
            match findGraphQLType ~env ~state ~full typ with
            | Some (GraphQLObjectType {id; displayName}) ->
              Some {objectTypeId = id; displayName; loc = case.cname.loc}
-           | _ -> None)
+           | _ ->
+             addDiagnostic state
+               ~diagnostic:
+                 {
+                   loc = case.cname.loc;
+                   message =
+                     Printf.sprintf
+                       "The payload of the variant member `%s` of the variant \
+                        `%s` is not a GraphL object. The payload needs to be a \
+                        type representing a GraphQL object, meaning it's \
+                        annotated with @gql.type."
+                       case.cname.txt (case.typeDecl |> fst);
+                   fileUri = env.file.uri;
+                 };
+             None)
          | _ -> None)
 
 let extractResolverFunctionInfo ~env ~(full : SharedTypes.full) ~(state : state)
@@ -168,7 +181,12 @@ let inputObjectfieldsOfRecordFields ~env ~state ~(full : SharedTypes.full)
 let printSchemaJsFile state =
   let code = ref "@@warning(\"-27\")\n\nopen ResGraph__GraphQLJs\n\n" in
   let addWithNewLine text = code := !code ^ text ^ "\n" in
-  (* Add the type unwrapper. TODO: Explain what this is and does. *)
+  (* Add the type unwrapper. Source types passed to resolvers might be either
+     objects or variant cases. This is because we rely on variants for unions
+     and interfaces. Variant cases are boxed, so they need to be unwrapped
+     before they're passed to the resolver the developer has defined.
+     `typeUnwrapper` unwraps any variant case to its specified object.
+  *)
   addWithNewLine
     "let typeUnwrapper: ('src) => 'return = %raw(`function typeUnwrapper(src) \
      { if (src == null) return null; if (typeof src === 'object' && \
@@ -312,64 +330,57 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
              ~modulePath:(structure.name :: modulePath)
              ~state ~env ~full structure
          | Type ({kind = Record fields; attributes; decl}, _), Some ObjectType
-           ->
-           (* Records can be object types *)
-           (* TODO: Add input objects, interfaces etc*)
+           -> (
            let id = item.name in
            let displayName = capitalizeFirstChar item.name in
-           let typ : gqlObjectType =
-             {
-               id;
-               displayName;
-               fields = fieldsOfRecordFields fields ~env ~full ~state:!state;
-               description = attributesToDocstring attributes;
-               typeLocation =
-                 findTypeLocation item.name ~env ~loc:decl.type_loc
-                   ~expectedType:ObjectType;
-             }
+
+           let addedTyp =
+             noticeObjectType ~env ~loc:decl.type_loc ~state:!state
+               ?description:(attributesToDocstring attributes)
+               ~makeFields:(fun () ->
+                 fieldsOfRecordFields fields ~env ~full ~state:!state)
+               id
            in
-           (* TODO: Use proper add *)
-           Hashtbl.add !state.types id typ;
-           if displayName = "Query" then state := {!state with query = Some typ}
+           match (addedTyp, displayName) with
+           | Some typ, "Query" -> state := {!state with query = Some typ}
+           | _ -> ())
          | Type ({kind = Record fields; attributes; decl}, _), Some InputObject
            ->
            let id = item.name in
-           let displayName = capitalizeFirstChar item.name in
-           let typ : gqlInputObjectType =
-             {
-               id;
-               displayName;
-               fields =
-                 inputObjectfieldsOfRecordFields fields ~env ~full ~state:!state;
-               description = attributesToDocstring attributes;
-               typeLocation =
-                 findTypeLocation item.name ~env ~loc:decl.type_loc
-                   ~expectedType:InputObject;
-             }
-           in
-           (* TODO: Use proper add *)
-           Hashtbl.add !state.inputObjects id typ
+           addInputObject id ~state:!state ~makeInputObject:(fun () ->
+               {
+                 id;
+                 displayName = capitalizeFirstChar item.name;
+                 fields =
+                   inputObjectfieldsOfRecordFields fields ~env ~full
+                     ~state:!state;
+                 description = attributesToDocstring attributes;
+                 typeLocation =
+                   findTypeLocation item.name ~env ~loc:decl.type_loc
+                     ~expectedType:InputObject;
+               })
          | Type (({kind = Variant cases} as item), _), Some Enum ->
-           addEnum item.name ~state:!state
-             ~enum:
+           addEnum item.name ~state:!state ~makeEnum:(fun () ->
                {
                  id = item.name;
                  displayName = capitalizeFirstChar item.name;
                  values = variantCasesToEnumValues cases;
                  description = item.attributes |> attributesToDocstring;
                  loc = item.decl.type_loc;
-               }
+               })
          | Type (({kind = Variant cases} as item), _), Some Union ->
-           addUnion
-             {
-               id = item.name;
-               displayName = capitalizeFirstChar item.name;
-               description = item.attributes |> attributesToDocstring;
-               types = variantCasesToUnionValues cases ~env ~full ~state:!state;
-               typeLocation =
-                 findTypeLocation ~loc:item.decl.type_loc ~env
-                   ~expectedType:Union item.name;
-             }
+           addUnion item.name
+             ~makeUnion:(fun () ->
+               {
+                 id = item.name;
+                 displayName = capitalizeFirstChar item.name;
+                 description = item.attributes |> attributesToDocstring;
+                 types =
+                   variantCasesToUnionValues cases ~env ~full ~state:!state;
+                 typeLocation =
+                   findTypeLocation ~loc:item.decl.type_loc ~env
+                     ~expectedType:Union item.name;
+               })
              ~state:!state
          | Value typ, Some Field -> (
            (* Values with a field annotation could be a resolver. *)
@@ -437,18 +448,23 @@ let generateSchema ~path ~debug ~outputPath =
           unions = Hashtbl.create 10;
           inputObjects = Hashtbl.create 10;
           query = None;
+          diagnostics = [];
         }
     in
     traverseStructure structure ~state ~env ~full;
-    let schemaCode = printSchemaJsFile !state |> formatCode in
+    if !state.diagnostics |> List.length > 0 then
+      !state.diagnostics |> List.map printDiagnostic |> String.concat "\n\n"
+      |> print_endline
+    else
+      let schemaCode = printSchemaJsFile !state |> formatCode in
 
-    (* Write implementation file *)
-    let oc = open_out outputPath in
-    output_string oc schemaCode;
-    close_out oc;
+      (* Write implementation file *)
+      let oc = open_out outputPath in
+      output_string oc schemaCode;
+      close_out oc;
 
-    (* Write resi file *)
-    let oc = open_out (outputPath ^ "i") in
-    output_string oc "let schema: ResGraph.schema";
-    close_out oc;
-    if debug then schemaCode |> print_endline
+      (* Write resi file *)
+      let oc = open_out (outputPath ^ "i") in
+      output_string oc "let schema: ResGraph.schema";
+      close_out oc;
+      if debug then schemaCode |> print_endline

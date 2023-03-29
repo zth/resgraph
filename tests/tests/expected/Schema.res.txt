@@ -1,66 +1,21 @@
 generating schema from tests/Schema.res
 
-already seen user
-already seen group
+noticing user
+noticing group
 Adding union userOrGroup
 Adding enum userStatus
 Checking for type to attach resolver to
-already seen user
 Checking for type to attach resolver to
-already seen user
 Checking for type to attach resolver to
-already seen user
-Adding enum userStatus
 Checking for type to attach resolver to
-already seen user
+noticing query
+Adding input object userConfigContext
+Adding input object userConfig
 Checking for type to attach resolver to
-already seen query
-already seen user
 Checking for type to attach resolver to
-already seen query
-already seen user
-already seen group
-Adding union userOrGroup
 Checking for type to attach resolver to
-already seen query
-already seen user
 Checking for type to attach resolver to
-already seen query
 Checking for type to attach resolver to
-already seen query
-includeFullName
-Nullable(v)
-
-regularList
-List(Nullable(v))
-
-optionalList
-Nullable(List(v))
-
-nullableList
-List(Nullable(v))
-
-nullableInnerList
-List(v)
-
-list1
-Nullable(List(Nullable(v)))
-
-list2
-Nullable(List(Nullable(List(Nullable(v)))))
-
-list3
-Nullable(List(Nullable(List(List(v)))))
-
-someNullable
-v
-
-input
-v
-
-id
-v
-
 @@warning("-27")
 
 open ResGraph__GraphQLJs
