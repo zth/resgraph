@@ -44,8 +44,6 @@ let t_Mutation: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Mutation = () => t_Mutation.contents
 let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_User = () => t_User.contents
-let t_Subscription: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
-let get_Subscription = () => t_Subscription.contents
 let t_Group: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Group = () => t_Group.contents
 let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
@@ -86,16 +84,6 @@ t_Mutation.contents = GraphQLObjectType.make({
   description: ?None,
   fields: () =>
     {
-      "userUpdated": {
-        typ: get_User()->GraphQLObjectType.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-        args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,
-        resolve: makeResolveFn((src, args, ctx) => {
-          let src = typeUnwrapper(src)
-          Schema.Subscriptons.userUpdated(src, ~id=args["id"])
-        }),
-      },
       "addUser": {
         typ: get_User()->GraphQLObjectType.toGraphQLType,
         description: ?None,
@@ -171,11 +159,6 @@ t_User.contents = GraphQLObjectType.make({
         }),
       },
     }->makeFields,
-})
-t_Subscription.contents = GraphQLObjectType.make({
-  name: "Subscription",
-  description: ?None,
-  fields: () => {%raw(`{}`)}->makeFields,
 })
 t_Group.contents = GraphQLObjectType.make({
   name: "Group",
@@ -376,8 +359,4 @@ union_UserOrGroup.contents = GraphQLUnionType.make({
   resolveType: GraphQLUnionType.makeResolveUnionTypeFn(union_UserOrGroup_resolveType),
 })
 
-let schema = GraphQLSchemaType.make({
-  "query": get_Query(),
-  "mutation": get_Mutation(),
-  "subscription": get_Subscription(),
-})
+let schema = GraphQLSchemaType.make({"query": get_Query(), "mutation": get_Mutation()})

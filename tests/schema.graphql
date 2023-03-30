@@ -58,8 +58,5 @@ type Group {
 }
 
 type Mutation {
-  userUpdated(id: ID!): User
   addUser(name: String!): User
 }
-
-type Subscription
