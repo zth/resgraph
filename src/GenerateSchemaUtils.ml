@@ -1,5 +1,8 @@
 open GenerateSchemaTypes
 
+let addDiagnostic state ~diagnostic =
+  state.diagnostics <- diagnostic :: state.diagnostics
+
 let extractGqlAttribute (attributes : Parsetree.attributes) =
   attributes
   |> List.find_map (fun ((name, _payload) : Parsetree.attribute) ->
@@ -35,8 +38,7 @@ let formatCode code =
     ^ "\n\n== RAW CODE ==\n" ^ code ^ "\n\n === END ==\n" ^ printed
   else printed
 
-exception Module_path_cannot_be_determined
-
+(** Figures out the path to a target type in a file. *)
 let rec findModulePathOfType ~(env : SharedTypes.QueryEnv.t)
     ~(expectedType : gqlAttributes) ?(modulePath = [])
     ?(structure = env.file.structure) name =
@@ -66,14 +68,32 @@ let rec findModulePathOfType ~(env : SharedTypes.QueryEnv.t)
          | _ -> None)
 
 let findTypeLocation ~(env : SharedTypes.QueryEnv.t)
-    ~(expectedType : gqlAttributes) ~loc name =
+    ~(expectedType : gqlAttributes) ~state ~loc name =
+  let typeLocation : typeLocation =
+    {fileName = env.file.moduleName; modulePath = []; typeName = name; loc}
+  in
   match findModulePathOfType ~env ~expectedType name with
-  | None -> raise Module_path_cannot_be_determined
-  | Some modulePath ->
-    let typeLocation : typeLocation =
-      {fileName = env.file.moduleName; modulePath; typeName = name; loc}
-    in
+  | None ->
+    state
+    |> addDiagnostic
+         ~diagnostic:
+           {
+             loc;
+             fileUri = env.file.uri;
+             message =
+               Printf.sprintf
+                 "Could not determine location of %s backed by type `%s` in %s."
+                 (match expectedType with
+                 | Union -> "union"
+                 | Enum -> "enum"
+                 | ObjectType -> "object type"
+                 | InputObject -> "input object"
+                 | Field -> "field")
+                 name env.file.moduleName;
+           };
+
     typeLocation
+  | Some modulePath -> {typeLocation with modulePath}
 
 let typeLocationToAccessor (typeLocation : typeLocation) =
   [typeLocation.fileName] @ typeLocation.modulePath @ [typeLocation.typeName]
@@ -111,7 +131,7 @@ let noticeObjectType ~env ~loc ~state ?description ?makeFields typeName =
           | Some mk -> mk ());
         description;
         typeLocation =
-          findTypeLocation typeName ~env ~loc ~expectedType:ObjectType;
+          findTypeLocation ~state typeName ~env ~loc ~expectedType:ObjectType;
       }
     in
     Hashtbl.add state.types typeName typ;
@@ -149,16 +169,11 @@ let addFieldToObjectType ?description ~env ~loc ~field ~state typeName =
         fields = [field];
         description;
         typeLocation =
-          findTypeLocation typeName ~env ~loc ~expectedType:ObjectType;
+          findTypeLocation ~state typeName ~env ~loc ~expectedType:ObjectType;
       }
     | Some typ -> {typ with fields = field :: typ.fields}
   in
   Hashtbl.replace state.types typeName typ
-
-let getOrRaise opt msg =
-  match opt with
-  | None -> raise (Failure msg)
-  | Some v -> v
 
 let undefinedOrValueAsString v =
   match v with
@@ -199,10 +214,16 @@ let findContextArgName (args : gqlArg list) =
 
 let rec typeNeedsConversion (graphqlType : graphqlType) =
   match graphqlType with
-  | List inner -> typeNeedsConversion inner
-  | Nullable _ | RescriptNullable _ | GraphQLInputObject _ -> true
+  | List inner ->
+    (* Lists might need conversion depending on the contents. *)
+    typeNeedsConversion inner
+  | Nullable _ | RescriptNullable _
+  (* Input objects might need conversion because they might have null-enabled fields *)
+  | GraphQLInputObject _ ->
+    true
   | _ -> false
 
+(* Runtime conversion for a structure of GraphQL types. *)
 let rec generateConverter lastValue (graphqlType : graphqlType) =
   match graphqlType with
   | Nullable inner ->
@@ -242,9 +263,7 @@ let printInputObjectAssets (inputObject : gqlInputObjectType) =
                   field.name converter))
     |> String.concat ", ")
 
-let addDiagnostic state ~diagnostic =
-  state.diagnostics <- diagnostic :: state.diagnostics
-
+(* TODO: Copy printing from compiler (or just redo, like in the router...?)*)
 let printDiagnostic (diagnostic : diagnostic) =
   Printf.sprintf "Error at %s in file '%s':\n%s"
     (diagnostic.loc |> Loc.toString)
