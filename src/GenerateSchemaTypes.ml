@@ -63,11 +63,6 @@ type gqlUnion = {
   typeLocation: typeLocation;
 }
 
-let argIsOptional arg =
-  match arg.typ with
-  | Nullable _ -> true
-  | _ -> false
-
 type gqlField = {
   name: string;
   resolverStyle: fieldResolverStyle;
@@ -106,13 +101,3 @@ type state = {
 }
 
 type gqlAttributes = ObjectType | InputObject | Field | Enum | Union
-
-let pathIdentToList (p : Path.t) =
-  let rec pathIdentToListInner ?(acc = []) (p : Path.t) =
-    match p with
-    | Pident {name} -> name :: acc
-    | Pdot (nextPath, id, _) -> [id] @ pathIdentToListInner ~acc nextPath
-    | Papply _ -> acc
-  in
-  let lst = pathIdentToListInner p in
-  lst |> List.rev

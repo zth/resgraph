@@ -269,3 +269,18 @@ let printDiagnostic (diagnostic : diagnostic) =
     (diagnostic.loc |> Loc.toString)
     (diagnostic.fileUri |> Uri.toString)
     diagnostic.message
+
+let argIsOptional arg =
+  match arg.typ with
+  | Nullable _ -> true
+  | _ -> false
+
+let pathIdentToList (p : Path.t) =
+  let rec pathIdentToListInner ?(acc = []) (p : Path.t) =
+    match p with
+    | Pident {name} -> name :: acc
+    | Pdot (nextPath, id, _) -> [id] @ pathIdentToListInner ~acc nextPath
+    | Papply _ -> acc
+  in
+  let lst = pathIdentToListInner p in
+  lst |> List.rev
