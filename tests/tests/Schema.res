@@ -38,12 +38,12 @@ module UserFields = {
 
   @gql.field
   let name = (user: user, ~includeFullName) => {
-    let includeFullName = includeFullName->Belt.Option.getWithDefault(false)
+    let includeFullName = includeFullName->Option.getWithDefault(false)
 
     if includeFullName {
       user.name
     } else {
-      user.name->Js.String2.slice(~from=0, ~to_=3)
+      user.name->String.slice(~start=0, ~end=3)
     }
   }
 
@@ -92,20 +92,20 @@ module QueryFields = {
   @gql.field
   let searchForUser = (_: query, ~input: userConfig): option<user> => {
     Js.log(input)
-    Some({name: input.name->Belt.Option.getWithDefault("Hello"), age: 35, lastAge: None})
+    Some({name: input.name->Option.getWithDefault("Hello"), age: 35, lastAge: None})
   }
 
   @gql.field
   let allowExplicitNull = (_: query, ~someNullable) => {
-    let wasNull = someNullable == Js.Nullable.null
-    let wasUndefined = someNullable == Js.Nullable.undefined
+    let wasNull = someNullable == null
+    let wasUndefined = someNullable == undefined
 
     if wasNull {
       "Was null"
     } else if wasUndefined {
       "Was undefined"
     } else {
-      someNullable->Js.Nullable.toOption->Belt.Option.getExn
+      someNullable->Nullable.toOption->Option.getExn
     }
   }
 
@@ -123,23 +123,16 @@ module QueryFields = {
     ignore(list1)
     ignore(list2)
     ignore(list3)
-    let regularList = regularList->Belt.Array.keepMap(v => v)
-    let optionalList = optionalList->Belt.Option.getWithDefault([])
-    let nullableList =
-      nullableList->Js.Nullable.toOption->Belt.Option.getWithDefault([])->Belt.Array.keepMap(v => v)
+    let regularList = regularList->Array.keepSome
+    let optionalList = optionalList->Option.getWithDefault([])
+    let nullableList = nullableList->Nullable.toOption->Option.getWithDefault([])->Array.keepSome
     let nullableInnerList =
-      nullableInnerList
-      ->Js.Nullable.toOption
-      ->Belt.Option.getWithDefault([])
-      ->Belt.Array.keepMap(Js.Nullable.toOption)
+      nullableInnerList->Nullable.toOption->Option.getWithDefault([])->Array.keepSome
 
     let arr =
-      Belt.Array.concatMany([
-        regularList,
-        optionalList,
-        nullableList,
-        nullableInnerList,
-      ])->Js.Array2.map(str => "v " ++ str)
+      Array.flat([regularList, optionalList, nullableList, nullableInnerList])->Array.map(str =>
+        "v " ++ str
+      )
 
     arr
   }

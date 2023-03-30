@@ -209,20 +209,18 @@ let rec generateConverter lastValue (graphqlType : graphqlType) =
     if typeNeedsConversion inner then
       let innerConverter = generateConverter "v" inner in
       Printf.sprintf
-        "(switch %s->Js.Nullable.toOption { | None => None | Some(v) => \
-         %s->Some})"
+        "(switch %s->Nullable.toOption { | None => None | Some(v) => %s->Some})"
         lastValue innerConverter
-    else Printf.sprintf "(%s->Js.Nullable.toOption)" lastValue
+    else Printf.sprintf "(%s->Nullable.toOption)" lastValue
   | List inner ->
     if typeNeedsConversion inner then
       let innerConverter = generateConverter "v" inner in
-      Printf.sprintf "(%s->Js.Array2.map(v => %s))" lastValue innerConverter
+      Printf.sprintf "(%s->Array.map(v => %s))" lastValue innerConverter
     else lastValue
   | RescriptNullable inner ->
     if typeNeedsConversion inner then
       let innerConverter = generateConverter "v" inner in
-      Printf.sprintf "(%s->Js.Nullable.bind((. v) => %s))" lastValue
-        innerConverter
+      Printf.sprintf "(%s->Nullable.map(v => %s))" lastValue innerConverter
     else lastValue
   | GraphQLInputObject {displayName} ->
     Printf.sprintf
@@ -231,8 +229,7 @@ let rec generateConverter lastValue (graphqlType : graphqlType) =
   | _ -> lastValue
 
 let printInputObjectAssets (inputObject : gqlInputObjectType) =
-  Printf.sprintf
-    "let _ = input_%s_conversionInstructions->Js.Array2.pushMany([%s]);"
+  Printf.sprintf "input_%s_conversionInstructions->Array.pushMany([%s]);"
     inputObject.displayName
     (inputObject.fields
     |> List.filter_map (fun (field : gqlField) ->

@@ -1,5 +1,6 @@
 {
   "name": "test",
+  "uncurried": true,
   "reanalyze": {
     "analysis": ["dce"]
   },
@@ -13,7 +14,7 @@
       "subdirs": true
     }
   ],
-  "bsc-flags": ["-w -33-44"],
-  "bs-dependencies": ["@rescript/react"],
+  "bsc-flags": ["-w -33-44", "-open RescriptCore"],
+  "bs-dependencies": ["@rescript/react", "@rescript/core"],
   "jsx": { "version": 3 }
 }

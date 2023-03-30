@@ -1,7 +1,7 @@
 - [x] Input objects
 - [x] Mutations
 - [x] Subscriptions (definition, but behavior is broken)
-- [ ] Figure out how to interface with subscriptions properly. Async iterators? What else exists?
+- [ ] Figure out how to do subscriptions properly. Async iterators? What else exists?
 - [ ] Interfaces
 - [ ] Rethink root value for query/subscriptions/mutations
 - [x] Validate that enums are only variant cases without payloads

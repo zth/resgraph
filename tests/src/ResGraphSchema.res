@@ -56,12 +56,12 @@ let input_UserConfig_conversionInstructions = []
 let input_UserConfigContext: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
 let get_UserConfigContext = () => input_UserConfigContext.contents
 let input_UserConfigContext_conversionInstructions = []
-let _ = input_UserConfig_conversionInstructions->Js.Array2.pushMany([
-  ("name", makeInputObjectFieldConverterFn(v => v->Js.Nullable.toOption)),
+input_UserConfig_conversionInstructions->Array.pushMany([
+  ("name", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
   (
     "context",
     makeInputObjectFieldConverterFn(v =>
-      switch v->Js.Nullable.toOption {
+      switch v->Nullable.toOption {
       | None => None
       | Some(v) =>
         v->applyConversionToInputObject(input_UserConfigContext_conversionInstructions)->Some
@@ -69,10 +69,9 @@ let _ = input_UserConfig_conversionInstructions->Js.Array2.pushMany([
     ),
   ),
 ])
-let _ =
-  input_UserConfigContext_conversionInstructions->Js.Array2.pushMany([
-    ("name", makeInputObjectFieldConverterFn(v => v->Js.Nullable.toOption)),
-  ])
+input_UserConfigContext_conversionInstructions->Array.pushMany([
+  ("name", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+])
 let union_UserOrGroup: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
 let get_UserOrGroup = () => union_UserOrGroup.contents
 
@@ -141,10 +140,7 @@ t_User.contents = GraphQLObjectType.make({
         args: {"includeFullName": {typ: Scalars.boolean->Scalars.toGraphQLType}}->makeArgs,
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
-          Schema.UserFields.name(
-            src,
-            ~includeFullName=args["includeFullName"]->Js.Nullable.toOption,
-          )
+          Schema.UserFields.name(src, ~includeFullName=args["includeFullName"]->Nullable.toOption)
         }),
       },
       "id": {
@@ -255,33 +251,33 @@ t_Query.contents = GraphQLObjectType.make({
           let src = typeUnwrapper(src)
           Schema.QueryFields.listAsArgs(
             src,
-            ~regularList=args["regularList"]->Js.Array2.map(v => v->Js.Nullable.toOption),
-            ~optionalList=?args["optionalList"]->Js.Nullable.toOption,
-            ~nullableList=args["nullableList"]->Js.Nullable.bind((. v) =>
-              v->Js.Array2.map(v => v->Js.Nullable.toOption)
+            ~regularList=args["regularList"]->Array.map(v => v->Nullable.toOption),
+            ~optionalList=?args["optionalList"]->Nullable.toOption,
+            ~nullableList=args["nullableList"]->Nullable.map(v =>
+              v->Array.map(v => v->Nullable.toOption)
             ),
-            ~nullableInnerList=args["nullableInnerList"]->Js.Nullable.bind((. v) =>
-              v->Js.Array2.map(v => v)
+            ~nullableInnerList=args["nullableInnerList"]->Nullable.map(v =>
+              v->Array.map(v => v->Nullable.toOption)
             ),
-            ~list1=switch args["list1"]->Js.Nullable.toOption {
+            ~list1=switch args["list1"]->Nullable.toOption {
             | None => None
-            | Some(v) => v->Js.Array2.map(v => v->Js.Nullable.toOption)->Some
+            | Some(v) => v->Array.map(v => v->Nullable.toOption)->Some
             },
-            ~list2=switch args["list2"]->Js.Nullable.toOption {
+            ~list2=switch args["list2"]->Nullable.toOption {
             | None => None
             | Some(v) =>
               v
-              ->Js.Array2.map(v =>
-                switch v->Js.Nullable.toOption {
+              ->Array.map(v =>
+                switch v->Nullable.toOption {
                 | None => None
-                | Some(v) => v->Js.Array2.map(v => v->Js.Nullable.toOption)->Some
+                | Some(v) => v->Array.map(v => v->Nullable.toOption)->Some
                 }
               )
               ->Some
             },
-            ~list3=switch args["list3"]->Js.Nullable.toOption {
+            ~list3=switch args["list3"]->Nullable.toOption {
             | None => None
-            | Some(v) => v->Js.Array2.map(v => v->Js.Nullable.toOption)->Some
+            | Some(v) => v->Array.map(v => v->Nullable.toOption)->Some
             },
           )
         }),
