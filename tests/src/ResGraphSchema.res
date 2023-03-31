@@ -48,6 +48,8 @@ let t_Group: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Group = () => t_Group.contents
 let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Query = () => t_Query.contents
+let i_HasName: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
+let get_HasName = () => i_HasName.contents
 let input_UserConfig: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
 let get_UserConfig = () => input_UserConfig.contents
 let input_UserConfig_conversionInstructions = []
@@ -82,6 +84,7 @@ let union_UserOrGroup_resolveType = (v: Schema.userOrGroup) =>
 t_Mutation.contents = GraphQLObjectType.make({
   name: "Mutation",
   description: ?None,
+  interfaces: [],
   fields: () =>
     {
       "addUser": {
@@ -99,6 +102,7 @@ t_Mutation.contents = GraphQLObjectType.make({
 t_User.contents = GraphQLObjectType.make({
   name: "User",
   description: "A user in the system.",
+  interfaces: [],
   fields: () =>
     {
       "allNames": {
@@ -163,6 +167,7 @@ t_User.contents = GraphQLObjectType.make({
 t_Group.contents = GraphQLObjectType.make({
   name: "Group",
   description: "A group in the system.",
+  interfaces: [],
   fields: () =>
     {
       "name": {
@@ -179,6 +184,7 @@ t_Group.contents = GraphQLObjectType.make({
 t_Query.contents = GraphQLObjectType.make({
   name: "Query",
   description: ?None,
+  interfaces: [],
   fields: () =>
     {
       "listAsArgs": {
@@ -309,6 +315,23 @@ t_Query.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
           Schema.QueryFields.me(src)
+        }),
+      },
+    }->makeFields,
+})
+i_HasName.contents = GraphQLInterfaceType.make({
+  name: "HasName",
+  description: "An entity with a name.",
+  interfaces: [],
+  fields: () =>
+    {
+      "name": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["name"]
         }),
       },
     }->makeFields,

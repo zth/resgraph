@@ -53,6 +53,9 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
   | GraphQLObjectType {displayName} ->
     Printf.sprintf "get_%s()->GraphQLObjectType.toGraphQLType%s" displayName
       nullablePostfix
+  | GraphQLInterface {displayName} ->
+    Printf.sprintf "get_%s()->GraphQLInterfaceType.toGraphQLType%s" displayName
+      nullablePostfix
   | GraphQLInputObject {displayName} ->
     Printf.sprintf "get_%s()->GraphQLInputObjectType.toGraphQLType%s"
       displayName nullablePostfix
@@ -109,9 +112,23 @@ let printInputObjectFields (fields : gqlField list) =
                (printInputObjectField field))
       |> String.concat ",\n")
 let printObjectType (typ : gqlObjectType) =
-  Printf.sprintf "{name: \"%s\", description: %s, fields: () => %s}"
+  Printf.sprintf
+    "{name: \"%s\", description: %s, interfaces: [%s], fields: () => %s}"
     typ.displayName
     (undefinedOrValueAsString typ.description)
+    (typ.interfaces
+    |> List.map (fun item -> Printf.sprintf "get_%s()" item)
+    |> String.concat ", ")
+    (printFields typ.fields)
+
+let printInterfaceType (typ : gqlInterface) =
+  Printf.sprintf
+    "{name: \"%s\", description: %s, interfaces: [%s], fields: () => %s}"
+    typ.displayName
+    (undefinedOrValueAsString typ.description)
+    (typ.interfaces
+    |> List.map (fun item -> Printf.sprintf "get_%s()" item)
+    |> String.concat ", ")
     (printFields typ.fields)
 
 let printInputObjectType (typ : gqlInputObjectType) =

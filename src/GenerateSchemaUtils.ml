@@ -3,35 +3,38 @@ open GenerateSchemaTypes
 let addDiagnostic state ~diagnostic =
   state.diagnostics <- diagnostic :: state.diagnostics
 
+let extractInterfacesImplemented (payload : Parsetree.payload) =
+  match payload with
+  | PStr structure ->
+    structure
+    |> List.filter_map (fun item ->
+           match item.Parsetree.pstr_desc with
+           | Pstr_eval ({pexp_desc = Pexp_record (fields, _spread)}, _) ->
+             fields
+             |> List.find_map (fun (name, exp) ->
+                    match (name, exp) with
+                    | ( {Location.txt = Longident.Lident "interfaces"},
+                        {Parsetree.pexp_desc = Pexp_array items} ) ->
+                      items
+                      |> List.find_map (fun e ->
+                             match e.Parsetree.pexp_desc with
+                             | Pexp_ident lident -> Some lident
+                             | _ -> None)
+                    | _ -> None)
+           | _ -> None)
+  | _ -> []
+
 let extractGqlAttribute ~state ~(env : SharedTypes.QueryEnv.t)
     (attributes : Parsetree.attributes) =
   attributes
   |> List.find_map (fun ((name, payload) : Parsetree.attribute) ->
          match String.split_on_char '.' name.txt with
          | ["gql"; "type"] ->
-           let interfaces =
-             match payload with
-             | PStr structure ->
-               structure
-               |> List.filter_map (fun item ->
-                      match item.Parsetree.pstr_desc with
-                      | Pstr_eval
-                          ({pexp_desc = Pexp_record (fields, _spread)}, _) ->
-                        fields
-                        |> List.find_map (fun (name, exp) ->
-                               match (name, exp) with
-                               | ( {Location.txt = Longident.Lident "interfaces"},
-                                   {Parsetree.pexp_desc = Pexp_array items} ) ->
-                                 items
-                                 |> List.find_map (fun e ->
-                                        match e.Parsetree.pexp_desc with
-                                        | Pexp_ident lident -> Some lident
-                                        | _ -> None)
-                               | _ -> None)
-                      | _ -> None)
-             | _ -> []
-           in
+           let interfaces = extractInterfacesImplemented payload in
            Some (ObjectType {interfaces})
+         | ["gql"; "interface"] ->
+           let interfaces = extractInterfacesImplemented payload in
+           Some (Interface {interfaces})
          | ["gql"; "field"] -> Some Field
          | ["gql"; "enum"] -> Some Enum
          | ["gql"; "union"] -> Some Union
@@ -77,7 +80,13 @@ let formatCode code =
     ^ "\n\n== RAW CODE ==\n" ^ code ^ "\n\n === END ==\n" ^ printed
   else printed
 
-type expectedType = ObjectType | InputObject | Field | Enum | Union
+type expectedType =
+  | ObjectType
+  | InputObject
+  | Field
+  | Enum
+  | Union
+  | Interface
 
 (** Figures out the path to a target type in a file. *)
 let rec findModulePathOfType ~state ~(env : SharedTypes.QueryEnv.t)
@@ -98,6 +107,9 @@ let rec findModulePathOfType ~state ~(env : SharedTypes.QueryEnv.t)
            ->
            Some modulePath
          | Type ({kind = Record _}, _), ObjectType, Some (ObjectType _)
+           when item.name = name ->
+           Some modulePath
+         | Type ({kind = Record _}, _), Interface, Some (Interface _)
            when item.name = name ->
            Some modulePath
          | Type ({kind = Record _}, _), InputObject, Some InputObject
@@ -131,7 +143,8 @@ let findTypeLocation ~(env : SharedTypes.QueryEnv.t)
                  | Enum -> "enum"
                  | ObjectType -> "object type"
                  | InputObject -> "input object"
-                 | Field -> "field")
+                 | Field -> "field"
+                 | Interface -> "interface")
                  name env.file.moduleName;
            };
 
@@ -180,6 +193,12 @@ let addUnion id ~(makeUnion : unit -> gqlUnion) ~state =
   else (
     Printf.printf "Adding union %s\n" id;
     Hashtbl.replace state.unions id (makeUnion ()))
+
+let addInterface id ~(makeInterface : unit -> gqlInterface) ~state =
+  if Hashtbl.mem state.interfaces id then ()
+  else (
+    Printf.printf "Adding interface %s\n" id;
+    Hashtbl.replace state.interfaces id (makeInterface ()))
 
 let addInputObject id ~(makeInputObject : unit -> gqlInputObjectType) ~state =
   if Hashtbl.mem state.inputObjects id then ()

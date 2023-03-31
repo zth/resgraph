@@ -109,6 +109,22 @@ let rec findGraphQLType ~env ?(typeContext = Default) ?loc ~state
                     ~expectedType:InputObject;
               });
           Some (GraphQLInputObject {id; displayName = capitalizeFirstChar id})
+        | ( Some (Interface {interfaces}),
+            {name; kind = Record fields; attributes; decl} ) ->
+          let id = name in
+          let displayName = capitalizeFirstChar id in
+          addInterface id ~state ~makeInterface:(fun () ->
+              {
+                id;
+                displayName;
+                interfaces = [];
+                fields = objectTypeFieldsOfRecordFields fields ~env ~full ~state;
+                description = attributesToDocstring attributes;
+                typeLocation =
+                  findTypeLocation item.name ~env ~state ~loc:decl.type_loc
+                    ~expectedType:Interface;
+              });
+          Some (GraphQLInterface {id; displayName = capitalizeFirstChar id})
         | Some Enum, {name; kind = Variant cases} ->
           let id = name in
           let displayName = capitalizeFirstChar id in
@@ -420,6 +436,18 @@ let applyConversionToInputObject: ('a, array<(string, inputObjectFieldConverterF
            (Printf.sprintf "let get_%s = () => t_%s.contents" typ.displayName
               typ.displayName));
 
+  (* Print the interface type holders and getters *)
+  state.interfaces
+  |> Hashtbl.iter (fun _name (typ : gqlInterface) ->
+         addWithNewLine
+           (Printf.sprintf
+              "let i_%s: ref<GraphQLInterfaceType.t> = \
+               Obj.magic({\"contents\": Js.null})"
+              typ.displayName);
+         addWithNewLine
+           (Printf.sprintf "let get_%s = () => i_%s.contents" typ.displayName
+              typ.displayName));
+
   (* Print the input object type holders and getters *)
   state.inputObjects
   |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
@@ -476,7 +504,13 @@ let applyConversionToInputObject: ('a, array<(string, inputObjectFieldConverterF
               typ.displayName
               (typ |> GenerateSchemaTypePrinters.printObjectType)));
 
-  (* Now we can print all of the code that fills these in. *)
+  state.interfaces
+  |> Hashtbl.iter (fun _name (typ : gqlInterface) ->
+         addWithNewLine
+           (Printf.sprintf "i_%s.contents = GraphQLInterfaceType.make(%s)"
+              typ.displayName
+              (typ |> GenerateSchemaTypePrinters.printInterfaceType)));
+
   state.inputObjects
   |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
          addWithNewLine
@@ -546,6 +580,23 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
                  typeLocation =
                    findTypeLocation item.name ~env ~state:!state
                      ~loc:decl.type_loc ~expectedType:InputObject;
+               })
+         | ( Type ({kind = Record fields; attributes; decl}, _),
+             Some (Interface {interfaces}) ) ->
+           (* @gql.interface type hasName = {...} *)
+           let id = item.name in
+           addInterface id ~state:!state ~makeInterface:(fun () ->
+               {
+                 id;
+                 displayName = capitalizeFirstChar item.name;
+                 fields =
+                   objectTypeFieldsOfRecordFields fields ~env ~full
+                     ~state:!state;
+                 description = attributesToDocstring attributes;
+                 interfaces = [];
+                 typeLocation =
+                   findTypeLocation item.name ~env ~state:!state
+                     ~loc:decl.type_loc ~expectedType:Interface;
                })
          | Type (({kind = Variant cases} as item), _), Some Enum ->
            (* @gql.enum type someEnum = Online | Offline | Idle *)
@@ -692,6 +743,17 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
                      Printf.sprintf
                        "This type is annotated with @gql.union, but is not a \
                         variant. Only variants can represent GraphQL unions.";
+                 }
+           | Some (Interface _) ->
+             add
+               ~diagnostic:
+                 {
+                   baseDiagnostic with
+                   message =
+                     Printf.sprintf
+                       "This type is annotated with @gql.interface, but is not \
+                        a record. Only records can represent GraphQL \
+                        interfaces.";
                  }))
 
 let generateSchema ~path ~debug ~outputPath =
@@ -710,6 +772,7 @@ let generateSchema ~path ~debug ~outputPath =
           enums = Hashtbl.create 10;
           unions = Hashtbl.create 10;
           inputObjects = Hashtbl.create 10;
+          interfaces = Hashtbl.create 10;
           query = None;
           subscription = None;
           mutation = None;

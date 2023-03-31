@@ -1,3 +1,7 @@
+/** An entity with a name. */
+@gql.interface
+type hasName = {@gql.field name: string}
+
 /** A user in the system. */
 @gql.type({interfaces: [hasName]})
 type user = {
@@ -9,7 +13,7 @@ type user = {
 }
 
 /** A group in the system. */
-@gql.type
+@gql.type({interfaces: [hasName]})
 type group = {
   /** The group name.*/
   @gql.field

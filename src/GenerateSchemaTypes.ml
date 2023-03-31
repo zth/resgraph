@@ -10,6 +10,7 @@ type graphqlType =
   | GraphQLInputObject of {id: string; displayName: string}
   | GraphQLEnum of {id: string; displayName: string}
   | GraphQLUnion of {id: string; displayName: string}
+  | GraphQLInterface of {id: string; displayName: string}
 
 type fieldResolverStyle =
   | Resolver of {moduleName: string; fnName: string; pathToFn: string list}
@@ -79,6 +80,15 @@ type gqlObjectType = {
   interfaces: string list;
 }
 
+type gqlInterface = {
+  id: string;
+  displayName: string;
+  fields: gqlField list;
+  description: string option;
+  typeLocation: typeLocation;
+  interfaces: string list;
+}
+
 type gqlInputObjectType = {
   id: string;
   displayName: string;
@@ -92,6 +102,7 @@ type state = {
   inputObjects: (string, gqlInputObjectType) Hashtbl.t;
   enums: (string, gqlEnum) Hashtbl.t;
   unions: (string, gqlUnion) Hashtbl.t;
+  interfaces: (string, gqlInterface) Hashtbl.t;
   mutable query: gqlObjectType option;
   mutable subscription: gqlObjectType option;
   mutable mutation: gqlObjectType option;
@@ -100,6 +111,7 @@ type state = {
 
 type gqlAttributes =
   | ObjectType of {interfaces: Longident.t Location.loc list}
+  | Interface of {interfaces: Longident.t Location.loc list}
   | InputObject
   | Field
   | Enum
