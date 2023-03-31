@@ -121,7 +121,7 @@ let capitalizeFirstChar s =
   if String.length s = 0 then s
   else String.mapi (fun i c -> if i = 0 then Char.uppercase_ascii c else c) s
 
-let noticeObjectType ~env ~loc ~state ?description ?makeFields typeName =
+let noticeObjectType ~env ~loc ~state ?description ~makeFields typeName =
   if Hashtbl.mem state.types typeName then ()
   else (
     Printf.printf "noticing %s\n" typeName;
@@ -129,10 +129,7 @@ let noticeObjectType ~env ~loc ~state ?description ?makeFields typeName =
       {
         id = typeName;
         displayName = capitalizeFirstChar typeName;
-        fields =
-          (match makeFields with
-          | None -> []
-          | Some mk -> mk ());
+        fields = makeFields ();
         description;
         typeLocation =
           findTypeLocation ~state typeName ~env ~loc ~expectedType:ObjectType;
@@ -163,7 +160,7 @@ let addInputObject id ~(makeInputObject : unit -> gqlInputObjectType) ~state =
     Printf.printf "Adding input object %s\n" id;
     Hashtbl.replace state.inputObjects id (makeInputObject ()))
 
-let addFieldToObjectType ?description ~env ~loc ~field ~state typeName =
+let addFieldToObjectType ~env ~loc ~field ~state typeName =
   let typ : gqlObjectType =
     match Hashtbl.find_opt state.types typeName with
     | None ->
@@ -171,7 +168,7 @@ let addFieldToObjectType ?description ~env ~loc ~field ~state typeName =
         id = typeName;
         displayName = capitalizeFirstChar typeName;
         fields = [field];
-        description;
+        description = field.description;
         typeLocation =
           findTypeLocation ~state typeName ~env ~loc ~expectedType:ObjectType;
       }
@@ -273,11 +270,6 @@ let printDiagnostic (diagnostic : diagnostic) =
     (diagnostic.loc |> Loc.toString)
     (diagnostic.fileUri |> Uri.toString)
     diagnostic.message
-
-let argIsOptional arg =
-  match arg.typ with
-  | Nullable _ -> true
-  | _ -> false
 
 let pathIdentToList (p : Path.t) =
   let rec pathIdentToListInner ?(acc = []) (p : Path.t) =

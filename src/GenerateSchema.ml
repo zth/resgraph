@@ -34,19 +34,19 @@ let rec findGraphQLType ~env ?loc ~state ~(full : SharedTypes.full)
     (typ : Types.type_expr) =
   match typ.desc with
   | Tlink te | Tsubst te | Tpoly (te, []) ->
-    findGraphQLType te ~env ~state ~full
+    findGraphQLType te ?loc ~env ~state ~full
   | Tconstr (Path.Pident {name = "option"}, [unwrappedType], _) -> (
     let inner = findGraphQLType ~env ~state ~full unwrappedType in
     match inner with
     | None -> None
     | Some inner -> Some (Nullable inner))
   | Tconstr (Path.Pident {name = "array"}, [unwrappedType], _) -> (
-    let inner = findGraphQLType ~env ~state ~full unwrappedType in
+    let inner = findGraphQLType ?loc ~env ~state ~full unwrappedType in
     match inner with
     | None -> None
     | Some inner -> Some (List inner))
   | Tconstr (Path.Pident {name = "promise"}, [unwrappedType], _) ->
-    findGraphQLType unwrappedType ~env ~state ~full
+    findGraphQLType unwrappedType ?loc ~env ~state ~full
   | Tconstr (Path.Pident {name = "string"}, [], _) -> Some (Scalar String)
   | Tconstr (Path.Pident {name = "bool"}, [], _) -> Some (Scalar Boolean)
   | Tconstr (Path.Pident {name = "int"}, [], _) -> Some (Scalar Int)
@@ -58,7 +58,7 @@ let rec findGraphQLType ~env ?loc ~state ~(full : SharedTypes.full)
     | ["Js"; "Nullable"; "t"] -> (
       match typeArgs with
       | [typeArg] -> (
-        let inner = findGraphQLType ~env ~state ~full typeArg in
+        let inner = findGraphQLType ?loc ~env ~state ~full typeArg in
         match inner with
         | None -> None
         | Some inner -> Some (RescriptNullable inner))
@@ -67,11 +67,14 @@ let rec findGraphQLType ~env ?loc ~state ~(full : SharedTypes.full)
       (* If none of the above matches we'll see if we can dig to the underlying
          type, to make sure it's a valid GraphQL type. *)
       match References.digConstructor ~env ~package:full.package path with
-      | Some (env, {item = {decl = {type_params; type_manifest = Some te}}}) ->
+      | Some
+          ( env,
+            {item = {decl = {type_loc; type_params; type_manifest = Some te}}}
+          ) ->
         (* Need to instantiate the type here, so all type variables are populated. *)
         let typeParams = type_params in
         let te = TypeUtils.instantiateType ~typeParams ~typeArgs te in
-        findGraphQLType te ~env ~state ~full
+        findGraphQLType te ~loc:type_loc ~env ~state ~full
       | Some (env, {item}) -> (
         let gqlAttribute = extractGqlAttribute ~env ~state item.attributes in
         match (gqlAttribute, item) with
@@ -124,14 +127,13 @@ let rec findGraphQLType ~env ?loc ~state ~(full : SharedTypes.full)
         | _ -> Some (Named {path; env}))
       | _ -> Some (Named {path; env})))
   | _ ->
-    (* TODO: Diagnostic *)
     state
     |> addDiagnostic
          ~diagnostic:
            {
              loc =
                (match loc with
-               | None -> Obj.magic ()
+               | None -> Location.in_file (env.file.moduleName ^ ".res")
                | Some loc -> loc);
              fileUri = env.file.uri;
              message =
