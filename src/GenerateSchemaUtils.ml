@@ -3,7 +3,8 @@ open GenerateSchemaTypes
 let addDiagnostic state ~diagnostic =
   state.diagnostics <- diagnostic :: state.diagnostics
 
-let extractGqlAttribute (attributes : Parsetree.attributes) =
+let extractGqlAttribute ~state ~(env : SharedTypes.QueryEnv.t)
+    (attributes : Parsetree.attributes) =
   attributes
   |> List.find_map (fun ((name, _payload) : Parsetree.attribute) ->
          match String.split_on_char '.' name.txt with
@@ -12,7 +13,22 @@ let extractGqlAttribute (attributes : Parsetree.attributes) =
          | ["gql"; "enum"] -> Some Enum
          | ["gql"; "union"] -> Some Union
          | ["gql"; "inputObject"] -> Some InputObject
-         | "gql" :: _ -> (* TODO: Warn about invalid gql annotation*) None
+         | "gql" :: _ ->
+           state
+           |> addDiagnostic
+                ~diagnostic:
+                  {
+                    loc = name.loc;
+                    fileUri = env.file.uri;
+                    message =
+                      Printf.sprintf
+                        "`%s` is an invalid @gql annotation. Valid annotations \
+                         are `@gql.type` for object types, `@gql.inputObject` \
+                         for input objects, `@gql.enum` for enums, \
+                         `@gql.union` for unions."
+                        name.txt;
+                  };
+           None
          | _ -> None)
 
 let getFieldAttribute gqlAttribute =
@@ -20,8 +36,8 @@ let getFieldAttribute gqlAttribute =
   | Some Field -> Some gqlAttribute
   | _ -> None
 
-let getFieldAttributeFromRawAttributes attributes =
-  attributes |> extractGqlAttribute |> getFieldAttribute
+let getFieldAttributeFromRawAttributes ~env ~state attributes =
+  attributes |> extractGqlAttribute ~env ~state |> getFieldAttribute
 
 let formatCode code =
   let {Res_driver.parsetree = structure; comments; diagnostics} =
@@ -39,14 +55,16 @@ let formatCode code =
   else printed
 
 (** Figures out the path to a target type in a file. *)
-let rec findModulePathOfType ~(env : SharedTypes.QueryEnv.t)
+let rec findModulePathOfType ~state ~(env : SharedTypes.QueryEnv.t)
     ~(expectedType : gqlAttributes) ?(modulePath = [])
     ?(structure = env.file.structure) name =
   let open SharedTypes.Module in
   structure.items
   |> List.find_map (fun (item : item) ->
          match
-           (item.kind, expectedType, item.attributes |> extractGqlAttribute)
+           ( item.kind,
+             expectedType,
+             item.attributes |> extractGqlAttribute ~env ~state )
          with
          | Type ({kind = Variant _}, _), Enum, Some Enum when item.name = name
            ->
@@ -64,7 +82,7 @@ let rec findModulePathOfType ~(env : SharedTypes.QueryEnv.t)
            name
            |> findModulePathOfType ~env ~expectedType
                 ~modulePath:(structure.name :: modulePath)
-                ~structure
+                ~structure ~state
          | _ -> None)
 
 let findTypeLocation ~(env : SharedTypes.QueryEnv.t)
@@ -72,7 +90,7 @@ let findTypeLocation ~(env : SharedTypes.QueryEnv.t)
   let typeLocation : typeLocation =
     {fileName = env.file.moduleName; modulePath = []; typeName = name; loc}
   in
-  match findModulePathOfType ~env ~expectedType name with
+  match findModulePathOfType ~state ~env ~expectedType name with
   | None ->
     state
     |> addDiagnostic
@@ -103,8 +121,8 @@ let capitalizeFirstChar s =
   if String.length s = 0 then s
   else String.mapi (fun i c -> if i = 0 then Char.uppercase_ascii c else c) s
 
-let graphqlTypeFromItem (item : SharedTypes.Type.t) =
-  let gqlAttribute = extractGqlAttribute item.attributes in
+let graphqlTypeFromItem ~env ~state (item : SharedTypes.Type.t) =
+  let gqlAttribute = extractGqlAttribute ~env ~state item.attributes in
   match (gqlAttribute, item) with
   | Some ObjectType, {kind = Record _; name} ->
     Some (GraphQLObjectType {id = name; displayName = capitalizeFirstChar name})

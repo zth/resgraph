@@ -74,7 +74,7 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
         findGraphQLType te ~env ~state ~full
       | Some (env, {item}) -> (
         (* TODO: inline graphqlTypeFromItem *)
-        match (graphqlTypeFromItem item, item.kind) with
+        match (graphqlTypeFromItem ~env ~state item, item.kind) with
         | Some (GraphQLObjectType {id} as graphqlType), _ ->
           noticeObjectType id ~state ~env ~loc:item.decl.type_loc;
           Some graphqlType
@@ -173,7 +173,9 @@ let objectTypeFieldsOfRecordFields ~env ~state ~(full : SharedTypes.full)
     (fields : SharedTypes.field list) =
   fields
   |> List.filter_map (fun (field : SharedTypes.field) ->
-         match field.attributes |> getFieldAttributeFromRawAttributes with
+         match
+           field.attributes |> getFieldAttributeFromRawAttributes ~state ~env
+         with
          | None -> None
          | Some attr -> Some (field, attr))
   |> List.filter_map (fun ((field : SharedTypes.field), _attr) ->
@@ -430,7 +432,9 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
     (structure : SharedTypes.Module.structure) =
   structure.items
   |> List.iter (fun (item : SharedTypes.Module.item) ->
-         match (item.kind, item.attributes |> extractGqlAttribute) with
+         match
+           (item.kind, item.attributes |> extractGqlAttribute ~state:!state ~env)
+         with
          | Module (Structure structure), _ ->
            (* Continue into modules (ignore module aliases etc) *)
            (* Might need to support modules with constraints too. But will
