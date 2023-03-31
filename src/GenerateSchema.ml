@@ -29,24 +29,29 @@ let variantCasesToEnumValues ~state ~(env : SharedTypes.QueryEnv.t)
                };
            None)
 
+type typeContext = Default | ReturnType
+
 (* Extracts valid GraphQL types from type exprs *)
-let rec findGraphQLType ~env ?loc ~state ~(full : SharedTypes.full)
-    (typ : Types.type_expr) =
+let rec findGraphQLType ~env ?(typeContext = Default) ?loc ~state
+    ~(full : SharedTypes.full) (typ : Types.type_expr) =
   match typ.desc with
   | Tlink te | Tsubst te | Tpoly (te, []) ->
-    findGraphQLType te ?loc ~env ~state ~full
+    findGraphQLType te ?loc ~env ~state ~full ~typeContext
   | Tconstr (Path.Pident {name = "option"}, [unwrappedType], _) -> (
-    let inner = findGraphQLType ~env ~state ~full unwrappedType in
+    let inner = findGraphQLType ~env ~state ~full ~typeContext unwrappedType in
     match inner with
     | None -> None
     | Some inner -> Some (Nullable inner))
   | Tconstr (Path.Pident {name = "array"}, [unwrappedType], _) -> (
-    let inner = findGraphQLType ?loc ~env ~state ~full unwrappedType in
+    let inner =
+      findGraphQLType ?loc ~env ~state ~full ~typeContext unwrappedType
+    in
     match inner with
     | None -> None
     | Some inner -> Some (List inner))
-  | Tconstr (Path.Pident {name = "promise"}, [unwrappedType], _) ->
-    findGraphQLType unwrappedType ?loc ~env ~state ~full
+  | Tconstr (Path.Pident {name = "promise"}, [unwrappedType], _)
+    when typeContext = ReturnType ->
+    findGraphQLType unwrappedType ?loc ~env ~state ~full ~typeContext
   | Tconstr (Path.Pident {name = "string"}, [], _) -> Some (Scalar String)
   | Tconstr (Path.Pident {name = "bool"}, [], _) -> Some (Scalar Boolean)
   | Tconstr (Path.Pident {name = "int"}, [], _) -> Some (Scalar Int)
@@ -58,7 +63,9 @@ let rec findGraphQLType ~env ?loc ~state ~(full : SharedTypes.full)
     | ["Js"; "Nullable"; "t"] -> (
       match typeArgs with
       | [typeArg] -> (
-        let inner = findGraphQLType ?loc ~env ~state ~full typeArg in
+        let inner =
+          findGraphQLType ?loc ~env ~state ~full ~typeContext typeArg
+        in
         match inner with
         | None -> None
         | Some inner -> Some (RescriptNullable inner))
@@ -74,7 +81,7 @@ let rec findGraphQLType ~env ?loc ~state ~(full : SharedTypes.full)
         (* Need to instantiate the type here, so all type variables are populated. *)
         let typeParams = type_params in
         let te = TypeUtils.instantiateType ~typeParams ~typeArgs te in
-        findGraphQLType te ~loc:type_loc ~env ~state ~full
+        findGraphQLType te ~loc:type_loc ~env ~state ~full ~typeContext
       | Some (env, {item}) -> (
         let gqlAttribute = extractGqlAttribute ~env ~state item.attributes in
         match (gqlAttribute, item) with
@@ -302,7 +309,8 @@ let extractResolverFunctionInfo ~env ?loc ~(full : SharedTypes.full)
       Printf.printf "Checking for type to attach resolver to\n";
       match
         ( findGraphQLType typ ?loc ~env ~full ~state,
-          findGraphQLType returnType ?loc ~env ~full ~state )
+          findGraphQLType returnType ~typeContext:ReturnType ?loc ~env ~full
+            ~state )
       with
       | Some targetGraphQLType, Some returnType ->
         Some (targetGraphQLType, args, returnType)
@@ -629,7 +637,7 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
            in
            let add = !state |> addDiagnostic in
            match gqlAttribute with
-           | None -> ()
+           | None -> (* Ignore if we had no gql attribute anyway. *) ()
            | Some Field ->
              add
                ~diagnostic:

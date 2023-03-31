@@ -3,6 +3,8 @@ generating schema from tests/Errors.res
 noticing user
 Adding enum myEnum
 Adding union someUnion
+noticing group
+Adding input object group2
 Error at [1:10->1:31] in file 'Errors.res':
 This type is annotated with @gql.type, but is not a record. Only records can represent GraphQL object types.
 
@@ -32,4 +34,16 @@ This type is annotated with @gql.inputObject, but is not a record. Only records 
 
 Error at [24:15->24:28] in file 'Errors.res':
 This let binding is annotated with @gql.field, but is not a function. Only functions can represent GraphQL field resolvers.
+
+Error at [27:35->27:39] in file 'Errors.res':
+This is not a valid GraphQL type: promise<string>
+
+Error at [27:35->27:39] in file 'Errors.res':
+Field `name` is has a @gql.field annotation, but is not a valid GraphQL type. Please change the type of this field to be a valid GraphQL type, or expose this field via a custom written resolver instead if you need to transform it before exposing it in GraphQL.
+
+Error at [28:32->28:36] in file 'Errors.res':
+This is not a valid GraphQL type: promise<string>
+
+Error at [28:32->28:36] in file 'Errors.res':
+Field `name` is is not a valid GraphQL type. All fields of a @gql.inputObject must be valid GraphQL types.
 

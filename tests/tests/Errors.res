@@ -24,4 +24,8 @@ type groupWithNoAnnotation = {@gql.field name: string}
 // Resolvers must be functions
 @gql.field let wrongResolver = ()
 
+// Object fields must not be promises
+@gql.type type group = {@gql.field name: promise<string>}
+@gql.inputObject type group2 = {name: promise<string>}
+
 // ^gen
