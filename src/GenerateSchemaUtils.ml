@@ -121,20 +121,6 @@ let capitalizeFirstChar s =
   if String.length s = 0 then s
   else String.mapi (fun i c -> if i = 0 then Char.uppercase_ascii c else c) s
 
-let graphqlTypeFromItem ~env ~state (item : SharedTypes.Type.t) =
-  let gqlAttribute = extractGqlAttribute ~env ~state item.attributes in
-  match (gqlAttribute, item) with
-  | Some ObjectType, {kind = Record _; name} ->
-    Some (GraphQLObjectType {id = name; displayName = capitalizeFirstChar name})
-  | Some InputObject, {kind = Record _; name} ->
-    Some
-      (GraphQLInputObject {id = name; displayName = capitalizeFirstChar name})
-  | Some Enum, {kind = Variant _; name} ->
-    Some (GraphQLEnum {id = name; displayName = capitalizeFirstChar name})
-  | Some Union, {kind = Variant _; name} ->
-    Some (GraphQLUnion {id = name; displayName = capitalizeFirstChar name})
-  | _ -> None
-
 let noticeObjectType ~env ~loc ~state ?description ?makeFields typeName =
   if Hashtbl.mem state.types typeName then ()
   else (

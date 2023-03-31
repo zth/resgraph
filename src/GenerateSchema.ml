@@ -30,7 +30,7 @@ let variantCasesToEnumValues ~state ~(env : SharedTypes.QueryEnv.t)
            None)
 
 (* Extracts valid GraphQL types from type exprs *)
-let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
+let rec findGraphQLType ~env ?loc ~state ~(full : SharedTypes.full)
     (typ : Types.type_expr) =
   match typ.desc with
   | Tlink te | Tsubst te | Tpoly (te, []) ->
@@ -73,14 +73,32 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
         let te = TypeUtils.instantiateType ~typeParams ~typeArgs te in
         findGraphQLType te ~env ~state ~full
       | Some (env, {item}) -> (
-        (* TODO: inline graphqlTypeFromItem *)
-        match (graphqlTypeFromItem ~env ~state item, item.kind) with
-        | Some (GraphQLObjectType {id} as graphqlType), _ ->
-          noticeObjectType id ~state ~env ~loc:item.decl.type_loc;
-          Some graphqlType
-        | Some (GraphQLInputObject _ as graphqlType), Record _fields ->
-          (* TODO: Add here! *) Some graphqlType
-        | Some (GraphQLEnum {id} as graphqlType), Variant cases ->
+        let gqlAttribute = extractGqlAttribute ~env ~state item.attributes in
+        match (gqlAttribute, item) with
+        | Some ObjectType, {name; kind = Record fields} ->
+          (* TODO: Extract fields here? *)
+          let id = name in
+          noticeObjectType id ~state ~env
+            ~makeFields:(fun () ->
+              fields |> objectTypeFieldsOfRecordFields ~env ~full ~state)
+            ~loc:item.decl.type_loc;
+          Some (GraphQLObjectType {id; displayName = capitalizeFirstChar id})
+        | Some InputObject, {name; kind = Record fields; attributes; decl} ->
+          let id = name in
+          addInputObject id ~state ~makeInputObject:(fun () ->
+              {
+                id;
+                displayName = capitalizeFirstChar item.name;
+                fields =
+                  inputObjectFieldsOfRecordFields fields ~env ~full ~state;
+                description = attributesToDocstring attributes;
+                typeLocation =
+                  findTypeLocation item.name ~env ~state ~loc:decl.type_loc
+                    ~expectedType:InputObject;
+              });
+          Some (GraphQLInputObject {id; displayName = capitalizeFirstChar id})
+        | Some Enum, {name; kind = Variant cases} ->
+          let id = name in
           addEnum id ~state ~makeEnum:(fun () ->
               {
                 id;
@@ -89,8 +107,9 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
                 description = item.attributes |> attributesToDocstring;
                 loc = item.decl.type_loc;
               });
-          Some graphqlType
-        | Some (GraphQLUnion {id} as graphqlType), Variant cases ->
+          Some (GraphQLEnum {id; displayName = capitalizeFirstChar id})
+        | Some Union, {name; kind = Variant cases} ->
+          let id = name in
           addUnion id ~state ~makeUnion:(fun () ->
               {
                 id;
@@ -101,12 +120,57 @@ let rec findGraphQLType ~env ~state ~(full : SharedTypes.full)
                   findTypeLocation ~loc:item.decl.type_loc ~state ~env
                     ~expectedType:Union id;
               });
-          Some graphqlType
+          Some (GraphQLUnion {id; displayName = capitalizeFirstChar id})
         | _ -> Some (Named {path; env}))
       | _ -> Some (Named {path; env})))
   | _ ->
     (* TODO: Diagnostic *)
-    raise (Fail ("Invalid GraphQL type: " ^ Shared.typeToString typ))
+    state
+    |> addDiagnostic
+         ~diagnostic:
+           {
+             loc =
+               (match loc with
+               | None -> Obj.magic ()
+               | Some loc -> loc);
+             fileUri = env.file.uri;
+             message =
+               Printf.sprintf "This is not a valid GraphQL type: %s"
+                 (Shared.typeToString typ);
+           };
+    None
+
+and inputObjectFieldsOfRecordFields ~env ~state ~(full : SharedTypes.full)
+    (fields : SharedTypes.field list) =
+  fields
+  |> List.filter_map (fun (field : SharedTypes.field) ->
+         let name = field.fname.txt in
+         match findGraphQLType field.typ ~full ~env ~state with
+         | None ->
+           state
+           |> addDiagnostic
+                ~diagnostic:
+                  {
+                    fileUri = env.file.uri;
+                    loc = field.fname.loc;
+                    message =
+                      Printf.sprintf
+                        "Field `%s` is is not a valid GraphQL type. All fields \
+                         of a @gql.inputObject must be valid GraphQL types."
+                        field.fname.txt;
+                  };
+           None
+         | Some typ ->
+           Some
+             {
+               name;
+               resolverStyle = Property name;
+               typ;
+               args = [];
+               description = field.attributes |> attributesToDocstring;
+               deprecationReason = field.deprecated;
+               loc = field.fname.loc;
+             })
 
 and variantCasesToUnionValues ~env ~state ~full
     (cases : SharedTypes.Constructor.t list) =
@@ -148,28 +212,7 @@ and variantCasesToUnionValues ~env ~state ~full
                };
            None)
 
-let extractResolverFunctionInfo ~env ~(full : SharedTypes.full) ~(state : state)
-    (typ : Types.type_expr) =
-  match typ |> TypeUtils.extractType ~env ~package:full.package with
-  | Some (Tfunction {typ; env}) -> (
-    let args, returnType =
-      TypeUtils.extractFunctionType ~env ~package:full.package typ
-    in
-    (* The first arg should point to the type this resolver is for. *)
-    match List.nth_opt args 0 with
-    | Some (Nolabel, typ) -> (
-      Printf.printf "Checking for type to attach resolver to\n";
-      match
-        ( findGraphQLType typ ~env ~full ~state,
-          findGraphQLType returnType ~env ~full ~state )
-      with
-      | Some targetGraphQLType, Some returnType ->
-        Some (targetGraphQLType, args, returnType)
-      | _ -> None)
-    | _ -> None)
-  | _ -> None
-
-let objectTypeFieldsOfRecordFields ~env ~state ~(full : SharedTypes.full)
+and objectTypeFieldsOfRecordFields ~env ~state ~(full : SharedTypes.full)
     (fields : SharedTypes.field list) =
   fields
   |> List.filter_map (fun (field : SharedTypes.field) ->
@@ -211,37 +254,26 @@ let objectTypeFieldsOfRecordFields ~env ~state ~(full : SharedTypes.full)
                loc = field.fname.loc;
              })
 
-let inputObjectFieldsOfRecordFields ~env ~state ~(full : SharedTypes.full)
-    (fields : SharedTypes.field list) =
-  fields
-  |> List.filter_map (fun (field : SharedTypes.field) ->
-         let name = field.fname.txt in
-         match findGraphQLType field.typ ~full ~env ~state with
-         | None ->
-           state
-           |> addDiagnostic
-                ~diagnostic:
-                  {
-                    fileUri = env.file.uri;
-                    loc = field.fname.loc;
-                    message =
-                      Printf.sprintf
-                        "Field `%s` is is not a valid GraphQL type. All fields \
-                         of a @gql.inputObject must be valid GraphQL types."
-                        field.fname.txt;
-                  };
-           None
-         | Some typ ->
-           Some
-             {
-               name;
-               resolverStyle = Property name;
-               typ;
-               args = [];
-               description = field.attributes |> attributesToDocstring;
-               deprecationReason = field.deprecated;
-               loc = field.fname.loc;
-             })
+let extractResolverFunctionInfo ~env ~(full : SharedTypes.full) ~(state : state)
+    (typ : Types.type_expr) =
+  match typ |> TypeUtils.extractType ~env ~package:full.package with
+  | Some (Tfunction {typ; env}) -> (
+    let args, returnType =
+      TypeUtils.extractFunctionType ~env ~package:full.package typ
+    in
+    (* The first arg should point to the type this resolver is for. *)
+    match List.nth_opt args 0 with
+    | Some (Nolabel, typ) -> (
+      Printf.printf "Checking for type to attach resolver to\n";
+      match
+        ( findGraphQLType typ ~env ~full ~state,
+          findGraphQLType returnType ~env ~full ~state )
+      with
+      | Some targetGraphQLType, Some returnType ->
+        Some (targetGraphQLType, args, returnType)
+      | _ -> None)
+    | _ -> None)
+  | _ -> None
 
 let mapFunctionArgs ~full ~env ~state ~fnLoc
     (args : SharedTypes.typedFnArg list) =
