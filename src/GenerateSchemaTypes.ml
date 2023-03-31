@@ -32,6 +32,8 @@ type gqlArg = {
   typ: graphqlType; (* TODO: Default value. *)
 }
 
+type gqlInterfaceIdentifier = {id: string; displayName: string}
+
 type gqlEnumValue = {
   value: string;
   description: string option;
@@ -77,7 +79,7 @@ type gqlObjectType = {
   fields: gqlField list;
   description: string option;
   typeLocation: typeLocation;
-  interfaces: string list;
+  interfaces: gqlInterfaceIdentifier list;
 }
 
 type gqlInterface = {
@@ -86,7 +88,7 @@ type gqlInterface = {
   fields: gqlField list;
   description: string option;
   typeLocation: typeLocation;
-  interfaces: string list;
+  interfaces: gqlInterfaceIdentifier list;
 }
 
 type gqlInputObjectType = {
@@ -97,12 +99,13 @@ type gqlInputObjectType = {
   typeLocation: typeLocation;
 }
 
-type state = {
+type schemaState = {
   types: (string, gqlObjectType) Hashtbl.t;
   inputObjects: (string, gqlInputObjectType) Hashtbl.t;
   enums: (string, gqlEnum) Hashtbl.t;
   unions: (string, gqlUnion) Hashtbl.t;
   interfaces: (string, gqlInterface) Hashtbl.t;
+  processedFiles: (string, bool) Hashtbl.t;
   mutable query: gqlObjectType option;
   mutable subscription: gqlObjectType option;
   mutable mutation: gqlObjectType option;

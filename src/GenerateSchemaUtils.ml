@@ -1,31 +1,31 @@
 open GenerateSchemaTypes
 
-let addDiagnostic state ~diagnostic =
-  state.diagnostics <- diagnostic :: state.diagnostics
+let addDiagnostic schemaState ~diagnostic =
+  schemaState.diagnostics <- diagnostic :: schemaState.diagnostics
 
 let extractInterfacesImplemented (payload : Parsetree.payload) =
   match payload with
   | PStr structure ->
     structure
-    |> List.filter_map (fun item ->
+    |> List.concat_map (fun item ->
            match item.Parsetree.pstr_desc with
            | Pstr_eval ({pexp_desc = Pexp_record (fields, _spread)}, _) ->
              fields
-             |> List.find_map (fun (name, exp) ->
+             |> List.concat_map (fun (name, exp) ->
                     match (name, exp) with
                     | ( {Location.txt = Longident.Lident "interfaces"},
                         {Parsetree.pexp_desc = Pexp_array items} ) ->
                       items
-                      |> List.find_map (fun e ->
+                      |> List.filter_map (fun e ->
                              match e.Parsetree.pexp_desc with
                              | Pexp_ident lident -> Some lident
                              | _ -> None)
-                    | _ -> None)
-           | _ -> None)
+                    | _ -> [])
+           | _ -> [])
   | _ -> []
 
-let extractGqlAttribute ~state ~(env : SharedTypes.QueryEnv.t)
-    (attributes : Parsetree.attributes) =
+let extractGqlAttribute ~(schemaState : GenerateSchemaTypes.schemaState)
+    ~(env : SharedTypes.QueryEnv.t) (attributes : Parsetree.attributes) =
   attributes
   |> List.find_map (fun ((name, payload) : Parsetree.attribute) ->
          match String.split_on_char '.' name.txt with
@@ -40,7 +40,7 @@ let extractGqlAttribute ~state ~(env : SharedTypes.QueryEnv.t)
          | ["gql"; "union"] -> Some Union
          | ["gql"; "inputObject"] -> Some InputObject
          | "gql" :: _ ->
-           state
+           schemaState
            |> addDiagnostic
                 ~diagnostic:
                   {
@@ -62,8 +62,8 @@ let getFieldAttribute gqlAttribute =
   | Some Field -> Some gqlAttribute
   | _ -> None
 
-let getFieldAttributeFromRawAttributes ~env ~state attributes =
-  attributes |> extractGqlAttribute ~env ~state |> getFieldAttribute
+let getFieldAttributeFromRawAttributes ~env ~schemaState attributes =
+  attributes |> extractGqlAttribute ~env ~schemaState |> getFieldAttribute
 
 let formatCode code =
   let {Res_driver.parsetree = structure; comments; diagnostics} =
@@ -89,7 +89,7 @@ type expectedType =
   | Interface
 
 (** Figures out the path to a target type in a file. *)
-let rec findModulePathOfType ~state ~(env : SharedTypes.QueryEnv.t)
+let rec findModulePathOfType ~schemaState ~(env : SharedTypes.QueryEnv.t)
     ~(expectedType : expectedType) ?(modulePath = [])
     ?(structure = env.file.structure) name =
   let open SharedTypes.Module in
@@ -98,7 +98,7 @@ let rec findModulePathOfType ~state ~(env : SharedTypes.QueryEnv.t)
          match
            ( item.kind,
              expectedType,
-             item.attributes |> extractGqlAttribute ~env ~state )
+             item.attributes |> extractGqlAttribute ~env ~schemaState )
          with
          | Type ({kind = Variant _}, _), Enum, Some Enum when item.name = name
            ->
@@ -119,17 +119,17 @@ let rec findModulePathOfType ~state ~(env : SharedTypes.QueryEnv.t)
            name
            |> findModulePathOfType ~env ~expectedType
                 ~modulePath:(structure.name :: modulePath)
-                ~structure ~state
+                ~structure ~schemaState
          | _ -> None)
 
 let findTypeLocation ~(env : SharedTypes.QueryEnv.t)
-    ~(expectedType : expectedType) ~state ~loc name =
+    ~(expectedType : expectedType) ~schemaState ~loc name =
   let typeLocation : typeLocation =
     {fileName = env.file.moduleName; modulePath = []; typeName = name; loc}
   in
-  match findModulePathOfType ~state ~env ~expectedType name with
+  match findModulePathOfType ~schemaState ~env ~expectedType name with
   | None ->
-    state
+    schemaState
     |> addDiagnostic
          ~diagnostic:
            {
@@ -159,9 +159,9 @@ let capitalizeFirstChar s =
   if String.length s = 0 then s
   else String.mapi (fun i c -> if i = 0 then Char.uppercase_ascii c else c) s
 
-let noticeObjectType ~env ~loc ~state ~displayName ~interfaces ?description
-    ~makeFields typeName =
-  if Hashtbl.mem state.types typeName then ()
+let noticeObjectType ~env ~loc ~schemaState ~displayName ~interfaces
+    ?description ~makeFields typeName =
+  if Hashtbl.mem schemaState.types typeName then ()
   else (
     Printf.printf "noticing %s\n" typeName;
     let typ : gqlObjectType =
@@ -172,43 +172,45 @@ let noticeObjectType ~env ~loc ~state ~displayName ~interfaces ?description
         description;
         interfaces;
         typeLocation =
-          findTypeLocation ~state typeName ~env ~loc ~expectedType:ObjectType;
+          findTypeLocation ~schemaState typeName ~env ~loc
+            ~expectedType:ObjectType;
       }
     in
-    Hashtbl.add state.types typeName typ;
+    Hashtbl.add schemaState.types typeName typ;
     match typeName with
-    | "query" -> state.query <- Some typ
-    | "mutation" -> state.mutation <- Some typ
-    | "subscription" -> state.subscription <- Some typ
+    | "query" -> schemaState.query <- Some typ
+    | "mutation" -> schemaState.mutation <- Some typ
+    | "subscription" -> schemaState.subscription <- Some typ
     | _ -> ())
 
-let addEnum id ~(makeEnum : unit -> gqlEnum) ~state =
-  if Hashtbl.mem state.enums id then ()
+let addEnum id ~(makeEnum : unit -> gqlEnum) ~schemaState =
+  if Hashtbl.mem schemaState.enums id then ()
   else (
     Printf.printf "Adding enum %s\n" id;
-    Hashtbl.replace state.enums id (makeEnum ()))
+    Hashtbl.replace schemaState.enums id (makeEnum ()))
 
-let addUnion id ~(makeUnion : unit -> gqlUnion) ~state =
-  if Hashtbl.mem state.unions id then ()
+let addUnion id ~(makeUnion : unit -> gqlUnion) ~schemaState =
+  if Hashtbl.mem schemaState.unions id then ()
   else (
     Printf.printf "Adding union %s\n" id;
-    Hashtbl.replace state.unions id (makeUnion ()))
+    Hashtbl.replace schemaState.unions id (makeUnion ()))
 
-let addInterface id ~(makeInterface : unit -> gqlInterface) ~state =
-  if Hashtbl.mem state.interfaces id then ()
+let addInterface id ~(makeInterface : unit -> gqlInterface) ~schemaState =
+  if Hashtbl.mem schemaState.interfaces id then ()
   else (
     Printf.printf "Adding interface %s\n" id;
-    Hashtbl.replace state.interfaces id (makeInterface ()))
+    Hashtbl.replace schemaState.interfaces id (makeInterface ()))
 
-let addInputObject id ~(makeInputObject : unit -> gqlInputObjectType) ~state =
-  if Hashtbl.mem state.inputObjects id then ()
+let addInputObject id ~(makeInputObject : unit -> gqlInputObjectType)
+    ~schemaState =
+  if Hashtbl.mem schemaState.inputObjects id then ()
   else (
     Printf.printf "Adding input object %s\n" id;
-    Hashtbl.replace state.inputObjects id (makeInputObject ()))
+    Hashtbl.replace schemaState.inputObjects id (makeInputObject ()))
 
-let addFieldToObjectType ~env ~loc ~field ~state typeName =
+let addFieldToObjectType ~env ~loc ~field ~schemaState typeName =
   let typ : gqlObjectType =
-    match Hashtbl.find_opt state.types typeName with
+    match Hashtbl.find_opt schemaState.types typeName with
     | None ->
       {
         id = typeName;
@@ -217,11 +219,12 @@ let addFieldToObjectType ~env ~loc ~field ~state typeName =
         interfaces = [];
         description = field.description;
         typeLocation =
-          findTypeLocation ~state typeName ~env ~loc ~expectedType:ObjectType;
+          findTypeLocation ~schemaState typeName ~env ~loc
+            ~expectedType:ObjectType;
       }
     | Some typ -> {typ with fields = field :: typ.fields}
   in
-  Hashtbl.replace state.types typeName typ
+  Hashtbl.replace schemaState.types typeName typ
 
 let undefinedOrValueAsString v =
   match v with

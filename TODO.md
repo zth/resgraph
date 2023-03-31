@@ -20,6 +20,7 @@
 - [ ] Custom scalars
 - [ ] How to import and use existing things from the ecosystem?
 - [ ] Think about and fix compilation
+- [ ] Traverse structure cache/circuit breaker
 
 ## Future
 

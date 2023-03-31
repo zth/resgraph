@@ -117,7 +117,8 @@ let printObjectType (typ : gqlObjectType) =
     typ.displayName
     (undefinedOrValueAsString typ.description)
     (typ.interfaces
-    |> List.map (fun item -> Printf.sprintf "get_%s()" item)
+    |> List.map (fun (item : gqlInterfaceIdentifier) ->
+           Printf.sprintf "get_%s()" item.displayName)
     |> String.concat ", ")
     (printFields typ.fields)
 
@@ -127,7 +128,8 @@ let printInterfaceType (typ : gqlInterface) =
     typ.displayName
     (undefinedOrValueAsString typ.description)
     (typ.interfaces
-    |> List.map (fun item -> Printf.sprintf "get_%s()" item)
+    |> List.map (fun (item : gqlInterfaceIdentifier) ->
+           Printf.sprintf "get_%s()" item.displayName)
     |> String.concat ", ")
     (printFields typ.fields)
 
@@ -148,3 +150,169 @@ let printUnionType (union : gqlUnion) =
            Printf.sprintf "get_%s()" member.displayName)
     |> String.concat ", ")
     (Printf.sprintf "union_%s_resolveType" union.displayName)
+
+let printSchemaJsFile state =
+  let code = ref "@@warning(\"-27\")\n\nopen ResGraph__GraphQLJs\n\n" in
+  let addWithNewLine text = code := !code ^ text ^ "\n" in
+  (* Add the type unwrapper. Source types passed to resolvers might be either
+     objects or variant cases. This is because we rely on variants for unions
+     and interfaces. Variant cases are boxed, so they need to be unwrapped
+     before they're passed to the resolver the developer has defined.
+     `typeUnwrapper` unwraps any variant case to its specified object.
+  *)
+  addWithNewLine
+    "let typeUnwrapper: ('src) => 'return = %raw(`function typeUnwrapper(src) \
+     { if (src == null) return null; if (typeof src === 'object' && \
+     src.hasOwnProperty('_0')) return src['_0']; return src;}`)";
+
+  (* Add conversion assets. *)
+  addWithNewLine
+    "type inputObjectFieldConverterFn; external \
+     makeInputObjectFieldConverterFn: ('a => 'b) => \
+     inputObjectFieldConverterFn = \"%identity\";";
+
+  addWithNewLine
+    {|
+    
+    let applyConversionToInputObject: ('a, array<(string, inputObjectFieldConverterFn)>) => 'a = %raw(`function applyConversionToInputObject(obj, instructions) {
+      if (instructions.length === 0) return obj;
+      let newObj = Object.assign({}, obj);
+      instructions.forEach(instruction => {
+        let value = newObj[instruction[0]];
+         newObj[instruction[0]] = instruction[1](value);
+      })
+      return newObj;
+    }`)
+    
+    |};
+
+  (* Print all enums. These won't have any other dependencies, so they can be printed as is. *)
+  state.enums
+  |> Hashtbl.iter (fun _name (enum : gqlEnum) ->
+         addWithNewLine
+           (Printf.sprintf
+              "let enum_%s = GraphQLEnumType.make({name: \"%s\", description: \
+               %s, values: {%s}->makeEnumValues})"
+              enum.displayName enum.displayName
+              (undefinedOrValueAsString enum.description)
+              (enum.values
+              |> List.map (fun (v : gqlEnumValue) ->
+                     Printf.sprintf
+                       "\"%s\": {GraphQLEnumType.value: \"%s\", description: \
+                        %s, deprecationReason: %s}"
+                       v.value v.value
+                       (undefinedOrValueAsString v.description)
+                       (undefinedOrValueAsString v.deprecationReason))
+              |> String.concat ", ")));
+
+  (* Print the interface type holders and getters *)
+  state.interfaces
+  |> Hashtbl.iter (fun _name (typ : gqlInterface) ->
+         addWithNewLine
+           (Printf.sprintf
+              "let i_%s: ref<GraphQLInterfaceType.t> = \
+               Obj.magic({\"contents\": Js.null})"
+              typ.displayName);
+         addWithNewLine
+           (Printf.sprintf "let get_%s = () => i_%s.contents" typ.displayName
+              typ.displayName));
+
+  (* Print the object type holders and getters *)
+  state.types
+  |> Hashtbl.iter (fun _name (typ : gqlObjectType) ->
+         addWithNewLine
+           (Printf.sprintf
+              "let t_%s: ref<GraphQLObjectType.t> = Obj.magic({\"contents\": \
+               Js.null})"
+              typ.displayName);
+         addWithNewLine
+           (Printf.sprintf "let get_%s = () => t_%s.contents" typ.displayName
+              typ.displayName));
+
+  (* Print the input object type holders and getters *)
+  state.inputObjects
+  |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
+         addWithNewLine
+           (Printf.sprintf
+              "let input_%s: ref<GraphQLInputObjectType.t> = \
+               Obj.magic({\"contents\": Js.null})"
+              typ.displayName);
+         addWithNewLine
+           (Printf.sprintf "let get_%s = () => input_%s.contents"
+              typ.displayName typ.displayName);
+         addWithNewLine
+           (Printf.sprintf "let input_%s_conversionInstructions = [];"
+              typ.displayName));
+
+  (* Now add all of the conversion instructions. *)
+  state.inputObjects
+  |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
+         addWithNewLine (printInputObjectAssets typ));
+
+  (* Print the union type holders and getters *)
+  state.unions
+  |> Hashtbl.iter (fun _name (union : gqlUnion) ->
+         addWithNewLine
+           (Printf.sprintf
+              "let union_%s: ref<GraphQLUnionType.t> = \
+               Obj.magic({\"contents\": Js.null})"
+              union.displayName);
+         addWithNewLine
+           (Printf.sprintf "let get_%s = () => union_%s.contents"
+              union.displayName union.displayName));
+
+  addWithNewLine "";
+
+  (* Print support functions for union type resolution *)
+  state.unions
+  |> Hashtbl.iter (fun _name (union : gqlUnion) ->
+         addWithNewLine
+           (Printf.sprintf
+              "let union_%s_resolveType = (v: %s) => switch v {%s}\n"
+              union.displayName
+              (typeLocationToAccessor union.typeLocation)
+              (union.types
+              |> List.map (fun (member : gqlUnionMember) ->
+                     Printf.sprintf " | %s(_) => get_%s()" member.displayName
+                       member.displayName)
+              |> String.concat "\n")));
+
+  (* Now we can print all of the code that fills these in. *)
+  state.interfaces
+  |> Hashtbl.iter (fun _name (typ : gqlInterface) ->
+         addWithNewLine
+           (Printf.sprintf "i_%s.contents = GraphQLInterfaceType.make(%s)"
+              typ.displayName
+              (typ |> printInterfaceType)));
+
+  state.types
+  |> Hashtbl.iter (fun _name (typ : gqlObjectType) ->
+         addWithNewLine
+           (Printf.sprintf "t_%s.contents = GraphQLObjectType.make(%s)"
+              typ.displayName (typ |> printObjectType)));
+
+  state.inputObjects
+  |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
+         addWithNewLine
+           (Printf.sprintf "input_%s.contents = GraphQLInputObjectType.make(%s)"
+              typ.displayName
+              (typ |> printInputObjectType)));
+
+  state.unions
+  |> Hashtbl.iter (fun _name (union : gqlUnion) ->
+         addWithNewLine
+           (Printf.sprintf "union_%s.contents = GraphQLUnionType.make(%s)"
+              union.displayName (union |> printUnionType)));
+
+  (* Print the schema gluing it all together. *)
+  addWithNewLine "";
+  addWithNewLine
+    (Printf.sprintf
+       "let schema = GraphQLSchemaType.make({\"query\": get_Query()%s%s})"
+       (match state.mutation with
+       | None -> ""
+       | Some _ -> ", \"mutation\": get_Mutation()")
+       (match state.subscription with
+       | None -> ""
+       | Some _ -> ", \"subscription\": get_Subscription()"));
+  !code

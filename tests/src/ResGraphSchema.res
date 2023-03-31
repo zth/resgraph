@@ -10,14 +10,14 @@ let applyConversionToInputObject: (
   'a,
   array<(string, inputObjectFieldConverterFn)>,
 ) => 'a = %raw(`function applyConversionToInputObject(obj, instructions) {
-  if (instructions.length === 0) return obj;
-  let newObj = Object.assign({}, obj);
-  instructions.forEach(instruction => {
-    let value = newObj[instruction[0]];
-     newObj[instruction[0]] = instruction[1](value);
-  })
-  return newObj;
-}`)
+      if (instructions.length === 0) return obj;
+      let newObj = Object.assign({}, obj);
+      instructions.forEach(instruction => {
+        let value = newObj[instruction[0]];
+         newObj[instruction[0]] = instruction[1](value);
+      })
+      return newObj;
+    }`)
 
 let enum_UserStatus = GraphQLEnumType.make({
   name: "UserStatus",
@@ -40,6 +40,10 @@ let enum_UserStatus = GraphQLEnumType.make({
     },
   }->makeEnumValues,
 })
+let i_HasAge: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
+let get_HasAge = () => i_HasAge.contents
+let i_HasName: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
+let get_HasName = () => i_HasName.contents
 let t_Mutation: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Mutation = () => t_Mutation.contents
 let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
@@ -48,8 +52,6 @@ let t_Group: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Group = () => t_Group.contents
 let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Query = () => t_Query.contents
-let i_HasName: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
-let get_HasName = () => i_HasName.contents
 let input_UserConfig: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
 let get_UserConfig = () => input_UserConfig.contents
 let input_UserConfig_conversionInstructions = []
@@ -81,6 +83,40 @@ let union_UserOrGroup_resolveType = (v: Schema.userOrGroup) =>
   | Group(_) => get_Group()
   }
 
+i_HasAge.contents = GraphQLInterfaceType.make({
+  name: "HasAge",
+  description: "An entity with an age.",
+  interfaces: [],
+  fields: () =>
+    {
+      "age": {
+        typ: Scalars.int->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["age"]
+        }),
+      },
+    }->makeFields,
+})
+i_HasName.contents = GraphQLInterfaceType.make({
+  name: "HasName",
+  description: "An entity with a name.",
+  interfaces: [],
+  fields: () =>
+    {
+      "name": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["name"]
+        }),
+      },
+    }->makeFields,
+})
 t_Mutation.contents = GraphQLObjectType.make({
   name: "Mutation",
   description: ?None,
@@ -102,7 +138,7 @@ t_Mutation.contents = GraphQLObjectType.make({
 t_User.contents = GraphQLObjectType.make({
   name: "User",
   description: "A user in the system.",
-  interfaces: [],
+  interfaces: [get_HasName()],
   fields: () =>
     {
       "allNames": {
@@ -167,7 +203,7 @@ t_User.contents = GraphQLObjectType.make({
 t_Group.contents = GraphQLObjectType.make({
   name: "Group",
   description: "A group in the system.",
-  interfaces: [],
+  interfaces: [get_HasName(), get_HasAge()],
   fields: () =>
     {
       "name": {
@@ -315,23 +351,6 @@ t_Query.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
           Schema.QueryFields.me(src)
-        }),
-      },
-    }->makeFields,
-})
-i_HasName.contents = GraphQLInterfaceType.make({
-  name: "HasName",
-  description: "An entity with a name.",
-  interfaces: [],
-  fields: () =>
-    {
-      "name": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
-          let src = typeUnwrapper(src)
-          src["name"]
         }),
       },
     }->makeFields,
