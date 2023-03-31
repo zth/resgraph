@@ -1,7 +1,6 @@
 generating schema from tests/Schema.res
 
 Adding interface hasName
-Adding interface hasAge
 noticing user
 noticing group
 Adding union userOrGroup
@@ -62,8 +61,6 @@ let enum_UserStatus = GraphQLEnumType.make({
     },
   }->makeEnumValues,
 })
-let i_HasAge: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
-let get_HasAge = () => i_HasAge.contents
 let i_HasName: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
 let get_HasName = () => i_HasName.contents
 let t_Mutation: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
@@ -105,23 +102,6 @@ let union_UserOrGroup_resolveType = (v: Schema.userOrGroup) =>
   | Group(_) => get_Group()
   }
 
-i_HasAge.contents = GraphQLInterfaceType.make({
-  name: "HasAge",
-  description: "An entity with an age.",
-  interfaces: [],
-  fields: () =>
-    {
-      "age": {
-        typ: Scalars.int->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
-          let src = typeUnwrapper(src)
-          src["age"]
-        }),
-      },
-    }->makeFields,
-})
 i_HasName.contents = GraphQLInterfaceType.make({
   name: "HasName",
   description: "An entity with a name.",
@@ -225,7 +205,7 @@ t_User.contents = GraphQLObjectType.make({
 t_Group.contents = GraphQLObjectType.make({
   name: "Group",
   description: "A group in the system.",
-  interfaces: [get_HasName(), get_HasAge()],
+  interfaces: [get_HasName()],
   fields: () =>
     {
       "name": {

@@ -57,14 +57,9 @@ input UserConfigContext {
 union UserOrGroup = User | Group
 
 """A group in the system."""
-type Group implements HasName & HasAge {
+type Group implements HasName {
   """The group name."""
   name: String!
-}
-
-"""An entity with an age."""
-interface HasAge {
-  age: Int!
 }
 
 type Mutation {
