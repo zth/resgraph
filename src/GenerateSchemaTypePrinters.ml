@@ -63,9 +63,6 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
     Printf.sprintf "get_%s()->GraphQLUnionType.toGraphQLType%s" displayName
       nullablePostfix
   | InjectContext -> "Obj.magic()"
-  | Named {path} ->
-    Printf.printf "Named! %s\n" (SharedTypes.pathIdentToString path);
-    "Obj.magic()"
 
 let printArg (arg : gqlArg) =
   Printf.sprintf "{typ: %s}" (printGraphQLType arg.typ)

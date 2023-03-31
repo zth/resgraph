@@ -7,7 +7,6 @@ type graphqlType =
   | Nullable of graphqlType
   | RescriptNullable of graphqlType
   | Scalar of scalar
-  | (* TODO: Get rid of *) Named of {path: Path.t; env: SharedTypes.QueryEnv.t}
   | InjectContext
   | GraphQLObjectType of {id: string; displayName: string}
   | GraphQLInputObject of {id: string; displayName: string}

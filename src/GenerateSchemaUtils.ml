@@ -121,14 +121,15 @@ let capitalizeFirstChar s =
   if String.length s = 0 then s
   else String.mapi (fun i c -> if i = 0 then Char.uppercase_ascii c else c) s
 
-let noticeObjectType ~env ~loc ~state ?description ~makeFields typeName =
+let noticeObjectType ~env ~loc ~state ~displayName ?description ~makeFields
+    typeName =
   if Hashtbl.mem state.types typeName then ()
   else (
     Printf.printf "noticing %s\n" typeName;
     let typ : gqlObjectType =
       {
         id = typeName;
-        displayName = capitalizeFirstChar typeName;
+        displayName;
         fields = makeFields ();
         description;
         typeLocation =

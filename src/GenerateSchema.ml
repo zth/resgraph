@@ -79,19 +79,20 @@ let rec findGraphQLType ~env ?loc ~state ~(full : SharedTypes.full)
         let gqlAttribute = extractGqlAttribute ~env ~state item.attributes in
         match (gqlAttribute, item) with
         | Some ObjectType, {name; kind = Record fields} ->
-          (* TODO: Extract fields here? *)
           let id = name in
-          noticeObjectType id ~state ~env
+          let displayName = capitalizeFirstChar id in
+          noticeObjectType id ~displayName ~state ~env
             ~makeFields:(fun () ->
               fields |> objectTypeFieldsOfRecordFields ~env ~full ~state)
             ~loc:item.decl.type_loc;
-          Some (GraphQLObjectType {id; displayName = capitalizeFirstChar id})
+          Some (GraphQLObjectType {id; displayName})
         | Some InputObject, {name; kind = Record fields; attributes; decl} ->
           let id = name in
+          let displayName = capitalizeFirstChar id in
           addInputObject id ~state ~makeInputObject:(fun () ->
               {
                 id;
-                displayName = capitalizeFirstChar item.name;
+                displayName;
                 fields =
                   inputObjectFieldsOfRecordFields fields ~env ~full ~state;
                 description = attributesToDocstring attributes;
@@ -102,10 +103,11 @@ let rec findGraphQLType ~env ?loc ~state ~(full : SharedTypes.full)
           Some (GraphQLInputObject {id; displayName = capitalizeFirstChar id})
         | Some Enum, {name; kind = Variant cases} ->
           let id = name in
+          let displayName = capitalizeFirstChar id in
           addEnum id ~state ~makeEnum:(fun () ->
               {
                 id;
-                displayName = capitalizeFirstChar id;
+                displayName;
                 values = variantCasesToEnumValues ~state ~env cases;
                 description = item.attributes |> attributesToDocstring;
                 loc = item.decl.type_loc;
@@ -113,19 +115,46 @@ let rec findGraphQLType ~env ?loc ~state ~(full : SharedTypes.full)
           Some (GraphQLEnum {id; displayName = capitalizeFirstChar id})
         | Some Union, {name; kind = Variant cases} ->
           let id = name in
+          let displayName = capitalizeFirstChar id in
           addUnion id ~state ~makeUnion:(fun () ->
               {
                 id;
-                displayName = capitalizeFirstChar id;
+                displayName;
                 types = variantCasesToUnionValues cases ~env ~full ~state;
                 description = item.attributes |> attributesToDocstring;
                 typeLocation =
                   findTypeLocation ~loc:item.decl.type_loc ~state ~env
                     ~expectedType:Union id;
               });
-          Some (GraphQLUnion {id; displayName = capitalizeFirstChar id})
-        | _ -> Some (Named {path; env}))
-      | _ -> Some (Named {path; env})))
+          Some (GraphQLUnion {id; displayName})
+        | _ ->
+          state
+          |> addDiagnostic
+               ~diagnostic:
+                 {
+                   loc = item.decl.type_loc;
+                   fileUri = env.file.uri;
+                   message =
+                     Printf.sprintf
+                       "The type `%s` does not represent a valid GraphQL type."
+                       item.name;
+                 };
+          None)
+      | _ ->
+        state
+        |> addDiagnostic
+             ~diagnostic:
+               {
+                 loc =
+                   (match loc with
+                   | None -> Location.in_file (env.file.moduleName ^ ".res")
+                   | Some loc -> loc);
+                 fileUri = env.file.uri;
+                 message =
+                   Printf.sprintf "This is not a valid GraphQL type: %s"
+                     (Shared.typeToString typ);
+               };
+        None))
   | _ ->
     state
     |> addDiagnostic
@@ -147,7 +176,9 @@ and inputObjectFieldsOfRecordFields ~env ~state ~(full : SharedTypes.full)
   fields
   |> List.filter_map (fun (field : SharedTypes.field) ->
          let name = field.fname.txt in
-         match findGraphQLType field.typ ~full ~env ~state with
+         match
+           findGraphQLType field.typ ~loc:field.fname.loc ~full ~env ~state
+         with
          | None ->
            state
            |> addDiagnostic
@@ -180,7 +211,7 @@ and variantCasesToUnionValues ~env ~state ~full
   |> List.filter_map (fun (case : SharedTypes.Constructor.t) ->
          match case.args with
          | Args [(typ, _)] -> (
-           match findGraphQLType ~env ~state ~full typ with
+           match findGraphQLType ~loc:case.cname.loc ~env ~state ~full typ with
            | Some (GraphQLObjectType {id; displayName}) ->
              Some {objectTypeId = id; displayName; loc = case.cname.loc}
            | _ ->
@@ -224,7 +255,9 @@ and objectTypeFieldsOfRecordFields ~env ~state ~(full : SharedTypes.full)
          | None -> None
          | Some attr -> Some (field, attr))
   |> List.filter_map (fun ((field : SharedTypes.field), _attr) ->
-         let typ = findGraphQLType field.typ ~full ~env ~state in
+         let typ =
+           findGraphQLType field.typ ~loc:field.fname.loc ~full ~env ~state
+         in
          match typ with
          | None ->
            state
@@ -256,8 +289,8 @@ and objectTypeFieldsOfRecordFields ~env ~state ~(full : SharedTypes.full)
                loc = field.fname.loc;
              })
 
-let extractResolverFunctionInfo ~env ~(full : SharedTypes.full) ~(state : state)
-    (typ : Types.type_expr) =
+let extractResolverFunctionInfo ~env ?loc ~(full : SharedTypes.full)
+    ~(state : state) (typ : Types.type_expr) =
   match typ |> TypeUtils.extractType ~env ~package:full.package with
   | Some (Tfunction {typ; env}) -> (
     let args, returnType =
@@ -268,8 +301,8 @@ let extractResolverFunctionInfo ~env ~(full : SharedTypes.full) ~(state : state)
     | Some (Nolabel, typ) -> (
       Printf.printf "Checking for type to attach resolver to\n";
       match
-        ( findGraphQLType typ ~env ~full ~state,
-          findGraphQLType returnType ~env ~full ~state )
+        ( findGraphQLType typ ?loc ~env ~full ~state,
+          findGraphQLType returnType ?loc ~env ~full ~state )
       with
       | Some targetGraphQLType, Some returnType ->
         Some (targetGraphQLType, args, returnType)
@@ -281,7 +314,7 @@ let mapFunctionArgs ~full ~env ~state ~fnLoc
     (args : SharedTypes.typedFnArg list) =
   args
   |> List.filter_map (fun (label, typExpr) ->
-         match findGraphQLType ~full ~env ~state typExpr with
+         match findGraphQLType ~loc:fnLoc ~full ~env ~state typExpr with
          | None ->
            state
            |> addDiagnostic
@@ -480,8 +513,10 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
            ->
            (* @gql.type type someType = {...} *)
            let id = item.name in
+           let displayName = capitalizeFirstChar item.name in
            noticeObjectType ~env ~loc:decl.type_loc ~state:!state
              ?description:(attributesToDocstring attributes)
+             ~displayName
              ~makeFields:(fun () ->
                objectTypeFieldsOfRecordFields fields ~env ~full ~state:!state)
              id
@@ -530,7 +565,10 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
            (* @gql.field let fullName = (user: user) => {...} *)
            match typ |> TypeUtils.extractType ~env ~package:full.package with
            | Some (Tfunction {typ; env}) -> (
-             match extractResolverFunctionInfo ~env ~full ~state:!state typ with
+             match
+               extractResolverFunctionInfo ~loc:item.loc ~env ~full
+                 ~state:!state typ
+             with
              | Some (GraphQLObjectType {id}, args, returnType) ->
                (* Resolver for object type. *)
                let field =
