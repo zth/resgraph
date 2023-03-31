@@ -1,5 +1,5 @@
 /** A user in the system. */
-@gql.type
+@gql.type({interfaces: [hasName]})
 type user = {
   /** The users name.*/ name: string,
   @gql.field /** The age of the user. */

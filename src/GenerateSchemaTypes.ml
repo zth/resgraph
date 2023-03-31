@@ -76,6 +76,7 @@ type gqlObjectType = {
   fields: gqlField list;
   description: string option;
   typeLocation: typeLocation;
+  interfaces: string list;
 }
 
 type gqlInputObjectType = {
@@ -97,4 +98,9 @@ type state = {
   mutable diagnostics: diagnostic list;
 }
 
-type gqlAttributes = ObjectType | InputObject | Field | Enum | Union
+type gqlAttributes =
+  | ObjectType of {interfaces: Longident.t Location.loc list}
+  | InputObject
+  | Field
+  | Enum
+  | Union

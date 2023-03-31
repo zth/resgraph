@@ -85,10 +85,11 @@ let rec findGraphQLType ~env ?(typeContext = Default) ?loc ~state
       | Some (env, {item}) -> (
         let gqlAttribute = extractGqlAttribute ~env ~state item.attributes in
         match (gqlAttribute, item) with
-        | Some ObjectType, {name; kind = Record fields} ->
+        | Some (ObjectType {interfaces}), {name; kind = Record fields} ->
           let id = name in
           let displayName = capitalizeFirstChar id in
-          noticeObjectType id ~displayName ~state ~env
+          (* TODO: Look up interfaces *)
+          noticeObjectType id ~displayName ~state ~env ~interfaces:[]
             ~makeFields:(fun () ->
               fields |> objectTypeFieldsOfRecordFields ~env ~full ~state)
             ~loc:item.decl.type_loc;
@@ -518,12 +519,13 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
            traverseStructure
              ~modulePath:(structure.name :: modulePath)
              ~state ~env ~full structure
-         | Type ({kind = Record fields; attributes; decl}, _), Some ObjectType
-           ->
+         | ( Type ({kind = Record fields; attributes; decl}, _),
+             Some (ObjectType {interfaces}) ) ->
            (* @gql.type type someType = {...} *)
            let id = item.name in
            let displayName = capitalizeFirstChar item.name in
-           noticeObjectType ~env ~loc:decl.type_loc ~state:!state
+           (* TODO: Look up interfaces *)
+           noticeObjectType ~env ~loc:decl.type_loc ~state:!state ~interfaces:[]
              ?description:(attributesToDocstring attributes)
              ~displayName
              ~makeFields:(fun () ->
@@ -649,7 +651,7 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
                         not a function. Only functions can represent GraphQL \
                         field resolvers.";
                  }
-           | Some ObjectType ->
+           | Some (ObjectType _) ->
              add
                ~diagnostic:
                  {

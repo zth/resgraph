@@ -6,9 +6,32 @@ let addDiagnostic state ~diagnostic =
 let extractGqlAttribute ~state ~(env : SharedTypes.QueryEnv.t)
     (attributes : Parsetree.attributes) =
   attributes
-  |> List.find_map (fun ((name, _payload) : Parsetree.attribute) ->
+  |> List.find_map (fun ((name, payload) : Parsetree.attribute) ->
          match String.split_on_char '.' name.txt with
-         | ["gql"; "type"] -> Some ObjectType
+         | ["gql"; "type"] ->
+           let interfaces =
+             match payload with
+             | PStr structure ->
+               structure
+               |> List.filter_map (fun item ->
+                      match item.Parsetree.pstr_desc with
+                      | Pstr_eval
+                          ({pexp_desc = Pexp_record (fields, _spread)}, _) ->
+                        fields
+                        |> List.find_map (fun (name, exp) ->
+                               match (name, exp) with
+                               | ( {Location.txt = Longident.Lident "interfaces"},
+                                   {Parsetree.pexp_desc = Pexp_array items} ) ->
+                                 items
+                                 |> List.find_map (fun e ->
+                                        match e.Parsetree.pexp_desc with
+                                        | Pexp_ident lident -> Some lident
+                                        | _ -> None)
+                               | _ -> None)
+                      | _ -> None)
+             | _ -> []
+           in
+           Some (ObjectType {interfaces})
          | ["gql"; "field"] -> Some Field
          | ["gql"; "enum"] -> Some Enum
          | ["gql"; "union"] -> Some Union
@@ -54,9 +77,11 @@ let formatCode code =
     ^ "\n\n== RAW CODE ==\n" ^ code ^ "\n\n === END ==\n" ^ printed
   else printed
 
+type expectedType = ObjectType | InputObject | Field | Enum | Union
+
 (** Figures out the path to a target type in a file. *)
 let rec findModulePathOfType ~state ~(env : SharedTypes.QueryEnv.t)
-    ~(expectedType : gqlAttributes) ?(modulePath = [])
+    ~(expectedType : expectedType) ?(modulePath = [])
     ?(structure = env.file.structure) name =
   let open SharedTypes.Module in
   structure.items
@@ -72,7 +97,7 @@ let rec findModulePathOfType ~state ~(env : SharedTypes.QueryEnv.t)
          | Type ({kind = Variant _}, _), Union, Some Union when item.name = name
            ->
            Some modulePath
-         | Type ({kind = Record _}, _), ObjectType, Some ObjectType
+         | Type ({kind = Record _}, _), ObjectType, Some (ObjectType _)
            when item.name = name ->
            Some modulePath
          | Type ({kind = Record _}, _), InputObject, Some InputObject
@@ -86,7 +111,7 @@ let rec findModulePathOfType ~state ~(env : SharedTypes.QueryEnv.t)
          | _ -> None)
 
 let findTypeLocation ~(env : SharedTypes.QueryEnv.t)
-    ~(expectedType : gqlAttributes) ~state ~loc name =
+    ~(expectedType : expectedType) ~state ~loc name =
   let typeLocation : typeLocation =
     {fileName = env.file.moduleName; modulePath = []; typeName = name; loc}
   in
@@ -121,8 +146,8 @@ let capitalizeFirstChar s =
   if String.length s = 0 then s
   else String.mapi (fun i c -> if i = 0 then Char.uppercase_ascii c else c) s
 
-let noticeObjectType ~env ~loc ~state ~displayName ?description ~makeFields
-    typeName =
+let noticeObjectType ~env ~loc ~state ~displayName ~interfaces ?description
+    ~makeFields typeName =
   if Hashtbl.mem state.types typeName then ()
   else (
     Printf.printf "noticing %s\n" typeName;
@@ -132,6 +157,7 @@ let noticeObjectType ~env ~loc ~state ~displayName ?description ~makeFields
         displayName;
         fields = makeFields ();
         description;
+        interfaces;
         typeLocation =
           findTypeLocation ~state typeName ~env ~loc ~expectedType:ObjectType;
       }
@@ -169,6 +195,7 @@ let addFieldToObjectType ~env ~loc ~field ~state typeName =
         id = typeName;
         displayName = capitalizeFirstChar typeName;
         fields = [field];
+        interfaces = [];
         description = field.description;
         typeLocation =
           findTypeLocation ~state typeName ~env ~loc ~expectedType:ObjectType;
