@@ -1,5 +1,3 @@
-exception Fail of string
-
 type scalar = Int | Float | String | Boolean | ID
 
 type graphqlType =

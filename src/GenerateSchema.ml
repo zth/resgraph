@@ -499,9 +499,10 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
     (structure : SharedTypes.Module.structure) =
   structure.items
   |> List.iter (fun (item : SharedTypes.Module.item) ->
-         match
-           (item.kind, item.attributes |> extractGqlAttribute ~state:!state ~env)
-         with
+         let gqlAttribute =
+           item.attributes |> extractGqlAttribute ~state:!state ~env
+         in
+         match (item.kind, gqlAttribute) with
          | Module (Structure structure), _ ->
            (* Continue into modules (ignore module aliases etc) *)
            (* Might need to support modules with constraints too. But will
@@ -593,9 +594,95 @@ let rec traverseStructure ?(modulePath = []) ~state ~env ~full
                  }
                in
                addFieldToObjectType ~env ~loc:item.loc ~field ~state:!state id
-             | _ -> ())
-           | _ -> ())
-         | _ -> ())
+             | _ ->
+               !state
+               |> addDiagnostic
+                    ~diagnostic:
+                      {
+                        loc = item.loc;
+                        fileUri = env.file.uri;
+                        message =
+                          Printf.sprintf
+                            "Could not figure out what GraphQL type to attach \
+                             this resolver to. Make sure the first argument to \
+                             your resolver is an unlabelled argument of the \
+                             GraphQL type you want this resolver to be \
+                             attached to.";
+                      })
+           | _ ->
+             !state
+             |> addDiagnostic
+                  ~diagnostic:
+                    {
+                      loc = item.loc;
+                      fileUri = env.file.uri;
+                      message =
+                        Printf.sprintf
+                          "This let binding is annotated with @gql.field, but \
+                           is not a function. Only functions can represent \
+                           GraphQL field resolvers.";
+                    })
+         | _ -> (
+           (* Didn't match. Do some error reporting. *)
+           let baseDiagnostic =
+             {fileUri = env.file.uri; message = ""; loc = item.loc}
+           in
+           let add = !state |> addDiagnostic in
+           match gqlAttribute with
+           | None -> ()
+           | Some Field ->
+             add
+               ~diagnostic:
+                 {
+                   baseDiagnostic with
+                   message =
+                     Printf.sprintf
+                       "This let binding is annotated with @gql.field, but is \
+                        not a function. Only functions can represent GraphQL \
+                        field resolvers.";
+                 }
+           | Some ObjectType ->
+             add
+               ~diagnostic:
+                 {
+                   baseDiagnostic with
+                   message =
+                     Printf.sprintf
+                       "This type is annotated with @gql.type, but is not a \
+                        record. Only records can represent GraphQL object \
+                        types.";
+                 }
+           | Some InputObject ->
+             add
+               ~diagnostic:
+                 {
+                   baseDiagnostic with
+                   message =
+                     Printf.sprintf
+                       "This type is annotated with @gql.inputObject, but is \
+                        not a record. Only records can represent GraphQL input \
+                        objects.";
+                 }
+           | Some Enum ->
+             add
+               ~diagnostic:
+                 {
+                   baseDiagnostic with
+                   message =
+                     Printf.sprintf
+                       "This type is annotated with @gql.enum, but is not a \
+                        variant. Only variants can represent GraphQL enums.";
+                 }
+           | Some Union ->
+             add
+               ~diagnostic:
+                 {
+                   baseDiagnostic with
+                   message =
+                     Printf.sprintf
+                       "This type is annotated with @gql.union, but is not a \
+                        variant. Only variants can represent GraphQL unions.";
+                 }))
 
 let generateSchema ~path ~debug ~outputPath =
   if debug then Printf.printf "generating schema from %s\n\n" path;
@@ -621,8 +708,8 @@ let generateSchema ~path ~debug ~outputPath =
     in
     traverseStructure structure ~state ~env ~full;
     if !state.diagnostics |> List.length > 0 then
-      !state.diagnostics |> List.map printDiagnostic |> String.concat "\n\n"
-      |> print_endline
+      !state.diagnostics |> List.rev |> List.map printDiagnostic
+      |> String.concat "\n\n" |> print_endline
     else
       let schemaCode = printSchemaJsFile !state |> formatCode in
 

@@ -1,0 +1,35 @@
+generating schema from tests/Errors.res
+
+noticing user
+Adding enum myEnum
+Adding union someUnion
+Error at [1:10->1:31] in file 'Errors.res':
+This type is annotated with @gql.type, but is not a record. Only records can represent GraphQL object types.
+
+Error at [34:0->34:9] in file 'js_dict.mli':
+The type `t` does not represent a valid GraphQL type.
+
+Error at [4:34->4:42] in file 'Errors.res':
+Field `someDict` is has a @gql.field annotation, but is not a valid GraphQL type. Please change the type of this field to be a valid GraphQL type, or expose this field via a custom written resolver instead if you need to transform it before exposing it in GraphQL.
+
+Error at [7:10->7:24] in file 'Errors.res':
+This type is annotated with @gql.enum, but is not a variant. Only variants can represent GraphQL enums.
+
+Error at [10:43->10:47] in file 'Errors.res':
+The variant member `User` of the GraphQL enum variant `myEnum` has a payload. Variants tagged as @gql.enum can only have members without payloads. 
+
+Error at [15:10->15:25] in file 'Errors.res':
+This type is annotated with @gql.enum, but is not a variant. Only variants can represent GraphQL enums.
+
+Error at [12:0->12:54] in file 'Errors.res':
+The type `groupWithNoAnnotation` does not represent a valid GraphQL type.
+
+Error at [18:41->18:46] in file 'Errors.res':
+The payload of the variant member `Group` of the GraphQL union variant `someUnion` is not a GraphL object. The payload needs to be a single type representing a GraphQL object, meaning it's annotated with @gql.type.
+
+Error at [21:17->21:38] in file 'Errors.res':
+This type is annotated with @gql.inputObject, but is not a record. Only records can represent GraphQL input objects.
+
+Error at [24:15->24:28] in file 'Errors.res':
+This let binding is annotated with @gql.field, but is not a function. Only functions can represent GraphQL field resolvers.
+
