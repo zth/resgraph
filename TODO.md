@@ -10,7 +10,7 @@
 - [x] Tag loc properly on all items
 - [x] Fix all names (so they're uppercased)
 - [x] Inject ctx
-- [ ] Clear up logic that handles when something is persisted. Just going from the types artifacts is probably not enough, we might need to ensure that we always find the correct module path from the right file.
+- [x] Clear up logic that handles when something is persisted. Just going from the types artifacts is probably not enough, we might need to ensure that we always find the correct module path from the right file.
 - [x] Nullability in input object fields
 - [x] Nullability in arguments
 - [x] Runtime conversion for arguments to match ReScript representation
