@@ -112,6 +112,16 @@ type schemaState = {
   mutable diagnostics: diagnostic list;
 }
 
+type interfaceImplementedBy =
+  | ObjectType of gqlObjectType
+  | Interface of gqlInterface
+
+(* This holds all of the things we need to wait til after all processing has
+   completed to calculate.*)
+type processedSchema = {
+  interfaceImplementedBy: (string, interfaceImplementedBy list) Hashtbl.t;
+}
+
 type gqlAttributes =
   | ObjectType of {interfaces: Longident.t Location.loc list}
   | Interface of {interfaces: Longident.t Location.loc list}

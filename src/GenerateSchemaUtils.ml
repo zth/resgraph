@@ -330,3 +330,34 @@ let pathIdentToList (p : Path.t) =
   in
   let lst = pathIdentToListInner p in
   lst |> List.rev
+
+let processSchema (schemaState : schemaState) =
+  let processedSchema = {interfaceImplementedBy = Hashtbl.create 10} in
+  schemaState.types
+  |> Hashtbl.iter (fun _name (t : gqlObjectType) ->
+         t.interfaces
+         |> List.iter (fun (i : gqlInterfaceIdentifier) ->
+                match
+                  Hashtbl.find_opt processedSchema.interfaceImplementedBy i.id
+                with
+                | None ->
+                  Hashtbl.add processedSchema.interfaceImplementedBy i.id
+                    [ObjectType (Hashtbl.find schemaState.types t.id)]
+                | Some item ->
+                  Hashtbl.replace processedSchema.interfaceImplementedBy i.id
+                    (ObjectType (Hashtbl.find schemaState.types t.id) :: item)));
+  schemaState.interfaces
+  |> Hashtbl.iter (fun _name (t : gqlInterface) ->
+         t.interfaces
+         |> List.iter (fun (i : gqlInterfaceIdentifier) ->
+                match
+                  Hashtbl.find_opt processedSchema.interfaceImplementedBy i.id
+                with
+                | None ->
+                  Hashtbl.add processedSchema.interfaceImplementedBy i.id
+                    [Interface (Hashtbl.find schemaState.interfaces t.id)]
+                | Some item ->
+                  Hashtbl.replace processedSchema.interfaceImplementedBy i.id
+                    (Interface (Hashtbl.find schemaState.interfaces t.id)
+                    :: item)));
+  processedSchema

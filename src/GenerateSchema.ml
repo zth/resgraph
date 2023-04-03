@@ -33,14 +33,33 @@ type typeContext = Default | ReturnType
 
 let rec lookupInterface ~env ~full ~schemaState path =
   let open SharedTypes in
-  let resolved = ResolvePath.resolvePath ~env ~path ~package:full.package in
-  match resolved with
+  let envAndModulePath =
+    match ResolvePath.resolvePath ~env ~path ~package:full.package with
+    | None -> (
+      match path with
+      | [] | [_] -> None
+      | moduleName :: p -> (
+        match ProcessCmt.fileForModule moduleName ~package:full.package with
+        | None -> None
+        | Some file -> Some (QueryEnv.fromFile file, p)))
+    | Some (env, p) ->
+      Some
+        ( env,
+          match
+            GenerateSchemaUtils.findModulePathOfType ~schemaState ~env
+              ~expectedType:Interface p
+          with
+          | None -> [p]
+          | Some m -> m )
+  in
+  match envAndModulePath with
   | None -> None
   | Some (env, p) ->
     traverseStructure ~schemaState ~originModule:env.file.moduleName ~env ~full
       env.file.structure;
+    let id = List.nth p (List.length p - 1) in
     let interfaceIdentifier : gqlInterfaceIdentifier =
-      {id = p; displayName = capitalizeFirstChar p}
+      {id; displayName = capitalizeFirstChar id}
     in
     Some interfaceIdentifier
 
@@ -75,6 +94,8 @@ and findGraphQLType ~env ?(typeContext = Default) ?loc ~schemaState
     match pathIdentToList path with
     | ["ResGraph"; "id"] -> Some (Scalar ID)
     | ["ResGraphContext"; "context"] -> Some InjectContext
+    | ["ResGraphSchemaAssets"; _] ->
+      (* TODO: Fix interface resolver *) Some (Scalar String)
     | ["Js"; "Nullable"; "t"] -> (
       match typeArgs with
       | [typeArg] -> (
@@ -644,7 +665,7 @@ and traverseStructure ?(modulePath = []) ?originModule
                           interfaces.";
                    })))
 
-let generateSchema ~path ~debug ~outputPath =
+let generateSchema ~path ~debug ~schemaOutputPath ~assetsOutputPath =
   if debug then Printf.printf "generating schema from %s\n\n" path;
   match Cmt.loadFullCmtFromPath ~path with
   | None -> ()
@@ -668,6 +689,7 @@ let generateSchema ~path ~debug ~outputPath =
     in
     traverseStructure structure ~originModule:env.file.moduleName ~schemaState
       ~env ~full;
+    let processedSchema = processSchema schemaState in
     if schemaState.diagnostics |> List.length > 0 then
       schemaState.diagnostics |> List.rev |> List.map printDiagnostic
       |> String.concat "\n\n" |> print_endline
@@ -675,15 +697,26 @@ let generateSchema ~path ~debug ~outputPath =
       let schemaCode =
         GenerateSchemaTypePrinters.printSchemaJsFile schemaState |> formatCode
       in
+      let assetCode =
+        GenerateSchemaTypePrinters.printSchemaAssets ~schemaState
+          ~processedSchema
+        |> formatCode
+      in
 
+      (* Write generated schema *)
       (* Write implementation file *)
-      let oc = open_out outputPath in
+      let oc = open_out schemaOutputPath in
       output_string oc schemaCode;
       close_out oc;
 
       (* Write resi file *)
-      let oc = open_out (outputPath ^ "i") in
+      let oc = open_out (schemaOutputPath ^ "i") in
       output_string oc "let schema: ResGraph.schema";
+      close_out oc;
+
+      (* Write assets file *)
+      let oc = open_out assetsOutputPath in
+      output_string oc assetCode;
       close_out oc;
 
       if debug then schemaCode |> print_endline

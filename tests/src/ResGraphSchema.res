@@ -334,6 +334,16 @@ t_Query.contents = GraphQLObjectType.make({
           Schema.QueryFields.me(src)
         }),
       },
+      "hasName": {
+        typ: Scalars.string->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          HasNameInterface.hasName(src, ~id=args["id"])
+        }),
+      },
     }->makeFields,
 })
 input_UserConfig.contents = GraphQLInputObjectType.make({

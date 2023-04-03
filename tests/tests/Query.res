@@ -1,0 +1,2 @@
+@gql.type
+type query = {}

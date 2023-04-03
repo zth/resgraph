@@ -1,6 +1,8 @@
 generating schema from tests/Schema.res
 
 Adding interface hasName
+Checking for type to attach resolver to
+noticing query
 noticing user
 noticing group
 Adding union userOrGroup
@@ -9,7 +11,6 @@ Checking for type to attach resolver to
 Checking for type to attach resolver to
 Checking for type to attach resolver to
 Checking for type to attach resolver to
-noticing query
 Adding input object userConfigContext
 Adding input object userConfig
 Checking for type to attach resolver to
@@ -353,6 +354,16 @@ t_Query.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
           Schema.QueryFields.me(src)
+        }),
+      },
+      "hasName": {
+        typ: Scalars.string->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          HasNameInterface.hasName(src, ~id=args["id"])
         }),
       },
     }->makeFields,

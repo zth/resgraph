@@ -67,6 +67,22 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
       nullablePostfix
   | InjectContext -> "Obj.magic()"
 
+let printInterfaceResolverReturnType
+    (gqlInterfaceIdentifier : gqlInterfaceIdentifier)
+    ~(implementedBy : interfaceImplementedBy list) =
+  Printf.sprintf "@gql.interfaceResolver(%s) type %s_resolver = %s"
+    gqlInterfaceIdentifier.id gqlInterfaceIdentifier.id
+    (implementedBy
+    |> List.map (fun (i : interfaceImplementedBy) ->
+           match i with
+           | ObjectType t ->
+             Printf.sprintf "%s(%s)" t.displayName
+               (typeLocationToAccessor t.typeLocation)
+           | Interface t ->
+             Printf.sprintf "%s(%s)" t.displayName
+               (typeLocationToAccessor t.typeLocation))
+    |> String.concat " | ")
+
 let printArg (arg : gqlArg) =
   Printf.sprintf "{typ: %s}" (printGraphQLType arg.typ)
 let printArgs (args : gqlArg list) =
@@ -151,7 +167,23 @@ let printUnionType (union : gqlUnion) =
     |> String.concat ", ")
     (Printf.sprintf "union_%s_resolveType" union.displayName)
 
-let printSchemaJsFile state =
+let printSchemaAssets ~schemaState ~processedSchema =
+  let code = ref "@@warning(\"-27-34-37\")\n\n" in
+  let addWithNewLine text = code := !code ^ text ^ "\n" in
+  schemaState.interfaces
+  |> Hashtbl.iter (fun _name (typ : gqlInterface) ->
+         match
+           Hashtbl.find_opt processedSchema.interfaceImplementedBy typ.id
+         with
+         | None -> ()
+         | Some implementedBy ->
+           addWithNewLine
+             (printInterfaceResolverReturnType
+                {id = typ.id; displayName = typ.displayName}
+                ~implementedBy));
+  !code
+
+let printSchemaJsFile schemaState =
   let code = ref "@@warning(\"-27\")\n\nopen ResGraph__GraphQLJs\n\n" in
   let addWithNewLine text = code := !code ^ text ^ "\n" in
   (* Add the type unwrapper. Source types passed to resolvers might be either
@@ -187,7 +219,7 @@ let printSchemaJsFile state =
     |};
 
   (* Print all enums. These won't have any other dependencies, so they can be printed as is. *)
-  state.enums
+  schemaState.enums
   |> Hashtbl.iter (fun _name (enum : gqlEnum) ->
          addWithNewLine
            (Printf.sprintf
@@ -206,7 +238,7 @@ let printSchemaJsFile state =
               |> String.concat ", ")));
 
   (* Print the interface type holders and getters *)
-  state.interfaces
+  schemaState.interfaces
   |> Hashtbl.iter (fun _name (typ : gqlInterface) ->
          addWithNewLine
            (Printf.sprintf
@@ -218,7 +250,7 @@ let printSchemaJsFile state =
               typ.displayName));
 
   (* Print the object type holders and getters *)
-  state.types
+  schemaState.types
   |> Hashtbl.iter (fun _name (typ : gqlObjectType) ->
          addWithNewLine
            (Printf.sprintf
@@ -230,7 +262,7 @@ let printSchemaJsFile state =
               typ.displayName));
 
   (* Print the input object type holders and getters *)
-  state.inputObjects
+  schemaState.inputObjects
   |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
          addWithNewLine
            (Printf.sprintf
@@ -245,12 +277,12 @@ let printSchemaJsFile state =
               typ.displayName));
 
   (* Now add all of the conversion instructions. *)
-  state.inputObjects
+  schemaState.inputObjects
   |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
          addWithNewLine (printInputObjectAssets typ));
 
   (* Print the union type holders and getters *)
-  state.unions
+  schemaState.unions
   |> Hashtbl.iter (fun _name (union : gqlUnion) ->
          addWithNewLine
            (Printf.sprintf
@@ -264,7 +296,7 @@ let printSchemaJsFile state =
   addWithNewLine "";
 
   (* Print support functions for union type resolution *)
-  state.unions
+  schemaState.unions
   |> Hashtbl.iter (fun _name (union : gqlUnion) ->
          addWithNewLine
            (Printf.sprintf
@@ -278,27 +310,27 @@ let printSchemaJsFile state =
               |> String.concat "\n")));
 
   (* Now we can print all of the code that fills these in. *)
-  state.interfaces
+  schemaState.interfaces
   |> Hashtbl.iter (fun _name (typ : gqlInterface) ->
          addWithNewLine
            (Printf.sprintf "i_%s.contents = GraphQLInterfaceType.make(%s)"
               typ.displayName
               (typ |> printInterfaceType)));
 
-  state.types
+  schemaState.types
   |> Hashtbl.iter (fun _name (typ : gqlObjectType) ->
          addWithNewLine
            (Printf.sprintf "t_%s.contents = GraphQLObjectType.make(%s)"
               typ.displayName (typ |> printObjectType)));
 
-  state.inputObjects
+  schemaState.inputObjects
   |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
          addWithNewLine
            (Printf.sprintf "input_%s.contents = GraphQLInputObjectType.make(%s)"
               typ.displayName
               (typ |> printInputObjectType)));
 
-  state.unions
+  schemaState.unions
   |> Hashtbl.iter (fun _name (union : gqlUnion) ->
          addWithNewLine
            (Printf.sprintf "union_%s.contents = GraphQLUnionType.make(%s)"
@@ -309,10 +341,10 @@ let printSchemaJsFile state =
   addWithNewLine
     (Printf.sprintf
        "let schema = GraphQLSchemaType.make({\"query\": get_Query()%s%s})"
-       (match state.mutation with
+       (match schemaState.mutation with
        | None -> ""
        | Some _ -> ", \"mutation\": get_Mutation()")
-       (match state.subscription with
+       (match schemaState.subscription with
        | None -> ""
        | Some _ -> ", \"subscription\": get_Subscription()"));
   !code

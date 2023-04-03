@@ -1,9 +1,5 @@
-/** An entity with a name. */
-@gql.interface
-type hasName = {@gql.field name: string}
-
 /** A user in the system. */
-@gql.type({interfaces: [hasName]})
+@gql.type({interfaces: [HasNameInterface.hasName]})
 type user = {
   /** The users name.*/ name: string,
   @gql.field /** The age of the user. */
@@ -62,8 +58,7 @@ module UserFields = {
   }
 }
 
-@gql.type
-type query = {}
+type query = Query.query
 
 @gql.inputObject /** Additional for searching for a user.*/
 type userConfigContext = {

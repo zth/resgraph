@@ -45,7 +45,8 @@ let test ~path =
           | "db-" -> Log.verbose := false
           | "gen" ->
             GenerateSchema.generateSchema ~path ~debug:true
-              ~outputPath:"./src/ResGraphSchema.res"
+              ~schemaOutputPath:"./src/ResGraphSchema.res"
+              ~assetsOutputPath:"./src/ResGraphSchemaAssets.res"
           | "ast" ->
             print_endline
               ("Dump AST " ^ path ^ " " ^ string_of_int line ^ ":"
