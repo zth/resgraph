@@ -41,10 +41,15 @@ module GraphQLInterfaceType = {
 
   external toGraphQLType: t => graphqlType = "%identity"
 
+  type resolveInterfaceTypeFn
+
+  external makeResolveInterfaceTypeFn: ('source => 'return) => resolveInterfaceTypeFn = "%identity"
+
   type config = {
     name: string,
     description?: string,
     fields: unit => fields,
+    resolveType: resolveInterfaceTypeFn,
     interfaces?: array<t>,
   }
   @module("graphql") @new external make: config => t = "GraphQLInterfaceType"

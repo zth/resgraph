@@ -4,7 +4,7 @@ type Query {
   searchForUser(input: UserConfig!): User
   entity(id: ID!): UserOrGroup!
   me: User
-  hasName(id: ID!): String
+  hasName(id: ID!): HasName
 }
 
 """A user in the system."""

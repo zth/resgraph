@@ -125,6 +125,7 @@ type processedSchema = {
 type gqlAttributes =
   | ObjectType of {interfaces: Longident.t Location.loc list}
   | Interface of {interfaces: Longident.t Location.loc list}
+  | InterfaceResolver of {interfaceId: string}  (** This is internal *)
   | InputObject
   | Field
   | Enum

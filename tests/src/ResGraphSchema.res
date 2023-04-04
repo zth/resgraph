@@ -81,6 +81,12 @@ let union_UserOrGroup_resolveType = (v: Schema.userOrGroup) =>
   | Group(_) => get_Group()
   }
 
+let interface_HasName_resolveType = (v: ResGraphSchemaAssets.hasName_resolver) =>
+  switch v {
+  | Group(_) => get_Group()
+  | User(_) => get_User()
+  }
+
 i_HasName.contents = GraphQLInterfaceType.make({
   name: "HasName",
   description: "An entity with a name.",
@@ -97,6 +103,7 @@ i_HasName.contents = GraphQLInterfaceType.make({
         }),
       },
     }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_HasName_resolveType),
 })
 t_Mutation.contents = GraphQLObjectType.make({
   name: "Mutation",
@@ -335,7 +342,7 @@ t_Query.contents = GraphQLObjectType.make({
         }),
       },
       "hasName": {
-        typ: Scalars.string->Scalars.toGraphQLType,
+        typ: get_HasName()->GraphQLInterfaceType.toGraphQLType,
         description: ?None,
         deprecationReason: ?None,
         args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,

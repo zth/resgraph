@@ -2,7 +2,7 @@
 - [x] Mutations
 - [x] Subscriptions (definition, but behavior is broken)
 - [ ] Figure out how to do subscriptions properly. Async iterators? What else exists?
-- [ ] Interfaces
+- [x] Interfaces
 - [ ] Rethink root value for query/subscriptions/mutations
 - [x] Validate that enums are only variant cases without payloads
 - [x] Have some way to propagate diagnostics somewhere
@@ -20,7 +20,8 @@
 - [ ] Custom scalars
 - [ ] How to import and use existing things from the ecosystem?
 - [ ] Think about and fix compilation
-- [ ] Traverse structure cache/circuit breaker
+- [x] Traverse structure cache/circuit breaker
+- [ ] Interface as root type -> add resolver/field to all implementors
 
 ## Future
 
@@ -38,3 +39,7 @@
 
 - Expose field as GraphQL field
 - Generate resolver for type
+
+## Questions to answer
+
+- How to reuse resolvers for several types? Just link/expose like you want, the tool only cares about the types

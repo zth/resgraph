@@ -70,7 +70,7 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
 let printInterfaceResolverReturnType
     (gqlInterfaceIdentifier : gqlInterfaceIdentifier)
     ~(implementedBy : interfaceImplementedBy list) =
-  Printf.sprintf "@gql.interfaceResolver(%s) type %s_resolver = %s"
+  Printf.sprintf "@gql.interfaceResolver(\"%s\") type %s_resolver = %s"
     gqlInterfaceIdentifier.id gqlInterfaceIdentifier.id
     (implementedBy
     |> List.map (fun (i : interfaceImplementedBy) ->
@@ -140,7 +140,8 @@ let printObjectType (typ : gqlObjectType) =
 
 let printInterfaceType (typ : gqlInterface) =
   Printf.sprintf
-    "{name: \"%s\", description: %s, interfaces: [%s], fields: () => %s}"
+    "{name: \"%s\", description: %s, interfaces: [%s], fields: () => %s, \
+     resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(%s)}"
     typ.displayName
     (undefinedOrValueAsString typ.description)
     (typ.interfaces
@@ -148,6 +149,7 @@ let printInterfaceType (typ : gqlInterface) =
            Printf.sprintf "get_%s()" item.displayName)
     |> String.concat ", ")
     (printFields typ.fields)
+    (Printf.sprintf "interface_%s_resolveType" typ.displayName)
 
 let printInputObjectType (typ : gqlInputObjectType) =
   Printf.sprintf "{name: \"%s\", description: %s, fields: () => %s}"
@@ -183,7 +185,7 @@ let printSchemaAssets ~schemaState ~processedSchema =
                 ~implementedBy));
   !code
 
-let printSchemaJsFile schemaState =
+let printSchemaJsFile schemaState processSchema =
   let code = ref "@@warning(\"-27\")\n\nopen ResGraph__GraphQLJs\n\n" in
   let addWithNewLine text = code := !code ^ text ^ "\n" in
   (* Add the type unwrapper. Source types passed to resolvers might be either
@@ -307,6 +309,29 @@ let printSchemaJsFile schemaState =
               |> List.map (fun (member : gqlUnionMember) ->
                      Printf.sprintf " | %s(_) => get_%s()" member.displayName
                        member.displayName)
+              |> String.concat "\n")));
+
+  (* Print support functions for interface type resolution *)
+  schemaState.interfaces
+  |> Hashtbl.iter (fun _name (intf : gqlInterface) ->
+         (* TODO: Flatten list properly when constructing *)
+         let implementedBy =
+           Hashtbl.find processSchema.interfaceImplementedBy intf.id
+         in
+         addWithNewLine
+           (Printf.sprintf
+              "let interface_%s_resolveType = (v: \
+               ResGraphSchemaAssets.%s_resolver) => switch v {%s}\n"
+              intf.displayName intf.id
+              (implementedBy
+              |> List.map (fun (member : interfaceImplementedBy) ->
+                     let displayName =
+                       match member with
+                       | ObjectType {displayName} | Interface {displayName} ->
+                         displayName
+                     in
+                     Printf.sprintf " | %s(_) => get_%s()" displayName
+                       displayName)
               |> String.concat "\n")));
 
   (* Now we can print all of the code that fills these in. *)

@@ -35,6 +35,35 @@ let extractGqlAttribute ~(schemaState : GenerateSchemaTypes.schemaState)
          | ["gql"; "interface"] ->
            let interfaces = extractInterfacesImplemented payload in
            Some (Interface {interfaces})
+         | ["gql"; "interfaceResolver"] -> (
+           match payload with
+           | PStr
+               [
+                 {
+                   pstr_desc =
+                     Pstr_eval
+                       ( {
+                           pexp_desc =
+                             Pexp_constant (Pconst_string (interfaceId, _));
+                         },
+                         _ );
+                 };
+               ] ->
+             Some (InterfaceResolver {interfaceId})
+           | _ ->
+             schemaState
+             |> addDiagnostic
+                  ~diagnostic:
+                    {
+                      loc = name.loc;
+                      fileUri = env.file.uri;
+                      message =
+                        Printf.sprintf
+                          "`%s` is annotated as @gql.interfaceResolver but did \
+                           not have a string literal as payload."
+                          name.txt;
+                    };
+             None)
          | ["gql"; "field"] -> Some Field
          | ["gql"; "enum"] -> Some Enum
          | ["gql"; "union"] -> Some Union

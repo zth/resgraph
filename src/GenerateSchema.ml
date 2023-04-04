@@ -94,8 +94,6 @@ and findGraphQLType ~env ?(typeContext = Default) ?loc ~schemaState
     match pathIdentToList path with
     | ["ResGraph"; "id"] -> Some (Scalar ID)
     | ["ResGraphContext"; "context"] -> Some InjectContext
-    | ["ResGraphSchemaAssets"; _] ->
-      (* TODO: Fix interface resolver *) Some (Scalar String)
     | ["Js"; "Nullable"; "t"] -> (
       match typeArgs with
       | [typeArg] -> (
@@ -201,6 +199,10 @@ and findGraphQLType ~env ?(typeContext = Default) ?loc ~schemaState
                     ~expectedType:Union id;
               });
           Some (GraphQLUnion {id; displayName})
+        | Some (InterfaceResolver {interfaceId}), {kind = Variant _} ->
+          Some
+            (GraphQLInterface
+               {id = interfaceId; displayName = capitalizeFirstChar interfaceId})
         | _ ->
           schemaState
           |> addDiagnostic
@@ -663,6 +665,17 @@ and traverseStructure ?(modulePath = []) ?originModule
                          "This type is annotated with @gql.interface, but is \
                           not a record. Only records can represent GraphQL \
                           interfaces.";
+                   }
+             | Some (InterfaceResolver _) ->
+               add
+                 ~diagnostic:
+                   {
+                     baseDiagnostic with
+                     message =
+                       Printf.sprintf
+                         "This type is annotated with @gql.interfaceResolver, \
+                          but is not a variant. Only variants can represent \
+                          GraphQL interface resolvers.";
                    })))
 
 let generateSchema ~path ~debug ~schemaOutputPath ~assetsOutputPath =
@@ -695,7 +708,8 @@ let generateSchema ~path ~debug ~schemaOutputPath ~assetsOutputPath =
       |> String.concat "\n\n" |> print_endline
     else
       let schemaCode =
-        GenerateSchemaTypePrinters.printSchemaJsFile schemaState |> formatCode
+        GenerateSchemaTypePrinters.printSchemaJsFile schemaState processedSchema
+        |> formatCode
       in
       let assetCode =
         GenerateSchemaTypePrinters.printSchemaAssets ~schemaState
