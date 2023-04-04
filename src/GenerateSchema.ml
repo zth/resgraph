@@ -31,7 +31,7 @@ let variantCasesToEnumValues ~schemaState ~(env : SharedTypes.QueryEnv.t)
 
 type typeContext = Default | ReturnType
 
-let rec lookupInterface ~env ~full ~schemaState path =
+let rec lookupInterface ~env ~full ~schemaState ~debug path =
   let open SharedTypes in
   let envAndModulePath =
     match ResolvePath.resolvePath ~env ~path ~package:full.package with
@@ -55,8 +55,8 @@ let rec lookupInterface ~env ~full ~schemaState path =
   match envAndModulePath with
   | None -> None
   | Some (env, p) ->
-    traverseStructure ~schemaState ~originModule:env.file.moduleName ~env ~full
-      env.file.structure;
+    traverseStructure ~schemaState ~debug ~originModule:env.file.moduleName ~env
+      ~full env.file.structure;
     let id = List.nth p (List.length p - 1) in
     let interfaceIdentifier : gqlInterfaceIdentifier =
       {id; displayName = capitalizeFirstChar id}
@@ -64,28 +64,30 @@ let rec lookupInterface ~env ~full ~schemaState path =
     Some interfaceIdentifier
 
 (* Extracts valid GraphQL types from type exprs *)
-and findGraphQLType ~env ?(typeContext = Default) ?loc ~schemaState
+and findGraphQLType ~env ?(typeContext = Default) ~debug ?loc ~schemaState
     ~(full : SharedTypes.full) (typ : Types.type_expr) =
   match typ.desc with
   | Tlink te | Tsubst te | Tpoly (te, []) ->
-    findGraphQLType te ?loc ~env ~schemaState ~full ~typeContext
+    findGraphQLType te ?loc ~env ~schemaState ~full ~debug ~typeContext
   | Tconstr (Path.Pident {name = "option"}, [unwrappedType], _) -> (
     let inner =
-      findGraphQLType ~env ~schemaState ~full ~typeContext unwrappedType
+      findGraphQLType ~env ~schemaState ~debug ~full ~typeContext unwrappedType
     in
     match inner with
     | None -> None
     | Some inner -> Some (Nullable inner))
   | Tconstr (Path.Pident {name = "array"}, [unwrappedType], _) -> (
     let inner =
-      findGraphQLType ?loc ~env ~schemaState ~full ~typeContext unwrappedType
+      findGraphQLType ?loc ~env ~schemaState ~debug ~full ~typeContext
+        unwrappedType
     in
     match inner with
     | None -> None
     | Some inner -> Some (List inner))
   | Tconstr (Path.Pident {name = "promise"}, [unwrappedType], _)
     when typeContext = ReturnType ->
-    findGraphQLType unwrappedType ?loc ~env ~schemaState ~full ~typeContext
+    findGraphQLType unwrappedType ?loc ~env ~debug ~schemaState ~full
+      ~typeContext
   | Tconstr (Path.Pident {name = "string"}, [], _) -> Some (Scalar String)
   | Tconstr (Path.Pident {name = "bool"}, [], _) -> Some (Scalar Boolean)
   | Tconstr (Path.Pident {name = "int"}, [], _) -> Some (Scalar Int)
@@ -98,7 +100,8 @@ and findGraphQLType ~env ?(typeContext = Default) ?loc ~schemaState
       match typeArgs with
       | [typeArg] -> (
         let inner =
-          findGraphQLType ?loc ~env ~schemaState ~full ~typeContext typeArg
+          findGraphQLType ?loc ~env ~schemaState ~debug ~full ~typeContext
+            typeArg
         in
         match inner with
         | None -> None
@@ -115,7 +118,8 @@ and findGraphQLType ~env ?(typeContext = Default) ?loc ~schemaState
         (* Need to instantiate the type here, so all type variables are populated. *)
         let typeParams = type_params in
         let te = TypeUtils.instantiateType ~typeParams ~typeArgs te in
-        findGraphQLType te ~loc:type_loc ~env ~schemaState ~full ~typeContext
+        findGraphQLType te ~loc:type_loc ~env ~debug ~schemaState ~full
+          ~typeContext
       | Some (env, {item}) -> (
         let gqlAttribute =
           extractGqlAttribute ~env ~schemaState item.attributes
@@ -128,24 +132,26 @@ and findGraphQLType ~env ?(typeContext = Default) ?loc ~schemaState
           let interfaces =
             interfaces
             |> List.filter_map (fun interface ->
-                   lookupInterface ~env ~full ~schemaState
+                   lookupInterface ~env ~full ~schemaState ~debug
                      (interface.Location.txt |> Utils.flattenLongIdent))
           in
-          noticeObjectType id ~displayName ~schemaState ~env ~interfaces
+          noticeObjectType id ~displayName ~debug ~schemaState ~env ~interfaces
             ?description:(GenerateSchemaUtils.attributesToDocstring attributes)
             ~makeFields:(fun () ->
-              fields |> objectTypeFieldsOfRecordFields ~env ~full ~schemaState)
+              fields
+              |> objectTypeFieldsOfRecordFields ~env ~debug ~full ~schemaState)
             ~loc:item.decl.type_loc;
           Some (GraphQLObjectType {id; displayName})
         | Some InputObject, {name; kind = Record fields; attributes; decl} ->
           let id = name in
           let displayName = capitalizeFirstChar id in
-          addInputObject id ~schemaState ~makeInputObject:(fun () ->
+          addInputObject id ~schemaState ~debug ~makeInputObject:(fun () ->
               {
                 id;
                 displayName;
                 fields =
-                  inputObjectFieldsOfRecordFields fields ~env ~full ~schemaState;
+                  inputObjectFieldsOfRecordFields fields ~env ~debug ~full
+                    ~schemaState;
                 description = attributesToDocstring attributes;
                 typeLocation =
                   findTypeLocation item.name ~env ~schemaState
@@ -159,16 +165,17 @@ and findGraphQLType ~env ?(typeContext = Default) ?loc ~schemaState
           let interfaces =
             interfaces
             |> List.filter_map (fun interface ->
-                   lookupInterface ~env ~full ~schemaState
+                   lookupInterface ~env ~full ~debug ~schemaState
                      (interface.Location.txt |> Utils.flattenLongIdent))
           in
-          addInterface id ~schemaState ~makeInterface:(fun () ->
+          addInterface id ~schemaState ~debug ~makeInterface:(fun () ->
               {
                 id;
                 displayName;
                 interfaces;
                 fields =
-                  objectTypeFieldsOfRecordFields fields ~env ~full ~schemaState;
+                  objectTypeFieldsOfRecordFields fields ~env ~full ~schemaState
+                    ~debug;
                 description = attributesToDocstring attributes;
                 typeLocation =
                   findTypeLocation item.name ~env ~schemaState
@@ -178,7 +185,7 @@ and findGraphQLType ~env ?(typeContext = Default) ?loc ~schemaState
         | Some Enum, {name; kind = Variant cases} ->
           let id = name in
           let displayName = capitalizeFirstChar id in
-          addEnum id ~schemaState ~makeEnum:(fun () ->
+          addEnum id ~schemaState ~debug ~makeEnum:(fun () ->
               {
                 id;
                 displayName;
@@ -190,11 +197,12 @@ and findGraphQLType ~env ?(typeContext = Default) ?loc ~schemaState
         | Some Union, {name; kind = Variant cases} ->
           let id = name in
           let displayName = capitalizeFirstChar id in
-          addUnion id ~schemaState ~makeUnion:(fun () ->
+          addUnion id ~schemaState ~debug ~makeUnion:(fun () ->
               {
                 id;
                 displayName;
-                types = variantCasesToUnionValues cases ~env ~full ~schemaState;
+                types =
+                  variantCasesToUnionValues cases ~env ~full ~schemaState ~debug;
                 description = item.attributes |> attributesToDocstring;
                 typeLocation =
                   findTypeLocation ~loc:item.decl.type_loc ~schemaState ~env
@@ -249,13 +257,13 @@ and findGraphQLType ~env ?(typeContext = Default) ?loc ~schemaState
            };
     None
 
-and inputObjectFieldsOfRecordFields ~env ~schemaState ~(full : SharedTypes.full)
-    (fields : SharedTypes.field list) =
+and inputObjectFieldsOfRecordFields ~env ~debug ~schemaState
+    ~(full : SharedTypes.full) (fields : SharedTypes.field list) =
   fields
   |> List.filter_map (fun (field : SharedTypes.field) ->
          let name = field.fname.txt in
          match
-           findGraphQLType field.typ ~loc:field.fname.loc ~full ~env
+           findGraphQLType field.typ ~debug ~loc:field.fname.loc ~full ~env
              ~schemaState
          with
          | None ->
@@ -284,14 +292,15 @@ and inputObjectFieldsOfRecordFields ~env ~schemaState ~(full : SharedTypes.full)
                loc = field.fname.loc;
              })
 
-and variantCasesToUnionValues ~env ~schemaState ~full
+and variantCasesToUnionValues ~env ~debug ~schemaState ~full
     (cases : SharedTypes.Constructor.t list) =
   cases
   |> List.filter_map (fun (case : SharedTypes.Constructor.t) ->
          match case.args with
          | Args [(typ, _)] -> (
            match
-             findGraphQLType ~loc:case.cname.loc ~env ~schemaState ~full typ
+             findGraphQLType ~debug ~loc:case.cname.loc ~env ~schemaState ~full
+               typ
            with
            | Some (GraphQLObjectType {id; displayName}) ->
              Some {objectTypeId = id; displayName; loc = case.cname.loc}
@@ -326,8 +335,8 @@ and variantCasesToUnionValues ~env ~schemaState ~full
                };
            None)
 
-and objectTypeFieldsOfRecordFields ~env ~schemaState ~(full : SharedTypes.full)
-    (fields : SharedTypes.field list) =
+and objectTypeFieldsOfRecordFields ~env ~schemaState ~debug
+    ~(full : SharedTypes.full) (fields : SharedTypes.field list) =
   fields
   |> List.filter_map (fun (field : SharedTypes.field) ->
          match
@@ -338,7 +347,7 @@ and objectTypeFieldsOfRecordFields ~env ~schemaState ~(full : SharedTypes.full)
          | Some attr -> Some (field, attr))
   |> List.filter_map (fun ((field : SharedTypes.field), _attr) ->
          let typ =
-           findGraphQLType field.typ ~loc:field.fname.loc ~full ~env
+           findGraphQLType field.typ ~debug ~loc:field.fname.loc ~full ~env
              ~schemaState
          in
          match typ with
@@ -373,7 +382,7 @@ and objectTypeFieldsOfRecordFields ~env ~schemaState ~(full : SharedTypes.full)
              })
 
 and extractResolverFunctionInfo ~env ?loc ~(full : SharedTypes.full)
-    ~(schemaState : schemaState) (typ : Types.type_expr) =
+    ~(schemaState : schemaState) ~debug (typ : Types.type_expr) =
   match typ |> TypeUtils.extractType ~env ~package:full.package with
   | Some (Tfunction {typ; env}) -> (
     let args, returnType =
@@ -382,11 +391,11 @@ and extractResolverFunctionInfo ~env ?loc ~(full : SharedTypes.full)
     (* The first arg should point to the type this resolver is for. *)
     match List.nth_opt args 0 with
     | Some (Nolabel, typ) -> (
-      Printf.printf "Checking for type to attach resolver to\n";
+      if debug then Printf.printf "Checking for type to attach resolver to\n";
       match
-        ( findGraphQLType typ ?loc ~env ~full ~schemaState,
-          findGraphQLType returnType ~typeContext:ReturnType ?loc ~env ~full
-            ~schemaState )
+        ( findGraphQLType typ ~debug ?loc ~env ~full ~schemaState,
+          findGraphQLType returnType ~debug ~typeContext:ReturnType ?loc ~env
+            ~full ~schemaState )
       with
       | Some targetGraphQLType, Some returnType ->
         Some (targetGraphQLType, args, returnType)
@@ -394,11 +403,13 @@ and extractResolverFunctionInfo ~env ?loc ~(full : SharedTypes.full)
     | _ -> None)
   | _ -> None
 
-and mapFunctionArgs ~full ~env ~schemaState ~fnLoc
+and mapFunctionArgs ~full ~env ~debug ~schemaState ~fnLoc
     (args : SharedTypes.typedFnArg list) =
   args
   |> List.filter_map (fun (label, typExpr) ->
-         match findGraphQLType ~loc:fnLoc ~full ~env ~schemaState typExpr with
+         match
+           findGraphQLType ~debug ~loc:fnLoc ~full ~env ~schemaState typExpr
+         with
          | None ->
            schemaState
            |> addDiagnostic
@@ -430,7 +441,7 @@ and mapFunctionArgs ~full ~env ~schemaState ~fnLoc
                }))
 
 and traverseStructure ?(modulePath = []) ?originModule
-    ~(schemaState : schemaState) ~env ~full
+    ~(schemaState : schemaState) ~env ~debug ~full
     (structure : SharedTypes.Module.structure) =
   if
     originModule |> Option.is_some
@@ -453,7 +464,7 @@ and traverseStructure ?(modulePath = []) ?originModule
                 ignore aliases. *)
              traverseStructure
                ~modulePath:(structure.name :: modulePath)
-               ~schemaState ~env ~full structure
+               ~schemaState ~env ~full ~debug structure
            | ( Type ({kind = Record fields; attributes; decl}, _),
                Some (ObjectType {interfaces}) ) ->
              (* @gql.type type someType = {...} *)
@@ -462,27 +473,29 @@ and traverseStructure ?(modulePath = []) ?originModule
              let interfaces =
                interfaces
                |> List.filter_map (fun interface ->
-                      lookupInterface ~env ~full ~schemaState
+                      lookupInterface ~env ~full ~schemaState ~debug
                         (interface.Location.txt |> Utils.flattenLongIdent))
              in
              (* TODO: Look up interfaces *)
-             noticeObjectType ~env ~loc:decl.type_loc ~schemaState ~interfaces
+             noticeObjectType ~env ~debug ~loc:decl.type_loc ~schemaState
+               ~interfaces
                ?description:(attributesToDocstring attributes)
                ~displayName
                ~makeFields:(fun () ->
-                 objectTypeFieldsOfRecordFields fields ~env ~full ~schemaState)
+                 objectTypeFieldsOfRecordFields fields ~env ~full ~schemaState
+                   ~debug)
                id
            | ( Type ({kind = Record fields; attributes; decl}, _),
                Some InputObject ) ->
              (* @gql.inputObject type someInputObject = {...} *)
              let id = item.name in
-             addInputObject id ~schemaState ~makeInputObject:(fun () ->
+             addInputObject id ~schemaState ~debug ~makeInputObject:(fun () ->
                  {
                    id;
                    displayName = capitalizeFirstChar item.name;
                    fields =
                      inputObjectFieldsOfRecordFields fields ~env ~full
-                       ~schemaState;
+                       ~schemaState ~debug;
                    description = attributesToDocstring attributes;
                    typeLocation =
                      findTypeLocation item.name ~env ~schemaState
@@ -495,16 +508,16 @@ and traverseStructure ?(modulePath = []) ?originModule
              let interfaces =
                interfaces
                |> List.filter_map (fun interface ->
-                      lookupInterface ~env ~full ~schemaState
+                      lookupInterface ~env ~full ~schemaState ~debug
                         (interface.Location.txt |> Utils.flattenLongIdent))
              in
-             addInterface id ~schemaState ~makeInterface:(fun () ->
+             addInterface id ~schemaState ~debug ~makeInterface:(fun () ->
                  {
                    id;
                    displayName = capitalizeFirstChar item.name;
                    fields =
                      objectTypeFieldsOfRecordFields fields ~env ~full
-                       ~schemaState;
+                       ~schemaState ~debug;
                    description = attributesToDocstring attributes;
                    interfaces;
                    typeLocation =
@@ -513,7 +526,7 @@ and traverseStructure ?(modulePath = []) ?originModule
                  })
            | Type (({kind = Variant cases} as item), _), Some Enum ->
              (* @gql.enum type someEnum = Online | Offline | Idle *)
-             addEnum item.name ~schemaState ~makeEnum:(fun () ->
+             addEnum item.name ~schemaState ~debug ~makeEnum:(fun () ->
                  {
                    id = item.name;
                    displayName = capitalizeFirstChar item.name;
@@ -530,19 +543,20 @@ and traverseStructure ?(modulePath = []) ?originModule
                    displayName = capitalizeFirstChar item.name;
                    description = item.attributes |> attributesToDocstring;
                    types =
-                     variantCasesToUnionValues cases ~env ~full ~schemaState;
+                     variantCasesToUnionValues cases ~env ~full ~schemaState
+                       ~debug;
                    typeLocation =
                      findTypeLocation ~loc:item.decl.type_loc ~env ~schemaState
                        ~expectedType:Union item.name;
                  })
-               ~schemaState
+               ~schemaState ~debug
            | Value typ, Some Field -> (
              (* @gql.field let fullName = (user: user) => {...} *)
              match typ |> TypeUtils.extractType ~env ~package:full.package with
              | Some (Tfunction {typ; env}) -> (
                match
                  extractResolverFunctionInfo ~loc:item.loc ~env ~full
-                   ~schemaState typ
+                   ~schemaState ~debug typ
                with
                | Some (GraphQLObjectType {id}, args, returnType) ->
                  (* Resolver for object type. *)
@@ -563,8 +577,8 @@ and traverseStructure ?(modulePath = []) ?originModule
                          };
                      typ = returnType;
                      args =
-                       mapFunctionArgs ~full ~env ~schemaState ~fnLoc:item.loc
-                         args;
+                       mapFunctionArgs ~full ~debug ~env ~schemaState
+                         ~fnLoc:item.loc args;
                    }
                  in
                  addFieldToObjectType ~env ~loc:item.loc ~field ~schemaState id
@@ -707,7 +721,7 @@ let generateSchema ~path ~debug ~schemaOutputPath ~assetsOutputPath =
       let structure = file.structure in
       let env = SharedTypes.QueryEnv.fromFile file in
       traverseStructure structure ~originModule:env.file.moduleName ~schemaState
-        ~env ~full;
+        ~env ~full ~debug;
       Some full
   in
   let initialFull = processFileAtPath path in

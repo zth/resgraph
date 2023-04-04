@@ -188,11 +188,11 @@ let capitalizeFirstChar s =
   if String.length s = 0 then s
   else String.mapi (fun i c -> if i = 0 then Char.uppercase_ascii c else c) s
 
-let noticeObjectType ~env ~loc ~schemaState ~displayName ~interfaces
+let noticeObjectType ~env ~loc ~debug ~schemaState ~displayName ~interfaces
     ?description ~makeFields typeName =
   if Hashtbl.mem schemaState.types typeName then ()
   else (
-    Printf.printf "noticing %s\n" typeName;
+    if debug then Printf.printf "noticing %s\n" typeName;
     let typ : gqlObjectType =
       {
         id = typeName;
@@ -212,29 +212,30 @@ let noticeObjectType ~env ~loc ~schemaState ~displayName ~interfaces
     | "subscription" -> schemaState.subscription <- Some typ
     | _ -> ())
 
-let addEnum id ~(makeEnum : unit -> gqlEnum) ~schemaState =
+let addEnum id ~(makeEnum : unit -> gqlEnum) ~debug ~schemaState =
   if Hashtbl.mem schemaState.enums id then ()
   else (
-    Printf.printf "Adding enum %s\n" id;
+    if debug then Printf.printf "Adding enum %s\n" id;
     Hashtbl.replace schemaState.enums id (makeEnum ()))
 
-let addUnion id ~(makeUnion : unit -> gqlUnion) ~schemaState =
+let addUnion id ~(makeUnion : unit -> gqlUnion) ~debug ~schemaState =
   if Hashtbl.mem schemaState.unions id then ()
   else (
-    Printf.printf "Adding union %s\n" id;
+    if debug then Printf.printf "Adding union %s\n" id;
     Hashtbl.replace schemaState.unions id (makeUnion ()))
 
-let addInterface id ~(makeInterface : unit -> gqlInterface) ~schemaState =
+let addInterface id ~(makeInterface : unit -> gqlInterface) ~debug ~schemaState
+    =
   if Hashtbl.mem schemaState.interfaces id then ()
   else (
-    Printf.printf "Adding interface %s\n" id;
+    if debug then Printf.printf "Adding interface %s\n" id;
     Hashtbl.replace schemaState.interfaces id (makeInterface ()))
 
-let addInputObject id ~(makeInputObject : unit -> gqlInputObjectType)
+let addInputObject id ~(makeInputObject : unit -> gqlInputObjectType) ~debug
     ~schemaState =
   if Hashtbl.mem schemaState.inputObjects id then ()
   else (
-    Printf.printf "Adding input object %s\n" id;
+    if debug then Printf.printf "Adding input object %s\n" id;
     Hashtbl.replace schemaState.inputObjects id (makeInputObject ()))
 
 let addFieldToObjectType ~env ~loc ~field ~schemaState typeName =
