@@ -23,6 +23,11 @@
 - [x] Traverse structure cache/circuit breaker
 - [ ] Interface as root type -> add resolver/field to all implementors
 
+## Project integration
+
+- Example with `graphql-yoga`, compression, and so on
+- Get and construct app context from request
+
 ## Future
 
 - [ ] Relay helpers
@@ -34,6 +39,7 @@
 
 - Object has no fields (annotate at least one with @gql.field, or create a resolver)
 - Input object has invalid field types
+- Interface is used as return type but does not have a implemented resolver
 
 ## Code actions
 
