@@ -11,7 +11,11 @@ if shouldDumpSchema {
   )
 }
 
-open GraphQLYoga
+module Yoga = GraphQLYoga.MakeYoga({
+  type appContext = ResGraphContext.context
+})
+
+open Yoga
 
 let yoga = createYoga({
   schema: ResGraphSchema.schema,
