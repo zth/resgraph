@@ -390,3 +390,10 @@ let processSchema (schemaState : schemaState) =
                     (Interface (Hashtbl.find schemaState.interfaces t.id)
                     :: item)));
   processedSchema
+
+(** Some arguments aren't intended to be printed in the `args` list, like
+  `InjectContext` which controls injecting context into the resolver. *)
+let onlyPrintableArgs (args : gqlArg list) =
+  args
+  |> List.filter (fun (arg : gqlArg) ->
+         if arg.typ = InjectContext then false else true)

@@ -121,7 +121,8 @@ and findGraphQLType ~env ?(typeContext = Default) ?loc ~schemaState
           extractGqlAttribute ~env ~schemaState item.attributes
         in
         match (gqlAttribute, item) with
-        | Some (ObjectType {interfaces}), {name; kind = Record fields} ->
+        | ( Some (ObjectType {interfaces}),
+            {attributes; name; kind = Record fields} ) ->
           let id = name in
           let displayName = capitalizeFirstChar id in
           let interfaces =
@@ -131,6 +132,7 @@ and findGraphQLType ~env ?(typeContext = Default) ?loc ~schemaState
                      (interface.Location.txt |> Utils.flattenLongIdent))
           in
           noticeObjectType id ~displayName ~schemaState ~env ~interfaces
+            ?description:(GenerateSchemaUtils.attributesToDocstring attributes)
             ~makeFields:(fun () ->
               fields |> objectTypeFieldsOfRecordFields ~env ~full ~schemaState)
             ~loc:item.decl.type_loc;
@@ -725,7 +727,7 @@ let generateSchema ~path ~debug ~schemaOutputPath ~assetsOutputPath =
 
       (* Write resi file *)
       let oc = open_out (schemaOutputPath ^ "i") in
-      output_string oc "let schema: ResGraph.schema";
+      output_string oc "let schema: ResGraph.schema<ResGraphContext.context>";
       close_out oc;
 
       (* Write assets file *)

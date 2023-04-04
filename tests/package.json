@@ -2,7 +2,7 @@
   "scripts": {
     "build": "rescript",
     "clean": "rescript clean -with-deps",
-    "watch-testapp": "export DUMP_SCHEMA=true && nodemon ./src/testApp.js --watch ./lib/js --watch ./src/*.js"
+    "watch-testapp": "export DUMP_SCHEMA=true && nodemon ./lib/js/src/TestApp.js --watch ./lib/js --watch ./src/*.js"
   },
   "private": true,
   "devDependencies": {
@@ -11,9 +11,11 @@
   },
   "dependencies": {
     "@rescript/core": "^0.2.0",
-    "express": "^4.18.2",
-    "express-graphql": "^0.12.0",
     "graphql": "^15.8.0",
-    "rescript": "^10.1.3"
+    "graphql-yoga": "^3.8.0",
+    "rescript": "10.1.4"
+  },
+  "resolutions": {
+    "graphql": "15.8.0"
   }
 }

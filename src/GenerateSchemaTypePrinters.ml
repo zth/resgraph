@@ -92,14 +92,15 @@ let printArgs (args : gqlArg list) =
          else Some (Printf.sprintf "\"%s\": %s" arg.name (printArg arg)))
   |> String.concat ", "
 let printField (field : gqlField) =
+  let printableArgs = GenerateSchemaUtils.onlyPrintableArgs field.args in
   Printf.sprintf
     "{typ: %s, description: %s, deprecationReason: %s, %sresolve: \
      makeResolveFn(%s)}"
     (printGraphQLType field.typ)
     (field.description |> undefinedOrValueAsString)
     (field.deprecationReason |> undefinedOrValueAsString)
-    (if field.args |> List.length > 0 then
-     Printf.sprintf " args: {%s}->makeArgs, " (printArgs field.args)
+    (if printableArgs |> List.length > 0 then
+     Printf.sprintf " args: {%s}->makeArgs, " (printArgs printableArgs)
     else " ")
     (printResolverForField field)
 

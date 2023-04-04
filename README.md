@@ -43,7 +43,7 @@ make test
 Accompanied with the tests is a simple test server that'll let you run GraphiQL to execute operations against the test schema. Start it by running:
 
 ```bash
-npx watch-testapp
+npm run watch-testapp
 ```
 
 This will start the test server and watch for changes so it's restarted with any change. You can now access GraphiQL at http://localhost:9898/graphql.

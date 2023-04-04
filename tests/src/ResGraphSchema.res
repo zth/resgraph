@@ -338,7 +338,7 @@ t_Query.contents = GraphQLObjectType.make({
         deprecationReason: ?None,
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
-          Schema.QueryFields.me(src)
+          Schema.QueryFields.me(src, ~ctx)
         }),
       },
       "hasName": {

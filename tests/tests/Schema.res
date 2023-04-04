@@ -1,12 +1,4 @@
-/** A user in the system. */
-@gql.type({interfaces: [HasNameInterface.hasName]})
-type user = {
-  /** The users name.*/ name: string,
-  @gql.field /** The age of the user. */
-  age: int,
-  @gql.field @deprecated("Use 'age' instead.") /** The last age of the user. */
-  lastAge: option<int>,
-}
+type user = User.user
 
 /** A group in the system. */
 @gql.type({interfaces: [hasName]})
@@ -77,8 +69,9 @@ type userConfig = {
 
 module QueryFields = {
   @gql.field
-  let me = (_: query): option<user> => {
-    Some({name: "Hello", age: 35, lastAge: None})
+  let me = async (_: query, ~ctx: ResGraphContext.context) => {
+    let user = await ctx.loadCurrentUser()
+    user
   }
 
   @gql.field
@@ -143,7 +136,7 @@ type mutation = {}
 module Mutations = {
   @gql.field
   let addUser = (_: mutation, ~name) => {
-    Some({name, age: 35, lastAge: None})
+    Some({User.name, age: 35, lastAge: None})
   }
 }
 

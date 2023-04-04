@@ -1,1 +1,1 @@
-let schema: ResGraph.schema
+let schema: ResGraph.schema<ResGraphContext.context>

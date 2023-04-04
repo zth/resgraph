@@ -1,11 +1,11 @@
 generating schema from tests/Schema.res
 
+noticing group
+Adding union userOrGroup
 Adding interface hasName
 Checking for type to attach resolver to
 noticing query
 noticing user
-noticing group
-Adding union userOrGroup
 Adding enum userStatus
 Checking for type to attach resolver to
 Checking for type to attach resolver to
@@ -360,7 +360,7 @@ t_Query.contents = GraphQLObjectType.make({
         deprecationReason: ?None,
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
-          Schema.QueryFields.me(src)
+          Schema.QueryFields.me(src, ~ctx)
         }),
       },
       "hasName": {

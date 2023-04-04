@@ -1,12 +1,10 @@
 - [x] Input objects
 - [x] Mutations
 - [x] Subscriptions (definition, but behavior is broken)
-- [ ] Figure out how to do subscriptions properly. Async iterators? What else exists?
 - [x] Interfaces
 - [ ] Rethink root value for query/subscriptions/mutations
 - [x] Validate that enums are only variant cases without payloads
 - [x] Have some way to propagate diagnostics somewhere
-- [ ] Validate uniqueness of names? (just let graphql-js do that?)
 - [x] Tag loc properly on all items
 - [x] Fix all names (so they're uppercased)
 - [x] Inject ctx
@@ -15,13 +13,14 @@
 - [x] Nullability in arguments
 - [x] Runtime conversion for arguments to match ReScript representation
 - [x] Runtime conversion for input objects to match ReScript representation
-- [ ] Allow customizing typename
-- [ ] Directives
-- [ ] Custom scalars
+- [ ] Figure out how to do subscriptions properly. Async iterators? What else exists?
 - [ ] How to import and use existing things from the ecosystem?
 - [ ] Think about and fix compilation
 - [x] Traverse structure cache/circuit breaker
 - [ ] Interface as root type -> add resolver/field to all implementors
+- [ ] Directives
+- [ ] Custom scalars
+- [ ] Figure out a good way to bridge graphql-js validations (print dummy schema without resolvers and run validation on that?)
 
 ## Project integration
 
