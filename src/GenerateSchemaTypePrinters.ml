@@ -83,6 +83,47 @@ let printInterfaceResolverReturnType
                (typeLocationToAccessor t.typeLocation))
     |> String.concat " | ")
 
+let printInterfaceImplementedByType
+    (gqlInterfaceIdentifier : gqlInterfaceIdentifier)
+    ~(implementedBy : interfaceImplementedBy list) =
+  if List.length implementedBy = 0 then ""
+  else
+    Printf.sprintf "type %s_implementedBy = %s" gqlInterfaceIdentifier.id
+      (implementedBy
+      |> List.map (fun (i : interfaceImplementedBy) ->
+             match i with
+             | ObjectType t -> Printf.sprintf "%s" t.displayName
+             | Interface t -> Printf.sprintf "%s" t.displayName)
+      |> String.concat " | ")
+
+let printInterfaceTypenameDecoder
+    (gqlInterfaceIdentifier : gqlInterfaceIdentifier)
+    ~(implementedBy : interfaceImplementedBy list) =
+  if List.length implementedBy = 0 then ""
+  else
+    Printf.sprintf
+      "let decodeImplementedByInterface_%s = (str: string) => switch str { | \
+       %s | _ => None}"
+      gqlInterfaceIdentifier.id
+      (implementedBy
+      |> List.map (fun (i : interfaceImplementedBy) ->
+             match i with
+             | ObjectType t ->
+               Printf.sprintf "\"%s\" => Some(%s)" t.displayName t.displayName
+             | Interface t ->
+               Printf.sprintf "\"%s\" => Some(%s)" t.displayName t.displayName)
+      |> String.concat " | ")
+
+let printInterfaceTypenameToString
+    (gqlInterfaceIdentifier : gqlInterfaceIdentifier)
+    ~(implementedBy : interfaceImplementedBy list) =
+  if List.length implementedBy = 0 then ""
+  else
+    Printf.sprintf
+      "external %s_typenameToString: %s_implementedBy => string = \
+       \"%%identity\""
+      gqlInterfaceIdentifier.id gqlInterfaceIdentifier.id
+
 let printArg (arg : gqlArg) =
   Printf.sprintf "{typ: %s}" (printGraphQLType arg.typ)
 let printArgs (args : gqlArg list) =
@@ -171,19 +212,34 @@ let printUnionType (union : gqlUnion) =
     (Printf.sprintf "union_%s_resolveType" union.displayName)
 
 let printSchemaAssets ~schemaState ~processedSchema =
-  let code = ref "@@warning(\"-27-34-37\")\n\n" in
+  let code = ref "/* @generated */\n\n@@warning(\"-27-34-37\")\n\n" in
   let addWithNewLine text = code := !code ^ text ^ "\n" in
+
+  (* Interface assets *)
   schemaState.interfaces
   |> Hashtbl.iter (fun _name (typ : gqlInterface) ->
+         let interfaceIdentifier =
+           {id = typ.id; displayName = typ.displayName}
+         in
          match
            Hashtbl.find_opt processedSchema.interfaceImplementedBy typ.id
          with
          | None -> ()
          | Some implementedBy ->
            addWithNewLine
-             (printInterfaceResolverReturnType
-                {id = typ.id; displayName = typ.displayName}
-                ~implementedBy));
+             (printInterfaceResolverReturnType interfaceIdentifier
+                ~implementedBy);
+           addWithNewLine "";
+           addWithNewLine
+             (printInterfaceImplementedByType interfaceIdentifier ~implementedBy);
+           addWithNewLine "";
+           addWithNewLine
+             (printInterfaceTypenameDecoder interfaceIdentifier ~implementedBy);
+           addWithNewLine "";
+           addWithNewLine
+             (printInterfaceTypenameToString interfaceIdentifier ~implementedBy);
+           addWithNewLine "");
+
   !code
 
 let printSchemaJsFile schemaState processSchema =
@@ -308,7 +364,7 @@ let printSchemaJsFile schemaState processSchema =
               (typeLocationToAccessor union.typeLocation)
               (union.types
               |> List.map (fun (member : gqlUnionMember) ->
-                     Printf.sprintf " | %s(_) => get_%s()" member.displayName
+                     Printf.sprintf " | %s(_) => \"%s\"" member.displayName
                        member.displayName)
               |> String.concat "\n")));
 
@@ -331,8 +387,7 @@ let printSchemaJsFile schemaState processSchema =
                        | ObjectType {displayName} | Interface {displayName} ->
                          displayName
                      in
-                     Printf.sprintf " | %s(_) => get_%s()" displayName
-                       displayName)
+                     Printf.sprintf " | %s(_) => \"%s\"" displayName displayName)
               |> String.concat "\n")));
 
   (* Now we can print all of the code that fills these in. *)

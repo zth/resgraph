@@ -682,28 +682,52 @@ and traverseStructure ?(modulePath = []) ?originModule
 
 let generateSchema ~path ~debug ~schemaOutputPath ~assetsOutputPath =
   if debug then Printf.printf "generating schema from %s\n\n" path;
-  match Cmt.loadFullCmtFromPath ~path with
-  | None -> ()
+  let schemaState =
+    {
+      types = Hashtbl.create 50;
+      enums = Hashtbl.create 10;
+      unions = Hashtbl.create 10;
+      inputObjects = Hashtbl.create 10;
+      interfaces = Hashtbl.create 10;
+      query = None;
+      subscription = None;
+      mutation = None;
+      diagnostics = [];
+      processedFiles = Hashtbl.create 100;
+    }
+  in
+  let processFileAtPath path =
+    (* TODO: Check file for GraphQL attributes first before loading cmt *)
+    (* TODO: cmt cache since the same files are likely to be encountered many
+       times *)
+    match Cmt.loadFullCmtFromPath ~path with
+    | None -> None
+    | Some full ->
+      let file = full.file in
+      let structure = file.structure in
+      let env = SharedTypes.QueryEnv.fromFile file in
+      traverseStructure structure ~originModule:env.file.moduleName ~schemaState
+        ~env ~full;
+      Some full
+  in
+  let initialFull = processFileAtPath path in
+  match initialFull with
+  | None -> print_endline "!!ERROR!!" (* TODO: Better error handling *)
   | Some full ->
-    let file = full.file in
-    let structure = file.structure in
-    let env = SharedTypes.QueryEnv.fromFile file in
-    let schemaState =
-      {
-        types = Hashtbl.create 50;
-        enums = Hashtbl.create 10;
-        unions = Hashtbl.create 10;
-        inputObjects = Hashtbl.create 10;
-        interfaces = Hashtbl.create 10;
-        query = None;
-        subscription = None;
-        mutation = None;
-        diagnostics = [];
-        processedFiles = Hashtbl.create 100;
-      }
-    in
-    traverseStructure structure ~originModule:env.file.moduleName ~schemaState
-      ~env ~full;
+    (* Process all project files. *)
+    full.package.projectFiles
+    |> SharedTypes.FileSet.iter (fun file ->
+           (* TODO: This file filter contains a bunch of things I'm sure won't
+              be necessary when this is a real package. Keep it for now to make
+              tests work. *)
+           match file with
+           | "ResGraph" | "ResGraphSchema" | "ResGraphSchemaAssets"
+           | "GraphQLYoga" | "Errors" | "ResGraph__GraphQLJs" ->
+             ()
+           | _ -> (
+             match Hashtbl.find full.package.pathsForModule file with
+             | IntfAndImpl {res} | Impl {res} -> processFileAtPath res |> ignore
+             | _ -> ()));
     let processedSchema = processSchema schemaState in
     if schemaState.diagnostics |> List.length > 0 then
       schemaState.diagnostics |> List.rev |> List.map printDiagnostic

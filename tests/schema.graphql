@@ -1,4 +1,5 @@
 type Query {
+  node(id: ID!): Node
   listAsArgs(regularList: [String]!, optionalList: [String!], nullableList: [String], nullableInnerList: [String], list1: [String], list2: [[String]], list3: [[[String!]!]]): [String!]!
   allowExplicitNull(someNullable: String): String!
   searchForUser(input: UserConfig!): User
@@ -7,12 +8,18 @@ type Query {
   hasName(id: ID!): HasName
 }
 
+"""An object with an ID"""
+interface Node {
+  """The id of the object."""
+  id: ID!
+}
+
 """A user in the system."""
-type User implements HasName {
+type User implements Node & HasName {
+  id: ID!
   allNames: [String!]!
   currentStatus: UserStatus!
   name(includeFullName: Boolean): String!
-  id: ID!
 
   """The age of the user."""
   age: Int!
@@ -58,7 +65,9 @@ input UserConfigContext {
 union UserOrGroup = User | Group
 
 """A group in the system."""
-type Group implements HasName {
+type Group implements Node & HasName {
+  id: ID!
+
   """The group name."""
   name: String!
 }

@@ -40,6 +40,8 @@ let enum_UserStatus = GraphQLEnumType.make({
     },
   }->makeEnumValues,
 })
+let i_Node: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
+let get_Node = () => i_Node.contents
 let i_HasName: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
 let get_HasName = () => i_HasName.contents
 let t_Mutation: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
@@ -77,16 +79,40 @@ let get_UserOrGroup = () => union_UserOrGroup.contents
 
 let union_UserOrGroup_resolveType = (v: Schema.userOrGroup) =>
   switch v {
-  | User(_) => get_User()
-  | Group(_) => get_Group()
+  | User(_) => "User"
+  | Group(_) => "Group"
+  }
+
+let interface_Node_resolveType = (v: ResGraphSchemaAssets.node_resolver) =>
+  switch v {
+  | Group(_) => "Group"
+  | User(_) => "User"
   }
 
 let interface_HasName_resolveType = (v: ResGraphSchemaAssets.hasName_resolver) =>
   switch v {
-  | Group(_) => get_Group()
-  | User(_) => get_User()
+  | Group(_) => "Group"
+  | User(_) => "User"
   }
 
+i_Node.contents = GraphQLInterfaceType.make({
+  name: "Node",
+  description: "An object with an ID",
+  interfaces: [],
+  fields: () =>
+    {
+      "id": {
+        typ: Scalars.id->Scalars.toGraphQLType->nonNull,
+        description: "The id of the object.",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["id"]
+        }),
+      },
+    }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Node_resolveType),
+})
 i_HasName.contents = GraphQLInterfaceType.make({
   name: "HasName",
   description: "An entity with a name.",
@@ -126,9 +152,18 @@ t_Mutation.contents = GraphQLObjectType.make({
 t_User.contents = GraphQLObjectType.make({
   name: "User",
   description: "A user in the system.",
-  interfaces: [get_HasName()],
+  interfaces: [get_Node(), get_HasName()],
   fields: () =>
     {
+      "id": {
+        typ: Scalars.id->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          NodeInterfaceResolvers.id(src)
+        }),
+      },
       "allNames": {
         typ: GraphQLListType.make(Scalars.string->Scalars.toGraphQLType->nonNull)
         ->GraphQLListType.toGraphQLType
@@ -159,15 +194,6 @@ t_User.contents = GraphQLObjectType.make({
           Schema.UserFields.name(src, ~includeFullName=args["includeFullName"]->Nullable.toOption)
         }),
       },
-      "id": {
-        typ: Scalars.id->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
-          let src = typeUnwrapper(src)
-          Schema.UserFields.id(src)
-        }),
-      },
       "age": {
         typ: Scalars.int->Scalars.toGraphQLType->nonNull,
         description: "The age of the user.",
@@ -191,9 +217,18 @@ t_User.contents = GraphQLObjectType.make({
 t_Group.contents = GraphQLObjectType.make({
   name: "Group",
   description: "A group in the system.",
-  interfaces: [get_HasName()],
+  interfaces: [get_Node(), get_HasName()],
   fields: () =>
     {
+      "id": {
+        typ: Scalars.id->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["id"]
+        }),
+      },
       "name": {
         typ: Scalars.string->Scalars.toGraphQLType->nonNull,
         description: "The group name.",
@@ -211,6 +246,16 @@ t_Query.contents = GraphQLObjectType.make({
   interfaces: [],
   fields: () =>
     {
+      "node": {
+        typ: get_Node()->GraphQLInterfaceType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          NodeInterfaceResolver.node(src, ~id=args["id"], ~ctx)
+        }),
+      },
       "listAsArgs": {
         typ: GraphQLListType.make(Scalars.string->Scalars.toGraphQLType->nonNull)
         ->GraphQLListType.toGraphQLType

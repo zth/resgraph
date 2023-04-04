@@ -47,4 +47,5 @@
 
 ## Questions to answer
 
+- Should the node interface come built in...? Or just show how to define it easily?
 - How to reuse resolvers for several types? Just link/expose like you want, the tool only cares about the types

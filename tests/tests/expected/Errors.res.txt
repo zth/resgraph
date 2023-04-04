@@ -5,6 +5,26 @@ Adding enum myEnum
 Adding union someUnion
 noticing group
 Adding input object group2
+Adding interface hasName
+Checking for type to attach resolver to
+noticing query
+Adding interface node
+Checking for type to attach resolver to
+Checking for type to attach resolver to
+Adding union userOrGroup
+Adding enum userStatus
+Checking for type to attach resolver to
+Checking for type to attach resolver to
+Checking for type to attach resolver to
+Adding input object userConfigContext
+Adding input object userConfig
+Checking for type to attach resolver to
+Checking for type to attach resolver to
+Checking for type to attach resolver to
+Checking for type to attach resolver to
+Checking for type to attach resolver to
+noticing mutation
+Checking for type to attach resolver to
 Error at [1:10->1:31] in file 'Errors.res':
 This type is annotated with @gql.type, but is not a record. Only records can represent GraphQL object types.
 
