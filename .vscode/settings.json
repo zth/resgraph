@@ -2,5 +2,9 @@
   "ocaml.sandbox": {
     "kind": "opam",
     "switch": "4.14.0"
-  }
+  },
+  "[rescript]": {
+    "editor.defaultFormatter": "chenglou92.rescript-vscode",
+    "editor.formatOnSave": true
+  },
 }

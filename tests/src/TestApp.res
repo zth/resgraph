@@ -20,14 +20,14 @@ open Yoga
 let yoga = createYoga({
   schema: ResGraphSchema.schema,
   context: async ({request}) => {
+    open ResGraphContext
     ignore(request)
+    let currentUserId = "1"
+    let userLoader = UserLoader.createLoader(DB.User.findMany)
     {
-      ResGraphContext.currentUserId: Some("123"),
-      loadCurrentUser: async () => Some({
-        User.name: "TestUser",
-        age: 35,
-        lastAge: None,
-      }),
+      currentUserId: Some(currentUserId),
+      loadCurrentUser: () => userLoader->UserLoader.load(currentUserId),
+      userLoader,
     }
   },
 })
