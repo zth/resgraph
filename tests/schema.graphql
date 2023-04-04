@@ -1,4 +1,8 @@
 type Query {
+  """Fetches objects given their IDs."""
+  nodes(ids: [ID!]!): [Node]!
+
+  """Fetches an object given its ID."""
   node(id: ID!): Node
   listAsArgs(regularList: [String]!, optionalList: [String!], nullableList: [String], nullableInnerList: [String], list1: [String], list2: [[String]], list3: [[[String!]!]]): [String!]!
   allowExplicitNull(someNullable: String): String!

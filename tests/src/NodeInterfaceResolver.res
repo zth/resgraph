@@ -1,3 +1,4 @@
+/** Fetches an object given its ID.*/
 @gql.field
 let node = async (_: Query.query, ~id, ~ctx: ResGraphContext.context): option<
   ResGraphSchemaAssets.node_resolver,
@@ -21,4 +22,10 @@ let node = async (_: Query.query, ~id, ~ctx: ResGraphContext.context): option<
     | _ => None
     }
   }
+}
+
+/** Fetches objects given their IDs. */
+@gql.field
+let nodes = (query: Query.query, ~ids, ~ctx: ResGraphContext.context) => {
+  ids->Array.map(id => node(query, ~id, ~ctx))
 }

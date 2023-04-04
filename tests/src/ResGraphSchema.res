@@ -246,9 +246,27 @@ t_Query.contents = GraphQLObjectType.make({
   interfaces: [],
   fields: () =>
     {
+      "nodes": {
+        typ: GraphQLListType.make(get_Node()->GraphQLInterfaceType.toGraphQLType)
+        ->GraphQLListType.toGraphQLType
+        ->nonNull,
+        description: "Fetches objects given their IDs.",
+        deprecationReason: ?None,
+        args: {
+          "ids": {
+            typ: GraphQLListType.make(Scalars.id->Scalars.toGraphQLType->nonNull)
+            ->GraphQLListType.toGraphQLType
+            ->nonNull,
+          },
+        }->makeArgs,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          NodeInterfaceResolver.nodes(src, ~ids=args["ids"], ~ctx)
+        }),
+      },
       "node": {
         typ: get_Node()->GraphQLInterfaceType.toGraphQLType,
-        description: ?None,
+        description: "Fetches an object given its ID.",
         deprecationReason: ?None,
         args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,
         resolve: makeResolveFn((src, args, ctx) => {
