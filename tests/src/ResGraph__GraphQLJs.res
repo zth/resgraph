@@ -138,10 +138,10 @@ module GraphQLEnumType = {
 }
 
 module GraphQLSchemaType = {
-  type t
+  type t<'appContext>
 
   @module("graphql") @new
-  external make: {..} => t = "GraphQLSchema"
+  external make: {..} => t<_> = "GraphQLSchema"
 
-  @module("graphql") external print: t => string = "printSchema"
+  @module("graphql") external print: t<_> => string = "printSchema"
 }
