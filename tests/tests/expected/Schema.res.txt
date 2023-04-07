@@ -23,7 +23,7 @@ Checking for type to attach resolver to
 Checking for type to attach resolver to
 Checking for type to attach resolver to
 Checking for type to attach resolver to
-@@warning("-27")
+@@warning("-27-32")
 
 open ResGraph__GraphQLJs
 

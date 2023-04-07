@@ -344,12 +344,16 @@ let printInputObjectAssets (inputObject : gqlInputObjectType) =
                   field.name converter))
     |> String.concat ", ")
 
-(* TODO: Copy printing from compiler (or just redo, like in the router...?)*)
 let printDiagnostic (diagnostic : diagnostic) =
-  Printf.sprintf "Error at %s in file '%s':\n%s"
-    (diagnostic.loc |> Loc.toString)
-    (diagnostic.fileUri |> Uri.toString)
-    diagnostic.message
+  Printf.sprintf
+    "      {\n\
+    \        \"range\": %s,\n\
+    \        \"file\": \"%s\",\n\
+    \        \"message\": \"%s\"\n\
+    \      }"
+    (diagnostic.loc |> Utils.cmtLocToRange |> Protocol.stringifyRange)
+    (diagnostic.fileUri |> Uri.toPath |> Json.escape)
+    (diagnostic.message |> Json.escape)
 
 let pathIdentToList (p : Path.t) =
   let rec pathIdentToListInner ?(acc = []) (p : Path.t) =
@@ -398,3 +402,23 @@ let onlyPrintableArgs (args : gqlArg list) =
   args
   |> List.filter (fun (arg : gqlArg) ->
          if arg.typ = InjectContext then false else true)
+
+let isFileContentsTheSame filePath s =
+  let ic = open_in filePath in
+  let fileLength = in_channel_length ic in
+  let len = String.length s in
+  if fileLength <> len then (
+    close_in ic;
+    false)
+  else
+    let contents = really_input_string ic fileLength in
+    close_in ic;
+    contents = s
+
+let writeIfHasChanges path contents ~debug =
+  if debug then ()
+  else if isFileContentsTheSame path contents then ()
+  else
+    let oc = open_out path in
+    output_string oc contents;
+    close_out oc

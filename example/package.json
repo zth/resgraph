@@ -1,0 +1,22 @@
+{
+  "name": "example",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "res:build": "rescript build -with-deps",
+    "res:watch": "rescript build -with-deps -w",
+    "resgraph:watch": "node ../cli/Cli.mjs watch ./src/schema/GraphQLSchema.res ./src/schema/__generated__/ResGraphSchema.res ./src/schema/__generated__/ResGraphSchemaAssets.res",
+    "watch-app": "export DUMP_SCHEMA=true && nodemon ./src/App.mjs --watch ./src/*.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@rescript/core": "^0.2.0",
+    "rescript": "^10.1.4"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}

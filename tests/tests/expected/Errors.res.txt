@@ -26,45 +26,79 @@ Checking for type to attach resolver to
 Checking for type to attach resolver to
 noticing mutation
 Checking for type to attach resolver to
-Error at [1:10->1:31] in file 'Errors.res':
-This type is annotated with @gql.type, but is not a record. Only records can represent GraphQL object types.
-
-Error at [34:0->34:9] in file 'js_dict.mli':
-The type `t` does not represent a valid GraphQL type.
-
-Error at [4:34->4:42] in file 'Errors.res':
-Field `someDict` is has a @gql.field annotation, but is not a valid GraphQL type. Please change the type of this field to be a valid GraphQL type, or expose this field via a custom written resolver instead if you need to transform it before exposing it in GraphQL.
-
-Error at [7:10->7:24] in file 'Errors.res':
-This type is annotated with @gql.enum, but is not a variant. Only variants can represent GraphQL enums.
-
-Error at [10:43->10:47] in file 'Errors.res':
-The variant member `User` of the GraphQL enum variant `myEnum` has a payload. Variants tagged as @gql.enum can only have members without payloads. 
-
-Error at [15:10->15:25] in file 'Errors.res':
-This type is annotated with @gql.enum, but is not a variant. Only variants can represent GraphQL enums.
-
-Error at [12:0->12:54] in file 'Errors.res':
-The type `groupWithNoAnnotation` does not represent a valid GraphQL type.
-
-Error at [18:41->18:46] in file 'Errors.res':
-The payload of the variant member `Group` of the GraphQL union variant `someUnion` is not a GraphL object. The payload needs to be a single type representing a GraphQL object, meaning it's annotated with @gql.type.
-
-Error at [21:17->21:38] in file 'Errors.res':
-This type is annotated with @gql.inputObject, but is not a record. Only records can represent GraphQL input objects.
-
-Error at [24:15->24:28] in file 'Errors.res':
-This let binding is annotated with @gql.field, but is not a function. Only functions can represent GraphQL field resolvers.
-
-Error at [27:35->27:39] in file 'Errors.res':
-This is not a valid GraphQL type: promise<string>
-
-Error at [27:35->27:39] in file 'Errors.res':
-Field `name` is has a @gql.field annotation, but is not a valid GraphQL type. Please change the type of this field to be a valid GraphQL type, or expose this field via a custom written resolver instead if you need to transform it before exposing it in GraphQL.
-
-Error at [28:32->28:36] in file 'Errors.res':
-This is not a valid GraphQL type: promise<string>
-
-Error at [28:32->28:36] in file 'Errors.res':
-Field `name` is is not a valid GraphQL type. All fields of a @gql.inputObject must be valid GraphQL types.
-
+{
+  "status": "Error",
+  "errors": 
+    [
+            {
+        "range": {"start": {"line": 1, "character": 10}, "end": {"line": 1, "character": 31}},
+        "file": "tests/Errors.res",
+        "message": "This type is annotated with @gql.type, but is not a record. Only records can represent GraphQL object types."
+      },
+      {
+        "range": {"start": {"line": 34, "character": 0}, "end": {"line": 34, "character": 9}},
+        "file": "./node_modules/rescript/lib/ocaml/js_dict.mli",
+        "message": "The type `t` does not represent a valid GraphQL type."
+      },
+      {
+        "range": {"start": {"line": 4, "character": 34}, "end": {"line": 4, "character": 42}},
+        "file": "tests/Errors.res",
+        "message": "Field `someDict` is has a @gql.field annotation, but is not a valid GraphQL type. Please change the type of this field to be a valid GraphQL type, or expose this field via a custom written resolver instead if you need to transform it before exposing it in GraphQL."
+      },
+      {
+        "range": {"start": {"line": 7, "character": 10}, "end": {"line": 7, "character": 24}},
+        "file": "tests/Errors.res",
+        "message": "This type is annotated with @gql.enum, but is not a variant. Only variants can represent GraphQL enums."
+      },
+      {
+        "range": {"start": {"line": 10, "character": 43}, "end": {"line": 10, "character": 47}},
+        "file": "tests/Errors.res",
+        "message": "The variant member `User` of the GraphQL enum variant `myEnum` has a payload. Variants tagged as @gql.enum can only have members without payloads. "
+      },
+      {
+        "range": {"start": {"line": 15, "character": 10}, "end": {"line": 15, "character": 25}},
+        "file": "tests/Errors.res",
+        "message": "This type is annotated with @gql.enum, but is not a variant. Only variants can represent GraphQL enums."
+      },
+      {
+        "range": {"start": {"line": 12, "character": 0}, "end": {"line": 12, "character": 54}},
+        "file": "tests/Errors.res",
+        "message": "The type `groupWithNoAnnotation` does not represent a valid GraphQL type."
+      },
+      {
+        "range": {"start": {"line": 18, "character": 41}, "end": {"line": 18, "character": 46}},
+        "file": "tests/Errors.res",
+        "message": "The payload of the variant member `Group` of the GraphQL union variant `someUnion` is not a GraphL object. The payload needs to be a single type representing a GraphQL object, meaning it's annotated with @gql.type."
+      },
+      {
+        "range": {"start": {"line": 21, "character": 17}, "end": {"line": 21, "character": 38}},
+        "file": "tests/Errors.res",
+        "message": "This type is annotated with @gql.inputObject, but is not a record. Only records can represent GraphQL input objects."
+      },
+      {
+        "range": {"start": {"line": 24, "character": 15}, "end": {"line": 24, "character": 28}},
+        "file": "tests/Errors.res",
+        "message": "This let binding is annotated with @gql.field, but is not a function. Only functions can represent GraphQL field resolvers."
+      },
+      {
+        "range": {"start": {"line": 27, "character": 35}, "end": {"line": 27, "character": 39}},
+        "file": "tests/Errors.res",
+        "message": "This is not a valid GraphQL type: promise<string>"
+      },
+      {
+        "range": {"start": {"line": 27, "character": 35}, "end": {"line": 27, "character": 39}},
+        "file": "tests/Errors.res",
+        "message": "Field `name` is has a @gql.field annotation, but is not a valid GraphQL type. Please change the type of this field to be a valid GraphQL type, or expose this field via a custom written resolver instead if you need to transform it before exposing it in GraphQL."
+      },
+      {
+        "range": {"start": {"line": 28, "character": 32}, "end": {"line": 28, "character": 36}},
+        "file": "tests/Errors.res",
+        "message": "This is not a valid GraphQL type: promise<string>"
+      },
+      {
+        "range": {"start": {"line": 28, "character": 32}, "end": {"line": 28, "character": 36}},
+        "file": "tests/Errors.res",
+        "message": "Field `name` is is not a valid GraphQL type. All fields of a @gql.inputObject must be valid GraphQL types."
+      }
+    ]
+}

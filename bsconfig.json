@@ -1,0 +1,19 @@
+{
+  "name": "rescript-relay-router",
+  "version": "0.1.0",
+  "sources": [
+    {
+      "dir": "cli",
+      "subdirs": true
+    }
+  ],
+  "package-specs": [
+    {
+      "module": "es6",
+      "in-source": true
+    }
+  ],
+  "suffix": ".mjs",
+  "bs-dependencies": ["@rescript/core", "rescript-nodejs"],
+  "bsc-flags": ["-open NodeJs", "-open RescriptCore"]
+}

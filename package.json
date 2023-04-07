@@ -1,0 +1,27 @@
+{
+  "name": "resgraph",
+  "version": "0.1.0",
+  "description": "Build GraphQL servers in ReScript.",
+  "main": "index.js",
+  "scripts": {
+    "res:build": "rescript build -with-deps",
+    "res:watch": "rescript build -with-deps -w"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zth/resgraph.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/zth/resgraph/issues"
+  },
+  "homepage": "https://github.com/zth/resgraph#readme",
+  "dependencies": {
+    "@rescript/core": "^0.2.0",
+    "chokidar": "^3.5.3",
+    "rescript": "^10.1.4",
+    "rescript-nodejs": "^14.3.1"
+  }
+}

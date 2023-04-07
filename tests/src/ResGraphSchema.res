@@ -1,4 +1,4 @@
-@@warning("-27")
+@@warning("-27-32")
 
 open ResGraph__GraphQLJs
 

@@ -243,7 +243,7 @@ let printSchemaAssets ~schemaState ~processedSchema =
   !code
 
 let printSchemaJsFile schemaState processSchema =
-  let code = ref "@@warning(\"-27\")\n\nopen ResGraph__GraphQLJs\n\n" in
+  let code = ref "@@warning(\"-27-32\")\n\nopen ResGraph__GraphQLJs\n\n" in
   let addWithNewLine text = code := !code ^ text ^ "\n" in
   (* Add the type unwrapper. Source types passed to resolvers might be either
      objects or variant cases. This is because we rely on variants for unions

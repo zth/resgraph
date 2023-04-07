@@ -744,8 +744,10 @@ let generateSchema ~path ~debug ~schemaOutputPath ~assetsOutputPath =
              | _ -> ()));
     let processedSchema = processSchema schemaState in
     if schemaState.diagnostics |> List.length > 0 then
-      schemaState.diagnostics |> List.rev |> List.map printDiagnostic
-      |> String.concat "\n\n" |> print_endline
+      Printf.printf
+        "{\n  \"status\": \"Error\",\n  \"errors\": \n    [\n      %s\n    ]\n}"
+        (schemaState.diagnostics |> List.rev |> List.map printDiagnostic
+       |> String.concat ",\n")
     else
       let schemaCode =
         GenerateSchemaTypePrinters.printSchemaJsFile schemaState processedSchema
@@ -757,20 +759,22 @@ let generateSchema ~path ~debug ~schemaOutputPath ~assetsOutputPath =
         |> formatCode
       in
 
+      (* TODO: Make these file names non-configurable *)
+      (* TODO: Do this in parallell in some fancy way *)
+
       (* Write generated schema *)
       (* Write implementation file *)
-      let oc = open_out schemaOutputPath in
-      output_string oc schemaCode;
-      close_out oc;
+      GenerateSchemaUtils.writeIfHasChanges ~debug schemaOutputPath schemaCode;
 
       (* Write resi file *)
-      let oc = open_out (schemaOutputPath ^ "i") in
-      output_string oc "let schema: ResGraph.schema<ResGraphContext.context>";
-      close_out oc;
+      let resiOutputPath = schemaOutputPath ^ "i" in
+      let resiContent =
+        "let schema: ResGraph.schema<ResGraphContext.context>\n"
+      in
+      GenerateSchemaUtils.writeIfHasChanges ~debug resiOutputPath resiContent;
 
       (* Write assets file *)
-      let oc = open_out assetsOutputPath in
-      output_string oc assetCode;
-      close_out oc;
+      GenerateSchemaUtils.writeIfHasChanges ~debug assetsOutputPath assetCode;
 
       if debug then schemaCode |> print_endline
+      else print_endline "{\"status\": \"Success\"}"

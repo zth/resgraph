@@ -6,3 +6,8 @@ tests/.merlin
 resgraph.exe
 _opam
 .DS_Store
+node_modules
+example/lib
+lib
+example/**/*.mjs
+cli/**/*.mjs
