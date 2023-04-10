@@ -1,0 +1,54 @@
+Complete tests/Completion.res 0:4
+Attribute id:g:[0:3->0:5] label:g
+{"status": "Completion", "items": [{
+    "label": "gql.type",
+    "kind": 4,
+    "tags": [],
+    "detail": "Indicates that the annotated record is a GraphQL Object Type.",
+    "documentation": null
+  }, {
+    "label": "gql.interface",
+    "kind": 4,
+    "tags": [],
+    "detail": "Indicates that the annotated record is a GraphQL interface.",
+    "documentation": null
+  }, {
+    "label": "gql.interfaceResolver",
+    "kind": 4,
+    "tags": [],
+    "detail": "",
+    "documentation": null
+  }, {
+    "label": "gql.field",
+    "kind": 4,
+    "tags": [],
+    "detail": "",
+    "documentation": null
+  }, {
+    "label": "gql.enum",
+    "kind": 4,
+    "tags": [],
+    "detail": "",
+    "documentation": null
+  }, {
+    "label": "gql.union",
+    "kind": 4,
+    "tags": [],
+    "detail": "",
+    "documentation": null
+  }, {
+    "label": "gql.inputObject",
+    "kind": 4,
+    "tags": [],
+    "detail": "",
+    "documentation": null
+  }]}
+Complete tests/Completion.res 3:10
+Attribute id:gql.ty:[3:3->3:10] label:gql.ty
+{"status": "Completion", "items": [{
+    "label": "gql.type",
+    "kind": 4,
+    "tags": [],
+    "detail": "Indicates that the annotated record is a GraphQL Object Type.",
+    "documentation": null
+  }]}

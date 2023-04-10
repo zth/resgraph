@@ -24,6 +24,18 @@ let extractInterfacesImplemented (payload : Parsetree.payload) =
            | _ -> [])
   | _ -> []
 
+let validAttributes =
+  [
+    ("gql.type", "Indicates that the annotated record is a GraphQL Object Type.");
+    ( "gql.interface",
+      "Indicates that the annotated record is a GraphQL interface." );
+    ("gql.interfaceResolver", "");
+    ("gql.field", "");
+    ("gql.enum", "");
+    ("gql.union", "");
+    ("gql.inputObject", "");
+  ]
+
 let extractGqlAttribute ~(schemaState : GenerateSchemaTypes.schemaState)
     ~(env : SharedTypes.QueryEnv.t) (attributes : Parsetree.attributes) =
   attributes

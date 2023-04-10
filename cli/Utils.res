@@ -1,7 +1,8 @@
 let resolveRelative = path => Path.resolve([Process.process->Process.cwd, path])
 
 type privateCliCall =
-  GenerateSchema({path: string, schemaOutputPath: string, assetsOutputPath: string})
+  | GenerateSchema({path: string, schemaOutputPath: string, assetsOutputPath: string})
+  | Completion({filePath: string, position: LspProtocol.loc, tmpname: string})
 
 let privateCliCallToArgs = call =>
   switch call {
@@ -11,6 +12,13 @@ let privateCliCallToArgs = call =>
       schemaOutputPath->resolveRelative,
       assetsOutputPath->resolveRelative,
     ]
+  | Completion({filePath, position, tmpname}) => [
+      "completion",
+      filePath,
+      position.line->Int.toString,
+      position.character->Int.toString,
+      tmpname,
+    ]
   }
 
 type generateError = {
@@ -19,7 +27,11 @@ type generateError = {
   range: LspProtocol.range,
 }
 
-@tag("status") type callResult = Success({ok: bool}) | Error({errors: array<generateError>})
+@tag("status")
+type callResult =
+  | Success({ok: bool})
+  | Error({errors: array<generateError>})
+  | Completion({items: array<LspProtocol.completionItem>})
 
 external toCallResult: string => callResult = "JSON.parse"
 
@@ -82,4 +94,13 @@ let setupWatcher = (~onResult, ~path, ~schemaOutputPath, ~assetsOutputPath) => {
   ->Watcher.onUnlink(compilerLogPath => {
     generateSchema->runIfCompilerDone(~compilerLogPath)
   })
+}
+
+let tempFilePrefix = "resgraph_support_file_" ++ Process.process->Process.pid->Int.toString ++ "_"
+let tempFileId = ref(0)
+
+let createFileInTempDir = (~extension="") => {
+  let tempFileName = tempFilePrefix ++ tempFileId.contents->Int.toString ++ extension
+  tempFileId := tempFileId.contents + 1
+  Path.join([Os.tmpdir(), tempFileName])
 }

@@ -47,6 +47,14 @@ let test ~path =
             GenerateSchema.generateSchema ~path ~debug:true
               ~schemaOutputPath:"./src/ResGraphSchema.res"
               ~assetsOutputPath:"./src/ResGraphSchemaAssets.res"
+          | "com" ->
+            print_endline
+              ("Complete " ^ path ^ " " ^ string_of_int line ^ ":"
+             ^ string_of_int col);
+            let currentFile = createCurrentFile () in
+            Completion.completion ~debug:true ~path ~pos:(line, col)
+              ~currentFile;
+            Sys.remove currentFile
           | "ast" ->
             print_endline
               ("Dump AST " ^ path ^ " " ^ string_of_int line ^ ":"

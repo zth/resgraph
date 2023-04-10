@@ -7,6 +7,10 @@ let main () =
   | [_; "generate-schema"; path; schemaOutputPath; assetsOutputPath] ->
     GenerateSchema.generateSchema ~path ~debug:false ~schemaOutputPath
       ~assetsOutputPath
+  | [_; "completion"; path; line; col; currentFile] ->
+    Completion.completion ~debug:false ~path
+      ~pos:(int_of_string line, int_of_string col)
+      ~currentFile
   | [_; "test"; path] ->
     Cfg.supportsSnippets := true;
     Commands.test ~path

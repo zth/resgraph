@@ -1,4 +1,7 @@
 // This file holds the actual language server implementation.
+
+@module("url") external fileURLToPath: string => string = "fileURLToPath"
+
 let initialized = ref(false)
 let shutdownRequestAlreadyReceived = ref(false)
 
@@ -362,7 +365,7 @@ let start = (~mode, ~configFilePath) => {
     let currentFilesWithDiagnostics = []
     let currentErrors = switch currentResult.contents {
     | Error({errors}) => errors
-    | Success(_) => []
+    | _ => []
     }
 
     currentErrors->Array.forEach(error => {
@@ -404,31 +407,23 @@ let start = (~mode, ~configFilePath) => {
 
   let openedFile = (uri, text) => {
     log(`opened ${uri}`)
-    let key = uri->Path.basename
-
     switch uri->Path.extname {
-    | ".res" => resFilesCache->Dict.set(key, text)
+    | ".res" => resFilesCache->Dict.set(uri, text)
     | _ => ()
     }
   }
 
   let updateOpenedFile = (uri, text) => {
     if uri->Path.extname == ".res" {
-      log(`update ${uri}`)
-      let key = uri->Path.basename
-
-      switch resFilesCache->Dict.get(key)->Option.isSome {
-      | true => resFilesCache->Dict.set(key, text)
+      switch resFilesCache->Dict.get(uri)->Option.isSome {
+      | true => resFilesCache->Dict.set(uri, text)
       | false => ()
       }
     }
   }
 
   let closeFile = uri => {
-    log(`close ${uri}`)
-    let key = uri->Path.basename
-
-    resFilesCache->Dict.delete(key)
+    resFilesCache->Dict.delete(uri)
   }
 
   let onMessage = msg => {
@@ -474,6 +469,7 @@ let start = (~mode, ~configFilePath) => {
         Message.Response.make(
           ~id=msg->Message.getId,
           ~result=Message.InitializeResult.make(
+            ~completionProvider={triggerCharacters: [`@`]},
             ~textDocumentSync=Full,
             (),
           )->Message.Result.fromInitialize,
@@ -521,10 +517,31 @@ let start = (~mode, ~configFilePath) => {
             Message.Response.make(~id=msg->Message.getId, ~result=Message.Result.null(), ())
             ->Message.Response.asMessage
             ->send
-          | Completion(_params) =>
-            Message.Response.make(~id=msg->Message.getId, ~result=Message.Result.null(), ())
-            ->Message.Response.asMessage
-            ->send
+          | Completion(params) =>
+            switch resFilesCache->Dict.get(params.textDocument.uri) {
+            | None =>
+              Message.Response.make(~id=msg->Message.getId, ~result=Message.Result.null(), ())
+              ->Message.Response.asMessage
+              ->send
+            | Some(code) =>
+              let filePath = params.textDocument.uri->fileURLToPath
+              let tmpname = Utils.createFileInTempDir()
+              Fs.writeFileSyncWith(
+                tmpname,
+                Buffer.fromString(code),
+                Fs.writeFileOptions(~encoding="utf-8", ()),
+              )
+              let result = switch Utils.callPrivateCli(
+                Completion({filePath, position: params.position, tmpname}),
+              ) {
+              | Completion({items}) => Message.Result.fromCompletionItems(items)
+              | _ => Message.Result.null()
+              }
+              Message.Response.make(~id=msg->Message.getId, ~result, ())
+              ->Message.Response.asMessage
+              ->send
+            }
+
           | CodeAction(_params) =>
             Message.Response.make(~id=msg->Message.getId, ~result=Message.Result.null(), ())
             ->Message.Response.asMessage
