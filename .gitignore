@@ -11,3 +11,4 @@ example/lib
 lib
 example/**/*.mjs
 cli/**/*.mjs
+vscode-extension/build

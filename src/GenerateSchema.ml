@@ -777,4 +777,4 @@ let generateSchema ~path ~debug ~schemaOutputPath ~assetsOutputPath =
       GenerateSchemaUtils.writeIfHasChanges ~debug assetsOutputPath assetCode;
 
       if debug then schemaCode |> print_endline
-      else print_endline "{\"status\": \"Success\"}"
+      else print_endline "{\"status\": \"Success\", \"ok\": true}"

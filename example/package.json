@@ -7,6 +7,7 @@
     "res:build": "rescript build -with-deps",
     "res:watch": "rescript build -with-deps -w",
     "resgraph:watch": "node ../cli/Cli.mjs watch ./src/schema/GraphQLSchema.res ./src/schema/__generated__/ResGraphSchema.res ./src/schema/__generated__/ResGraphSchemaAssets.res",
+    "resgraph": "node ../cli/Cli.mjs",
     "watch-app": "export DUMP_SCHEMA=true && nodemon ./src/App.mjs --watch ./src/*.mjs"
   },
   "keywords": [],

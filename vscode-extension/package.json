@@ -1,0 +1,45 @@
+{
+  "name": "vscode-resgraph",
+  "description": "Improve quality-of-life of using ResGraph with VSCode.",
+  "version": "0.1.0",
+  "main": "./build/extension.js",
+  "engines": {
+    "vscode": "^1.62.0"
+  },
+  "scripts": {
+    "vscode:prepublish": "yarn build",
+    "build:watch": "tsc -w",
+    "build:extension": "esbuild ./src/extension.ts --bundle --outfile=build/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
+    "build:clean": "rm -rf build",
+    "build": "yarn build:clean && yarn build:extension"
+  },
+  "author": "Gabriel Nordeborn <gabbe.nord@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zth/resgraph"
+  },
+  "publisher": "GabrielNordeborn",
+  "activationEvents": [
+    "workspaceContains:**/resgraph.json"
+  ],
+  "categories": [
+    "Other"
+  ],
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#171E26",
+    "theme": "dark"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "cosmiconfig": "^8.1.3",
+    "typescript": "5.0.4",
+    "vscode-languageclient": "7.0.0",
+    "vscode-languageserver-protocol": "3.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.15.11",
+    "@types/vscode": "^1.77.0",
+    "esbuild": "^0.17.15"
+  }
+}

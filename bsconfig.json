@@ -1,6 +1,7 @@
 {
   "name": "rescript-relay-router",
   "version": "0.1.0",
+  "uncurried": true,
   "sources": [
     {
       "dir": "cli",
@@ -15,5 +16,8 @@
   ],
   "suffix": ".mjs",
   "bs-dependencies": ["@rescript/core", "rescript-nodejs"],
-  "bsc-flags": ["-open NodeJs", "-open RescriptCore"]
+  "bsc-flags": ["-open NodeJs", "-open RescriptCore"],
+  "js-post-build": {
+    "cmd": "./scripts/post-build.sh"
+  }
 }

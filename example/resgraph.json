@@ -1,0 +1,5 @@
+{
+  "path": "./src/schema/GraphQLSchema.res",
+  "schemaOutputPath": "./src/schema/__generated__/ResGraphSchema.res",
+  "assetsOutputPath": "./src/schema/__generated__/ResGraphSchemaAssets.res"
+}
