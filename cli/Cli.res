@@ -7,12 +7,7 @@ let argsList = args->List.fromArray
 try {
   switch argsList {
   | list{"watch", path, schemaOutputPath, assetsOutputPath} =>
-    let _watcher = Utils.setupWatcher(
-      ~onResult=_ => (),
-      ~path,
-      ~schemaOutputPath,
-      ~assetsOutputPath,
-    )
+    let _ = Utils.setupWatcher(~onResult=_ => (), ~path, ~schemaOutputPath, ~assetsOutputPath)
   | list{"lsp", configFilePath} => Lsp.start(~configFilePath, ~mode=Lsp.Stdio)
   | v => Console.error("Invalid command: " ++ v->List.toArray->Array.joinWith(" "))
   }

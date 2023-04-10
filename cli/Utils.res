@@ -35,15 +35,13 @@ let callPrivateCli = command => {
   ->toCallResult
 }
 
-let getLastBuiltFromCompilerLog = () => {
-  let compilerLogConents =
-    Fs.readFileSync(Path.resolve([Process.process->Process.cwd, ".compiler.log"]))
-    ->Node.Buffer.toString
-    ->String.split(Os.eol)
+let getLastBuiltFromCompilerLog = compilerLogPath => {
+  let compilerLogContents =
+    compilerLogPath->Fs.readFileSync->Node.Buffer.toString->String.split(Os.eol)
 
   // The "Done" marker is on the second line from the bottom, if it exists.
   let statusLine =
-    compilerLogConents[compilerLogConents->Array.length - 2]->Option.getWithDefault("")
+    compilerLogContents[compilerLogContents->Array.length - 2]->Option.getWithDefault("")
 
   if statusLine->String.startsWith("#Done(") {
     statusLine
@@ -57,6 +55,17 @@ let getLastBuiltFromCompilerLog = () => {
   }
 }
 
+let runIfCompilerDone = (fn, ~compilerLogPath) => {
+  try {
+    switch getLastBuiltFromCompilerLog(compilerLogPath) {
+    | None => ()
+    | Some(_) => fn()
+    }
+  } catch {
+  | _ => ()
+  }
+}
+
 let setupWatcher = (~onResult, ~path, ~schemaOutputPath, ~assetsOutputPath) => {
   open Bindings.Chokidar
 
@@ -67,10 +76,10 @@ let setupWatcher = (~onResult, ~path, ~schemaOutputPath, ~assetsOutputPath) => {
 
   watcher
   ->watch(Path.resolve([Process.process->Process.cwd, "./lib/bs/.compiler.log"]))
-  ->Watcher.onChange(_ => {
-    generateSchema()
+  ->Watcher.onChange(compilerLogPath => {
+    generateSchema->runIfCompilerDone(~compilerLogPath)
   })
-  ->Watcher.onUnlink(_ => {
-    generateSchema()
+  ->Watcher.onUnlink(compilerLogPath => {
+    generateSchema->runIfCompilerDone(~compilerLogPath)
   })
 }

@@ -1,10 +1,6 @@
 // This file holds the actual language server implementation.
 let initialized = ref(false)
 let shutdownRequestAlreadyReceived = ref(false)
-let dummyPos: LspProtocol.loc = {
-  line: -1,
-  character: -1,
-}
 
 let log = Console.error
 
