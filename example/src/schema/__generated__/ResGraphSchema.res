@@ -19,15 +19,40 @@ let applyConversionToInputObject: (
       return newObj;
     }`)
 
+let i_HasName: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
+let get_HasName = () => i_HasName.contents
 let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_User = () => t_User.contents
 let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Query = () => t_Query.contents
 
+let interface_HasName_resolveType = (v: ResGraphSchemaAssets.hasName_resolver) =>
+  switch v {
+  | User(_) => "User"
+  }
+
+i_HasName.contents = GraphQLInterfaceType.make({
+  name: "HasName",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "name": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["name"]
+        }),
+      },
+    }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_HasName_resolveType),
+})
 t_User.contents = GraphQLObjectType.make({
   name: "User",
   description: ?None,
-  interfaces: [],
+  interfaces: [get_HasName()],
   fields: () =>
     {
       "name": {

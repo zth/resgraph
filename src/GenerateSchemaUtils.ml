@@ -434,3 +434,19 @@ let writeIfHasChanges path contents ~debug =
     let oc = open_out path in
     output_string oc contents;
     close_out oc
+
+let getStateFilePath (full : SharedTypes.full) =
+  full.package.rootPath ^ "/lib/.resgraphState.marshal"
+
+let writeStateFile ~full ~schemaState ~processedSchema =
+  let s = Marshal.to_bytes (schemaState, processedSchema) [Compat_32] in
+  let ch = open_out_bin (getStateFilePath full) in
+  output_bytes ch s
+
+let readStateFile ~full =
+  let ch = open_in_bin (getStateFilePath full) in
+  let s : GenerateSchemaTypes.schemaState * GenerateSchemaTypes.processedSchema
+      =
+    Marshal.from_channel ch
+  in
+  s

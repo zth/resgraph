@@ -694,7 +694,8 @@ and traverseStructure ?(modulePath = []) ?originModule
                           GraphQL interface resolvers.";
                    })))
 
-let generateSchema ~path ~debug ~schemaOutputPath ~assetsOutputPath =
+let generateSchema ~writeStateFile ~path ~debug ~schemaOutputPath
+    ~assetsOutputPath =
   if debug then Printf.printf "generating schema from %s\n\n" path;
   let schemaState =
     {
@@ -758,6 +759,9 @@ let generateSchema ~path ~debug ~schemaOutputPath ~assetsOutputPath =
           ~processedSchema
         |> formatCode
       in
+
+      if writeStateFile then
+        GenerateSchemaUtils.writeStateFile ~full ~schemaState ~processedSchema;
 
       (* TODO: Make these file names non-configurable *)
       (* TODO: Do this in parallell in some fancy way *)

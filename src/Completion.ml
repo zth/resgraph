@@ -1,5 +1,9 @@
-type completables = Decorator of {label: string}
+type completables =
+  | Decorator of {label: string}
+  | Interface of {label: string; seenItems: string list}
 
+(* Can't trust the parser's location
+   E.g. @foo. let x... gives as label @foo.let *)
 let cleanAttributeLabel ~text ~offsetStart ~offsetEnd =
   let rawLabel = String.sub text offsetStart (offsetEnd - offsetStart) in
   let ( ++ ) x y =
@@ -35,24 +39,37 @@ let completionWithParser ~debug ~path ~pos ~currentFile ~text =
   let setResult x = setResultOpt (Some x) in
   let attribute (iterator : Ast_iterator.iterator)
       ((id, payload) : Parsetree.attribute) =
-    (if String.length id.txt >= 4 && String.sub id.txt 0 4 = "res." then
-     (* skip: internal parser attribute *) ()
-    else if id.loc.loc_ghost then ()
-    else if id.loc |> Loc.hasPos ~pos:posBeforeCursor then
-      let posStart, posEnd = Loc.range id.loc in
-      match
-        (Pos.positionToOffset text posStart, Pos.positionToOffset text posEnd)
-      with
-      | Some offsetStart, Some offsetEnd ->
-        (* Can't trust the parser's location
-           E.g. @foo. let x... gives as label @foo.let *)
-        let label = cleanAttributeLabel ~text ~offsetStart ~offsetEnd in
-        found := true;
-        if debug then
-          Printf.printf "Attribute id:%s:%s label:%s\n" id.txt
-            (Loc.toString id.loc) label;
-        setResult (Decorator {label})
-      | _ -> ());
+    (if id.loc.loc_ghost = false && id.loc |> Loc.hasPos ~pos:posBeforeCursor
+    then
+     let posStart, posEnd = Loc.range id.loc in
+     match
+       (Pos.positionToOffset text posStart, Pos.positionToOffset text posEnd)
+     with
+     | Some offsetStart, Some offsetEnd ->
+       let label = cleanAttributeLabel ~text ~offsetStart ~offsetEnd in
+       found := true;
+       if debug then
+         Printf.printf "Attribute id:%s:%s label:%s\n" id.txt
+           (Loc.toString id.loc) label;
+       setResult (Decorator {label})
+     | _ -> ()
+    else
+      match GenerateSchemaUtils.extractInterfacesImplemented payload with
+      | interfaces -> (
+        match
+          interfaces
+          |> List.find_opt (fun (intf : Longident.t Location.loc) ->
+                 intf.Location.loc |> Loc.hasPos ~pos:posBeforeCursor)
+        with
+        | None -> ()
+        | Some intf ->
+          found := true;
+          setResult
+            (Interface
+               {
+                 label = intf.txt |> Utils.flattenLongIdent |> String.concat ".";
+                 seenItems = [];
+               })));
     Ast_iterator.default_iterator.attribute iterator (id, payload)
   in
   let iterator = {Ast_iterator.default_iterator with attribute} in
@@ -85,6 +102,33 @@ let completion ~debug ~path ~pos ~currentFile =
     | None -> []
     | Some completion -> (
       match completion with
+      | Interface {label} -> (
+        match Cmt.loadFullCmtFromPath ~path with
+        | None -> []
+        | Some full -> (
+          try
+            let schemaState, _processedSchema =
+              GenerateSchemaUtils.readStateFile ~full
+            in
+            let res = ref [] in
+            schemaState.GenerateSchemaTypes.interfaces
+            |> Hashtbl.iter (fun name _intf ->
+                   if Utils.startsWith name label then
+                     res :=
+                       {
+                         Protocol.label = name;
+                         kind = 4;
+                         tags = [];
+                         detail = "";
+                         sortText = None;
+                         filterText = None;
+                         insertTextFormat = None;
+                         insertText = None;
+                         documentation = None;
+                       }
+                       :: !res);
+            !res
+          with _ -> []))
       | Decorator {label} ->
         GenerateSchemaUtils.validAttributes
         |> List.filter_map (fun (attrName, desc) ->

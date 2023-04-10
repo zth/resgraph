@@ -1,7 +1,7 @@
 @gql.type
 type query = {}
 
-@gql.type
+@gql.type({interfaces: [HasNameInterface.hasName]})
 type user = {@gql.field name: string, @gql.field age: int}
 
 @gql.field

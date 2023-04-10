@@ -44,7 +44,7 @@ let test ~path =
           | "db+" -> Log.verbose := true
           | "db-" -> Log.verbose := false
           | "gen" ->
-            GenerateSchema.generateSchema ~path ~debug:true
+            GenerateSchema.generateSchema ~writeStateFile:true ~path ~debug:true
               ~schemaOutputPath:"./src/ResGraphSchema.res"
               ~assetsOutputPath:"./src/ResGraphSchemaAssets.res"
           | "com" ->

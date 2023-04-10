@@ -5,8 +5,8 @@ let help = {|
 let main () =
   match Array.to_list Sys.argv with
   | [_; "generate-schema"; path; schemaOutputPath; assetsOutputPath] ->
-    GenerateSchema.generateSchema ~path ~debug:false ~schemaOutputPath
-      ~assetsOutputPath
+    GenerateSchema.generateSchema ~writeStateFile:true ~path ~debug:false
+      ~schemaOutputPath ~assetsOutputPath
   | [_; "completion"; path; line; col; currentFile] ->
     Completion.completion ~debug:false ~path
       ~pos:(int_of_string line, int_of_string col)
