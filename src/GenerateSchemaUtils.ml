@@ -9,20 +9,24 @@ let findInterfacesOfType code ~schemaState =
       ~displayFilename:"-"
   in
   match structure with
-  | [{pstr_desc = Pstr_type (_, [{ptype_kind = Ptype_record fields}])}] ->
-    fields
-    |> List.filter_map (fun (field : Parsetree.label_declaration) ->
-           match field with
-           | {
-            pld_name = {txt = "..."};
-            pld_type = {ptyp_desc = Ptyp_constr (loc, _)};
-           } ->
-             let interfaceName = loc.txt |> Longident.last in
-             if Hashtbl.mem schemaState.interfaces interfaceName then
-               Some interfaceName
-             else None
-           | _ -> None)
-  | _ -> []
+  | [{pstr_desc = Pstr_type (_, [{ptype_kind = Ptype_record fields}])}] -> (
+    match
+      fields
+      |> List.filter_map (fun (field : Parsetree.label_declaration) ->
+             match field with
+             | {
+              pld_name = {txt = "..."};
+              pld_type = {ptyp_desc = Ptyp_constr (loc, _)};
+             } ->
+               let interfaceName = loc.txt |> Longident.last in
+               if Hashtbl.mem schemaState.interfaces interfaceName then
+                 Some interfaceName
+               else None
+             | _ -> None)
+    with
+    | [] -> None
+    | v -> Some v)
+  | _ -> None
 
 let validAttributes =
   [
@@ -379,7 +383,19 @@ let pathIdentToList (p : Path.t) =
   let lst = pathIdentToListInner p in
   lst |> List.rev
 
-type positionToRead = {id: string; position: Pos.t * Pos.t}
+type positionItemType = ObjectType | Interface
+
+type positionToRead = {
+  id: string;
+  position: Pos.t * Pos.t;
+  typ: positionItemType;
+}
+
+type implementsInterface = {
+  id: string;
+  interfaces: string list;
+  typ: positionItemType;
+}
 
 let spreadRegexp = Str.regexp_string "..."
 
@@ -406,6 +422,7 @@ let processSchema (schemaState : schemaState) =
                  position =
                    ( t.typeLocation.loc |> Loc.start,
                      t.typeLocation.loc |> Loc.end_ );
+                 typ = ObjectType;
                };
              ]
          | Some existingEntries ->
@@ -415,6 +432,33 @@ let processSchema (schemaState : schemaState) =
                 position =
                   ( t.typeLocation.loc |> Loc.start,
                     t.typeLocation.loc |> Loc.end_ );
+                typ = ObjectType;
+              }
+             :: existingEntries));
+
+  schemaState.interfaces
+  |> Hashtbl.iter (fun _name (t : gqlInterface) ->
+         let fileUri = t.typeLocation.fileUri |> Uri.toPath in
+         match Hashtbl.find_opt positionsToRead fileUri with
+         | None ->
+           Hashtbl.add positionsToRead fileUri
+             [
+               {
+                 id = t.id;
+                 position =
+                   ( t.typeLocation.loc |> Loc.start,
+                     t.typeLocation.loc |> Loc.end_ );
+                 typ = ObjectType;
+               };
+             ]
+         | Some existingEntries ->
+           Hashtbl.replace positionsToRead fileUri
+             ({
+                id = t.id;
+                position =
+                  ( t.typeLocation.loc |> Loc.start,
+                    t.typeLocation.loc |> Loc.end_ );
+                typ = ObjectType;
               }
              :: existingEntries));
 
@@ -457,25 +501,25 @@ let processSchema (schemaState : schemaState) =
                 let typeStr, endingLineNum, hasSpread =
                   loop !lastEndlingLine [] entry
                 in
-                if hasSpread then (
-                  let implementsInterfaces =
-                    findInterfacesOfType ~schemaState typeStr
-                  in
-                  Hashtbl.replace schemaState.types entry.id
-                    {
-                      (Hashtbl.find schemaState.types entry.id) with
-                      interfaces = implementsInterfaces;
-                    };
-                  ());
+                (if hasSpread then
+                 match findInterfacesOfType ~schemaState typeStr with
+                 | None -> ()
+                 | Some implementsInterfaces -> (
+                   match entry.typ with
+                   | ObjectType ->
+                     Hashtbl.replace schemaState.types entry.id
+                       {
+                         (Hashtbl.find schemaState.types entry.id) with
+                         interfaces = implementsInterfaces;
+                       }
+                   | Interface ->
+                     Hashtbl.replace schemaState.interfaces entry.id
+                       {
+                         (Hashtbl.find schemaState.interfaces entry.id) with
+                         interfaces = implementsInterfaces;
+                       }));
                 lastEndlingLine := endingLineNum);
-         close_in fileChannel;
-         Printf.printf "file: %s\npositions: %s\n" fileUri
-           (entries
-           |> List.map (fun entry ->
-                  Printf.sprintf "%s %s %s" entry.id
-                    (entry.position |> fst |> Pos.toString)
-                    (entry.position |> snd |> Pos.toString))
-           |> String.concat ", "));
+         close_in fileChannel);
 
   schemaState.types
   |> Hashtbl.iter (fun _name (t : gqlObjectType) ->

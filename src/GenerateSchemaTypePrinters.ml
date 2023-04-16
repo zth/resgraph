@@ -222,7 +222,7 @@ let printUnionType (union : gqlUnion) =
     (Printf.sprintf "union_%s_resolveType" union.displayName)
     (typeLocationToAstNode union.typeLocation)
 
-let printSchemaAssets ~schemaState ~processedSchema =
+let printSchemaAssets ~(schemaState : schemaState) ~processedSchema =
   let code = ref "/* @generated */\n\n@@warning(\"-27-34-37\")\n\n" in
   let addWithNewLine text = code := !code ^ text ^ "\n" in
 
