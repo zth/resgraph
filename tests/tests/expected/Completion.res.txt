@@ -52,11 +52,3 @@ Attribute id:gql.ty:[3:3->3:10] label:gql.ty
     "detail": "Indicates that the annotated record is a GraphQL Object Type.",
     "documentation": null
   }]}
-Complete tests/Completion.res 6:28
-{"status": "Completion", "items": [{
-    "label": "hasName",
-    "kind": 4,
-    "tags": [],
-    "detail": "",
-    "documentation": null
-  }]}

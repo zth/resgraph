@@ -1,10 +1,7 @@
 generating schema from tests/Schema.res
 
-Adding interface node
-Adding interface hasName
-Checking for type to attach resolver to
-noticing query
 noticing group
+noticing pet
 Adding union userOrGroup
 noticing user
 Adding enum userStatus
@@ -14,15 +11,26 @@ Checking for type to attach resolver to
 Adding input object userConfigContext
 Adding input object userConfig
 Checking for type to attach resolver to
+noticing query
+Checking for type to attach resolver to
 Checking for type to attach resolver to
 Checking for type to attach resolver to
 Checking for type to attach resolver to
 Checking for type to attach resolver to
 noticing mutation
 Checking for type to attach resolver to
+Adding interface hasName
+Checking for type to attach resolver to
+Adding interface node
 Checking for type to attach resolver to
 Checking for type to attach resolver to
 Checking for type to attach resolver to
+file: ./tests/User.res
+positions: user 2:0 9:1
+file: ./tests/Query.res
+positions: query 1:0 1:15
+file: tests/Schema.res
+positions: group 4:0 9:1, pet 12:0 16:1, mutation 146:0 146:18
 @@warning("-27-32")
 
 open ResGraph__GraphQLJs
@@ -77,6 +85,8 @@ let t_Group: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Group = () => t_Group.contents
 let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Query = () => t_Query.contents
+let t_Pet: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let get_Pet = () => t_Pet.contents
 let input_UserConfig: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
 let get_UserConfig = () => input_UserConfig.contents
 let input_UserConfig_conversionInstructions = []
@@ -116,6 +126,7 @@ let interface_Node_resolveType = (v: ResGraphSchemaAssets.node_resolver) =>
 
 let interface_HasName_resolveType = (v: ResGraphSchemaAssets.hasName_resolver) =>
   switch v {
+  | Pet(_) => "Pet"
   | Group(_) => "Group"
   | User(_) => "User"
   }
@@ -183,7 +194,7 @@ t_Mutation.contents = GraphQLObjectType.make({
     }->makeFields,
   astNode: {
     uri: "tests/Schema.res",
-    range: {"start": {"line": 134, "character": 0}, "end": {"line": 134, "character": 18}},
+    range: {"start": {"line": 146, "character": 0}, "end": {"line": 146, "character": 18}},
   },
 })
 t_User.contents = GraphQLObjectType.make({
@@ -198,7 +209,7 @@ t_User.contents = GraphQLObjectType.make({
         deprecationReason: ?None,
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
-          NodeInterfaceResolvers.id(src)
+          NodeInterfaceResolver.id(src)
         }),
       },
       "allNames": {
@@ -229,6 +240,24 @@ t_User.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
           Schema.UserFields.name(src, ~includeFullName=args["includeFullName"]->Nullable.toOption)
+        }),
+      },
+      "id": {
+        typ: Scalars.id->Scalars.toGraphQLType->nonNull,
+        description: "The id of the object.",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["id"]
+        }),
+      },
+      "name": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["name"]
         }),
       },
       "age": {
@@ -263,7 +292,7 @@ t_Group.contents = GraphQLObjectType.make({
     {
       "id": {
         typ: Scalars.id->Scalars.toGraphQLType->nonNull,
-        description: ?None,
+        description: "The id of the object.",
         deprecationReason: ?None,
         resolve: makeResolveFn((src, _args, _ctx) => {
           let src = typeUnwrapper(src)
@@ -272,7 +301,7 @@ t_Group.contents = GraphQLObjectType.make({
       },
       "name": {
         typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: "The group name.",
+        description: ?None,
         deprecationReason: ?None,
         resolve: makeResolveFn((src, _args, _ctx) => {
           let src = typeUnwrapper(src)
@@ -282,7 +311,7 @@ t_Group.contents = GraphQLObjectType.make({
     }->makeFields,
   astNode: {
     uri: "tests/Schema.res",
-    range: {"start": {"line": 4, "character": 0}, "end": {"line": 10, "character": 1}},
+    range: {"start": {"line": 4, "character": 0}, "end": {"line": 9, "character": 1}},
   },
 })
 t_Query.contents = GraphQLObjectType.make({
@@ -317,6 +346,25 @@ t_Query.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
           NodeInterfaceResolver.node(src, ~id=args["id"], ~ctx)
+        }),
+      },
+      "hasName": {
+        typ: get_HasName()->GraphQLInterfaceType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          HasNameInterfaceResolvers.hasName(src, ~id=args["id"])
+        }),
+      },
+      "pet": {
+        typ: get_Pet()->GraphQLObjectType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.QueryFields.pet(src)
         }),
       },
       "listAsArgs": {
@@ -449,20 +497,40 @@ t_Query.contents = GraphQLObjectType.make({
           Schema.QueryFields.me(src, ~ctx)
         }),
       },
-      "hasName": {
-        typ: get_HasName()->GraphQLInterfaceType.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-        args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,
-        resolve: makeResolveFn((src, args, ctx) => {
-          let src = typeUnwrapper(src)
-          HasNameInterface.hasName(src, ~id=args["id"])
-        }),
-      },
     }->makeFields,
   astNode: {
     uri: "./tests/Query.res",
     range: {"start": {"line": 1, "character": 0}, "end": {"line": 1, "character": 15}},
+  },
+})
+t_Pet.contents = GraphQLObjectType.make({
+  name: "Pet",
+  description: ?None,
+  interfaces: [get_HasName()],
+  fields: () =>
+    {
+      "name": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["name"]
+        }),
+      },
+      "age": {
+        typ: Scalars.int->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["age"]
+        }),
+      },
+    }->makeFields,
+  astNode: {
+    uri: "tests/Schema.res",
+    range: {"start": {"line": 12, "character": 0}, "end": {"line": 16, "character": 1}},
   },
 })
 input_UserConfig.contents = GraphQLInputObjectType.make({
@@ -488,7 +556,7 @@ input_UserConfig.contents = GraphQLInputObjectType.make({
     }->makeFields,
   astNode: {
     uri: "tests/Schema.res",
-    range: {"start": {"line": 57, "character": 0}, "end": {"line": 63, "character": 1}},
+    range: {"start": {"line": 63, "character": 0}, "end": {"line": 69, "character": 1}},
   },
 })
 input_UserConfigContext.contents = GraphQLInputObjectType.make({
@@ -509,7 +577,7 @@ input_UserConfigContext.contents = GraphQLInputObjectType.make({
     }->makeFields,
   astNode: {
     uri: "tests/Schema.res",
-    range: {"start": {"line": 51, "character": 0}, "end": {"line": 54, "character": 1}},
+    range: {"start": {"line": 57, "character": 0}, "end": {"line": 60, "character": 1}},
   },
 })
 union_UserOrGroup.contents = GraphQLUnionType.make({
@@ -519,7 +587,7 @@ union_UserOrGroup.contents = GraphQLUnionType.make({
   resolveType: GraphQLUnionType.makeResolveUnionTypeFn(union_UserOrGroup_resolveType),
   astNode: {
     uri: "tests/Schema.res",
-    range: {"start": {"line": 14, "character": 0}, "end": {"line": 14, "character": 96}},
+    range: {"start": {"line": 20, "character": 0}, "end": {"line": 20, "character": 96}},
   },
 })
 

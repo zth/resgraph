@@ -31,40 +31,8 @@ let variantCasesToEnumValues ~schemaState ~(env : SharedTypes.QueryEnv.t)
 
 type typeContext = Default | ReturnType
 
-let rec lookupInterface ~env ~full ~schemaState ~debug path =
-  let open SharedTypes in
-  let envAndModulePath =
-    match ResolvePath.resolvePath ~env ~path ~package:full.package with
-    | None -> (
-      match path with
-      | [] | [_] -> None
-      | moduleName :: p -> (
-        match ProcessCmt.fileForModule moduleName ~package:full.package with
-        | None -> None
-        | Some file -> Some (QueryEnv.fromFile file, p)))
-    | Some (env, p) ->
-      Some
-        ( env,
-          match
-            GenerateSchemaUtils.findModulePathOfType ~schemaState ~env
-              ~expectedType:Interface p
-          with
-          | None -> [p]
-          | Some m -> m )
-  in
-  match envAndModulePath with
-  | None -> None
-  | Some (env, p) ->
-    traverseStructure ~schemaState ~debug ~originModule:env.file.moduleName ~env
-      ~full env.file.structure;
-    let id = List.nth p (List.length p - 1) in
-    let interfaceIdentifier : gqlInterfaceIdentifier =
-      {id; displayName = capitalizeFirstChar id}
-    in
-    Some interfaceIdentifier
-
 (* Extracts valid GraphQL types from type exprs *)
-and findGraphQLType ~env ?(typeContext = Default) ~debug ?loc ~schemaState
+let rec findGraphQLType ~env ?(typeContext = Default) ~debug ?loc ~schemaState
     ~(full : SharedTypes.full) (typ : Types.type_expr) =
   match typ.desc with
   | Tlink te | Tsubst te | Tpoly (te, []) ->
@@ -125,17 +93,10 @@ and findGraphQLType ~env ?(typeContext = Default) ~debug ?loc ~schemaState
           extractGqlAttribute ~env ~schemaState item.attributes
         in
         match (gqlAttribute, item) with
-        | ( Some (ObjectType {interfaces}),
-            {attributes; name; kind = Record fields} ) ->
+        | Some ObjectType, {attributes; name; kind = Record fields} ->
           let id = name in
           let displayName = capitalizeFirstChar id in
-          let interfaces =
-            interfaces
-            |> List.filter_map (fun interface ->
-                   lookupInterface ~env ~full ~schemaState ~debug
-                     (interface.Location.txt |> Utils.flattenLongIdent))
-          in
-          noticeObjectType id ~displayName ~debug ~schemaState ~env ~interfaces
+          noticeObjectType id ~displayName ~debug ~schemaState ~env
             ?description:(GenerateSchemaUtils.attributesToDocstring attributes)
             ~makeFields:(fun () ->
               fields
@@ -158,21 +119,14 @@ and findGraphQLType ~env ?(typeContext = Default) ~debug ?loc ~schemaState
                     ~loc:decl.type_loc ~expectedType:InputObject;
               });
           Some (GraphQLInputObject {id; displayName = capitalizeFirstChar id})
-        | ( Some (Interface {interfaces}),
-            {name; kind = Record fields; attributes; decl} ) ->
+        | Some Interface, {name; kind = Record fields; attributes; decl} ->
           let id = name in
           let displayName = capitalizeFirstChar id in
-          let interfaces =
-            interfaces
-            |> List.filter_map (fun interface ->
-                   lookupInterface ~env ~full ~debug ~schemaState
-                     (interface.Location.txt |> Utils.flattenLongIdent))
-          in
           addInterface id ~schemaState ~debug ~makeInterface:(fun () ->
               {
                 id;
                 displayName;
-                interfaces;
+                interfaces = [];
                 fields =
                   objectTypeFieldsOfRecordFields fields ~env ~full ~schemaState
                     ~debug;
@@ -465,20 +419,12 @@ and traverseStructure ?(modulePath = []) ?originModule
              traverseStructure
                ~modulePath:(structure.name :: modulePath)
                ~schemaState ~env ~full ~debug structure
-           | ( Type ({kind = Record fields; attributes; decl}, _),
-               Some (ObjectType {interfaces}) ) ->
+           | Type ({kind = Record fields; attributes; decl}, _), Some ObjectType
+             ->
              (* @gql.type type someType = {...} *)
              let id = item.name in
              let displayName = capitalizeFirstChar item.name in
-             let interfaces =
-               interfaces
-               |> List.filter_map (fun interface ->
-                      lookupInterface ~env ~full ~schemaState ~debug
-                        (interface.Location.txt |> Utils.flattenLongIdent))
-             in
-             (* TODO: Look up interfaces *)
              noticeObjectType ~env ~debug ~loc:decl.type_loc ~schemaState
-               ~interfaces
                ?description:(attributesToDocstring attributes)
                ~displayName
                ~makeFields:(fun () ->
@@ -501,16 +447,10 @@ and traverseStructure ?(modulePath = []) ?originModule
                      findTypeLocation item.name ~env ~schemaState
                        ~loc:decl.type_loc ~expectedType:InputObject;
                  })
-           | ( Type ({kind = Record fields; attributes; decl}, _),
-               Some (Interface {interfaces}) ) ->
+           | Type ({kind = Record fields; attributes; decl}, _), Some Interface
+             ->
              (* @gql.interface type hasName = {...} *)
              let id = item.name in
-             let interfaces =
-               interfaces
-               |> List.filter_map (fun interface ->
-                      lookupInterface ~env ~full ~schemaState ~debug
-                        (interface.Location.txt |> Utils.flattenLongIdent))
-             in
              addInterface id ~schemaState ~debug ~makeInterface:(fun () ->
                  {
                    id;
@@ -519,7 +459,7 @@ and traverseStructure ?(modulePath = []) ?originModule
                      objectTypeFieldsOfRecordFields fields ~env ~full
                        ~schemaState ~debug;
                    description = attributesToDocstring attributes;
-                   interfaces;
+                   interfaces = [];
                    typeLocation =
                      findTypeLocation item.name ~env ~schemaState
                        ~loc:decl.type_loc ~expectedType:Interface;
@@ -629,7 +569,7 @@ and traverseStructure ?(modulePath = []) ?originModule
                           is not a function. Only functions can represent \
                           GraphQL field resolvers.";
                    }
-             | Some (ObjectType _) ->
+             | Some ObjectType ->
                add
                  ~diagnostic:
                    {
@@ -671,7 +611,7 @@ and traverseStructure ?(modulePath = []) ?originModule
                          "This type is annotated with @gql.union, but is not a \
                           variant. Only variants can represent GraphQL unions.";
                    }
-             | Some (Interface _) ->
+             | Some Interface ->
                add
                  ~diagnostic:
                    {

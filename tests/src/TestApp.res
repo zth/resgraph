@@ -24,13 +24,13 @@ let yoga = createYoga({
     {
       ResGraphContext.currentUserId: Some("123"),
       loadCurrentUser: async () => Some({
-        id: "123",
+        id: "123"->ResGraph.id,
         User.name: "TestUser",
         age: 35,
         lastAge: None,
       }),
       userById: async (~userId) => Some({
-        id: userId,
+        id: userId->ResGraph.id,
         User.name: "Testing testing",
         age: 37,
         lastAge: None,

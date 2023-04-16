@@ -180,8 +180,9 @@ let printObjectType (typ : gqlObjectType) =
     typ.displayName
     (undefinedOrValueAsString typ.description)
     (typ.interfaces
-    |> List.map (fun (item : gqlInterfaceIdentifier) ->
-           Printf.sprintf "get_%s()" item.displayName)
+    |> List.map (fun id ->
+           Printf.sprintf "get_%s()"
+             (GenerateSchemaUtils.capitalizeFirstChar id))
     |> String.concat ", ")
     (printFields typ.fields)
     (typeLocationToAstNode typ.typeLocation)
@@ -193,8 +194,9 @@ let printInterfaceType (typ : gqlInterface) =
     typ.displayName
     (undefinedOrValueAsString typ.description)
     (typ.interfaces
-    |> List.map (fun (item : gqlInterfaceIdentifier) ->
-           Printf.sprintf "get_%s()" item.displayName)
+    |> List.map (fun id ->
+           Printf.sprintf "get_%s()"
+             (GenerateSchemaUtils.capitalizeFirstChar id))
     |> String.concat ", ")
     (printFields typ.fields)
     (Printf.sprintf "interface_%s_resolveType" typ.displayName)

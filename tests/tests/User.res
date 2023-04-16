@@ -1,8 +1,8 @@
 /** A user in the system. */
-@gql.type({interfaces: [NodeInterface.node, HasNameInterface.hasName]})
+@gql.type
 type user = {
-  id: string,
-  /** The users name.*/ name: string,
+  ...NodeInterface.node,
+  ...HasNameInterface.hasName,
   @gql.field /** The age of the user. */
   age: int,
   @gql.field @deprecated("Use 'age' instead.") /** The last age of the user. */

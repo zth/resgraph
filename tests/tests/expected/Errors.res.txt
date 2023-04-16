@@ -12,6 +12,7 @@ Adding interface node
 Checking for type to attach resolver to
 Checking for type to attach resolver to
 Checking for type to attach resolver to
+noticing pet
 Adding union userOrGroup
 Adding enum userStatus
 Checking for type to attach resolver to
@@ -24,8 +25,15 @@ Checking for type to attach resolver to
 Checking for type to attach resolver to
 Checking for type to attach resolver to
 Checking for type to attach resolver to
+Checking for type to attach resolver to
 noticing mutation
 Checking for type to attach resolver to
+file: ./tests/Query.res
+positions: query 1:0 1:15
+file: ./tests/Schema.res
+positions: pet 12:0 16:1, mutation 146:0 146:18
+file: tests/Errors.res
+positions: user 4:10 4:62, group 27:10 27:57
 {
   "status": "Error",
   "errors": 

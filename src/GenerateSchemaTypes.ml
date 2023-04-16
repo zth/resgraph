@@ -80,7 +80,7 @@ type gqlObjectType = {
   fields: gqlField list;
   description: string option;
   typeLocation: typeLocation;
-  interfaces: gqlInterfaceIdentifier list;
+  interfaces: string list;
 }
 
 type gqlInterface = {
@@ -89,7 +89,7 @@ type gqlInterface = {
   fields: gqlField list;
   description: string option;
   typeLocation: typeLocation;
-  interfaces: gqlInterfaceIdentifier list;
+  interfaces: string list;
 }
 
 type gqlInputObjectType = {
@@ -124,8 +124,8 @@ type processedSchema = {
 }
 
 type gqlAttributes =
-  | ObjectType of {interfaces: Longident.t Location.loc list}
-  | Interface of {interfaces: Longident.t Location.loc list}
+  | ObjectType
+  | Interface
   | InterfaceResolver of {interfaceId: string}  (** This is internal *)
   | InputObject
   | Field

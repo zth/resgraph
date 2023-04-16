@@ -13,7 +13,7 @@
     "@rescript/core": "^0.2.0",
     "graphql": "^15.8.0",
     "graphql-yoga": "^3.8.0",
-    "rescript": "10.1.4"
+    "rescript": "^11.0.0-alpha.3"
   },
   "resolutions": {
     "graphql": "15.8.0"

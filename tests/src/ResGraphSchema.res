@@ -161,7 +161,7 @@ t_User.contents = GraphQLObjectType.make({
         deprecationReason: ?None,
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
-          NodeInterfaceResolvers.id(src)
+          NodeInterfaceResolver.id(src)
         }),
       },
       "allNames": {
@@ -411,7 +411,7 @@ t_Query.contents = GraphQLObjectType.make({
         args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
-          HasNameInterface.hasName(src, ~id=args["id"])
+          HasNameInterfaceResolvers.hasName(src, ~id=args["id"])
         }),
       },
     }->makeFields,

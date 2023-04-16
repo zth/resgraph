@@ -1,13 +1,19 @@
 type user = User.user
 
 /** A group in the system. */
-@gql.type({interfaces: [NodeInterface.node, HasNameInterface.hasName]})
+@gql.type
 type group = {
-  @gql.field id: ResGraph.id,
+  ...NodeInterface.node,
+  ...HasNameInterface.hasName,
   /** The group name.*/
-  @gql.field
-  name: string,
   memberIds: array<string>,
+}
+
+@gql.type
+type pet = {
+  ...HasNameInterface.hasName,
+  @gql.field
+  age: int,
 }
 
 /** A user or a group. */
@@ -74,14 +80,14 @@ module QueryFields = {
   let entity = (_: query, ~id: ResGraph.id, ~ctx: ResGraphContext.context) => {
     ignore(id)
     ignore(ctx)
-    User({id: "234", name: "Hello", age: 35, lastAge: None})
+    User({id: "234"->ResGraph.id, name: "Hello", age: 35, lastAge: None})
   }
 
   @gql.field
   let searchForUser = (_: query, ~input: userConfig): option<user> => {
     Js.log(input)
     Some({
-      id: "123",
+      id: "123"->ResGraph.id,
       name: input.name->Option.getWithDefault("Hello"),
       age: 35,
       lastAge: None,
@@ -129,6 +135,12 @@ module QueryFields = {
 
     arr
   }
+
+  @gql.field
+  let pet = (_: query) => {
+    let pet: pet = {name: "Mr Pet", age: 12}
+    Some(pet)
+  }
 }
 
 @gql.type
@@ -137,7 +149,7 @@ type mutation = {}
 module Mutations = {
   @gql.field
   let addUser = (_: mutation, ~name) => {
-    Some({id: "123", User.name, age: 35, lastAge: None})
+    Some({id: "123"->ResGraph.id, User.name, age: 35, lastAge: None})
   }
 }
 

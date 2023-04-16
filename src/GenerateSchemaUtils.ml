@@ -3,25 +3,25 @@ open GenerateSchemaTypes
 let addDiagnostic schemaState ~diagnostic =
   schemaState.diagnostics <- diagnostic :: schemaState.diagnostics
 
-let extractInterfacesImplemented (payload : Parsetree.payload) =
-  match payload with
-  | PStr structure ->
-    structure
-    |> List.concat_map (fun item ->
-           match item.Parsetree.pstr_desc with
-           | Pstr_eval ({pexp_desc = Pexp_record (fields, _spread)}, _) ->
-             fields
-             |> List.concat_map (fun (name, exp) ->
-                    match (name, exp) with
-                    | ( {Location.txt = Longident.Lident "interfaces"},
-                        {Parsetree.pexp_desc = Pexp_array items} ) ->
-                      items
-                      |> List.filter_map (fun e ->
-                             match e.Parsetree.pexp_desc with
-                             | Pexp_ident lident -> Some lident
-                             | _ -> None)
-                    | _ -> [])
-           | _ -> [])
+let findInterfacesOfType code ~schemaState =
+  let {Res_driver.parsetree = structure} =
+    Res_driver.parseImplementationFromSource ~forPrinter:true ~source:code
+      ~displayFilename:"-"
+  in
+  match structure with
+  | [{pstr_desc = Pstr_type (_, [{ptype_kind = Ptype_record fields}])}] ->
+    fields
+    |> List.filter_map (fun (field : Parsetree.label_declaration) ->
+           match field with
+           | {
+            pld_name = {txt = "..."};
+            pld_type = {ptyp_desc = Ptyp_constr (loc, _)};
+           } ->
+             let interfaceName = loc.txt |> Longident.last in
+             if Hashtbl.mem schemaState.interfaces interfaceName then
+               Some interfaceName
+             else None
+           | _ -> None)
   | _ -> []
 
 let validAttributes =
@@ -41,12 +41,8 @@ let extractGqlAttribute ~(schemaState : GenerateSchemaTypes.schemaState)
   attributes
   |> List.find_map (fun ((name, payload) : Parsetree.attribute) ->
          match String.split_on_char '.' name.txt with
-         | ["gql"; "type"] ->
-           let interfaces = extractInterfacesImplemented payload in
-           Some (ObjectType {interfaces})
-         | ["gql"; "interface"] ->
-           let interfaces = extractInterfacesImplemented payload in
-           Some (Interface {interfaces})
+         | ["gql"; "type"] -> Some ObjectType
+         | ["gql"; "interface"] -> Some Interface
          | ["gql"; "interfaceResolver"] -> (
            match payload with
            | PStr
@@ -147,10 +143,10 @@ let rec findModulePathOfType ~schemaState ~(env : SharedTypes.QueryEnv.t)
          | Type ({kind = Variant _}, _), Union, Some Union when item.name = name
            ->
            Some modulePath
-         | Type ({kind = Record _}, _), ObjectType, Some (ObjectType _)
+         | Type ({kind = Record _}, _), ObjectType, Some ObjectType
            when item.name = name ->
            Some modulePath
-         | Type ({kind = Record _}, _), Interface, Some (Interface _)
+         | Type ({kind = Record _}, _), Interface, Some Interface
            when item.name = name ->
            Some modulePath
          | Type ({kind = Record _}, _), InputObject, Some InputObject
@@ -206,8 +202,8 @@ let capitalizeFirstChar s =
   if String.length s = 0 then s
   else String.mapi (fun i c -> if i = 0 then Char.uppercase_ascii c else c) s
 
-let noticeObjectType ~env ~loc ~debug ~schemaState ~displayName ~interfaces
-    ?description ~makeFields typeName =
+let noticeObjectType ~env ~loc ~debug ~schemaState ~displayName ?description
+    ~makeFields typeName =
   if Hashtbl.mem schemaState.types typeName then ()
   else (
     if debug then Printf.printf "noticing %s\n" typeName;
@@ -217,7 +213,7 @@ let noticeObjectType ~env ~loc ~debug ~schemaState ~displayName ~interfaces
         displayName;
         fields = makeFields ();
         description;
-        interfaces;
+        interfaces = [];
         typeLocation =
           findTypeLocation ~schemaState typeName ~env ~loc
             ~expectedType:ObjectType;
@@ -383,33 +379,129 @@ let pathIdentToList (p : Path.t) =
   let lst = pathIdentToListInner p in
   lst |> List.rev
 
+type positionToRead = {id: string; position: Pos.t * Pos.t}
+
+let spreadRegexp = Str.regexp_string "..."
+
+let hasSpreadText str =
+  try
+    let _ = Str.search_forward spreadRegexp str 0 in
+    true
+  with Not_found -> false
+
 let processSchema (schemaState : schemaState) =
   let processedSchema = {interfaceImplementedBy = Hashtbl.create 10} in
+  let positionsToRead = Hashtbl.create 10 in
+
+  (* Figure out all files that needs reading to check for interface spreads *)
+  schemaState.types
+  |> Hashtbl.iter (fun _name (t : gqlObjectType) ->
+         let fileUri = t.typeLocation.fileUri |> Uri.toPath in
+         match Hashtbl.find_opt positionsToRead fileUri with
+         | None ->
+           Hashtbl.add positionsToRead fileUri
+             [
+               {
+                 id = t.id;
+                 position =
+                   ( t.typeLocation.loc |> Loc.start,
+                     t.typeLocation.loc |> Loc.end_ );
+               };
+             ]
+         | Some existingEntries ->
+           Hashtbl.replace positionsToRead fileUri
+             ({
+                id = t.id;
+                position =
+                  ( t.typeLocation.loc |> Loc.start,
+                    t.typeLocation.loc |> Loc.end_ );
+              }
+             :: existingEntries));
+
+  (* Read all noted positions so we can check them for spreads. *)
+  positionsToRead
+  |> Hashtbl.iter (fun fileUri entries ->
+         let entries =
+           entries
+           |> List.sort (fun (a : positionToRead) (b : positionToRead) ->
+                  compare (a.position |> fst) (b.position |> fst))
+         in
+         let fileChannel = open_in fileUri in
+         let rec loop ?(hasSpread = false) lineNumber acc
+             ({position = (startLine, startCol), (endLine, endCol)} as entry) =
+           try
+             let line = input_line fileChannel in
+             if lineNumber > endLine then
+               (String.concat "" (List.rev acc), lineNumber + 1, hasSpread)
+             else if lineNumber >= startLine && lineNumber <= endLine then
+               loop
+                 ~hasSpread:(hasSpread || hasSpreadText line)
+                 (lineNumber + 1) (line :: acc) entry
+             else if lineNumber = startLine then
+               let start = if startLine = endLine then startCol else 0 in
+               let part = String.sub line start (endCol - start) in
+               loop
+                 ~hasSpread:(hasSpread || hasSpreadText line)
+                 (lineNumber + 1) (part :: acc) entry
+             else
+               loop
+                 ~hasSpread:(hasSpread || hasSpreadText line)
+                 (lineNumber + 1) acc entry
+           with End_of_file ->
+             close_in fileChannel;
+             (String.concat "" (List.rev acc), lineNumber + 1, hasSpread)
+         in
+         let lastEndlingLine = ref 0 in
+         entries
+         |> List.iter (fun entry ->
+                let typeStr, endingLineNum, hasSpread =
+                  loop !lastEndlingLine [] entry
+                in
+                if hasSpread then (
+                  let implementsInterfaces =
+                    findInterfacesOfType ~schemaState typeStr
+                  in
+                  Hashtbl.replace schemaState.types entry.id
+                    {
+                      (Hashtbl.find schemaState.types entry.id) with
+                      interfaces = implementsInterfaces;
+                    };
+                  ());
+                lastEndlingLine := endingLineNum);
+         close_in fileChannel;
+         Printf.printf "file: %s\npositions: %s\n" fileUri
+           (entries
+           |> List.map (fun entry ->
+                  Printf.sprintf "%s %s %s" entry.id
+                    (entry.position |> fst |> Pos.toString)
+                    (entry.position |> snd |> Pos.toString))
+           |> String.concat ", "));
+
   schemaState.types
   |> Hashtbl.iter (fun _name (t : gqlObjectType) ->
          t.interfaces
-         |> List.iter (fun (i : gqlInterfaceIdentifier) ->
+         |> List.iter (fun id ->
                 match
-                  Hashtbl.find_opt processedSchema.interfaceImplementedBy i.id
+                  Hashtbl.find_opt processedSchema.interfaceImplementedBy id
                 with
                 | None ->
-                  Hashtbl.add processedSchema.interfaceImplementedBy i.id
+                  Hashtbl.add processedSchema.interfaceImplementedBy id
                     [ObjectType (Hashtbl.find schemaState.types t.id)]
                 | Some item ->
-                  Hashtbl.replace processedSchema.interfaceImplementedBy i.id
+                  Hashtbl.replace processedSchema.interfaceImplementedBy id
                     (ObjectType (Hashtbl.find schemaState.types t.id) :: item)));
   schemaState.interfaces
   |> Hashtbl.iter (fun _name (t : gqlInterface) ->
          t.interfaces
-         |> List.iter (fun (i : gqlInterfaceIdentifier) ->
+         |> List.iter (fun id ->
                 match
-                  Hashtbl.find_opt processedSchema.interfaceImplementedBy i.id
+                  Hashtbl.find_opt processedSchema.interfaceImplementedBy id
                 with
                 | None ->
-                  Hashtbl.add processedSchema.interfaceImplementedBy i.id
+                  Hashtbl.add processedSchema.interfaceImplementedBy id
                     [Interface (Hashtbl.find schemaState.interfaces t.id)]
                 | Some item ->
-                  Hashtbl.replace processedSchema.interfaceImplementedBy i.id
+                  Hashtbl.replace processedSchema.interfaceImplementedBy id
                     (Interface (Hashtbl.find schemaState.interfaces t.id)
                     :: item)));
   processedSchema

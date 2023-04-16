@@ -52,24 +52,7 @@ let completionWithParser ~debug ~path ~pos ~currentFile ~text =
          Printf.printf "Attribute id:%s:%s label:%s\n" id.txt
            (Loc.toString id.loc) label;
        setResult (Decorator {label})
-     | _ -> ()
-    else
-      match GenerateSchemaUtils.extractInterfacesImplemented payload with
-      | interfaces -> (
-        match
-          interfaces
-          |> List.find_opt (fun (intf : Longident.t Location.loc) ->
-                 intf.Location.loc |> Loc.hasPos ~pos:posBeforeCursor)
-        with
-        | None -> ()
-        | Some intf ->
-          found := true;
-          setResult
-            (Interface
-               {
-                 label = intf.txt |> Utils.flattenLongIdent |> String.concat ".";
-                 seenItems = [];
-               })));
+     | _ -> ());
     Ast_iterator.default_iterator.attribute iterator (id, payload)
   in
   let iterator = {Ast_iterator.default_iterator with attribute} in
