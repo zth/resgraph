@@ -697,6 +697,9 @@ and traverseStructure ?(modulePath = []) ?originModule
 let generateSchema ~writeStateFile ~path ~debug ~schemaOutputPath
     ~assetsOutputPath =
   if debug then Printf.printf "generating schema from %s\n\n" path;
+  (* Holds cmt cache so we don't do heavy cmt processing multiple times. *)
+  let cmtCache = Hashtbl.create 100 in
+  let fileHasGqlAttributeCache = Hashtbl.create 100 in
   let schemaState =
     {
       types = Hashtbl.create 50;
@@ -712,17 +715,34 @@ let generateSchema ~writeStateFile ~path ~debug ~schemaOutputPath
     }
   in
   let processFileAtPath path =
-    (* TODO: Check file for GraphQL attributes first before loading cmt *)
-    (* TODO: cmt cache since the same files are likely to be encountered many
-       times *)
-    match Cmt.loadFullCmtFromPath ~path with
+    let fileAssets =
+      match Hashtbl.find_opt cmtCache path with
+      | None ->
+        let sourceHasGqlAttr =
+          match Hashtbl.find_opt fileHasGqlAttributeCache path with
+          | None ->
+            let hasAttr = GenerateSchemaUtils.fileHasGqlAttribute path in
+            Hashtbl.replace fileHasGqlAttributeCache path hasAttr;
+            hasAttr
+          | Some v -> v
+        in
+        if sourceHasGqlAttr then (
+          match Cmt.loadFullCmtFromPath ~path with
+          | None -> None
+          | Some full ->
+            let file = full.file in
+            let env = SharedTypes.QueryEnv.fromFile file in
+            let res = (full, env) in
+            Hashtbl.replace cmtCache path res;
+            Some res)
+        else None
+      | v -> v
+    in
+    match fileAssets with
     | None -> None
-    | Some full ->
-      let file = full.file in
-      let structure = file.structure in
-      let env = SharedTypes.QueryEnv.fromFile file in
-      traverseStructure structure ~originModule:env.file.moduleName ~schemaState
-        ~env ~full ~debug;
+    | Some (full, env) ->
+      traverseStructure full.file.structure ~originModule:env.file.moduleName
+        ~schemaState ~env ~full ~debug;
       Some full
   in
   let initialFull = processFileAtPath path in
@@ -730,6 +750,7 @@ let generateSchema ~writeStateFile ~path ~debug ~schemaOutputPath
   | None -> print_endline "!!ERROR!!" (* TODO: Better error handling *)
   | Some full ->
     (* Process all project files. *)
+    (* TODO: Potential optimization - limit to a certain path for looking for GraphQL stuff. *)
     full.package.projectFiles
     |> SharedTypes.FileSet.iter (fun file ->
            (* TODO: This file filter contains a bunch of things I'm sure won't

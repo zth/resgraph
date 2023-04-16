@@ -433,6 +433,29 @@ let isFileContentsTheSame filePath s =
     close_in ic;
     contents = s
 
+let gqlRegexp = Str.regexp_string "@gql."
+
+let hasGqlAttribute str =
+  try
+    let _ = Str.search_forward gqlRegexp str 0 in
+    true
+  with Not_found -> false
+
+let rec readLinesUntilValue fileChannel =
+  try
+    let line = input_line fileChannel in
+    if hasGqlAttribute line then (
+      close_in fileChannel;
+      true)
+    else readLinesUntilValue fileChannel
+  with End_of_file ->
+    close_in fileChannel;
+    false
+
+let fileHasGqlAttribute filePath =
+  let fileChannel = open_in filePath in
+  readLinesUntilValue fileChannel
+
 let writeIfHasChanges path contents ~debug =
   if debug then ()
   else if isFileContentsTheSame path contents then ()
