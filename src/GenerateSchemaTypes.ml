@@ -18,6 +18,7 @@ type fieldResolverStyle =
 
 type typeLocation = {
   fileName: string;
+  fileUri: Uri.t;
   modulePath: string list;
   typeName: string;
   loc: Location.t;

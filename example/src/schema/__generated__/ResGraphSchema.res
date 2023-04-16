@@ -48,6 +48,10 @@ i_HasName.contents = GraphQLInterfaceType.make({
       },
     }->makeFields,
   resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_HasName_resolveType),
+  astNode: {
+    uri: "/Users/zth/git/resgraph/example/src/schema/HasNameInterface.res",
+    range: {"start": {"line": 1, "character": 0}, "end": {"line": 1, "character": 40}},
+  },
 })
 t_User.contents = GraphQLObjectType.make({
   name: "User",
@@ -74,6 +78,10 @@ t_User.contents = GraphQLObjectType.make({
         }),
       },
     }->makeFields,
+  astNode: {
+    uri: "/Users/zth/git/resgraph/example/src/schema/GraphQLSchema.res",
+    range: {"start": {"line": 4, "character": 0}, "end": {"line": 4, "character": 58}},
+  },
 })
 t_Query.contents = GraphQLObjectType.make({
   name: "Query",
@@ -91,6 +99,10 @@ t_Query.contents = GraphQLObjectType.make({
         }),
       },
     }->makeFields,
+  astNode: {
+    uri: "/Users/zth/git/resgraph/example/src/schema/GraphQLSchema.res",
+    range: {"start": {"line": 1, "character": 0}, "end": {"line": 1, "character": 15}},
+  },
 })
 
 let schema = GraphQLSchemaType.make({"query": get_Query()})

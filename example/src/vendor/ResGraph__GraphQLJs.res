@@ -2,6 +2,18 @@ type graphqlType
 
 @module("graphql") @new external nonNull: graphqlType => graphqlType = "GraphQLNonNull"
 
+module AstNode = {
+  // Copy of LSP protocol stuff
+  type loc = {"line": int, "character": int}
+
+  type range = {"start": loc, "end": loc}
+
+  type t = {
+    uri: string,
+    range: range,
+  }
+}
+
 module Scalars = {
   type t
 
@@ -47,6 +59,7 @@ module GraphQLInterfaceType = {
 
   type config = {
     name: string,
+    astNode?: AstNode.t,
     description?: string,
     fields: unit => fields,
     resolveType: resolveInterfaceTypeFn,
@@ -62,6 +75,7 @@ module GraphQLObjectType = {
 
   type config = {
     name: string,
+    astNode?: AstNode.t,
     description?: string,
     fields: unit => fields,
     interfaces?: array<GraphQLInterfaceType.t>,
@@ -82,6 +96,7 @@ module GraphQLInputObjectType = {
 
   type config = {
     name: string,
+    astNode?: AstNode.t,
     description?: string,
     fields: unit => fields,
   }
@@ -107,6 +122,7 @@ module GraphQLUnionType = {
 
   type config = {
     name: string,
+    astNode?: AstNode.t,
     types: unit => array<GraphQLObjectType.t>,
     resolveType: resolveUnionTypeFn,
     description?: string,
@@ -131,6 +147,7 @@ module GraphQLEnumType = {
 
   type config = {
     name: string,
+    astNode?: AstNode.t,
     values: enumValues,
     description?: string,
   }

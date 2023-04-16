@@ -2,7 +2,10 @@ type Query {
   me: User!
 }
 
-type User {
-  name: String!
+type User implements HasName {
   age: Int!
+}
+
+interface HasName {
+  name: String!
 }

@@ -1,6 +1,11 @@
 open GenerateSchemaTypes
 open GenerateSchemaUtils
 
+let typeLocationToAstNode (typeLocation : typeLocation) =
+  Printf.sprintf "astNode: {uri: \"%s\", range: %s}"
+    (typeLocation.fileUri |> Uri.toPath |> Json.escape)
+    (typeLocation.loc |> Utils.cmtLocToRange |> Protocol.stringifyRange)
+
 let printResolverForField (field : gqlField) =
   match field.resolverStyle with
   | Property name ->
@@ -171,7 +176,7 @@ let printInputObjectFields (fields : gqlField list) =
       |> String.concat ",\n")
 let printObjectType (typ : gqlObjectType) =
   Printf.sprintf
-    "{name: \"%s\", description: %s, interfaces: [%s], fields: () => %s}"
+    "{name: \"%s\", description: %s, interfaces: [%s], fields: () => %s, %s}"
     typ.displayName
     (undefinedOrValueAsString typ.description)
     (typ.interfaces
@@ -179,11 +184,12 @@ let printObjectType (typ : gqlObjectType) =
            Printf.sprintf "get_%s()" item.displayName)
     |> String.concat ", ")
     (printFields typ.fields)
+    (typeLocationToAstNode typ.typeLocation)
 
 let printInterfaceType (typ : gqlInterface) =
   Printf.sprintf
     "{name: \"%s\", description: %s, interfaces: [%s], fields: () => %s, \
-     resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(%s)}"
+     resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(%s), %s}"
     typ.displayName
     (undefinedOrValueAsString typ.description)
     (typ.interfaces
@@ -192,17 +198,19 @@ let printInterfaceType (typ : gqlInterface) =
     |> String.concat ", ")
     (printFields typ.fields)
     (Printf.sprintf "interface_%s_resolveType" typ.displayName)
+    (typeLocationToAstNode typ.typeLocation)
 
 let printInputObjectType (typ : gqlInputObjectType) =
-  Printf.sprintf "{name: \"%s\", description: %s, fields: () => %s}"
+  Printf.sprintf "{name: \"%s\", description: %s, fields: () => %s, %s}"
     typ.displayName
     (undefinedOrValueAsString typ.description)
     (printInputObjectFields typ.fields)
+    (typeLocationToAstNode typ.typeLocation)
 
 let printUnionType (union : gqlUnion) =
   Printf.sprintf
     "{name: \"%s\", description: %s, types: () => [%s], resolveType: \
-     GraphQLUnionType.makeResolveUnionTypeFn(%s)}"
+     GraphQLUnionType.makeResolveUnionTypeFn(%s), %s}"
     union.displayName
     (undefinedOrValueAsString union.description)
     (union.types
@@ -210,6 +218,7 @@ let printUnionType (union : gqlUnion) =
            Printf.sprintf "get_%s()" member.displayName)
     |> String.concat ", ")
     (Printf.sprintf "union_%s_resolveType" union.displayName)
+    (typeLocationToAstNode union.typeLocation)
 
 let printSchemaAssets ~schemaState ~processedSchema =
   let code = ref "/* @generated */\n\n@@warning(\"-27-34-37\")\n\n" in

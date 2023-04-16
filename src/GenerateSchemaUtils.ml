@@ -166,7 +166,13 @@ let rec findModulePathOfType ~schemaState ~(env : SharedTypes.QueryEnv.t)
 let findTypeLocation ~(env : SharedTypes.QueryEnv.t)
     ~(expectedType : expectedType) ~schemaState ~loc name =
   let typeLocation : typeLocation =
-    {fileName = env.file.moduleName; modulePath = []; typeName = name; loc}
+    {
+      fileName = env.file.moduleName;
+      modulePath = [];
+      typeName = name;
+      loc;
+      fileUri = env.file.uri;
+    }
   in
   match findModulePathOfType ~schemaState ~env ~expectedType name with
   | None ->
