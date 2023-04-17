@@ -5,6 +5,9 @@ type query = {}
 type user = {@gql.field name: string, @gql.field age: int}
 
 @gql.field
-let me = (_: query) => {
-  {name: "Mr test", age: 35}
+let me = (_: query, ~ctx: ResGraphContext.context): option<user> => {
+  switch ctx.currentUserId {
+  | None => None
+  | Some(currentUserId) => await ctx.dataLoaders.loadUserById(currentUserId)
+  }
 }

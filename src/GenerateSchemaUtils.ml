@@ -274,6 +274,24 @@ let addFieldToObjectType ~env ~loc ~field ~schemaState typeName =
   in
   Hashtbl.replace schemaState.types typeName typ
 
+let addFieldToInterfaceType ~env ~loc ~field ~schemaState typeName =
+  let typ : gqlInterface =
+    match Hashtbl.find_opt schemaState.interfaces typeName with
+    | None ->
+      {
+        id = typeName;
+        displayName = capitalizeFirstChar typeName;
+        fields = [field];
+        interfaces = [];
+        description = field.description;
+        typeLocation =
+          findTypeLocation ~schemaState typeName ~env ~loc
+            ~expectedType:Interface;
+      }
+    | Some typ -> {typ with fields = field :: typ.fields}
+  in
+  Hashtbl.replace schemaState.interfaces typeName typ
+
 let undefinedOrValueAsString v =
   match v with
   | None -> "?(None)"
@@ -501,10 +519,12 @@ let processSchema (schemaState : schemaState) =
                 let typeStr, endingLineNum, hasSpread =
                   loop !lastEndlingLine [] entry
                 in
+                (* Check for interfaces *)
                 (if hasSpread then
                  match findInterfacesOfType ~schemaState typeStr with
                  | None -> ()
                  | Some implementsInterfaces -> (
+                   (* Add all found interfaces to relevant types or interfaces. *)
                    match entry.typ with
                    | ObjectType ->
                      Hashtbl.replace schemaState.types entry.id
@@ -512,8 +532,32 @@ let processSchema (schemaState : schemaState) =
                          (Hashtbl.find schemaState.types entry.id) with
                          interfaces = implementsInterfaces;
                        };
+
+                     (* Process each interface for this type *)
                      implementsInterfaces
                      |> List.iter (fun intfId ->
+                            let interface =
+                              Hashtbl.find schemaState.interfaces intfId
+                            in
+                            let typ = Hashtbl.find schemaState.types entry.id in
+                            let doesNotHaveField name =
+                              typ.fields
+                              |> List.exists (fun (field : gqlField) ->
+                                     field.name = name)
+                              = false
+                            in
+                            (* Add relevant fields from interface to the type implementing it *)
+                            Hashtbl.replace schemaState.types entry.id
+                              {
+                                typ with
+                                fields =
+                                  typ.fields
+                                  @ (interface.fields
+                                    |> List.filter (fun (field : gqlField) ->
+                                           doesNotHaveField field.name));
+                              };
+
+                            (* Map interface as implemented by this type *)
                             match
                               Hashtbl.find_opt
                                 processedSchema.interfaceImplementedBy intfId

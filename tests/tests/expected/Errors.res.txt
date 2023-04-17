@@ -8,6 +8,7 @@ Adding input object group2
 Adding interface hasName
 Checking for type to attach resolver to
 noticing query
+Checking for type to attach resolver to
 Adding interface node
 Checking for type to attach resolver to
 Checking for type to attach resolver to

@@ -1,6 +1,8 @@
 open GenerateSchemaTypes
 open GenerateSchemaUtils
 
+type context = CtxDefault | CtxInterface
+
 let typeLocationToAstNode (typeLocation : typeLocation) =
   Printf.sprintf "astNode: {uri: \"%s\", range: %s}"
     (typeLocation.fileUri |> Uri.toPath |> Json.escape)
@@ -137,18 +139,19 @@ let printArgs (args : gqlArg list) =
          if arg.typ = InjectContext then None
          else Some (Printf.sprintf "\"%s\": %s" arg.name (printArg arg)))
   |> String.concat ", "
-let printField (field : gqlField) =
+let printField ?(context = CtxDefault) (field : gqlField) =
   let printableArgs = GenerateSchemaUtils.onlyPrintableArgs field.args in
-  Printf.sprintf
-    "{typ: %s, description: %s, deprecationReason: %s, %sresolve: \
-     makeResolveFn(%s)}"
+  Printf.sprintf "{typ: %s, description: %s, deprecationReason: %s, %s%s}"
     (printGraphQLType field.typ)
     (field.description |> undefinedOrValueAsString)
     (field.deprecationReason |> undefinedOrValueAsString)
     (if printableArgs |> List.length > 0 then
      Printf.sprintf " args: {%s}->makeArgs, " (printArgs printableArgs)
     else " ")
-    (printResolverForField field)
+    (match context with
+    | CtxDefault ->
+      Printf.sprintf "resolve: makeResolveFn(%s)" (printResolverForField field)
+    | CtxInterface -> "")
 
 let printInputObjectField (field : gqlField) =
   Printf.sprintf
@@ -157,13 +160,13 @@ let printInputObjectField (field : gqlField) =
     (field.description |> undefinedOrValueAsString)
     (field.deprecationReason |> undefinedOrValueAsString)
 
-let printFields (fields : gqlField list) =
+let printFields ?context (fields : gqlField list) =
   Printf.sprintf "{%s}->makeFields"
     (if fields |> List.length = 0 then "%raw(`{}`)"
     else
       fields
       |> List.map (fun (field : gqlField) ->
-             Printf.sprintf "\"%s\": %s" field.name (printField field))
+             Printf.sprintf "\"%s\": %s" field.name (printField ?context field))
       |> String.concat ",\n")
 let printInputObjectFields (fields : gqlField list) =
   Printf.sprintf "{%s}->makeFields"
@@ -198,7 +201,7 @@ let printInterfaceType (typ : gqlInterface) =
            Printf.sprintf "get_%s()"
              (GenerateSchemaUtils.capitalizeFirstChar id))
     |> String.concat ", ")
-    (printFields typ.fields)
+    (printFields ~context:CtxInterface typ.fields)
     (Printf.sprintf "interface_%s_resolveType" typ.displayName)
     (typeLocationToAstNode typ.typeLocation)
 

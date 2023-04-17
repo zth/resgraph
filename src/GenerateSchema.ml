@@ -522,6 +522,31 @@ and traverseStructure ?(modulePath = []) ?originModule
                    }
                  in
                  addFieldToObjectType ~env ~loc:item.loc ~field ~schemaState id
+               | Some (GraphQLInterface {id}, args, returnType) ->
+                 (* Resolver for interface type. *)
+                 let field =
+                   {
+                     loc = item.loc;
+                     name = item.name;
+                     description = item.attributes |> attributesToDocstring;
+                     deprecationReason =
+                       item.attributes
+                       |> ProcessAttributes.findDeprecatedAttribute;
+                     resolverStyle =
+                       Resolver
+                         {
+                           moduleName = env.file.moduleName;
+                           fnName = item.name;
+                           pathToFn = modulePath;
+                         };
+                     typ = returnType;
+                     args =
+                       mapFunctionArgs ~full ~debug ~env ~schemaState
+                         ~fnLoc:item.loc args;
+                   }
+                 in
+                 addFieldToInterfaceType ~env ~loc:item.loc ~field ~schemaState
+                   id
                | _ ->
                  schemaState
                  |> addDiagnostic
