@@ -511,43 +511,55 @@ let processSchema (schemaState : schemaState) =
                        {
                          (Hashtbl.find schemaState.types entry.id) with
                          interfaces = implementsInterfaces;
-                       }
+                       };
+                     implementsInterfaces
+                     |> List.iter (fun intfId ->
+                            match
+                              Hashtbl.find_opt
+                                processedSchema.interfaceImplementedBy intfId
+                            with
+                            | None ->
+                              Hashtbl.add processedSchema.interfaceImplementedBy
+                                intfId
+                                [
+                                  ObjectType
+                                    (Hashtbl.find schemaState.types entry.id);
+                                ]
+                            | Some item ->
+                              Hashtbl.replace
+                                processedSchema.interfaceImplementedBy intfId
+                                (ObjectType
+                                   (Hashtbl.find schemaState.types entry.id)
+                                :: item))
                    | Interface ->
                      Hashtbl.replace schemaState.interfaces entry.id
                        {
                          (Hashtbl.find schemaState.interfaces entry.id) with
                          interfaces = implementsInterfaces;
-                       }));
+                       };
+                     implementsInterfaces
+                     |> List.iter (fun intfId ->
+                            match
+                              Hashtbl.find_opt
+                                processedSchema.interfaceImplementedBy intfId
+                            with
+                            | None ->
+                              Hashtbl.add processedSchema.interfaceImplementedBy
+                                intfId
+                                [
+                                  Interface
+                                    (Hashtbl.find schemaState.interfaces
+                                       entry.id);
+                                ]
+                            | Some item ->
+                              Hashtbl.replace
+                                processedSchema.interfaceImplementedBy intfId
+                                (Interface
+                                   (Hashtbl.find schemaState.interfaces entry.id)
+                                :: item))));
                 lastEndlingLine := endingLineNum);
          close_in fileChannel);
 
-  schemaState.types
-  |> Hashtbl.iter (fun _name (t : gqlObjectType) ->
-         t.interfaces
-         |> List.iter (fun id ->
-                match
-                  Hashtbl.find_opt processedSchema.interfaceImplementedBy id
-                with
-                | None ->
-                  Hashtbl.add processedSchema.interfaceImplementedBy id
-                    [ObjectType (Hashtbl.find schemaState.types t.id)]
-                | Some item ->
-                  Hashtbl.replace processedSchema.interfaceImplementedBy id
-                    (ObjectType (Hashtbl.find schemaState.types t.id) :: item)));
-  schemaState.interfaces
-  |> Hashtbl.iter (fun _name (t : gqlInterface) ->
-         t.interfaces
-         |> List.iter (fun id ->
-                match
-                  Hashtbl.find_opt processedSchema.interfaceImplementedBy id
-                with
-                | None ->
-                  Hashtbl.add processedSchema.interfaceImplementedBy id
-                    [Interface (Hashtbl.find schemaState.interfaces t.id)]
-                | Some item ->
-                  Hashtbl.replace processedSchema.interfaceImplementedBy id
-                    (Interface (Hashtbl.find schemaState.interfaces t.id)
-                    :: item)));
   processedSchema
 
 (** Some arguments aren't intended to be printed in the `args` list, like
