@@ -68,20 +68,20 @@ let enum_UserStatus = GraphQLEnumType.make({
     },
   }->makeEnumValues,
 })
-let i_Node: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
-let get_Node = () => i_Node.contents
 let i_HasName: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
 let get_HasName = () => i_HasName.contents
-let t_Mutation: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
-let get_Mutation = () => t_Mutation.contents
-let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
-let get_User = () => t_User.contents
+let i_Node: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
+let get_Node = () => i_Node.contents
 let t_Group: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Group = () => t_Group.contents
+let t_Mutation: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let get_Mutation = () => t_Mutation.contents
 let t_Pet: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Pet = () => t_Pet.contents
 let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Query = () => t_Query.contents
+let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let get_User = () => t_User.contents
 let input_UserConfig: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
 let get_UserConfig = () => input_UserConfig.contents
 let input_UserConfig_conversionInstructions = []
@@ -113,12 +113,6 @@ let union_UserOrGroup_resolveType = (v: Schema.userOrGroup) =>
   | Group(_) => "Group"
   }
 
-let interface_Node_resolveType = (v: ResGraphSchemaAssets.node_resolver) =>
-  switch v {
-  | Group(_) => "Group"
-  | User(_) => "User"
-  }
-
 let interface_HasName_resolveType = (v: ResGraphSchemaAssets.hasName_resolver) =>
   switch v {
   | Pet(_) => "Pet"
@@ -126,20 +120,12 @@ let interface_HasName_resolveType = (v: ResGraphSchemaAssets.hasName_resolver) =
   | User(_) => "User"
   }
 
-i_Node.contents = GraphQLInterfaceType.make({
-  name: "Node",
-  description: "An object with an ID",
-  interfaces: [],
-  fields: () =>
-    {
-      "id": {
-        typ: Scalars.id->Scalars.toGraphQLType->nonNull,
-        description: "The id of the object.",
-        deprecationReason: ?None,
-      },
-    }->makeFields,
-  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Node_resolveType),
-})
+let interface_Node_resolveType = (v: ResGraphSchemaAssets.node_resolver) =>
+  switch v {
+  | Group(_) => "Group"
+  | User(_) => "User"
+  }
+
 i_HasName.contents = GraphQLInterfaceType.make({
   name: "HasName",
   description: "An entity with a name.",
@@ -159,6 +145,55 @@ i_HasName.contents = GraphQLInterfaceType.make({
     }->makeFields,
   resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_HasName_resolveType),
 })
+i_Node.contents = GraphQLInterfaceType.make({
+  name: "Node",
+  description: "An object with an ID",
+  interfaces: [],
+  fields: () =>
+    {
+      "id": {
+        typ: Scalars.id->Scalars.toGraphQLType->nonNull,
+        description: "The id of the object.",
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Node_resolveType),
+})
+t_Group.contents = GraphQLObjectType.make({
+  name: "Group",
+  description: "A group in the system.",
+  interfaces: [get_HasName(), get_Node()],
+  fields: () =>
+    {
+      "abbreviatedName": {
+        typ: Scalars.string->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          HasNameInterfaceResolvers.abbreviatedName(src)
+        }),
+      },
+      "id": {
+        typ: Scalars.id->Scalars.toGraphQLType->nonNull,
+        description: "The id of the object.",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["id"]
+        }),
+      },
+      "name": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["name"]
+        }),
+      },
+    }->makeFields,
+})
 t_Mutation.contents = GraphQLObjectType.make({
   name: "Mutation",
   description: ?None,
@@ -177,146 +212,19 @@ t_Mutation.contents = GraphQLObjectType.make({
       },
     }->makeFields,
 })
-t_User.contents = GraphQLObjectType.make({
-  name: "User",
-  description: "A user in the system.",
-  interfaces: [get_Node(), get_HasName()],
-  fields: () =>
-    {
-      "allNames": {
-        typ: GraphQLListType.make(Scalars.string->Scalars.toGraphQLType->nonNull)
-        ->GraphQLListType.toGraphQLType
-        ->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
-          let src = typeUnwrapper(src)
-          Schema.UserFields.allNames(src)
-        }),
-      },
-      "currentStatus": {
-        typ: enum_UserStatus->GraphQLEnumType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
-          let src = typeUnwrapper(src)
-          Schema.UserFields.currentStatus(src)
-        }),
-      },
-      "name": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        args: {"includeFullName": {typ: Scalars.boolean->Scalars.toGraphQLType}}->makeArgs,
-        resolve: makeResolveFn((src, args, ctx) => {
-          let src = typeUnwrapper(src)
-          Schema.UserFields.name(src, ~includeFullName=args["includeFullName"]->Nullable.toOption)
-        }),
-      },
-      "id": {
-        typ: Scalars.id->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
-          let src = typeUnwrapper(src)
-          NodeInterfaceResolver.id(src)
-        }),
-      },
-      "id": {
-        typ: Scalars.id->Scalars.toGraphQLType->nonNull,
-        description: "The id of the object.",
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
-          let src = typeUnwrapper(src)
-          src["id"]
-        }),
-      },
-      "name": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
-          let src = typeUnwrapper(src)
-          src["name"]
-        }),
-      },
-      "age": {
-        typ: Scalars.int->Scalars.toGraphQLType->nonNull,
-        description: "The age of the user.",
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
-          let src = typeUnwrapper(src)
-          src["age"]
-        }),
-      },
-      "lastAge": {
-        typ: Scalars.int->Scalars.toGraphQLType,
-        description: "The last age of the user.",
-        deprecationReason: "Use 'age' instead.",
-        resolve: makeResolveFn((src, _args, _ctx) => {
-          let src = typeUnwrapper(src)
-          src["lastAge"]
-        }),
-      },
-      "abbreviatedName": {
-        typ: Scalars.string->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
-          let src = typeUnwrapper(src)
-          HasNameInterfaceResolvers.abbreviatedName(src)
-        }),
-      },
-    }->makeFields,
-})
-t_Group.contents = GraphQLObjectType.make({
-  name: "Group",
-  description: "A group in the system.",
-  interfaces: [get_Node(), get_HasName()],
-  fields: () =>
-    {
-      "id": {
-        typ: Scalars.id->Scalars.toGraphQLType->nonNull,
-        description: "The id of the object.",
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
-          let src = typeUnwrapper(src)
-          src["id"]
-        }),
-      },
-      "name": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
-          let src = typeUnwrapper(src)
-          src["name"]
-        }),
-      },
-      "abbreviatedName": {
-        typ: Scalars.string->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
-          let src = typeUnwrapper(src)
-          HasNameInterfaceResolvers.abbreviatedName(src)
-        }),
-      },
-    }->makeFields,
-})
 t_Pet.contents = GraphQLObjectType.make({
   name: "Pet",
   description: ?None,
   interfaces: [get_HasName()],
   fields: () =>
     {
-      "name": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      "abbreviatedName": {
+        typ: Scalars.string->Scalars.toGraphQLType,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
-          src["name"]
+          HasNameInterfaceResolvers.abbreviatedName(src)
         }),
       },
       "age": {
@@ -328,13 +236,13 @@ t_Pet.contents = GraphQLObjectType.make({
           src["age"]
         }),
       },
-      "abbreviatedName": {
-        typ: Scalars.string->Scalars.toGraphQLType,
+      "name": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx) => {
           let src = typeUnwrapper(src)
-          HasNameInterfaceResolvers.abbreviatedName(src)
+          src["name"]
         }),
       },
     }->makeFields,
@@ -345,13 +253,34 @@ t_Query.contents = GraphQLObjectType.make({
   interfaces: [],
   fields: () =>
     {
-      "pet": {
-        typ: get_Pet()->GraphQLObjectType.toGraphQLType,
+      "allowExplicitNull": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
         description: ?None,
         deprecationReason: ?None,
+        args: {"someNullable": {typ: Scalars.string->Scalars.toGraphQLType}}->makeArgs,
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
-          Schema.QueryFields.pet(src)
+          Schema.QueryFields.allowExplicitNull(src, ~someNullable=args["someNullable"])
+        }),
+      },
+      "entity": {
+        typ: get_UserOrGroup()->GraphQLUnionType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.QueryFields.entity(src, ~ctx, ~id=args["id"])
+        }),
+      },
+      "hasName": {
+        typ: get_HasName()->GraphQLInterfaceType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          HasNameInterfaceResolvers.hasName(src, ~id=args["id"])
         }),
       },
       "listAsArgs": {
@@ -361,26 +290,6 @@ t_Query.contents = GraphQLObjectType.make({
         description: ?None,
         deprecationReason: ?None,
         args: {
-          "regularList": {
-            typ: GraphQLListType.make(Scalars.string->Scalars.toGraphQLType)
-            ->GraphQLListType.toGraphQLType
-            ->nonNull,
-          },
-          "optionalList": {
-            typ: GraphQLListType.make(
-              Scalars.string->Scalars.toGraphQLType->nonNull,
-            )->GraphQLListType.toGraphQLType,
-          },
-          "nullableList": {
-            typ: GraphQLListType.make(
-              Scalars.string->Scalars.toGraphQLType,
-            )->GraphQLListType.toGraphQLType,
-          },
-          "nullableInnerList": {
-            typ: GraphQLListType.make(
-              Scalars.string->Scalars.toGraphQLType,
-            )->GraphQLListType.toGraphQLType,
-          },
           "list1": {
             typ: GraphQLListType.make(
               Scalars.string->Scalars.toGraphQLType,
@@ -402,19 +311,31 @@ t_Query.contents = GraphQLObjectType.make({
               )->GraphQLListType.toGraphQLType,
             )->GraphQLListType.toGraphQLType,
           },
+          "nullableInnerList": {
+            typ: GraphQLListType.make(
+              Scalars.string->Scalars.toGraphQLType,
+            )->GraphQLListType.toGraphQLType,
+          },
+          "nullableList": {
+            typ: GraphQLListType.make(
+              Scalars.string->Scalars.toGraphQLType,
+            )->GraphQLListType.toGraphQLType,
+          },
+          "optionalList": {
+            typ: GraphQLListType.make(
+              Scalars.string->Scalars.toGraphQLType->nonNull,
+            )->GraphQLListType.toGraphQLType,
+          },
+          "regularList": {
+            typ: GraphQLListType.make(Scalars.string->Scalars.toGraphQLType)
+            ->GraphQLListType.toGraphQLType
+            ->nonNull,
+          },
         }->makeArgs,
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
           Schema.QueryFields.listAsArgs(
             src,
-            ~regularList=args["regularList"]->Array.map(v => v->Nullable.toOption),
-            ~optionalList=?args["optionalList"]->Nullable.toOption,
-            ~nullableList=args["nullableList"]->Nullable.map(v =>
-              v->Array.map(v => v->Nullable.toOption)
-            ),
-            ~nullableInnerList=args["nullableInnerList"]->Nullable.map(v =>
-              v->Array.map(v => v->Nullable.toOption)
-            ),
             ~list1=switch args["list1"]->Nullable.toOption {
             | None => None
             | Some(v) => v->Array.map(v => v->Nullable.toOption)->Some
@@ -435,17 +356,61 @@ t_Query.contents = GraphQLObjectType.make({
             | None => None
             | Some(v) => v->Array.map(v => v->Nullable.toOption)->Some
             },
+            ~nullableInnerList=args["nullableInnerList"]->Nullable.map(v =>
+              v->Array.map(v => v->Nullable.toOption)
+            ),
+            ~nullableList=args["nullableList"]->Nullable.map(v =>
+              v->Array.map(v => v->Nullable.toOption)
+            ),
+            ~optionalList=?args["optionalList"]->Nullable.toOption,
+            ~regularList=args["regularList"]->Array.map(v => v->Nullable.toOption),
           )
         }),
       },
-      "allowExplicitNull": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      "me": {
+        typ: get_User()->GraphQLObjectType.toGraphQLType,
         description: ?None,
         deprecationReason: ?None,
-        args: {"someNullable": {typ: Scalars.string->Scalars.toGraphQLType}}->makeArgs,
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
-          Schema.QueryFields.allowExplicitNull(src, ~someNullable=args["someNullable"])
+          Schema.QueryFields.me(src, ~ctx)
+        }),
+      },
+      "node": {
+        typ: get_Node()->GraphQLInterfaceType.toGraphQLType,
+        description: "Fetches an object given its ID.",
+        deprecationReason: ?None,
+        args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          NodeInterfaceResolver.node(src, ~ctx, ~id=args["id"])
+        }),
+      },
+      "nodes": {
+        typ: GraphQLListType.make(get_Node()->GraphQLInterfaceType.toGraphQLType)
+        ->GraphQLListType.toGraphQLType
+        ->nonNull,
+        description: "Fetches objects given their IDs.",
+        deprecationReason: ?None,
+        args: {
+          "ids": {
+            typ: GraphQLListType.make(Scalars.id->Scalars.toGraphQLType->nonNull)
+            ->GraphQLListType.toGraphQLType
+            ->nonNull,
+          },
+        }->makeArgs,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          NodeInterfaceResolver.nodes(src, ~ctx, ~ids=args["ids"])
+        }),
+      },
+      "pet": {
+        typ: get_Pet()->GraphQLObjectType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.QueryFields.pet(src)
         }),
       },
       "searchForUser": {
@@ -465,61 +430,96 @@ t_Query.contents = GraphQLObjectType.make({
           )
         }),
       },
-      "entity": {
-        typ: get_UserOrGroup()->GraphQLUnionType.toGraphQLType->nonNull,
+    }->makeFields,
+})
+t_User.contents = GraphQLObjectType.make({
+  name: "User",
+  description: "A user in the system.",
+  interfaces: [get_HasName(), get_Node()],
+  fields: () =>
+    {
+      "abbreviatedName": {
+        typ: Scalars.string->Scalars.toGraphQLType,
         description: ?None,
         deprecationReason: ?None,
-        args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
-          Schema.QueryFields.entity(src, ~id=args["id"], ~ctx)
+          HasNameInterfaceResolvers.abbreviatedName(src)
         }),
       },
-      "me": {
-        typ: get_User()->GraphQLObjectType.toGraphQLType,
-        description: ?None,
+      "age": {
+        typ: Scalars.int->Scalars.toGraphQLType->nonNull,
+        description: "The age of the user.",
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx) => {
           let src = typeUnwrapper(src)
-          Schema.QueryFields.me(src, ~ctx)
+          src["age"]
         }),
       },
-      "nodes": {
-        typ: GraphQLListType.make(get_Node()->GraphQLInterfaceType.toGraphQLType)
+      "allNames": {
+        typ: GraphQLListType.make(Scalars.string->Scalars.toGraphQLType->nonNull)
         ->GraphQLListType.toGraphQLType
         ->nonNull,
-        description: "Fetches objects given their IDs.",
-        deprecationReason: ?None,
-        args: {
-          "ids": {
-            typ: GraphQLListType.make(Scalars.id->Scalars.toGraphQLType->nonNull)
-            ->GraphQLListType.toGraphQLType
-            ->nonNull,
-          },
-        }->makeArgs,
-        resolve: makeResolveFn((src, args, ctx) => {
-          let src = typeUnwrapper(src)
-          NodeInterfaceResolver.nodes(src, ~ids=args["ids"], ~ctx)
-        }),
-      },
-      "node": {
-        typ: get_Node()->GraphQLInterfaceType.toGraphQLType,
-        description: "Fetches an object given its ID.",
-        deprecationReason: ?None,
-        args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,
-        resolve: makeResolveFn((src, args, ctx) => {
-          let src = typeUnwrapper(src)
-          NodeInterfaceResolver.node(src, ~id=args["id"], ~ctx)
-        }),
-      },
-      "hasName": {
-        typ: get_HasName()->GraphQLInterfaceType.toGraphQLType,
         description: ?None,
         deprecationReason: ?None,
-        args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
-          HasNameInterfaceResolvers.hasName(src, ~id=args["id"])
+          Schema.UserFields.allNames(src)
+        }),
+      },
+      "currentStatus": {
+        typ: enum_UserStatus->GraphQLEnumType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.UserFields.currentStatus(src)
+        }),
+      },
+      "id": {
+        typ: Scalars.id->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          NodeInterfaceResolver.id(src)
+        }),
+      },
+      "id": {
+        typ: Scalars.id->Scalars.toGraphQLType->nonNull,
+        description: "The id of the object.",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["id"]
+        }),
+      },
+      "lastAge": {
+        typ: Scalars.int->Scalars.toGraphQLType,
+        description: "The last age of the user.",
+        deprecationReason: "Use 'age' instead.",
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["lastAge"]
+        }),
+      },
+      "name": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {"includeFullName": {typ: Scalars.boolean->Scalars.toGraphQLType}}->makeArgs,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.UserFields.name(src, ~includeFullName=args["includeFullName"]->Nullable.toOption)
+        }),
+      },
+      "name": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["name"]
         }),
       },
     }->makeFields,
@@ -529,6 +529,11 @@ input_UserConfig.contents = GraphQLInputObjectType.make({
   description: "Configuration for searching for a user.",
   fields: () =>
     {
+      "context": {
+        GraphQLInputObjectType.typ: get_UserConfigContext()->GraphQLInputObjectType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
       "id": {
         GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
         description: "The ID of a user to search for.",
@@ -538,11 +543,6 @@ input_UserConfig.contents = GraphQLInputObjectType.make({
         GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType,
         description: "The name of the user to search for.",
         deprecationReason: "This is going away",
-      },
-      "context": {
-        GraphQLInputObjectType.typ: get_UserConfigContext()->GraphQLInputObjectType.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
       },
     }->makeFields,
 })
@@ -566,7 +566,7 @@ input_UserConfigContext.contents = GraphQLInputObjectType.make({
 union_UserOrGroup.contents = GraphQLUnionType.make({
   name: "UserOrGroup",
   description: "A user or a group.",
-  types: () => [get_User(), get_Group()],
+  types: () => [get_Group(), get_User()],
   resolveType: GraphQLUnionType.makeResolveUnionTypeFn(union_UserOrGroup_resolveType),
 })
 

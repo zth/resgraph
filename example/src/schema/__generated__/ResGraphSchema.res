@@ -21,10 +21,10 @@ let applyConversionToInputObject: (
 
 let i_HasName: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
 let get_HasName = () => i_HasName.contents
-let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
-let get_User = () => t_User.contents
 let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Query = () => t_Query.contents
+let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let get_User = () => t_User.contents
 
 let interface_HasName_resolveType = (v: ResGraphSchemaAssets.hasName_resolver) =>
   switch v {
@@ -45,32 +45,6 @@ i_HasName.contents = GraphQLInterfaceType.make({
     }->makeFields,
   resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_HasName_resolveType),
 })
-t_User.contents = GraphQLObjectType.make({
-  name: "User",
-  description: ?None,
-  interfaces: [get_HasName()],
-  fields: () =>
-    {
-      "name": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
-          let src = typeUnwrapper(src)
-          src["name"]
-        }),
-      },
-      "age": {
-        typ: Scalars.int->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
-          let src = typeUnwrapper(src)
-          src["age"]
-        }),
-      },
-    }->makeFields,
-})
 t_Query.contents = GraphQLObjectType.make({
   name: "Query",
   description: ?None,
@@ -84,6 +58,32 @@ t_Query.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
           GraphQLSchema.me(src)
+        }),
+      },
+    }->makeFields,
+})
+t_User.contents = GraphQLObjectType.make({
+  name: "User",
+  description: ?None,
+  interfaces: [get_HasName()],
+  fields: () =>
+    {
+      "age": {
+        typ: Scalars.int->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["age"]
+        }),
+      },
+      "name": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["name"]
         }),
       },
     }->makeFields,

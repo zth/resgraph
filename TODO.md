@@ -15,13 +15,13 @@
 - [x] Runtime conversion for input objects to match ReScript representation
 - [ ] Figure out how to do subscriptions properly. Async iterators? What else exists?
 - [ ] How to import and use existing things from the ecosystem?
-- [ ] Think about and fix compilation
+- [x] Think about and fix compilation
 - [x] Traverse structure cache/circuit breaker
 - [ ] Interface as root type -> add resolver/field to all implementors
 - [ ] Directives
 - [ ] Custom scalars
-- [ ] Figure out a good way to bridge graphql-js validations (print dummy schema without resolvers and run validation on that?)
-- [ ] Sort alphabetically in schema output to simplify conflicts/make regeneration stable
+- [ ] ~~Figure out a good way to bridge graphql-js validations (print dummy schema without resolvers and run validation on that?)~
+- [x] Sort alphabetically in schema output to simplify conflicts/make regeneration stable
 - [ ] Interfaces picked up that nobody implements should not be printed at all
 
 ## Project integration

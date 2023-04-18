@@ -16,7 +16,7 @@
   "license": "ISC",
   "dependencies": {
     "@rescript/core": "^0.2.0",
-    "rescript": "^10.1.4"
+    "rescript": "^11.0.0-alpha.3"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"

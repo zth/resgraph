@@ -3,8 +3,8 @@ type Query {
 }
 
 type User implements HasName {
-  name: String!
   age: Int!
+  name: String!
 }
 
 interface HasName {

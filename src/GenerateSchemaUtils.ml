@@ -671,3 +671,8 @@ let readStateFile ~package =
     Marshal.from_channel ch
   in
   s
+
+let iterHashtblAlphabetically fn hashtbl =
+  Hashtbl.fold (fun k v acc -> (k, v) :: acc) hashtbl []
+  |> List.sort (fun (k1, _) (k2, _) -> String.compare k1 k2)
+  |> List.iter (fun (k, v) -> fn k v)

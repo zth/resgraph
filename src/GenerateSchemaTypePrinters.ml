@@ -18,6 +18,7 @@ let printResolverForField (field : gqlField) =
     if List.length field.args > 0 then
       resolverCode ^ ", "
       ^ (field.args
+        |> List.sort (fun (a1 : gqlArg) a2 -> String.compare a1.name a2.name)
         |> List.map (fun (arg : gqlArg) ->
                if hasCtxArg && Some arg.name = ctxArgName then
                  Printf.sprintf "~%s=ctx" (ctxArgName |> Option.get)
@@ -69,20 +70,33 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
       nullablePostfix
   | InjectContext -> "Obj.magic()"
 
+let displayNameFromImplementedBy
+    (interfaceImplementedBy : interfaceImplementedBy) =
+  match interfaceImplementedBy with
+  | ObjectType {displayName} | Interface {displayName} -> displayName
+
+let typeLocationFromImplementedBy
+    (interfaceImplementedBy : interfaceImplementedBy) =
+  match interfaceImplementedBy with
+  | ObjectType {typeLocation} | Interface {typeLocation} ->
+    typeLocationToAccessor typeLocation
+
+let sortImplementedBy (a1 : interfaceImplementedBy) a2 =
+  String.compare
+    (displayNameFromImplementedBy a1)
+    (displayNameFromImplementedBy a2)
+
 let printInterfaceResolverReturnType
     (gqlInterfaceIdentifier : gqlInterfaceIdentifier)
     ~(implementedBy : interfaceImplementedBy list) =
   Printf.sprintf "@gql.interfaceResolver(\"%s\") type %s_resolver = %s"
     gqlInterfaceIdentifier.id gqlInterfaceIdentifier.id
     (implementedBy
+    |> List.sort sortImplementedBy
     |> List.map (fun (i : interfaceImplementedBy) ->
-           match i with
-           | ObjectType t ->
-             Printf.sprintf "%s(%s)" t.displayName
-               (typeLocationToAccessor t.typeLocation)
-           | Interface t ->
-             Printf.sprintf "%s(%s)" t.displayName
-               (typeLocationToAccessor t.typeLocation))
+           Printf.sprintf "%s(%s)"
+             (displayNameFromImplementedBy i)
+             (typeLocationFromImplementedBy i))
     |> String.concat " | ")
 
 let printInterfaceImplementedByType
@@ -92,10 +106,9 @@ let printInterfaceImplementedByType
   else
     Printf.sprintf "type %s_implementedBy = %s" gqlInterfaceIdentifier.id
       (implementedBy
+      |> List.sort sortImplementedBy
       |> List.map (fun (i : interfaceImplementedBy) ->
-             match i with
-             | ObjectType t -> Printf.sprintf "%s" t.displayName
-             | Interface t -> Printf.sprintf "%s" t.displayName)
+             displayNameFromImplementedBy i)
       |> String.concat " | ")
 
 let printInterfaceTypenameDecoder
@@ -108,12 +121,10 @@ let printInterfaceTypenameDecoder
        %s | _ => None}"
       gqlInterfaceIdentifier.id
       (implementedBy
+      |> List.sort sortImplementedBy
       |> List.map (fun (i : interfaceImplementedBy) ->
-             match i with
-             | ObjectType t ->
-               Printf.sprintf "\"%s\" => Some(%s)" t.displayName t.displayName
-             | Interface t ->
-               Printf.sprintf "\"%s\" => Some(%s)" t.displayName t.displayName)
+             let displayName = displayNameFromImplementedBy i in
+             Printf.sprintf "\"%s\" => Some(%s)" displayName displayName)
       |> String.concat " | ")
 
 let printInterfaceTypenameToString
@@ -130,6 +141,7 @@ let printArg (arg : gqlArg) =
   Printf.sprintf "{typ: %s}" (printGraphQLType arg.typ)
 let printArgs (args : gqlArg list) =
   args
+  |> List.sort (fun (a1 : gqlArg) a2 -> String.compare a1.name a2.name)
   |> List.filter_map (fun (arg : gqlArg) ->
          if arg.typ = InjectContext then None
          else Some (Printf.sprintf "\"%s\": %s" arg.name (printArg arg)))
@@ -160,6 +172,7 @@ let printFields ?context (fields : gqlField list) =
     (if fields |> List.length = 0 then "%raw(`{}`)"
     else
       fields
+      |> List.sort (fun (a1 : gqlField) a2 -> String.compare a1.name a2.name)
       |> List.map (fun (field : gqlField) ->
              Printf.sprintf "\"%s\": %s" field.name (printField ?context field))
       |> String.concat ",\n")
@@ -168,6 +181,7 @@ let printInputObjectFields (fields : gqlField list) =
     (if fields |> List.length = 0 then "%raw(`{}`)"
     else
       fields
+      |> List.sort (fun (a1 : gqlField) a2 -> String.compare a1.name a2.name)
       |> List.map (fun (field : gqlField) ->
              Printf.sprintf "\"%s\": %s" field.name
                (printInputObjectField field))
@@ -177,7 +191,7 @@ let printObjectType (typ : gqlObjectType) =
     "{name: \"%s\", description: %s, interfaces: [%s], fields: () => %s}"
     typ.displayName
     (undefinedOrValueAsString typ.description)
-    (typ.interfaces
+    (typ.interfaces |> List.sort String.compare
     |> List.map (fun id ->
            Printf.sprintf "get_%s()"
              (GenerateSchemaUtils.capitalizeFirstChar id))
@@ -190,7 +204,7 @@ let printInterfaceType (typ : gqlInterface) =
      resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(%s)}"
     typ.displayName
     (undefinedOrValueAsString typ.description)
-    (typ.interfaces
+    (typ.interfaces |> List.sort String.compare
     |> List.map (fun id ->
            Printf.sprintf "get_%s()"
              (GenerateSchemaUtils.capitalizeFirstChar id))
@@ -211,6 +225,8 @@ let printUnionType (union : gqlUnion) =
     union.displayName
     (undefinedOrValueAsString union.description)
     (union.types
+    |> List.sort (fun (m1 : gqlUnionMember) m2 ->
+           String.compare m1.displayName m2.displayName)
     |> List.map (fun (member : gqlUnionMember) ->
            Printf.sprintf "get_%s()" member.displayName)
     |> String.concat ", ")
@@ -222,7 +238,7 @@ let printSchemaAssets ~(schemaState : schemaState) ~processedSchema =
 
   (* Interface assets *)
   schemaState.interfaces
-  |> Hashtbl.iter (fun _name (typ : gqlInterface) ->
+  |> iterHashtblAlphabetically (fun _name (typ : gqlInterface) ->
          let interfaceIdentifier =
            {id = typ.id; displayName = typ.displayName}
          in
@@ -286,7 +302,7 @@ let printSchemaJsFile schemaState processSchema =
 
   (* Print all enums. These won't have any other dependencies, so they can be printed as is. *)
   schemaState.enums
-  |> Hashtbl.iter (fun _name (enum : gqlEnum) ->
+  |> iterHashtblAlphabetically (fun _name (enum : gqlEnum) ->
          addWithNewLine
            (Printf.sprintf
               "let enum_%s = GraphQLEnumType.make({name: \"%s\", description: \
@@ -305,7 +321,7 @@ let printSchemaJsFile schemaState processSchema =
 
   (* Print the interface type holders and getters *)
   schemaState.interfaces
-  |> Hashtbl.iter (fun _name (typ : gqlInterface) ->
+  |> iterHashtblAlphabetically (fun _name (typ : gqlInterface) ->
          addWithNewLine
            (Printf.sprintf
               "let i_%s: ref<GraphQLInterfaceType.t> = \
@@ -317,7 +333,7 @@ let printSchemaJsFile schemaState processSchema =
 
   (* Print the object type holders and getters *)
   schemaState.types
-  |> Hashtbl.iter (fun _name (typ : gqlObjectType) ->
+  |> iterHashtblAlphabetically (fun _ (typ : gqlObjectType) ->
          addWithNewLine
            (Printf.sprintf
               "let t_%s: ref<GraphQLObjectType.t> = Obj.magic({\"contents\": \
@@ -329,7 +345,7 @@ let printSchemaJsFile schemaState processSchema =
 
   (* Print the input object type holders and getters *)
   schemaState.inputObjects
-  |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
+  |> iterHashtblAlphabetically (fun _name (typ : gqlInputObjectType) ->
          addWithNewLine
            (Printf.sprintf
               "let input_%s: ref<GraphQLInputObjectType.t> = \
@@ -344,12 +360,12 @@ let printSchemaJsFile schemaState processSchema =
 
   (* Now add all of the conversion instructions. *)
   schemaState.inputObjects
-  |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
+  |> iterHashtblAlphabetically (fun _name (typ : gqlInputObjectType) ->
          addWithNewLine (printInputObjectAssets typ));
 
   (* Print the union type holders and getters *)
   schemaState.unions
-  |> Hashtbl.iter (fun _name (union : gqlUnion) ->
+  |> iterHashtblAlphabetically (fun _name (union : gqlUnion) ->
          addWithNewLine
            (Printf.sprintf
               "let union_%s: ref<GraphQLUnionType.t> = \
@@ -363,7 +379,7 @@ let printSchemaJsFile schemaState processSchema =
 
   (* Print support functions for union type resolution *)
   schemaState.unions
-  |> Hashtbl.iter (fun _name (union : gqlUnion) ->
+  |> iterHashtblAlphabetically (fun _name (union : gqlUnion) ->
          addWithNewLine
            (Printf.sprintf
               "let union_%s_resolveType = (v: %s) => switch v {%s}\n"
@@ -377,7 +393,7 @@ let printSchemaJsFile schemaState processSchema =
 
   (* Print support functions for interface type resolution *)
   schemaState.interfaces
-  |> Hashtbl.iter (fun _name (intf : gqlInterface) ->
+  |> iterHashtblAlphabetically (fun _name (intf : gqlInterface) ->
          (* TODO: Flatten list properly when constructing *)
          let implementedBy =
            match
@@ -403,27 +419,27 @@ let printSchemaJsFile schemaState processSchema =
 
   (* Now we can print all of the code that fills these in. *)
   schemaState.interfaces
-  |> Hashtbl.iter (fun _name (typ : gqlInterface) ->
+  |> iterHashtblAlphabetically (fun _name (typ : gqlInterface) ->
          addWithNewLine
            (Printf.sprintf "i_%s.contents = GraphQLInterfaceType.make(%s)"
               typ.displayName
               (typ |> printInterfaceType)));
 
   schemaState.types
-  |> Hashtbl.iter (fun _name (typ : gqlObjectType) ->
+  |> iterHashtblAlphabetically (fun _name (typ : gqlObjectType) ->
          addWithNewLine
            (Printf.sprintf "t_%s.contents = GraphQLObjectType.make(%s)"
               typ.displayName (typ |> printObjectType)));
 
   schemaState.inputObjects
-  |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
+  |> iterHashtblAlphabetically (fun _name (typ : gqlInputObjectType) ->
          addWithNewLine
            (Printf.sprintf "input_%s.contents = GraphQLInputObjectType.make(%s)"
               typ.displayName
               (typ |> printInputObjectType)));
 
   schemaState.unions
-  |> Hashtbl.iter (fun _name (union : gqlUnion) ->
+  |> iterHashtblAlphabetically (fun _name (union : gqlUnion) ->
          addWithNewLine
            (Printf.sprintf "union_%s.contents = GraphQLUnionType.make(%s)"
               union.displayName (union |> printUnionType)));
