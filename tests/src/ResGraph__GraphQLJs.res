@@ -4,15 +4,9 @@ type graphqlType
 
 module AstNode = {
   // Copy of LSP protocol stuff
-  type loc = {
-    line: int,
-    character: int,
-  }
+  type loc = {"line": int, "character": int}
 
-  type range = {
-    start: loc,
-    @as("end") end_: loc,
-  }
+  type range = {"start": loc, "end": loc}
 
   type t = {
     uri: string,
@@ -49,7 +43,7 @@ external makeArgs: {..} => args = "%identity"
 type typeField = {
   @as("type") typ: graphqlType,
   args?: args,
-  resolve: resolveFn,
+  resolve?: resolveFn,
   description?: string,
   deprecationReason?: string,
 }
