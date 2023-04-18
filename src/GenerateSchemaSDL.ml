@@ -48,10 +48,25 @@ let printFields fields =
            (graphqlTypeToString f.typ))
   |> String.concat "\n"
 
+let printSourceLocDirective (typeLocation : typeLocation) =
+  let start = typeLocation.loc |> Loc.start in
+  let end_ = typeLocation.loc |> Loc.end_ in
+  Printf.sprintf
+    "@sourceLoc(fileUri: \"%s\", startLine: %i, startCol: %i, endLine: %i, \
+     endCol: %i)"
+    (typeLocation.fileUri |> Uri.toPath)
+    (start |> fst) (start |> snd) (end_ |> fst) (end_ |> snd)
+
 let printSchemaSDL (schemaState : schemaState) =
   let code = ref "" in
   let addWithNewLine text = code := !code ^ text ^ "\n" in
   let addSection text = addWithNewLine (text ^ "\n") in
+
+  addSection
+    "directive @sourceLoc(fileUri: String!, startLine: Int!, startCol: Int!, \
+     startLine: Int!, startCol: Int!) on FIELD_DEFINITION | OBJECT | ENUM | \
+     UNION | INPUT_OBJECT | INPUT_FIELD_DEFINITION | INTERFACE | SCALAR | \
+     ARGUMENT_DEFINITION";
 
   schemaState.enums
   |> Hashtbl.iter (fun _name (enum : gqlEnum) ->
@@ -65,7 +80,8 @@ let printSchemaSDL (schemaState : schemaState) =
   schemaState.unions
   |> Hashtbl.iter (fun _name (union : gqlUnion) ->
          addSection
-           (Printf.sprintf "union %s {\n%s\n}" union.displayName
+           (Printf.sprintf "union %s %s {\n%s\n}" union.displayName
+              (printSourceLocDirective union.typeLocation)
               (union.types
               |> List.map (fun (v : gqlUnionMember) ->
                      Printf.sprintf "  %s" v.displayName)
@@ -74,20 +90,23 @@ let printSchemaSDL (schemaState : schemaState) =
   schemaState.inputObjects
   |> Hashtbl.iter (fun _name (input : gqlInputObjectType) ->
          addSection
-           (Printf.sprintf "input %s {\n%s\n}" input.displayName
+           (Printf.sprintf "input %s %s {\n%s\n}" input.displayName
+              (printSourceLocDirective input.typeLocation)
               (printFields input.fields)));
 
   schemaState.interfaces
   |> Hashtbl.iter (fun _name (intf : gqlInterface) ->
          addSection
-           (Printf.sprintf "interface %s%s {\n%s\n}" intf.displayName
+           (Printf.sprintf "interface %s%s %s {\n%s\n}" intf.displayName
               (printImplements intf.interfaces)
+              (printSourceLocDirective intf.typeLocation)
               (printFields intf.fields)));
 
   schemaState.types
   |> Hashtbl.iter (fun _name (typ : gqlObjectType) ->
          addSection
-           (Printf.sprintf "type %s%s {\n%s\n}" typ.displayName
+           (Printf.sprintf "type %s%s %s {\n%s\n}" typ.displayName
               (printImplements typ.interfaces)
+              (printSourceLocDirective typ.typeLocation)
               (printFields typ.fields)));
   !code

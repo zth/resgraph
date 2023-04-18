@@ -28,42 +28,44 @@ Checking for type to attach resolver to
 Checking for type to attach resolver to
 === DEBUG SDL ===
 
+directive @sourceLoc(fileUri: String!, startLine: Int!, startCol: Int!, startLine: Int!, startCol: Int!) on FIELD_DEFINITION | OBJECT | ENUM | UNION | INPUT_OBJECT | INPUT_FIELD_DEFINITION | INTERFACE | SCALAR | ARGUMENT_DEFINITION
+
 enum UserStatus {
   Online
   Offline
   Idle
 }
 
-union UserOrGroup {
+union UserOrGroup @sourceLoc(fileUri: "tests/Schema.res", startLine: 20, startCol: 0, endLine: 20, endCol: 96) {
   User
   Group
 }
 
-input UserConfig {
+input UserConfig @sourceLoc(fileUri: "tests/Schema.res", startLine: 63, startCol: 0, endLine: 69, endCol: 1) {
   id: String!
   name: String
   context: UserConfigContext
 }
 
-input UserConfigContext {
+input UserConfigContext @sourceLoc(fileUri: "tests/Schema.res", startLine: 57, startCol: 0, endLine: 60, endCol: 1) {
   groupId: String
   name: String
 }
 
-interface Node {
+interface Node @sourceLoc(fileUri: "./src/NodeInterface.res", startLine: 2, startCol: 0, endLine: 6, endCol: 1) {
   id: ID!
 }
 
-interface HasName {
+interface HasName @sourceLoc(fileUri: "./tests/HasNameInterface.res", startLine: 2, startCol: 0, endLine: 2, endCol: 40) {
   abbreviatedName: String
   name: String!
 }
 
-type Mutation {
+type Mutation @sourceLoc(fileUri: "tests/Schema.res", startLine: 146, startCol: 0, endLine: 146, endCol: 18) {
   addUser(name: String!): User
 }
 
-type User implements Node & HasName {
+type User implements Node & HasName @sourceLoc(fileUri: "./tests/User.res", startLine: 2, startCol: 0, endLine: 9, endCol: 1) {
   id: ID!
   allNames: [String!]!
   currentStatus: UserStatus!
@@ -75,13 +77,13 @@ type User implements Node & HasName {
   abbreviatedName: String
 }
 
-type Group implements Node & HasName {
+type Group implements Node & HasName @sourceLoc(fileUri: "tests/Schema.res", startLine: 4, startCol: 0, endLine: 9, endCol: 1) {
   id: ID!
   name: String!
   abbreviatedName: String
 }
 
-type Query {
+type Query @sourceLoc(fileUri: "./tests/Query.res", startLine: 1, startCol: 0, endLine: 1, endCol: 15) {
   nodes(ids: [ID!]!): [Node]!
   node(id: ID!): Node
   hasName(id: ID!): HasName
@@ -93,7 +95,7 @@ type Query {
   me: User
 }
 
-type Pet implements HasName {
+type Pet implements HasName @sourceLoc(fileUri: "tests/Schema.res", startLine: 12, startCol: 0, endLine: 16, endCol: 1) {
   name: String!
   age: Int!
   abbreviatedName: String
