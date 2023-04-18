@@ -22,6 +22,7 @@
 - [ ] Custom scalars
 - [ ] Figure out a good way to bridge graphql-js validations (print dummy schema without resolvers and run validation on that?)
 - [ ] Sort alphabetically in schema output to simplify conflicts/make regeneration stable
+- [ ] Interfaces picked up that nobody implements should not be printed at all
 
 ## Project integration
 

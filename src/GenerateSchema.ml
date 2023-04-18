@@ -659,9 +659,13 @@ and traverseStructure ?(modulePath = []) ?originModule
                           GraphQL interface resolvers.";
                    })))
 
-let generateSchema ~writeStateFile ~path ~debug ~schemaOutputPath
-    ~assetsOutputPath =
-  if debug then Printf.printf "generating schema from %s\n\n" path;
+let printErrorState diagnostics =
+  Printf.printf
+    "{\n  \"status\": \"Error\",\n  \"errors\": \n    [\n      %s\n    ]\n}"
+    (diagnostics |> List.rev |> List.map printDiagnostic |> String.concat ",\n")
+
+let generateSchema ~writeStateFile ~sourceFolder ~debug ~outputFolder =
+  if debug then Printf.printf "generating schema from %s\n\n" sourceFolder;
   (* Holds cmt cache so we don't do heavy cmt processing multiple times. *)
   let cmtCache = Hashtbl.create 100 in
   let fileHasGqlAttributeCache = Hashtbl.create 100 in
@@ -710,61 +714,84 @@ let generateSchema ~writeStateFile ~path ~debug ~schemaOutputPath
         ~schemaState ~env ~full ~debug;
       Some full
   in
-  let initialFull = processFileAtPath path in
-  match initialFull with
-  | None -> print_endline "!!ERROR!!" (* TODO: Better error handling *)
-  | Some full ->
-    (* Process all project files. *)
-    (* TODO: Potential optimization - limit to a certain path for looking for GraphQL stuff. *)
-    full.package.projectFiles
-    |> SharedTypes.FileSet.iter (fun file ->
-           (* TODO: This file filter contains a bunch of things I'm sure won't
-              be necessary when this is a real package. Keep it for now to make
-              tests work. *)
-           match file with
-           | "ResGraph" | "ResGraphSchema" | "ResGraphSchemaAssets"
-           | "GraphQLYoga" | "Errors" | "ResGraph__GraphQLJs" ->
-             ()
-           | _ -> (
-             match Hashtbl.find full.package.pathsForModule file with
-             | IntfAndImpl {res} | Impl {res} -> processFileAtPath res |> ignore
-             | _ -> ()));
-    let processedSchema = processSchema schemaState in
-    if schemaState.diagnostics |> List.length > 0 then
-      Printf.printf
-        "{\n  \"status\": \"Error\",\n  \"errors\": \n    [\n      %s\n    ]\n}"
-        (schemaState.diagnostics |> List.rev |> List.map printDiagnostic
-       |> String.concat ",\n")
-    else
-      let schemaCode =
-        GenerateSchemaTypePrinters.printSchemaJsFile schemaState processedSchema
-        |> formatCode
-      in
-      let assetCode =
-        GenerateSchemaTypePrinters.printSchemaAssets ~schemaState
-          ~processedSchema
-        |> formatCode
-      in
 
-      if writeStateFile then
-        GenerateSchemaUtils.writeStateFile ~full ~schemaState ~processedSchema;
+  let package =
+    match Packages.getPackage ~uri:(Uri.fromPath sourceFolder) with
+    | None ->
+      printErrorState
+        [
+          {
+            loc =
+              {
+                Location.loc_start = Lexing.dummy_pos;
+                loc_end = Lexing.dummy_pos;
+                loc_ghost = true;
+              };
+            fileUri = Uri.fromPath sourceFolder;
+            message =
+              Printf.sprintf
+                "Source folder \"%s\" is not in a ReScript project. Did you \
+                 configure this correctly?"
+                sourceFolder;
+          };
+        ];
+      exit 1
+    | Some files -> files
+  in
 
-      (* TODO: Make these file names non-configurable *)
-      (* TODO: Do this in parallell in some fancy way *)
+  package.projectFiles
+  |> SharedTypes.FileSet.iter (fun file ->
+         (* TODO: This file filter contains a bunch of things I'm sure won't
+            be necessary when this is a real package. Keep it for now to make
+            tests work. *)
+         match file with
+         | "ResGraph" | "ResGraphSchema" | "ResGraphSchemaAssets"
+         | "GraphQLYoga" | "Errors" | "ResGraph__GraphQLJs" ->
+           ()
+         | _ -> (
+           match Hashtbl.find package.pathsForModule file with
+           | IntfAndImpl {res} | Impl {res} -> processFileAtPath res |> ignore
+           | _ -> ()));
 
-      (* Write generated schema *)
-      (* Write implementation file *)
-      GenerateSchemaUtils.writeIfHasChanges ~debug schemaOutputPath schemaCode;
+  let processedSchema = processSchema schemaState in
 
-      (* Write resi file *)
-      let resiOutputPath = schemaOutputPath ^ "i" in
-      let resiContent =
-        "let schema: ResGraph.schema<ResGraphContext.context>\n"
-      in
-      GenerateSchemaUtils.writeIfHasChanges ~debug resiOutputPath resiContent;
+  if schemaState.diagnostics |> List.length > 0 then
+    Printf.printf
+      "{\n  \"status\": \"Error\",\n  \"errors\": \n    [\n      %s\n    ]\n}"
+      (schemaState.diagnostics |> List.rev |> List.map printDiagnostic
+     |> String.concat ",\n")
+  else
+    let schemaCode =
+      GenerateSchemaTypePrinters.printSchemaJsFile schemaState processedSchema
+      |> formatCode
+    in
+    let assetCode =
+      GenerateSchemaTypePrinters.printSchemaAssets ~schemaState ~processedSchema
+      |> formatCode
+    in
 
-      (* Write assets file *)
-      GenerateSchemaUtils.writeIfHasChanges ~debug assetsOutputPath assetCode;
+    if writeStateFile then
+      GenerateSchemaUtils.writeStateFile ~package ~schemaState ~processedSchema;
 
-      if debug then schemaCode |> print_endline
-      else Printf.printf "{\"status\": \"Success\", \"ok\": true}"
+    let schemaOutputPath = outputFolder ^ "/ResGraphSchema.res" in
+    let assetsOutputPath = outputFolder ^ "/ResGraphSchemaAssets.res" in
+
+    (* TODO: Make these file names non-configurable *)
+    (* TODO: Do this in parallell in some fancy way *)
+
+    (* Write generated schema *)
+    (* Write implementation file *)
+    GenerateSchemaUtils.writeIfHasChanges ~debug schemaOutputPath schemaCode;
+
+    (* Write resi file *)
+    let resiOutputPath = schemaOutputPath ^ "i" in
+    let resiContent =
+      "let schema: ResGraph.schema<ResGraphContext.context>\n"
+    in
+    GenerateSchemaUtils.writeIfHasChanges ~debug resiOutputPath resiContent;
+
+    (* Write assets file *)
+    GenerateSchemaUtils.writeIfHasChanges ~debug assetsOutputPath assetCode;
+
+    if debug then schemaCode |> print_endline
+    else Printf.printf "{\"status\": \"Success\", \"ok\": true}"

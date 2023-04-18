@@ -317,9 +317,8 @@ external processOnMessage: (@as(json`"message"`) _, onMessageCallback) => unit =
 external exitProcess: int => unit = "process.exit"
 
 type config = {
-  path: string,
-  schemaOutputPath: string,
-  assetsOutputPath: string,
+  src: string,
+  outputFolder: string,
 }
 
 let parseConfig = rawConfig => {
@@ -327,15 +326,13 @@ let parseConfig = rawConfig => {
   | None => None
   | Some(dict) =>
     switch (
-      dict->Dict.get("path")->Option.flatMap(JSON.Decode.string),
-      dict->Dict.get("schemaOutputPath")->Option.flatMap(JSON.Decode.string),
-      dict->Dict.get("assetsOutputPath")->Option.flatMap(JSON.Decode.string),
+      dict->Dict.get("src")->Option.flatMap(JSON.Decode.string),
+      dict->Dict.get("outputFolder")->Option.flatMap(JSON.Decode.string),
     ) {
-    | (Some(path), Some(schemaOutputPath), Some(assetsOutputPath)) =>
+    | (Some(src), Some(outputFolder)) =>
       Some({
-        path: path->Utils.resolveRelative,
-        schemaOutputPath: schemaOutputPath->Utils.resolveRelative,
-        assetsOutputPath: assetsOutputPath->Utils.resolveRelative,
+        src: src->Utils.resolveRelative,
+        outputFolder: outputFolder->Utils.resolveRelative,
       })
     | _ => None
     }
@@ -403,7 +400,7 @@ let start = (~mode, ~configFilePath) => {
   let watcher = Utils.setupWatcher(~onResult=res => {
     currentResult := res
     publishDiagnostics()
-  }, ~path=config.path, ~assetsOutputPath=config.assetsOutputPath, ~schemaOutputPath=config.schemaOutputPath)
+  }, ~src=config.src, ~outputFolder=config.outputFolder)
 
   let openedFile = (uri, text) => {
     log(`opened ${uri}`)

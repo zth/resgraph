@@ -28,4 +28,4 @@ type groupWithNoAnnotation = {@gql.field name: string}
 @gql.type type group = {@gql.field name: promise<string>}
 @gql.inputObject type group2 = {name: promise<string>}
 
-// ^gen
+// ^ gen -- disabled for now

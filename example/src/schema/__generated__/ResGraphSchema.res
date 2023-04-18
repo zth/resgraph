@@ -41,10 +41,6 @@ i_HasName.contents = GraphQLInterfaceType.make({
         typ: Scalars.string->Scalars.toGraphQLType->nonNull,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
-          let src = typeUnwrapper(src)
-          src["name"]
-        }),
       },
     }->makeFields,
   resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_HasName_resolveType),
@@ -80,7 +76,7 @@ t_User.contents = GraphQLObjectType.make({
     }->makeFields,
   astNode: {
     uri: "/Users/zth/git/resgraph/example/src/schema/GraphQLSchema.res",
-    range: {"start": {"line": 4, "character": 0}, "end": {"line": 4, "character": 58}},
+    range: {"start": {"line": 4, "character": 0}, "end": {"line": 4, "character": 62}},
   },
 })
 t_Query.contents = GraphQLObjectType.make({
@@ -90,7 +86,7 @@ t_Query.contents = GraphQLObjectType.make({
   fields: () =>
     {
       "me": {
-        typ: get_User()->GraphQLObjectType.toGraphQLType->nonNull,
+        typ: get_User()->GraphQLObjectType.toGraphQLType,
         description: ?None,
         deprecationReason: ?None,
         resolve: makeResolveFn((src, args, ctx) => {

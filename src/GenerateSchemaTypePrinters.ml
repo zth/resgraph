@@ -256,6 +256,8 @@ let printSchemaAssets ~(schemaState : schemaState) ~processedSchema =
 
   !code
 
+exception Interface_not_found of string
+
 let printSchemaJsFile schemaState processSchema =
   let code = ref "@@warning(\"-27-32\")\n\nopen ResGraph__GraphQLJs\n\n" in
   let addWithNewLine text = code := !code ^ text ^ "\n" in
@@ -387,7 +389,11 @@ let printSchemaJsFile schemaState processSchema =
   |> Hashtbl.iter (fun _name (intf : gqlInterface) ->
          (* TODO: Flatten list properly when constructing *)
          let implementedBy =
-           Hashtbl.find processSchema.interfaceImplementedBy intf.id
+           match
+             Hashtbl.find_opt processSchema.interfaceImplementedBy intf.id
+           with
+           | Some i -> i
+           | None -> raise (Interface_not_found ("Interface: " ^ intf.id))
          in
          addWithNewLine
            (Printf.sprintf

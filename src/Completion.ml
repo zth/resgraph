@@ -91,7 +91,7 @@ let completion ~debug ~path ~pos ~currentFile =
         | Some full -> (
           try
             let schemaState, _processedSchema =
-              GenerateSchemaUtils.readStateFile ~full
+              GenerateSchemaUtils.readStateFile ~package:full.package
             in
             let res = ref [] in
             schemaState.GenerateSchemaTypes.interfaces

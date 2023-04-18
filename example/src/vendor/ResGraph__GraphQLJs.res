@@ -43,7 +43,7 @@ external makeArgs: {..} => args = "%identity"
 type typeField = {
   @as("type") typ: graphqlType,
   args?: args,
-  resolve: resolveFn,
+  resolve?: resolveFn,
   description?: string,
   deprecationReason?: string,
 }
