@@ -1,5 +1,7 @@
 open GenerateSchemaTypes
 
+(** More a PoC, since SDL didn't end up needed for now. *)
+
 let scalarToString (s : scalar) =
   match s with
   | ID -> "ID"

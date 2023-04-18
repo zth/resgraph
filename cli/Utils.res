@@ -29,6 +29,7 @@ type generateError = {
 
 @tag("status")
 type callResult =
+  | NotInitialized
   | Success({ok: bool})
   | Error({errors: array<generateError>})
   | Completion({items: array<LspProtocol.completionItem>})

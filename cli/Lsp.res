@@ -354,7 +354,7 @@ let start = (~mode, ~configFilePath) => {
   | Some(config) => config
   }
 
-  let currentResult = ref(Utils.Success({ok: true}))
+  let currentResult = ref(Utils.NotInitialized)
 
   let resFilesCache: Dict.t<string> = Dict.make()
 
@@ -580,7 +580,7 @@ let start = (~mode, ~configFilePath) => {
   | Stdio =>
     let writer = Rpc.StreamMessageWriter.make(stdout)
     let reader = Rpc.StreamMessageReader.make(stdin)
-    sendFn := msg => writer->Rpc.StreamMessageWriter.write(msg)
+    sendFn := (msg => writer->Rpc.StreamMessageWriter.write(msg))
     reader->Rpc.StreamMessageReader.listen(onMessage)
     log(`Starting LSP in stdio mode.`)
 
