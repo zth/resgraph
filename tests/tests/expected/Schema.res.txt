@@ -26,6 +26,83 @@ Adding interface node
 Checking for type to attach resolver to
 Checking for type to attach resolver to
 Checking for type to attach resolver to
+=== DEBUG SDL ===
+
+enum UserStatus {
+  Online
+  Offline
+  Idle
+}
+
+union UserOrGroup {
+  User
+  Group
+}
+
+input UserConfig {
+  id: String!
+  name: String
+  context: UserConfigContext
+}
+
+input UserConfigContext {
+  groupId: String
+  name: String
+}
+
+interface Node {
+  id: ID!
+}
+
+interface HasName {
+  abbreviatedName: String
+  name: String!
+}
+
+type Mutation {
+  addUser(name: String!): User
+}
+
+type User implements Node & HasName {
+  id: ID!
+  allNames: [String!]!
+  currentStatus: UserStatus!
+  name(includeFullName: Boolean): String!
+  id: ID!
+  name: String!
+  age: Int!
+  lastAge: Int
+  abbreviatedName: String
+}
+
+type Group implements Node & HasName {
+  id: ID!
+  name: String!
+  abbreviatedName: String
+}
+
+type Query {
+  nodes(ids: [ID!]!): [Node]!
+  node(id: ID!): Node
+  hasName(id: ID!): HasName
+  pet: Pet
+  listAsArgs(regularList: [String]!, optionalList: [String!], nullableList: [String], nullableInnerList: [String], list1: [String], list2: [[String]], list3: [[[String!]!]]): [String!]!
+  allowExplicitNull(someNullable: String): String!
+  searchForUser(input: UserConfig!): User
+  entity(id: ID!): UserOrGroup!
+  me: User
+}
+
+type Pet implements HasName {
+  name: String!
+  age: Int!
+  abbreviatedName: String
+}
+
+
+
+=== SCHEMA ===
+
 @@warning("-27-32")
 
 open ResGraph__GraphQLJs

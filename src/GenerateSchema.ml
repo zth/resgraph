@@ -740,6 +740,9 @@ let generateSchema ~writeStateFile ~path ~debug ~schemaOutputPath
         GenerateSchemaTypePrinters.printSchemaJsFile schemaState processedSchema
         |> formatCode
       in
+      if debug then
+        Printf.printf "=== DEBUG SDL ===\n\n%s\n\n=== SCHEMA ===\n\n"
+          (GenerateSchemaSDL.printSchemaSDL schemaState);
       let assetCode =
         GenerateSchemaTypePrinters.printSchemaAssets ~schemaState
           ~processedSchema
