@@ -19,6 +19,24 @@ let applyConversionToInputObject: (
       return newObj;
     }`)
 
+let scalar_TimestampHidden = GraphQLScalar.make({
+  let config: GraphQLScalar.config<CustomScalars.Inner.TimestampHidden.t> = {
+    name: "TimestampHidden",
+    description: "A timestamp, but with the implementation hidden in the server.",
+    parseValue: CustomScalars.Inner.TimestampHidden.parseValue,
+    serialize: CustomScalars.Inner.TimestampHidden.serialize,
+  }
+  config
+})
+let scalar_TimestampZ = GraphQLScalar.make({
+  let config: GraphQLScalar.config<CustomScalars.TimestampZ.t> = {
+    name: "TimestampZ",
+    description: ?None,
+    parseValue: CustomScalars.TimestampZ.parseValue,
+    serialize: CustomScalars.TimestampZ.serialize,
+  }
+  config
+})
 let scalar_Timestamp = GraphQLScalar.make({name: "Timestamp", description: "A timestamp."})
 let scalar_TimestampList = GraphQLScalar.make({name: "TimestampList", description: ?None})
 let enum_UserStatus = GraphQLEnumType.make({
@@ -164,6 +182,15 @@ t_Group.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, _args, _ctx) => {
           let src = typeUnwrapper(src)
           src["id"]
+        }),
+      },
+      "modifiedAt": {
+        typ: scalar_TimestampHidden->GraphQLScalar.toGraphQLType,
+        description: "When this group was last modified.",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["modifiedAt"]
         }),
       },
       "name": {

@@ -185,6 +185,12 @@ let rec findGraphQLType ~env ?(typeContext = Default) ~debug ?loc ~schemaState
         | Some Scalar, {name; kind = Abstract (Some _)} ->
           Some
             (GraphQLScalar {id = name; displayName = capitalizeFirstChar name})
+        | Some Scalar, {name = "t"} ->
+          (* When the type is named `t`, we assume the module name is the scalar
+             name. And the module name is the last added entry in pathRev, which
+             tracks the current path we're at in the module of env. *)
+          let scalarName = env.pathRev |> List.hd in
+          Some (GraphQLScalar {id = scalarName; displayName = scalarName})
         | _ ->
           schemaState
           |> addDiagnostic
@@ -441,6 +447,11 @@ and traverseStructure ?(modulePath = []) ?originModule
              traverseStructure
                ~modulePath:(structure.name :: modulePath)
                ~schemaState ~env ~full ~debug structure
+           | Module (Constraint (_implStructure, Structure intfStructure)), _ ->
+             (* Look inside constraints rather than structure when present. *)
+             traverseStructure
+               ~modulePath:(intfStructure.name :: modulePath)
+               ~schemaState ~env ~full ~debug intfStructure
            | Type ({kind = Record fields; attributes; decl}, _), Some ObjectType
              ->
              (* @gql.type type someType = {...} *)
@@ -488,6 +499,7 @@ and traverseStructure ?(modulePath = []) ?originModule
                  })
            | Type (({kind = Variant cases} as item), _), Some Enum ->
              (* @gql.enum type someEnum = Online | Offline | Idle *)
+             (* TODO: Can inline all type locs *)
              addEnum item.name ~schemaState ~debug ~makeEnum:(fun () ->
                  {
                    id = item.name;
@@ -514,6 +526,57 @@ and traverseStructure ?(modulePath = []) ?originModule
                        ~expectedType:Union item.name;
                  })
                ~schemaState ~debug
+           | Type (item, _), Some Scalar when item.name = "t" ->
+             (* module Timestamp = { @gql.scalar type t = string } *)
+             (* module Timestamp: {@gql.scalar type t } = { type t = string } *)
+             let typeName = modulePath |> List.hd in
+             let hasParseValueFn =
+               structure.items
+               |> List.exists (fun (i : SharedTypes.Module.item) ->
+                      match i with
+                      | {name = "parseValue"; kind = Value _} -> true
+                      | _ -> false)
+             in
+             (* We just check for parse and serialize functions existance here,
+                and let the typesystem in the project validate that they work
+                together with the scalar type. We might need to adjust this to
+                be a ResGraph validation if it gets problematic.*)
+             let hasSerializeFn =
+               structure.items
+               |> List.exists (fun (i : SharedTypes.Module.item) ->
+                      match i with
+                      | {name = "serialize"; kind = Value _} -> true
+                      | _ -> false)
+             in
+             if hasParseValueFn && hasSerializeFn then
+               let typeLoc =
+                 {
+                   fileName = env.file.moduleName;
+                   modulePath = List.rev modulePath;
+                   typeName = "t";
+                   loc = item.decl.type_loc;
+                   fileUri = env.file.uri;
+                 }
+               in
+               addScalar typeName
+                 ?description:(item.attributes |> attributesToDocstring)
+                 ~encoderDecoderLoc:typeLoc ~typeLocation:typeLoc ~schemaState
+                 ~debug
+             else
+               schemaState
+               |> addDiagnostic
+                    ~diagnostic:
+                      {
+                        loc = item.decl.type_loc;
+                        fileUri = env.file.uri;
+                        message =
+                          Printf.sprintf
+                            "Scalars named `t` in a module needs accompanying \
+                             `parseValue` and `serialize` functions for \
+                             serializing and parsing values for the scalar. \
+                             One or both of those functions is not defined in \
+                             this module.";
+                      }
            | ( Type (({kind = Abstract (Some (path, typs))} as item), _),
                Some Scalar ) -> (
              (* @gql.scalar type someScalar = string *)
@@ -529,6 +592,7 @@ and traverseStructure ?(modulePath = []) ?originModule
                       ~expectedType:Scalar item.name)
                  ~schemaState ~debug
              | NeedsParsing ->
+               (* TODO: More docs *)
                schemaState
                |> addDiagnostic
                     ~diagnostic:
@@ -538,10 +602,12 @@ and traverseStructure ?(modulePath = []) ?originModule
                         message =
                           Printf.sprintf
                             "This GraphQL scalar maps to something that \
-                             requires custom parsing and serializing, and \
-                             that's currently not supported in ResGraph (but \
-                             coming soon). Please use only primitives that \
-                             produces valid JSON for now.";
+                             requires custom parsing and serializing. You can \
+                             either change this to a valid JSON type, or you \
+                             can create a module that defines a `type t` \
+                             annotated with `@gql.scalar`, and a `parseValue` \
+                             and `serialize` function. Better explanation and \
+                             docs coming soon.";
                       })
            | Value typ, Some Field -> (
              (* @gql.field let fullName = (user: user) => {...} *)
@@ -632,16 +698,10 @@ and traverseStructure ?(modulePath = []) ?originModule
                              but is not a function. Only functions can \
                              represent GraphQL field resolvers.";
                       })
-           | _, None -> ( (* Ignore values with no gql attribute. *) )
-           | v, Some _ -> (
-             Printf.printf "fail: %s\n"
-               (match v with
-               | Value _ -> "value"
-               | Type ({kind = Abstract (Some (_p, _t))}, _) ->
-                 "Type"
-                 ^ (_t |> List.map Shared.typeToString |> String.concat ", ")
-               | Type _ -> "Type2"
-               | Module _ -> "module");
+           | _, None ->
+             (* Ignore values with no gql attribute. *)
+             ()
+           | _, Some _ -> (
              (* Didn't match. Do some error reporting. *)
              let baseDiagnostic =
                {fileUri = env.file.uri; message = ""; loc = item.loc}

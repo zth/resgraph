@@ -20,6 +20,9 @@ type group = {
   /** The timestamp when this group was created.*/
   @gql.field
   createdAt: option<timestamp>,
+  /** When this group was last modified. */
+  @gql.field
+  modifiedAt: option<CustomScalars.Inner.TimestampHidden.t>,
 }
 
 @gql.type

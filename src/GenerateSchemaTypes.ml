@@ -71,6 +71,7 @@ type gqlScalar = {
   description: string option;
   typeLocation: typeLocation;
   specifiedByUrl: string option;
+  encoderDecoderLoc: typeLocation option;
 }
 
 type gqlField = {

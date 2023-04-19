@@ -48,7 +48,13 @@ let node = async (_: Query.query, ~id, ~ctx: ResGraphContext.context): option<
     switch params {
     | [groupId] =>
       Some(
-        Group({Schema.name: "TestGroup", memberIds: [], id: groupId->ResGraph.id, createdAt: None}),
+        Group({
+          Schema.name: "TestGroup",
+          memberIds: [],
+          id: groupId->ResGraph.id,
+          createdAt: None,
+          modifiedAt: None,
+        }),
       )
     | _ => None
     }

@@ -20,7 +20,8 @@
 - [x] Interface as root type -> add resolver/field to all implementors
 - [ ] Directives
 - [x] Custom scalars
-- [ ] Custom scalars with custom serializer/parser
+- [x] Custom scalars with custom serializer/parser
+- [ ] Should custom scalars have an explicit annotation?
 - [x] ~~Figure out a good way to bridge graphql-js validations (print dummy schema without resolvers and run validation on that?)~
 - [x] Sort alphabetically in schema output to simplify conflicts/make regeneration stable
 - [x] Write empty schema def to prevent type errors on errors from ResGraph
@@ -29,6 +30,7 @@
 - [ ] Arguments in interface fields? Fields in interfaces to force implementation of for each type?
 - [x] Interfaces picked up that nobody implements should not be printed at all
 - [ ] Optimize prop resolution
+- [ ] Valdiate duplicate names on adding things
 
 ## Project integration
 

@@ -1,3 +1,17 @@
+// TODO: This should be switched to JSON.t when unboxed variant representation
+// has landed in Core
+module GraphQLLiteralValue = {
+  @unboxed
+  type rec t =
+    | @as(false) False
+    | @as(true) True
+    | @as(null) Null
+    | String(string)
+    | Number(float)
+    | Object(Js.Dict.t<t>)
+    | Array(array<t>)
+}
+
 type graphqlType
 
 @module("graphql") @new external nonNull: graphqlType => graphqlType = "GraphQLNonNull"
@@ -73,11 +87,13 @@ module GraphQLScalar = {
 
   external toGraphQLType: t => graphqlType = "%identity"
 
-  type config = {
+  type config<'t> = {
     name: string,
     description?: string,
+    parseValue?: GraphQLLiteralValue.t => option<'t>,
+    serialize?: 't => GraphQLLiteralValue.t,
   }
-  @module("graphql") @new external make: config => t = "GraphQLScalarType"
+  @module("graphql") @new external make: config<_> => t = "GraphQLScalarType"
 }
 
 module GraphQLObjectType = {

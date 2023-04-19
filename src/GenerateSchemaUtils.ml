@@ -134,6 +134,7 @@ type expectedType =
   | Union
   | Interface
   | Scalar
+  | ScalarT of {modulePath: string list}
 
 (** Figures out the path to a target type in a file. *)
 let rec findModulePathOfType ~schemaState ~(env : SharedTypes.QueryEnv.t)
@@ -201,7 +202,7 @@ let findTypeLocation ~(env : SharedTypes.QueryEnv.t)
                  | InputObject -> "input object"
                  | Field -> "field"
                  | Interface -> "interface"
-                 | Scalar -> "scalar")
+                 | Scalar | ScalarT _ -> "scalar")
                  name env.file.moduleName;
            };
 
@@ -210,6 +211,10 @@ let findTypeLocation ~(env : SharedTypes.QueryEnv.t)
 
 let typeLocationToAccessor (typeLocation : typeLocation) =
   [typeLocation.fileName] @ typeLocation.modulePath @ [typeLocation.typeName]
+  |> String.concat "."
+
+let typeLocationModuleToAccesor (typeLocation : typeLocation) endingPath =
+  [typeLocation.fileName] @ typeLocation.modulePath @ endingPath
   |> String.concat "."
 
 let capitalizeFirstChar s =
@@ -252,7 +257,8 @@ let addUnion id ~(makeUnion : unit -> gqlUnion) ~debug ~schemaState =
     if debug then Printf.printf "Adding union %s\n" id;
     Hashtbl.replace schemaState.unions id (makeUnion ()))
 
-let addScalar ~debug ~schemaState ?description ~typeLocation id =
+let addScalar ~debug ~schemaState ?description ~typeLocation ?encoderDecoderLoc
+    id =
   if Hashtbl.mem schemaState.scalars id then ()
   else (
     if debug then Printf.printf "Adding scalar %s\n" id;
@@ -263,6 +269,7 @@ let addScalar ~debug ~schemaState ?description ~typeLocation id =
         description;
         typeLocation;
         specifiedByUrl = None;
+        encoderDecoderLoc;
       })
 
 let addInterface id ~(makeInterface : unit -> gqlInterface) ~debug ~schemaState

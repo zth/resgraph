@@ -26,6 +26,9 @@ type Group implements HasName & Node {
 
   """The id of the object."""
   id: ID!
+
+  """When this group was last modified."""
+  modifiedAt: TimestampHidden
   name: String!
 }
 
@@ -43,6 +46,9 @@ interface Node {
 
 """A timestamp."""
 scalar Timestamp
+
+"""A timestamp, but with the implementation hidden in the server."""
+scalar TimestampHidden
 
 """A user in the system."""
 type User implements HasName & Node {

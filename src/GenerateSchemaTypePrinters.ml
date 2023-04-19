@@ -202,8 +202,19 @@ let printObjectType (typ : gqlObjectType) =
     (printFields typ.fields)
 
 let printScalar (typ : gqlScalar) =
-  Printf.sprintf "{name: \"%s\", description: %s}" typ.displayName
-    (undefinedOrValueAsString typ.description)
+  match typ.encoderDecoderLoc with
+  | None ->
+    Printf.sprintf "{ name: \"%s\", description: %s}" typ.displayName
+      (undefinedOrValueAsString typ.description)
+  | Some encoderDecoderLoc ->
+    Printf.sprintf
+      "{ let config: GraphQLScalar.config<%s> = {name: \"%s\", description: \
+       %s, parseValue: %s, serialize: %s}; config}"
+      (typeLocationToAccessor typ.typeLocation)
+      typ.displayName
+      (undefinedOrValueAsString typ.description)
+      (typeLocationModuleToAccesor encoderDecoderLoc ["parseValue"])
+      (typeLocationModuleToAccesor encoderDecoderLoc ["serialize"])
 
 let printInterfaceType (typ : gqlInterface) =
   Printf.sprintf
