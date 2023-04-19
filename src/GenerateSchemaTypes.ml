@@ -48,7 +48,7 @@ type gqlEnum = {
   displayName: string;
   values: gqlEnumValue list;
   description: string option;
-  loc: Location.t;
+  typeLocation: typeLocation;
 }
 
 type gqlUnionMember = {
@@ -81,6 +81,8 @@ type gqlField = {
   deprecationReason: string option;
   description: string option;
   loc: Location.t;
+  fileName: string;
+  fileUri: Uri.t;
 }
 
 type gqlObjectType = {

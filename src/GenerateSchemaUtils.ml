@@ -629,6 +629,7 @@ let processSchema (schemaState : schemaState) =
                 lastEndlingLine := endingLineNum);
          close_in fileChannel);
 
+  GenerateSchemaValidation.validateSchema schemaState;
   processedSchema
 
 (** Some arguments aren't intended to be printed in the `args` list, like
@@ -740,3 +741,10 @@ let rec validateCustomScalar ~env ~package (typ : Types.type_expr) =
         validateCustomScalar ~env ~package t1
       | _ -> NeedsParsing))
   | _ -> NeedsParsing
+
+let emptyLoc =
+  {
+    Location.loc_start = Lexing.dummy_pos;
+    loc_end = Lexing.dummy_pos;
+    loc_ghost = true;
+  }

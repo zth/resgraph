@@ -157,7 +157,9 @@ let rec findGraphQLType ~env ?(typeContext = Default) ~debug ?loc ~schemaState
                 displayName;
                 values = variantCasesToEnumValues ~schemaState ~env cases;
                 description = item.attributes |> attributesToDocstring;
-                loc = item.decl.type_loc;
+                typeLocation =
+                  findTypeLocation ~loc:item.decl.type_loc ~schemaState ~env
+                    ~expectedType:Enum id;
               });
           Some (GraphQLEnum {id; displayName = capitalizeFirstChar id})
         | Some Union, {name; kind = Variant cases} ->
@@ -255,6 +257,8 @@ and inputObjectFieldsOfRecordFields ~env ~debug ~schemaState
                name;
                resolverStyle = Property name;
                typ;
+               fileName = env.file.moduleName;
+               fileUri = env.file.uri;
                args = [];
                description = field.attributes |> attributesToDocstring;
                deprecationReason = field.deprecated;
@@ -344,6 +348,8 @@ and objectTypeFieldsOfRecordFields ~env ~schemaState ~debug
                name;
                resolverStyle = Property name;
                typ;
+               fileName = env.file.moduleName;
+               fileUri = env.file.uri;
                args = [];
                description = field.attributes |> attributesToDocstring;
                deprecationReason = field.deprecated;
@@ -487,7 +493,9 @@ and traverseStructure ?(modulePath = []) ?originModule
                    displayName = capitalizeFirstChar item.name;
                    values = variantCasesToEnumValues ~schemaState ~env cases;
                    description = item.attributes |> attributesToDocstring;
-                   loc = item.decl.type_loc;
+                   typeLocation =
+                     findTypeLocation ~loc:item.decl.type_loc ~schemaState ~env
+                       ~expectedType:Enum item.name;
                  })
            | Type (({kind = Variant cases} as item), _), Some Union ->
              (* @gql.union type userOrGroup = User(user) | Group(group) *)
@@ -548,6 +556,8 @@ and traverseStructure ?(modulePath = []) ?originModule
                    {
                      loc = item.loc;
                      name = item.name;
+                     fileName = env.file.moduleName;
+                     fileUri = env.file.uri;
                      description = item.attributes |> attributesToDocstring;
                      deprecationReason =
                        item.attributes
@@ -572,6 +582,8 @@ and traverseStructure ?(modulePath = []) ?originModule
                    {
                      loc = item.loc;
                      name = item.name;
+                     fileName = env.file.moduleName;
+                     fileUri = env.file.uri;
                      description = item.attributes |> attributesToDocstring;
                      deprecationReason =
                        item.attributes
@@ -787,12 +799,7 @@ let generateSchema ~writeStateFile ~sourceFolder ~debug ~outputFolder =
       printErrorState
         [
           {
-            loc =
-              {
-                Location.loc_start = Lexing.dummy_pos;
-                loc_end = Lexing.dummy_pos;
-                loc_ghost = true;
-              };
+            loc = emptyLoc;
             fileUri = Uri.fromPath sourceFolder;
             message =
               Printf.sprintf
