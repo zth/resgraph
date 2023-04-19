@@ -1,7 +1,5 @@
 open GenerateSchemaTypes
-
-let addDiagnostic schemaState ~diagnostic =
-  schemaState.diagnostics <- diagnostic :: schemaState.diagnostics
+open GenerateSchemaDiagnostics
 
 let findInterfacesOfType code ~schemaState =
   let {Res_driver.parsetree = structure} =

@@ -1,5 +1,6 @@
 open GenerateSchemaTypes
 open GenerateSchemaUtils
+open GenerateSchemaDiagnostics
 
 let variantCasesToEnumValues ~schemaState ~(env : SharedTypes.QueryEnv.t)
     (cases : SharedTypes.Constructor.t list) =
@@ -827,12 +828,19 @@ let generateSchema ~writeStateFile ~sourceFolder ~debug ~outputFolder =
            | _ -> ()));
 
   let processedSchema = processSchema schemaState in
+  let schemaOutputPath = outputFolder ^ "/ResGraphSchema.res" in
+  let assetsOutputPath = outputFolder ^ "/ResGraphSchemaAssets.res" in
 
-  if schemaState.diagnostics |> List.length > 0 then
+  if schemaState.diagnostics |> List.length > 0 then (
     Printf.printf
       "{\n  \"status\": \"Error\",\n  \"errors\": \n    [\n      %s\n    ]\n}"
-      (schemaState.diagnostics |> List.rev |> List.map printDiagnostic
-     |> String.concat ",\n")
+      (schemaState.diagnostics |> List.rev
+      |> List.map (fun (_, diagnostic) -> printDiagnostic diagnostic)
+      |> String.concat ",\n");
+
+    (* Write an empty schema just to avoid type errors in the generated code. *)
+    GenerateSchemaUtils.writeIfHasChanges schemaOutputPath
+      "let schema = ResGraph__GraphQLJs.GraphQLSchemaType.make(Obj.magic())\n")
   else
     let schemaCode =
       GenerateSchemaTypePrinters.printSchemaJsFile schemaState processedSchema
@@ -845,9 +853,6 @@ let generateSchema ~writeStateFile ~sourceFolder ~debug ~outputFolder =
 
     if writeStateFile then
       GenerateSchemaUtils.writeStateFile ~package ~schemaState ~processedSchema;
-
-    let schemaOutputPath = outputFolder ^ "/ResGraphSchema.res" in
-    let assetsOutputPath = outputFolder ^ "/ResGraphSchemaAssets.res" in
 
     (* TODO: Do this in parallell in some fancy way *)
 

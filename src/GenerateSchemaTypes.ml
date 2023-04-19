@@ -122,7 +122,7 @@ type schemaState = {
   mutable query: gqlObjectType option;
   mutable subscription: gqlObjectType option;
   mutable mutation: gqlObjectType option;
-  mutable diagnostics: diagnostic list;
+  mutable diagnostics: (string * diagnostic) list;
 }
 
 type interfaceImplementedBy =

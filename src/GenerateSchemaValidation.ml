@@ -1,4 +1,5 @@
 open GenerateSchemaTypes
+open GenerateSchemaDiagnostics
 
 (*
   This aims to implement the most important validations from graphql-js directly
@@ -16,9 +17,6 @@ let emptyLoc =
 
 let mkTypeLocation ~typeName ~fileName ~fileUri ~loc =
   {fileName; fileUri; modulePath = []; typeName; loc}
-
-let addDiagnostic schemaState ~diagnostic =
-  schemaState.diagnostics <- diagnostic :: schemaState.diagnostics
 
 let validateName ~name ~(typeLocation : typeLocation)
     (schemaState : schemaState) =

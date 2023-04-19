@@ -21,14 +21,14 @@
 - [ ] Directives
 - [x] Custom scalars
 - [ ] Custom scalars with custom serializer/parser
-- [ ] ~~Figure out a good way to bridge graphql-js validations (print dummy schema without resolvers and run validation on that?)~
+- [x] ~~Figure out a good way to bridge graphql-js validations (print dummy schema without resolvers and run validation on that?)~
 - [x] Sort alphabetically in schema output to simplify conflicts/make regeneration stable
-- [ ] Interfaces picked up that nobody implements should not be printed at all
-- [ ] Write empty schema def to prevent type errors on errors from ResGraph
-- [ ] Optimize prop resolution
-- [ ] Fix so that the same diagnostic is never added more than once
-- [ ] Arguments in interface fields? Fields in interfaces to force implementation of for each type?
+- [x] Write empty schema def to prevent type errors on errors from ResGraph
+- [x] Fix so that the same diagnostic is never added more than once
 - [x] Implement the most important schema validations from `graphql-js` directly in ResGraph.
+- [ ] Arguments in interface fields? Fields in interfaces to force implementation of for each type?
+- [ ] Interfaces picked up that nobody implements should not be printed at all
+- [ ] Optimize prop resolution
 
 ## Project integration
 
