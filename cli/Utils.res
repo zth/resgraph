@@ -1,16 +1,21 @@
 let resolveRelative = path => Path.resolve([Process.process->Process.cwd, path])
 
 type privateCliCall =
-  | GenerateSchema({src: string, outputFolder: string})
+  | GenerateSchema({src: string, outputFolder: string, dumpSchemaSdl?: bool})
   | Completion({filePath: string, position: LspProtocol.loc, tmpname: string})
 
 let privateCliCallToArgs = call =>
   switch call {
-  | GenerateSchema({src, outputFolder}) => [
+  | GenerateSchema({src, outputFolder, ?dumpSchemaSdl}) =>
+    [
       "generate-schema",
       src->resolveRelative,
       outputFolder->resolveRelative,
-    ]
+      switch dumpSchemaSdl {
+      | Some(true) => "true"
+      | Some(false) | None => ""
+      },
+    ]->Array.filter(s => s != "")
   | Completion({filePath, position, tmpname}) => [
       "completion",
       filePath,
@@ -82,7 +87,7 @@ let setupWatcher = (~onResult, ~src, ~outputFolder) => {
   open Bindings.Chokidar
 
   let generateSchema = () => {
-    let res = callPrivateCli(GenerateSchema({src, outputFolder}))
+    let res = callPrivateCli(GenerateSchema({src, outputFolder, dumpSchemaSdl: true}))
     onResult(res)
   }
 

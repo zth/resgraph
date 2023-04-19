@@ -1,0 +1,133 @@
+
+"""A timestamp, but with the implementation hidden in the server."""
+scalar TimestampHidden
+
+scalar TimestampZ
+
+
+"""A timestamp."""
+scalar Timestamp
+
+scalar TimestampList
+
+
+"""Indicates what status a user currently has."""
+enum UserStatus {
+
+  """User is online."""
+  Online
+
+  """User is offline."""
+  Offline
+
+  """User is idle."""
+  Idle @deprecated(reason: "Use 'Offline' instead.")
+}
+
+
+"""A user or a group."""
+union UserOrGroup {
+
+  """ This is a user."""
+  User
+
+  """ And this is a group. """
+  Group
+}
+
+
+"""Configuration for searching for a user."""
+input UserConfig {
+
+  """The ID of a user to search for."""
+  id: String!
+
+  """The name of the user to search for."""
+  name: String @deprecated(reason: "This is going away")
+  context: UserConfigContext
+}
+
+
+"""Additional for searching for a user."""
+input UserConfigContext {
+  groupId: String
+  name: String
+}
+
+
+"""An entity with a name."""
+interface HasName {
+  abbreviatedName: String
+  name: String!
+}
+
+
+"""An object with an ID"""
+interface Node {
+
+  """The id of the object."""
+  id: ID!
+}
+
+
+"""A group in the system."""
+type Group implements Node & HasName {
+
+  """The id of the object."""
+  id: ID!
+  name: String!
+
+  """The timestamp when this group was created."""
+  createdAt: Timestamp
+
+  """When this group was last modified."""
+  modifiedAt: TimestampHidden
+  abbreviatedName: String
+}
+
+type Mutation {
+  addUser(name: String!): User
+}
+
+type Pet implements HasName {
+  name: String!
+  age: Int!
+  abbreviatedName: String
+}
+
+type Query {
+  pet: Pet
+  listAsArgs(regularList: [String]!, optionalList: [String!], nullableList: [String], nullableInnerList: [String], list1: [String], list2: [[String]], list3: [[[String!]!]]): [String!]!
+  allowExplicitNull(someNullable: String): String!
+  searchForUser(input: UserConfig!): User
+  entity(id: ID!): UserOrGroup!
+  me: User
+
+  """Fetches objects given their IDs."""
+  nodes(ids: [ID!]!): [Node]!
+
+  """Fetches an object given its ID."""
+  node(id: ID!): Node
+  hasName(id: ID!): HasName
+}
+
+
+"""A user in the system."""
+type User implements Node & HasName {
+  allNames: [String!]!
+  currentStatus: UserStatus!
+  name(includeFullName: Boolean): String!
+  id: ID!
+
+  """The id of the object."""
+  id: ID!
+  name: String!
+
+  """The age of the user."""
+  age: Int!
+
+  """The last age of the user."""
+  lastAge: Int @deprecated(reason: "Use 'age' instead.")
+  abbreviatedName: String
+}
+

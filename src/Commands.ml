@@ -46,7 +46,7 @@ let test ~path =
           | "gen" ->
             GenerateSchema.generateSchema ~writeStateFile:true
               ~sourceFolder:"./src/" ~debug:true
-              ~outputFolder:"./src/__generated__"
+              ~outputFolder:"./src/__generated__" ~writeSdlFile:true
           | "com" ->
             print_endline
               ("Complete " ^ path ^ " " ^ string_of_int line ^ ":"

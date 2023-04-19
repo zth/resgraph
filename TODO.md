@@ -31,6 +31,13 @@
 - [x] Interfaces picked up that nobody implements should not be printed at all
 - [ ] Optimize prop resolution
 - [ ] Valdiate duplicate names on adding things
+- [ ] Use `resgraph.json` as base everywhere, and allow CLI to override as needed
+- [ ] Allow dumping schema to SDL
+
+## Bugs
+
+- [ ] Custom scalar isn't inferred in return position (probably just walked on by)
+- [ ] Custom scalar in module is shaky
 
 ## Project integration
 

@@ -1,0 +1,13 @@
+interface HasName {
+  name: String!
+}
+
+type Query {
+  me: User
+}
+
+type User implements HasName {
+  name: String!
+  age: Int!
+}
+

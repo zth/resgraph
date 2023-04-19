@@ -283,7 +283,14 @@ and variantCasesToUnionValues ~env ~debug ~schemaState ~full
                typ
            with
            | Some (GraphQLObjectType {id; displayName}) ->
-             Some {objectTypeId = id; displayName; loc = case.cname.loc}
+             Some
+               {
+                 objectTypeId = id;
+                 displayName;
+                 loc = case.cname.loc;
+                 description =
+                   case.attributes |> ProcessAttributes.findDocAttribute;
+               }
            | _ ->
              addDiagnostic schemaState
                ~diagnostic:
@@ -802,7 +809,8 @@ let printErrorState diagnostics =
     "{\n  \"status\": \"Error\",\n  \"errors\": \n    [\n      %s\n    ]\n}"
     (diagnostics |> List.rev |> List.map printDiagnostic |> String.concat ",\n")
 
-let generateSchema ~writeStateFile ~sourceFolder ~debug ~outputFolder =
+let generateSchema ~writeStateFile ~sourceFolder ~debug ~outputFolder
+    ~writeSdlFile =
   if debug then Printf.printf "generating schema from %s\n\n" sourceFolder;
   (* Holds cmt cache so we don't do heavy cmt processing multiple times. *)
   let cmtCache = Hashtbl.create 100 in
@@ -890,6 +898,7 @@ let generateSchema ~writeStateFile ~sourceFolder ~debug ~outputFolder =
   let processedSchema = processSchema schemaState in
   let schemaOutputPath = outputFolder ^ "/ResGraphSchema.res" in
   let assetsOutputPath = outputFolder ^ "/ResGraphSchemaAssets.res" in
+  let sdlOutputPath = outputFolder ^ "/schema.graphql" in
 
   if schemaState.diagnostics |> List.length > 0 then (
     Printf.printf
@@ -911,10 +920,13 @@ let generateSchema ~writeStateFile ~sourceFolder ~debug ~outputFolder =
       |> formatCode
     in
 
+    (* TODO: Do this in parallell in some fancy way *)
     if writeStateFile then
       GenerateSchemaUtils.writeStateFile ~package ~schemaState ~processedSchema;
 
-    (* TODO: Do this in parallell in some fancy way *)
+    (if writeSdlFile then
+     let sdl = GenerateSchemaSDL.printSchemaSDL schemaState in
+     GenerateSchemaUtils.writeIfHasChanges sdlOutputPath sdl);
 
     (* Write generated schema *)
     (* Write implementation file *)

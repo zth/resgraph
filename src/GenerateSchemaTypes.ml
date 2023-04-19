@@ -54,6 +54,7 @@ type gqlEnum = {
 type gqlUnionMember = {
   objectTypeId: string;
   displayName: string;
+  description: string option;
   loc: Location.t;
 }
 
