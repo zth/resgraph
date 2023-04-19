@@ -29,6 +29,8 @@ try {
 
         ErrorPrinter.prettyPrintDiagnostic(~lines=fileContentLines, ~diagnostic=error)
       })
+
+      Process.process->Process.exitWithCode(1)
     }
   | list{"watch", src, outputFolder} =>
     let _ = Utils.setupWatcher(~onResult=_ => (), ~src, ~outputFolder)

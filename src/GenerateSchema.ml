@@ -21,9 +21,9 @@ let variantCasesToEnumValues ~schemaState ~(env : SharedTypes.QueryEnv.t)
                  loc = case.cname.loc;
                  message =
                    Printf.sprintf
-                     "The variant member `%s` of the GraphQL enum variant `%s` \
+                     "The variant case `%s` of the GraphQL enum variant `%s` \
                       has a payload. Variants tagged as @gql.enum can only \
-                      have members without payloads. "
+                      have cases without payloads. "
                      case.cname.txt (case.typeDecl |> fst);
                  fileUri = env.file.uri;
                };
@@ -81,8 +81,20 @@ let rec findGraphQLType ~env ?(typeContext = Default) ~debug ?loc ~schemaState
       match References.digConstructor ~env ~package:full.package path with
       | Some
           ( env,
-            {item = {decl = {type_loc; type_params; type_manifest = Some te}}}
-          ) ->
+            {
+              item =
+                {
+                  decl =
+                    {
+                      type_loc;
+                      type_params;
+                      type_manifest = Some te;
+                      type_attributes;
+                    };
+                };
+            } )
+      (* Follow type aliases only if this isn't a defined GraphQL type. *)
+        when type_attributes |> hasGqlAnnotation = false ->
         (* Need to instantiate the type here, so all type variables are populated. *)
         let typeParams = type_params in
         let te = TypeUtils.instantiateType ~typeParams ~typeArgs te in
@@ -167,6 +179,9 @@ let rec findGraphQLType ~env ?(typeContext = Default) ~debug ?loc ~schemaState
           Some
             (GraphQLInterface
                {id = interfaceId; displayName = capitalizeFirstChar interfaceId})
+        | Some Scalar, {name; kind = Abstract (Some _)} ->
+          Some
+            (GraphQLScalar {id = name; displayName = capitalizeFirstChar name})
         | _ ->
           schemaState
           |> addDiagnostic
@@ -265,7 +280,7 @@ and variantCasesToUnionValues ~env ~debug ~schemaState ~full
                    loc = case.cname.loc;
                    message =
                      Printf.sprintf
-                       "The payload of the variant member `%s` of the GraphQL \
+                       "The payload of the variant case `%s` of the GraphQL \
                         union variant `%s` is not a GraphL object. The payload \
                         needs to be a single type representing a GraphQL \
                         object, meaning it's annotated with @gql.type."
@@ -280,7 +295,7 @@ and variantCasesToUnionValues ~env ~debug ~schemaState ~full
                  loc = case.cname.loc;
                  message =
                    Printf.sprintf
-                     "The payload of the variant member `%s` of the GraphQL \
+                     "The payload of the variant case `%s` of the GraphQL \
                       union variant `%s` is not a single payload. The payload \
                       needs to be a single type representing a GraphQL object, \
                       meaning it's annotated with @gql.type."
@@ -490,6 +505,35 @@ and traverseStructure ?(modulePath = []) ?originModule
                        ~expectedType:Union item.name;
                  })
                ~schemaState ~debug
+           | ( Type (({kind = Abstract (Some (path, typs))} as item), _),
+               Some Scalar ) -> (
+             (* @gql.scalar type someScalar = string *)
+             let asTypExpr = Ctype.newconstr path typs in
+             match
+               validateCustomScalar ~env ~package:full.package asTypExpr
+             with
+             | DoesNotNeedParsing ->
+               addScalar item.name
+                 ?description:(item.attributes |> attributesToDocstring)
+                 ~typeLocation:
+                   (findTypeLocation ~loc:item.decl.type_loc ~env ~schemaState
+                      ~expectedType:Scalar item.name)
+                 ~schemaState ~debug
+             | NeedsParsing ->
+               schemaState
+               |> addDiagnostic
+                    ~diagnostic:
+                      {
+                        loc = item.decl.type_loc;
+                        fileUri = env.file.uri;
+                        message =
+                          Printf.sprintf
+                            "This GraphQL scalar maps to something that \
+                             requires custom parsing and serializing, and \
+                             that's currently not supported in ResGraph (but \
+                             coming soon). Please use only primitives that \
+                             produces valid JSON for now.";
+                      })
            | Value typ, Some Field -> (
              (* @gql.field let fullName = (user: user) => {...} *)
              match typ |> TypeUtils.extractType ~env ~package:full.package with
@@ -575,7 +619,16 @@ and traverseStructure ?(modulePath = []) ?originModule
                              but is not a function. Only functions can \
                              represent GraphQL field resolvers.";
                       })
-           | _ -> (
+           | _, None -> ( (* Ignore values with no gql attribute. *) )
+           | v, Some _ -> (
+             Printf.printf "fail: %s\n"
+               (match v with
+               | Value _ -> "value"
+               | Type ({kind = Abstract (Some (_p, _t))}, _) ->
+                 "Type"
+                 ^ (_t |> List.map Shared.typeToString |> String.concat ", ")
+               | Type _ -> "Type2"
+               | Module _ -> "module");
              (* Didn't match. Do some error reporting. *)
              let baseDiagnostic =
                {fileUri = env.file.uri; message = ""; loc = item.loc}
@@ -625,6 +678,18 @@ and traverseStructure ?(modulePath = []) ?originModule
                        Printf.sprintf
                          "This type is annotated with @gql.enum, but is not a \
                           variant. Only variants can represent GraphQL enums.";
+                   }
+             | Some Scalar ->
+               add
+                 ~diagnostic:
+                   {
+                     baseDiagnostic with
+                     message =
+                       Printf.sprintf
+                         "This type is annotated with @gql.scalar, but is not \
+                          a type alias. Only type aliases can represent \
+                          GraphQL scalars as of now (but other representations \
+                          will be possible in the future).";
                    }
              | Some Union ->
                add
@@ -676,6 +741,7 @@ let generateSchema ~writeStateFile ~sourceFolder ~debug ~outputFolder =
       unions = Hashtbl.create 10;
       inputObjects = Hashtbl.create 10;
       interfaces = Hashtbl.create 10;
+      scalars = Hashtbl.create 10;
       query = None;
       subscription = None;
       mutation = None;
@@ -776,22 +842,21 @@ let generateSchema ~writeStateFile ~sourceFolder ~debug ~outputFolder =
     let schemaOutputPath = outputFolder ^ "/ResGraphSchema.res" in
     let assetsOutputPath = outputFolder ^ "/ResGraphSchemaAssets.res" in
 
-    (* TODO: Make these file names non-configurable *)
     (* TODO: Do this in parallell in some fancy way *)
 
     (* Write generated schema *)
     (* Write implementation file *)
-    GenerateSchemaUtils.writeIfHasChanges ~debug schemaOutputPath schemaCode;
+    GenerateSchemaUtils.writeIfHasChanges schemaOutputPath schemaCode;
 
     (* Write resi file *)
     let resiOutputPath = schemaOutputPath ^ "i" in
     let resiContent =
       "let schema: ResGraph.schema<ResGraphContext.context>\n"
     in
-    GenerateSchemaUtils.writeIfHasChanges ~debug resiOutputPath resiContent;
+    GenerateSchemaUtils.writeIfHasChanges resiOutputPath resiContent;
 
     (* Write assets file *)
-    GenerateSchemaUtils.writeIfHasChanges ~debug assetsOutputPath assetCode;
+    GenerateSchemaUtils.writeIfHasChanges assetsOutputPath assetCode;
 
     if debug then schemaCode |> print_endline
     else Printf.printf "{\"status\": \"Success\", \"ok\": true}"

@@ -3,6 +3,8 @@
 let shouldDumpSchema = process["env"]["DUMP_SCHEMA"] === "true"
 
 if shouldDumpSchema {
+  Console.log("Dumping schema...")
+
   open Node
 
   Fs.writeFileAsUtf8Sync(

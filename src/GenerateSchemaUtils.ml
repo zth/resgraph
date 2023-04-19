@@ -38,7 +38,13 @@ let validAttributes =
     ("gql.enum", "");
     ("gql.union", "");
     ("gql.inputObject", "");
+    ("gql.scalar", "");
   ]
+
+let hasGqlAnnotation attributes =
+  attributes
+  |> List.exists (fun ((name, _payload) : Parsetree.attribute) ->
+         Utils.startsWith name.txt "gql.")
 
 let extractGqlAttribute ~(schemaState : GenerateSchemaTypes.schemaState)
     ~(env : SharedTypes.QueryEnv.t) (attributes : Parsetree.attributes) =
@@ -47,6 +53,7 @@ let extractGqlAttribute ~(schemaState : GenerateSchemaTypes.schemaState)
          match String.split_on_char '.' name.txt with
          | ["gql"; "type"] -> Some ObjectType
          | ["gql"; "interface"] -> Some Interface
+         | ["gql"; "scalar"] -> Some Scalar
          | ["gql"; "interfaceResolver"] -> (
            match payload with
            | PStr
@@ -128,6 +135,7 @@ type expectedType =
   | Enum
   | Union
   | Interface
+  | Scalar
 
 (** Figures out the path to a target type in a file. *)
 let rec findModulePathOfType ~schemaState ~(env : SharedTypes.QueryEnv.t)
@@ -154,6 +162,9 @@ let rec findModulePathOfType ~schemaState ~(env : SharedTypes.QueryEnv.t)
            when item.name = name ->
            Some modulePath
          | Type ({kind = Record _}, _), InputObject, Some InputObject
+           when item.name = name ->
+           Some modulePath
+         | Type ({kind = Abstract (Some _)}, _), Scalar, Some Scalar
            when item.name = name ->
            Some modulePath
          | Module (Structure structure), _, _ ->
@@ -191,7 +202,8 @@ let findTypeLocation ~(env : SharedTypes.QueryEnv.t)
                  | ObjectType -> "object type"
                  | InputObject -> "input object"
                  | Field -> "field"
-                 | Interface -> "interface")
+                 | Interface -> "interface"
+                 | Scalar -> "scalar")
                  name env.file.moduleName;
            };
 
@@ -241,6 +253,19 @@ let addUnion id ~(makeUnion : unit -> gqlUnion) ~debug ~schemaState =
   else (
     if debug then Printf.printf "Adding union %s\n" id;
     Hashtbl.replace schemaState.unions id (makeUnion ()))
+
+let addScalar ~debug ~schemaState ?description ~typeLocation id =
+  if Hashtbl.mem schemaState.scalars id then ()
+  else (
+    if debug then Printf.printf "Adding scalar %s\n" id;
+    Hashtbl.replace schemaState.scalars id
+      {
+        id;
+        displayName = capitalizeFirstChar id;
+        description;
+        typeLocation;
+        specifiedByUrl = None;
+      })
 
 let addInterface id ~(makeInterface : unit -> gqlInterface) ~debug ~schemaState
     =
@@ -614,16 +639,18 @@ let onlyPrintableArgs (args : gqlArg list) =
          if arg.typ = InjectContext then false else true)
 
 let isFileContentsTheSame filePath s =
-  let ic = open_in filePath in
-  let fileLength = in_channel_length ic in
-  let len = String.length s in
-  if fileLength <> len then (
-    close_in ic;
-    false)
-  else
-    let contents = really_input_string ic fileLength in
-    close_in ic;
-    contents = s
+  try
+    let ic = open_in filePath in
+    let fileLength = in_channel_length ic in
+    let len = String.length s in
+    if fileLength <> len then (
+      close_in ic;
+      false)
+    else
+      let contents = really_input_string ic fileLength in
+      close_in ic;
+      contents = s
+  with Sys_error _ -> false
 
 let gqlRegexp = Str.regexp_string "@gql."
 
@@ -648,13 +675,20 @@ let fileHasGqlAttribute filePath =
   let fileChannel = open_in filePath in
   readLinesUntilValue fileChannel
 
-let writeIfHasChanges path contents ~debug =
-  if debug then ()
-  else if isFileContentsTheSame path contents then ()
+let writeIfHasChanges path contents =
+  if isFileContentsTheSame path contents then ()
   else
-    let oc = open_out path in
-    output_string oc contents;
-    close_out oc
+    try
+      let oc = open_out path in
+
+      output_string oc contents;
+      close_out oc
+    with Sys_error _ ->
+      Printf.printf
+        "Something went wrong trying to write to \"%s\". Make sure the \
+         directory actually exists."
+        path;
+      exit 1
 
 let getStateFilePath (package : SharedTypes.package) =
   package.rootPath ^ "/lib/.resgraphState.marshal"
@@ -676,3 +710,33 @@ let iterHashtblAlphabetically fn hashtbl =
   Hashtbl.fold (fun k v acc -> (k, v) :: acc) hashtbl []
   |> List.sort (fun (k1, _) (k2, _) -> String.compare k1 k2)
   |> List.iter (fun (k, v) -> fn k v)
+
+type scalarValidationResult = DoesNotNeedParsing | NeedsParsing
+let rec validateCustomScalar ~env ~package (typ : Types.type_expr) =
+  match typ.desc with
+  | Tlink t1 | Tsubst t1 | Tpoly (t1, []) ->
+    validateCustomScalar ~env ~package t1
+  | Tconstr (Path.Pident {name = "option" | "array"}, [payloadTypeExpr], _) ->
+    validateCustomScalar ~env ~package payloadTypeExpr
+  | Tconstr (Path.Pident {name = "bool" | "string" | "int" | "float"}, [], _) ->
+    DoesNotNeedParsing
+  | Tconstr (path, typeArgs, _) -> (
+    match pathIdentToList path with
+    | ["JSON"; "t"]
+    | ["Js"; "Json"; "t"]
+    | ["Js"; "Nullable"; "t"]
+    | ["Nullable"; "t"]
+    | ["Js"; "Null"; "t"]
+    | ["Null"; "t"] ->
+      DoesNotNeedParsing
+    | _ -> (
+      match References.digConstructor ~env ~package path with
+      | Some
+          ( env,
+            {
+              item = {decl = {type_manifest = Some t1; type_params = typeParams}};
+            } ) ->
+        let t1 = t1 |> TypeUtils.instantiateType ~typeParams ~typeArgs in
+        validateCustomScalar ~env ~package t1
+      | _ -> NeedsParsing))
+  | _ -> NeedsParsing

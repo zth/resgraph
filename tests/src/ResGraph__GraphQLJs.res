@@ -68,6 +68,18 @@ module GraphQLInterfaceType = {
   @module("graphql") @new external make: config => t = "GraphQLInterfaceType"
 }
 
+module GraphQLScalar = {
+  type t
+
+  external toGraphQLType: t => graphqlType = "%identity"
+
+  type config = {
+    name: string,
+    description?: string,
+  }
+  @module("graphql") @new external make: config => t = "GraphQLScalarType"
+}
+
 module GraphQLObjectType = {
   type t
 

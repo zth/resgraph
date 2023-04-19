@@ -42,6 +42,12 @@ Attribute id:g:[0:3->0:5] label:g
     "tags": [],
     "detail": "",
     "documentation": null
+  }, {
+    "label": "gql.scalar",
+    "kind": 4,
+    "tags": [],
+    "detail": "",
+    "documentation": null
   }]}
 Complete tests/Completion.res 3:10
 Attribute id:gql.ty:[3:3->3:10] label:gql.ty

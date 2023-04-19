@@ -11,6 +11,7 @@ type graphqlType =
   | GraphQLEnum of {id: string; displayName: string}
   | GraphQLUnion of {id: string; displayName: string}
   | GraphQLInterface of {id: string; displayName: string}
+  | GraphQLScalar of {id: string; displayName: string}
 
 type fieldResolverStyle =
   | Resolver of {moduleName: string; fnName: string; pathToFn: string list}
@@ -64,6 +65,14 @@ type gqlUnion = {
   typeLocation: typeLocation;
 }
 
+type gqlScalar = {
+  id: string;
+  displayName: string;
+  description: string option;
+  typeLocation: typeLocation;
+  specifiedByUrl: string option;
+}
+
 type gqlField = {
   name: string;
   resolverStyle: fieldResolverStyle;
@@ -106,6 +115,7 @@ type schemaState = {
   enums: (string, gqlEnum) Hashtbl.t;
   unions: (string, gqlUnion) Hashtbl.t;
   interfaces: (string, gqlInterface) Hashtbl.t;
+  scalars: (string, gqlScalar) Hashtbl.t;
   processedFiles: (string, bool) Hashtbl.t;
   mutable query: gqlObjectType option;
   mutable subscription: gqlObjectType option;
@@ -131,3 +141,4 @@ type gqlAttributes =
   | Field
   | Enum
   | Union
+  | Scalar

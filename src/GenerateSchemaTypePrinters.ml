@@ -56,6 +56,9 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
   | GraphQLObjectType {displayName} ->
     Printf.sprintf "get_%s()->GraphQLObjectType.toGraphQLType%s" displayName
       nullablePostfix
+  | GraphQLScalar {displayName} ->
+    Printf.sprintf "scalar_%s->GraphQLScalar.toGraphQLType%s" displayName
+      nullablePostfix
   | GraphQLInterface {displayName} ->
     Printf.sprintf "get_%s()->GraphQLInterfaceType.toGraphQLType%s" displayName
       nullablePostfix
@@ -198,6 +201,10 @@ let printObjectType (typ : gqlObjectType) =
     |> String.concat ", ")
     (printFields typ.fields)
 
+let printScalar (typ : gqlScalar) =
+  Printf.sprintf "{name: \"%s\", description: %s}" typ.displayName
+    (undefinedOrValueAsString typ.description)
+
 let printInterfaceType (typ : gqlInterface) =
   Printf.sprintf
     "{name: \"%s\", description: %s, interfaces: [%s], fields: () => %s, \
@@ -299,6 +306,13 @@ let printSchemaJsFile schemaState processSchema =
     }`)
     
     |};
+
+  (* Print all custom scalars. *)
+  schemaState.scalars
+  |> iterHashtblAlphabetically (fun _name (scalar : gqlScalar) ->
+         addWithNewLine
+           (Printf.sprintf "let scalar_%s = GraphQLScalar.make(%s)"
+              scalar.displayName (printScalar scalar)));
 
   (* Print all enums. These won't have any other dependencies, so they can be printed as is. *)
   schemaState.enums

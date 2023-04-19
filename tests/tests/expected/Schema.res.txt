@@ -9,6 +9,8 @@ Checking for type to attach resolver to
 Checking for type to attach resolver to
 Checking for type to attach resolver to
 noticing user
+Adding scalar timestamp
+Adding scalar timestampList
 noticing group
 noticing pet
 Adding union userOrGroup
@@ -47,6 +49,8 @@ let applyConversionToInputObject: (
       return newObj;
     }`)
 
+let scalar_Timestamp = GraphQLScalar.make({name: "Timestamp", description: "A timestamp."})
+let scalar_TimestampList = GraphQLScalar.make({name: "TimestampList", description: ?None})
 let enum_UserStatus = GraphQLEnumType.make({
   name: "UserStatus",
   description: "Indicates what status a user currently has.",
@@ -172,6 +176,15 @@ t_Group.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
           HasNameInterfaceResolvers.abbreviatedName(src)
+        }),
+      },
+      "createdAt": {
+        typ: scalar_Timestamp->GraphQLScalar.toGraphQLType,
+        description: "The timestamp when this group was created.",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["createdAt"]
         }),
       },
       "id": {

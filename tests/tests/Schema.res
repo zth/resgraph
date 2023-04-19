@@ -1,5 +1,12 @@
 type user = User.user
 
+/** A timestamp. */
+@gql.scalar
+type timestamp = float
+
+@gql.scalar
+type timestampList = array<float>
+
 /** A group in the system. */
 @gql.type
 type group = {
@@ -7,6 +14,9 @@ type group = {
   ...HasNameInterface.hasName,
   /** The group name.*/
   memberIds: array<string>,
+  /** The timestamp when this group was created.*/
+  @gql.field
+  createdAt: option<timestamp>,
 }
 
 @gql.type

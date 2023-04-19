@@ -17,12 +17,15 @@
 - [ ] How to import and use existing things from the ecosystem?
 - [x] Think about and fix compilation
 - [x] Traverse structure cache/circuit breaker
-- [ ] Interface as root type -> add resolver/field to all implementors
+- [x] Interface as root type -> add resolver/field to all implementors
 - [ ] Directives
-- [ ] Custom scalars
+- [x] Custom scalars
+- [ ] Custom scalars with custom serializer/parser
 - [ ] ~~Figure out a good way to bridge graphql-js validations (print dummy schema without resolvers and run validation on that?)~
 - [x] Sort alphabetically in schema output to simplify conflicts/make regeneration stable
 - [ ] Interfaces picked up that nobody implements should not be printed at all
+- [ ] Write empty schema def to prevent type errors on errors from ResGraph
+- [ ] Optimize prop resolution
 
 ## Project integration
 

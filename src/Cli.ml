@@ -11,9 +11,7 @@ let main () =
     Completion.completion ~debug:false ~path
       ~pos:(int_of_string line, int_of_string col)
       ~currentFile
-  | [_; "test"; path] ->
-    Cfg.supportsSnippets := true;
-    Commands.test ~path
+  | [_; "test"; path] -> Commands.test ~path
   | args when List.mem "-h" args || List.mem "--help" args -> prerr_endline help
   | _ ->
     prerr_endline help;
