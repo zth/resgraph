@@ -27,7 +27,7 @@
 - [x] Fix so that the same diagnostic is never added more than once
 - [x] Implement the most important schema validations from `graphql-js` directly in ResGraph.
 - [ ] Arguments in interface fields? Fields in interfaces to force implementation of for each type?
-- [ ] Interfaces picked up that nobody implements should not be printed at all
+- [x] Interfaces picked up that nobody implements should not be printed at all
 - [ ] Optimize prop resolution
 
 ## Project integration

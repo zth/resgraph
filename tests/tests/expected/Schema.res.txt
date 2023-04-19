@@ -11,6 +11,7 @@ Checking for type to attach resolver to
 noticing user
 Adding scalar timestamp
 Adding scalar timestampList
+Adding interface interfaceNobodyImplements
 noticing group
 noticing pet
 Adding union userOrGroup

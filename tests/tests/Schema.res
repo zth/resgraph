@@ -7,6 +7,9 @@ type timestamp = float
 @gql.scalar
 type timestampList = array<float>
 
+@gql.interface
+type interfaceNobodyImplements = {@gql.field weirdField: string}
+
 /** A group in the system. */
 @gql.type
 type group = {

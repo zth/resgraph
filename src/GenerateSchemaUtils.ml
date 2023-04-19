@@ -627,6 +627,19 @@ let processSchema (schemaState : schemaState) =
                 lastEndlingLine := endingLineNum);
          close_in fileChannel);
 
+  (* Remove any interface that isn't actually implemented by any type or
+     interface. Otherwise the codegen we do for interfaces will error out on a
+     bunch of impossible states. *)
+
+  (* TODO: Could instead tag this as "not implemented by anyone" if we want to
+     provide a nice hover message to make the user understand why it's not
+     included in codegen.
+  *)
+  schemaState.interfaces
+  |> Hashtbl.iter (fun id (intf : gqlInterface) ->
+         if Hashtbl.mem processedSchema.interfaceImplementedBy intf.id = false
+         then Hashtbl.remove schemaState.interfaces id);
+
   GenerateSchemaValidation.validateSchema schemaState;
   processedSchema
 
