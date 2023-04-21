@@ -2,14 +2,15 @@ generating schema from ./src/
 
 Adding scalar TimestampZ
 Adding scalar TimestampHidden
+Adding scalar TimestampHiddenSerializable
 Adding interface hasName
-Checking for type to attach resolver to
+Checking for type to attach resolver hasName to
 noticing query
-Checking for type to attach resolver to
+Checking for type to attach resolver abbreviatedName to
 Adding interface node
-Checking for type to attach resolver to
-Checking for type to attach resolver to
-Checking for type to attach resolver to
+Checking for type to attach resolver node to
+Checking for type to attach resolver nodes to
+Checking for type to attach resolver id to
 noticing user
 Adding scalar timestamp
 Adding scalar timestampList
@@ -18,19 +19,22 @@ noticing group
 noticing pet
 Adding union userOrGroup
 Adding enum userStatus
-Checking for type to attach resolver to
-Checking for type to attach resolver to
-Checking for type to attach resolver to
+Checking for type to attach resolver name to
+Checking for type to attach resolver currentStatus to
+Checking for type to attach resolver allNames to
 Adding input object userConfigContext
 Adding input object userConfig
-Checking for type to attach resolver to
-Checking for type to attach resolver to
-Checking for type to attach resolver to
-Checking for type to attach resolver to
-Checking for type to attach resolver to
-Checking for type to attach resolver to
+Checking for type to attach resolver me to
+Checking for type to attach resolver entity to
+Checking for type to attach resolver searchForUser to
+Checking for type to attach resolver allowExplicitNull to
+Checking for type to attach resolver listAsArgs to
+Checking for type to attach resolver pet to
+Checking for type to attach resolver customScalar to
+Checking for type to attach resolver customScalarImplSerializable to
 noticing mutation
-Checking for type to attach resolver to
+Checking for type to attach resolver addUser to
+Checking for type to attach resolver currentTime to
 @@warning("-27-32")
 
 open ResGraph__GraphQLJs
@@ -60,6 +64,11 @@ let scalar_TimestampHidden = GraphQLScalar.make({
     serialize: CustomScalars.Inner.TimestampHidden.serialize,
   }
   config
+})
+let scalar_TimestampHiddenSerializable = GraphQLScalar.make({
+  name: "TimestampHiddenSerializable",
+  description: "A timestamp, but with the implementation hidden in the server. Under the
+    hood, it's serializable.",
 })
 let scalar_TimestampZ = GraphQLScalar.make({
   let config: GraphQLScalar.config<CustomScalars.TimestampZ.t> = {
@@ -304,6 +313,33 @@ t_Query.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
           Schema.QueryFields.allowExplicitNull(src, ~someNullable=args["someNullable"])
+        }),
+      },
+      "currentTime": {
+        typ: scalar_TimestampHidden->GraphQLScalar.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.currentTime(src)
+        }),
+      },
+      "customScalar": {
+        typ: scalar_TimestampZ->GraphQLScalar.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.QueryFields.customScalar(src)
+        }),
+      },
+      "customScalarImplSerializable": {
+        typ: scalar_TimestampHiddenSerializable->GraphQLScalar.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.QueryFields.customScalarImplSerializable(src)
         }),
       },
       "entity": {

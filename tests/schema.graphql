@@ -1,5 +1,8 @@
 type Query {
   allowExplicitNull(someNullable: String): String!
+  currentTime: TimestampHidden
+  customScalar: TimestampZ
+  customScalarImplSerializable: TimestampHiddenSerializable
   entity(id: ID!): UserOrGroup!
   hasName(id: ID!): HasName
   listAsArgs(list1: [String], list2: [[String]], list3: [[[String!]!]], nullableInnerList: [String], nullableList: [String], optionalList: [String!], regularList: [String]!): [String!]!
@@ -13,6 +16,17 @@ type Query {
   pet: Pet
   searchForUser(input: UserConfig!): User
 }
+
+"""A timestamp, but with the implementation hidden in the server."""
+scalar TimestampHidden
+
+scalar TimestampZ
+
+"""
+A timestamp, but with the implementation hidden in the server. Under the
+    hood, it's serializable.
+"""
+scalar TimestampHiddenSerializable
 
 """A user or a group."""
 union UserOrGroup = Group | User
@@ -46,9 +60,6 @@ interface Node {
 
 """A timestamp."""
 scalar Timestamp
-
-"""A timestamp, but with the implementation hidden in the server."""
-scalar TimestampHidden
 
 """A user in the system."""
 type User implements HasName & Node {

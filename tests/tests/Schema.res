@@ -101,7 +101,6 @@ module QueryFields = {
 
   @gql.field
   let searchForUser = (_: query, ~input: userConfig): option<user> => {
-    Js.log(input)
     Some({
       id: "123"->ResGraph.id,
       name: input.name->Option.getWithDefault("Hello"),
@@ -157,6 +156,18 @@ module QueryFields = {
     let pet: pet = {name: "Mr Pet", age: 12}
     Some(pet)
   }
+
+  @gql.field
+  let customScalar = (_: query): option<CustomScalars.TimestampZ.t> => {
+    Some("123")
+  }
+
+  @gql.field
+  let customScalarImplSerializable = (_: query): option<
+    CustomScalars.TimestampHiddenSerializable.t,
+  > => {
+    "123"->CustomScalars.TimestampHiddenSerializable.make->Some
+  }
 }
 
 @gql.type
@@ -167,6 +178,11 @@ module Mutations = {
   let addUser = (_: mutation, ~name) => {
     Some({id: "123"->ResGraph.id, User.name, age: 35, lastAge: None})
   }
+}
+
+@gql.field
+let currentTime = (_: query) => {
+  CustomScalars.Inner.TimestampHidden.parseValue(Number(Date.now()))
 }
 
 // ^gen

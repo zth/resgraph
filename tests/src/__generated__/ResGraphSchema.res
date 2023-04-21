@@ -28,6 +28,11 @@ let scalar_TimestampHidden = GraphQLScalar.make({
   }
   config
 })
+let scalar_TimestampHiddenSerializable = GraphQLScalar.make({
+  name: "TimestampHiddenSerializable",
+  description: "A timestamp, but with the implementation hidden in the server. Under the
+    hood, it's serializable.",
+})
 let scalar_TimestampZ = GraphQLScalar.make({
   let config: GraphQLScalar.config<CustomScalars.TimestampZ.t> = {
     name: "TimestampZ",
@@ -271,6 +276,33 @@ t_Query.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
           Schema.QueryFields.allowExplicitNull(src, ~someNullable=args["someNullable"])
+        }),
+      },
+      "currentTime": {
+        typ: scalar_TimestampHidden->GraphQLScalar.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.currentTime(src)
+        }),
+      },
+      "customScalar": {
+        typ: scalar_TimestampZ->GraphQLScalar.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.QueryFields.customScalar(src)
+        }),
+      },
+      "customScalarImplSerializable": {
+        typ: scalar_TimestampHiddenSerializable->GraphQLScalar.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.QueryFields.customScalarImplSerializable(src)
         }),
       },
       "entity": {

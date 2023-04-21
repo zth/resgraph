@@ -2,6 +2,11 @@
 """A timestamp, but with the implementation hidden in the server."""
 scalar TimestampHidden
 
+
+"""A timestamp, but with the implementation hidden in the server. Under the
+    hood, it's serializable."""
+scalar TimestampHiddenSerializable
+
 scalar TimestampZ
 
 
@@ -96,6 +101,9 @@ type Pet implements HasName {
 }
 
 type Query {
+  currentTime: TimestampHidden
+  customScalarImplSerializable: TimestampHiddenSerializable
+  customScalar: TimestampZ
   pet: Pet
   listAsArgs(regularList: [String]!, optionalList: [String!], nullableList: [String], nullableInnerList: [String], list1: [String], list2: [[String]], list3: [[[String!]!]]): [String!]!
   allowExplicitNull(someNullable: String): String!

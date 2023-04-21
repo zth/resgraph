@@ -182,15 +182,15 @@ let rec findGraphQLType ~env ?(typeContext = Default) ~debug ?loc ~schemaState
           Some
             (GraphQLInterface
                {id = interfaceId; displayName = capitalizeFirstChar interfaceId})
-        | Some Scalar, {name; kind = Abstract (Some _)} ->
-          Some
-            (GraphQLScalar {id = name; displayName = capitalizeFirstChar name})
         | Some Scalar, {name = "t"} ->
           (* When the type is named `t`, we assume the module name is the scalar
              name. And the module name is the last added entry in pathRev, which
              tracks the current path we're at in the module of env. *)
           let scalarName = env.pathRev |> List.hd in
           Some (GraphQLScalar {id = scalarName; displayName = scalarName})
+        | Some Scalar, {name; kind = Abstract (Some _)} ->
+          Some
+            (GraphQLScalar {id = name; displayName = capitalizeFirstChar name})
         | _ ->
           schemaState
           |> addDiagnostic
@@ -370,8 +370,9 @@ and objectTypeFieldsOfRecordFields ~env ~schemaState ~debug
                loc = field.fname.loc;
              })
 
-and extractResolverFunctionInfo ~env ?loc ~(full : SharedTypes.full)
-    ~(schemaState : schemaState) ~debug (typ : Types.type_expr) =
+and extractResolverFunctionInfo ~resolverName ~env ?loc
+    ~(full : SharedTypes.full) ~(schemaState : schemaState) ~debug
+    (typ : Types.type_expr) =
   match typ |> TypeUtils.extractType ~env ~package:full.package with
   | Some (Tfunction {typ; env}) -> (
     let args, returnType =
@@ -380,7 +381,9 @@ and extractResolverFunctionInfo ~env ?loc ~(full : SharedTypes.full)
     (* The first arg should point to the type this resolver is for. *)
     match List.nth_opt args 0 with
     | Some (Nolabel, typ) -> (
-      if debug then Printf.printf "Checking for type to attach resolver to\n";
+      if debug then
+        Printf.printf "Checking for type to attach resolver %s to\n"
+          resolverName;
       match
         ( findGraphQLType typ ~debug ?loc ~env ~full ~schemaState,
           findGraphQLType returnType ~debug ~typeContext:ReturnType ?loc ~env
@@ -429,7 +432,7 @@ and mapFunctionArgs ~full ~env ~debug ~schemaState ~fnLoc
                  typ;
                }))
 
-and traverseStructure ?(modulePath = []) ?originModule
+and traverseStructure ?(modulePath = []) ?implStructure ?originModule
     ~(schemaState : schemaState) ~env ~debug ~full
     (structure : SharedTypes.Module.structure) =
   if
@@ -454,9 +457,11 @@ and traverseStructure ?(modulePath = []) ?originModule
              traverseStructure
                ~modulePath:(structure.name :: modulePath)
                ~schemaState ~env ~full ~debug structure
-           | Module (Constraint (_implStructure, Structure intfStructure)), _ ->
+           | ( Module
+                 (Constraint (Structure implStructure, Structure intfStructure)),
+               _ ) ->
              (* Look inside constraints rather than structure when present. *)
-             traverseStructure
+             traverseStructure ~implStructure
                ~modulePath:(intfStructure.name :: modulePath)
                ~schemaState ~env ~full ~debug intfStructure
            | Type ({kind = Record fields; attributes; decl}, _), Some ObjectType
@@ -533,10 +538,20 @@ and traverseStructure ?(modulePath = []) ?originModule
                        ~expectedType:Union item.name;
                  })
                ~schemaState ~debug
-           | Type (item, _), Some Scalar when item.name = "t" ->
+           | Type (item, _), Some Scalar when item.name = "t" -> (
              (* module Timestamp = { @gql.scalar type t = string } *)
              (* module Timestamp: {@gql.scalar type t } = { type t = string } *)
              let typeName = modulePath |> List.hd in
+             let typeLoc =
+               {
+                 fileName = env.file.moduleName;
+                 modulePath = List.rev modulePath;
+                 typeName = "t";
+                 loc = item.decl.type_loc;
+                 fileUri = env.file.uri;
+               }
+             in
+
              let hasParseValueFn =
                structure.items
                |> List.exists (fun (i : SharedTypes.Module.item) ->
@@ -555,21 +570,37 @@ and traverseStructure ?(modulePath = []) ?originModule
                       | {name = "serialize"; kind = Value _} -> true
                       | _ -> false)
              in
-             if hasParseValueFn && hasSerializeFn then
-               let typeLoc =
-                 {
-                   fileName = env.file.moduleName;
-                   modulePath = List.rev modulePath;
-                   typeName = "t";
-                   loc = item.decl.type_loc;
-                   fileUri = env.file.uri;
-                 }
-               in
+             (* Look up the implemented type if it's behind an interface. *)
+             let implementedType =
+               match implStructure with
+               | None -> item
+               | Some {items} ->
+                 items
+                 |> List.find_map (fun (itm : SharedTypes.Module.item) ->
+                        match itm with
+                        | {name = "t"; kind = Type (tt, _)} -> Some tt
+                        | _ -> None)
+                 |> Option.value ~default:item
+             in
+
+             (* Check whether the implemented type needs parsing *)
+             let needsParsing =
+               match implementedType with
+               | {kind = Abstract (Some (path, typs))} ->
+                 let asTypExpr = Ctype.newconstr path typs in
+                 validateCustomScalar ~env ~package:full.package asTypExpr
+                 = NeedsParsing
+               | _ -> true
+             in
+             match (needsParsing, hasParseValueFn, hasSerializeFn) with
+             | (true | false), true, true ->
+               (* Has parsers, always add them *)
                addScalar typeName
                  ?description:(item.attributes |> attributesToDocstring)
                  ~encoderDecoderLoc:typeLoc ~typeLocation:typeLoc ~schemaState
                  ~debug
-             else
+             | true, false, true | true, true, false | true, false, false ->
+               (* Needs parsing, but missing one of the assets *)
                schemaState
                |> addDiagnostic
                     ~diagnostic:
@@ -578,12 +609,21 @@ and traverseStructure ?(modulePath = []) ?originModule
                         fileUri = env.file.uri;
                         message =
                           Printf.sprintf
-                            "Scalars named `t` in a module needs accompanying \
-                             `parseValue` and `serialize` functions for \
-                             serializing and parsing values for the scalar. \
-                             One or both of those functions is not defined in \
-                             this module.";
+                            "Scalars named `t` in a module where the \
+                             underlying implementation is not serializable to \
+                             JSON needs accompanying `parseValue` and \
+                             `serialize` functions for serializing and parsing \
+                             values for the scalar. One or both of those \
+                             functions is not defined in this module.\n\n\
+                             Either define them, or change the implementation \
+                             of `t` to use a type that's serializable to JSON \
+                             without conversion.";
                       }
+             | false, _, _ ->
+               (* Does not need parsing, and don't have assets *)
+               addScalar typeName
+                 ?description:(item.attributes |> attributesToDocstring)
+                 ~typeLocation:typeLoc ~schemaState ~debug)
            | ( Type (({kind = Abstract (Some (path, typs))} as item), _),
                Some Scalar ) -> (
              (* @gql.scalar type someScalar = string *)
@@ -621,8 +661,8 @@ and traverseStructure ?(modulePath = []) ?originModule
              match typ |> TypeUtils.extractType ~env ~package:full.package with
              | Some (Tfunction {typ; env}) -> (
                match
-                 extractResolverFunctionInfo ~loc:item.loc ~env ~full
-                   ~schemaState ~debug typ
+                 extractResolverFunctionInfo ~resolverName:item.name
+                   ~loc:item.loc ~env ~full ~schemaState ~debug typ
                with
                | Some (GraphQLObjectType {id}, args, returnType) ->
                  (* Resolver for object type. *)

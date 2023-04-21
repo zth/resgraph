@@ -21,7 +21,7 @@
 - [ ] Directives
 - [x] Custom scalars
 - [x] Custom scalars with custom serializer/parser
-- [ ] Should custom scalars have an explicit annotation?
+- [ ] Should custom scalar parseValue/serialize have an explicit annotation?
 - [x] ~~Figure out a good way to bridge graphql-js validations (print dummy schema without resolvers and run validation on that?)~
 - [x] Sort alphabetically in schema output to simplify conflicts/make regeneration stable
 - [x] Write empty schema def to prevent type errors on errors from ResGraph
@@ -32,7 +32,10 @@
 - [ ] Optimize prop resolution
 - [ ] Valdiate duplicate names on adding things
 - [ ] Use `resgraph.json` as base everywhere, and allow CLI to override as needed
-- [ ] Allow dumping schema to SDL
+- [x] Allow dumping schema to SDL
+- [ ] Init command
+- [ ] CI check command
+- [x] Allow abstract custom scalars to not have serialize/parse when we can inspect the implementation to be a serializable GraphQL type
 
 ## Bugs
 
