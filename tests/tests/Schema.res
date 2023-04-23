@@ -185,4 +185,10 @@ let currentTime = (_: query) => {
   CustomScalars.Inner.TimestampHidden.parseValue(Number(Date.now()))
 }
 
+@gql.field
+let currentTimeFlat = (_: query) => {
+  let timestamp: timestamp = Date.now()
+  timestamp
+}
+
 // ^gen

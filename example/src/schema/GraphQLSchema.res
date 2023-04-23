@@ -7,6 +7,14 @@ type user = {
   @gql.field age: int,
 }
 
+module Timestamp = {
+  @gql.scalar
+  type t = float
+}
+
+@gql.scalar
+type timestamp2 = float
+
 @gql.field
 let me = (_: query, ~onlyIfAvailable) => {
   if onlyIfAvailable {
@@ -14,4 +22,10 @@ let me = (_: query, ~onlyIfAvailable) => {
   } else {
     None
   }
+}
+
+@gql.field
+let currentTime = (_: query) => {
+  let timestamp: timestamp2 = Date.now()
+  timestamp->Some
 }

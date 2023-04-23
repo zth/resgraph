@@ -39,8 +39,8 @@
 
 ## Bugs
 
-- [ ] Custom scalar isn't inferred in return position (probably just walked on by)
-- [ ] Custom scalar in module is shaky
+- [x] Custom scalar isn't inferred in return position (probably just walked on by)
+- [x] Custom scalar in module is shaky
 
 ## Project integration
 

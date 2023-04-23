@@ -287,6 +287,15 @@ t_Query.contents = GraphQLObjectType.make({
           Schema.currentTime(src)
         }),
       },
+      "currentTimeFlat": {
+        typ: scalar_Timestamp->GraphQLScalar.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.currentTimeFlat(src)
+        }),
+      },
       "customScalar": {
         typ: scalar_TimestampZ->GraphQLScalar.toGraphQLType,
         description: ?None,

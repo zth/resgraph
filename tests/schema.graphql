@@ -1,6 +1,7 @@
 type Query {
   allowExplicitNull(someNullable: String): String!
   currentTime: TimestampHidden
+  currentTimeFlat: Timestamp!
   customScalar: TimestampZ
   customScalarImplSerializable: TimestampHiddenSerializable
   entity(id: ID!): UserOrGroup!
@@ -19,6 +20,9 @@ type Query {
 
 """A timestamp, but with the implementation hidden in the server."""
 scalar TimestampHidden
+
+"""A timestamp."""
+scalar Timestamp
 
 scalar TimestampZ
 
@@ -57,9 +61,6 @@ interface Node {
   """The id of the object."""
   id: ID!
 }
-
-"""A timestamp."""
-scalar Timestamp
 
 """A user in the system."""
 type User implements HasName & Node {

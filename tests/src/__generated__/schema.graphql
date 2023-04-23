@@ -101,6 +101,7 @@ type Pet implements HasName {
 }
 
 type Query {
+  currentTimeFlat: Timestamp!
   currentTime: TimestampHidden
   customScalarImplSerializable: TimestampHiddenSerializable
   customScalar: TimestampZ

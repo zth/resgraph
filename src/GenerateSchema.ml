@@ -30,6 +30,39 @@ let variantCasesToEnumValues ~schemaState ~(env : SharedTypes.QueryEnv.t)
                };
            None)
 
+let rec extractFunctionType ~env ~package typ =
+  let rec loop ~env acc (t : Types.type_expr) =
+    match t.desc with
+    | Tlink t1 | Tsubst t1 | Tpoly (t1, []) -> loop ~env acc t1
+    | Tarrow (label, tArg, tRet, _) -> loop ~env ((label, tArg) :: acc) tRet
+    | Tconstr (Pident {name = "function$"}, [t; _], _) ->
+      extractFunctionType ~env ~package t
+    | Tconstr (path, typeArgs, _) -> (
+      match References.digConstructor ~env ~package path with
+      | Some
+          ( env,
+            {
+              item =
+                {
+                  decl =
+                    {
+                      type_attributes;
+                      type_manifest = Some t1;
+                      type_params = typeParams;
+                    };
+                };
+            } ) ->
+        (* Stop at types that have type annotations*)
+        if GenerateSchemaUtils.hasGqlAnnotation type_attributes then
+          (List.rev acc, t)
+        else
+          let t1 = t1 |> TypeUtils.instantiateType ~typeParams ~typeArgs in
+          loop ~env acc t1
+      | _ -> (List.rev acc, t))
+    | _ -> (List.rev acc, t)
+  in
+  loop ~env [] typ
+
 type typeContext = Default | ReturnType
 
 (* Extracts valid GraphQL types from type exprs *)
@@ -373,25 +406,19 @@ and objectTypeFieldsOfRecordFields ~env ~schemaState ~debug
 and extractResolverFunctionInfo ~resolverName ~env ?loc
     ~(full : SharedTypes.full) ~(schemaState : schemaState) ~debug
     (typ : Types.type_expr) =
-  match typ |> TypeUtils.extractType ~env ~package:full.package with
-  | Some (Tfunction {typ; env}) -> (
-    let args, returnType =
-      TypeUtils.extractFunctionType ~env ~package:full.package typ
-    in
-    (* The first arg should point to the type this resolver is for. *)
-    match List.nth_opt args 0 with
-    | Some (Nolabel, typ) -> (
-      if debug then
-        Printf.printf "Checking for type to attach resolver %s to\n"
-          resolverName;
-      match
-        ( findGraphQLType typ ~debug ?loc ~env ~full ~schemaState,
-          findGraphQLType returnType ~debug ~typeContext:ReturnType ?loc ~env
-            ~full ~schemaState )
-      with
-      | Some targetGraphQLType, Some returnType ->
-        Some (targetGraphQLType, args, returnType)
-      | _ -> None)
+  let args, returnType = extractFunctionType ~env ~package:full.package typ in
+  (* The first arg should point to the type this resolver is for. *)
+  match List.nth_opt args 0 with
+  | Some (Nolabel, typ) -> (
+    if debug then
+      Printf.printf "Checking for type to attach resolver %s to\n" resolverName;
+    match
+      ( findGraphQLType typ ~debug ?loc ~env ~full ~schemaState,
+        findGraphQLType returnType ~debug ~typeContext:ReturnType ?loc ~env
+          ~full ~schemaState )
+    with
+    | Some targetGraphQLType, Some returnType ->
+      Some (targetGraphQLType, args, returnType)
     | _ -> None)
   | _ -> None
 
@@ -538,7 +565,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                        ~expectedType:Union item.name;
                  })
                ~schemaState ~debug
-           | Type (item, _), Some Scalar when item.name = "t" -> (
+           | Type (({name = "t"} as item), _), Some Scalar -> (
              (* module Timestamp = { @gql.scalar type t = string } *)
              (* module Timestamp: {@gql.scalar type t } = { type t = string } *)
              let typeName = modulePath |> List.hd in
@@ -658,80 +685,62 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                       })
            | Value typ, Some Field -> (
              (* @gql.field let fullName = (user: user) => {...} *)
-             match typ |> TypeUtils.extractType ~env ~package:full.package with
-             | Some (Tfunction {typ; env}) -> (
-               match
-                 extractResolverFunctionInfo ~resolverName:item.name
-                   ~loc:item.loc ~env ~full ~schemaState ~debug typ
-               with
-               | Some (GraphQLObjectType {id}, args, returnType) ->
-                 (* Resolver for object type. *)
-                 let field =
-                   {
-                     loc = item.loc;
-                     name = item.name;
-                     fileName = env.file.moduleName;
-                     fileUri = env.file.uri;
-                     description = item.attributes |> attributesToDocstring;
-                     deprecationReason =
-                       item.attributes
-                       |> ProcessAttributes.findDeprecatedAttribute;
-                     resolverStyle =
-                       Resolver
-                         {
-                           moduleName = env.file.moduleName;
-                           fnName = item.name;
-                           pathToFn = modulePath;
-                         };
-                     typ = returnType;
-                     args =
-                       mapFunctionArgs ~full ~debug ~env ~schemaState
-                         ~fnLoc:item.loc args;
-                   }
-                 in
-                 addFieldToObjectType ~env ~loc:item.loc ~field ~schemaState id
-               | Some (GraphQLInterface {id}, args, returnType) ->
-                 (* Resolver for interface type. *)
-                 let field =
-                   {
-                     loc = item.loc;
-                     name = item.name;
-                     fileName = env.file.moduleName;
-                     fileUri = env.file.uri;
-                     description = item.attributes |> attributesToDocstring;
-                     deprecationReason =
-                       item.attributes
-                       |> ProcessAttributes.findDeprecatedAttribute;
-                     resolverStyle =
-                       Resolver
-                         {
-                           moduleName = env.file.moduleName;
-                           fnName = item.name;
-                           pathToFn = modulePath;
-                         };
-                     typ = returnType;
-                     args =
-                       mapFunctionArgs ~full ~debug ~env ~schemaState
-                         ~fnLoc:item.loc args;
-                   }
-                 in
-                 addFieldToInterfaceType ~env ~loc:item.loc ~field ~schemaState
-                   id
-               | _ ->
-                 schemaState
-                 |> addDiagnostic
-                      ~diagnostic:
-                        {
-                          loc = item.loc;
-                          fileUri = env.file.uri;
-                          message =
-                            Printf.sprintf
-                              "Could not figure out what GraphQL type to \
-                               attach this resolver to. Make sure the first \
-                               argument to your resolver is an unlabelled \
-                               argument of the GraphQL type you want this \
-                               resolver to be attached to.";
-                        })
+             match
+               extractResolverFunctionInfo ~resolverName:item.name ~loc:item.loc
+                 ~env ~full ~schemaState ~debug typ
+             with
+             | Some (GraphQLObjectType {id}, args, returnType) ->
+               (* Resolver for object type. *)
+               let field =
+                 {
+                   loc = item.loc;
+                   name = item.name;
+                   fileName = env.file.moduleName;
+                   fileUri = env.file.uri;
+                   description = item.attributes |> attributesToDocstring;
+                   deprecationReason =
+                     item.attributes
+                     |> ProcessAttributes.findDeprecatedAttribute;
+                   resolverStyle =
+                     Resolver
+                       {
+                         moduleName = env.file.moduleName;
+                         fnName = item.name;
+                         pathToFn = modulePath;
+                       };
+                   typ = returnType;
+                   args =
+                     mapFunctionArgs ~full ~debug ~env ~schemaState
+                       ~fnLoc:item.loc args;
+                 }
+               in
+               addFieldToObjectType ~env ~loc:item.loc ~field ~schemaState id
+             | Some (GraphQLInterface {id}, args, returnType) ->
+               (* Resolver for interface type. *)
+               let field =
+                 {
+                   loc = item.loc;
+                   name = item.name;
+                   fileName = env.file.moduleName;
+                   fileUri = env.file.uri;
+                   description = item.attributes |> attributesToDocstring;
+                   deprecationReason =
+                     item.attributes
+                     |> ProcessAttributes.findDeprecatedAttribute;
+                   resolverStyle =
+                     Resolver
+                       {
+                         moduleName = env.file.moduleName;
+                         fnName = item.name;
+                         pathToFn = modulePath;
+                       };
+                   typ = returnType;
+                   args =
+                     mapFunctionArgs ~full ~debug ~env ~schemaState
+                       ~fnLoc:item.loc args;
+                 }
+               in
+               addFieldToInterfaceType ~env ~loc:item.loc ~field ~schemaState id
              | _ ->
                schemaState
                |> addDiagnostic
@@ -741,9 +750,11 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                         fileUri = env.file.uri;
                         message =
                           Printf.sprintf
-                            "This let binding is annotated with @gql.field, \
-                             but is not a function. Only functions can \
-                             represent GraphQL field resolvers.";
+                            "Could not figure out what GraphQL type to attach \
+                             this resolver to. Make sure the first argument to \
+                             your resolver is an unlabelled argument of the \
+                             GraphQL type you want this resolver to be \
+                             attached to.";
                       })
            | _, None ->
              (* Ignore values with no gql attribute. *)
@@ -800,6 +811,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                           variant. Only variants can represent GraphQL enums.";
                    }
              | Some Scalar ->
+               (* TODO: More docs on custom scalars. *)
                add
                  ~diagnostic:
                    {

@@ -19,6 +19,8 @@ let applyConversionToInputObject: (
       return newObj;
     }`)
 
+let scalar_Timestamp = GraphQLScalar.make({name: "Timestamp", description: ?None})
+let scalar_Timestamp2 = GraphQLScalar.make({name: "Timestamp2", description: ?None})
 let i_HasName: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
 let get_HasName = () => i_HasName.contents
 let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
@@ -51,6 +53,15 @@ t_Query.contents = GraphQLObjectType.make({
   interfaces: [],
   fields: () =>
     {
+      "currentTime": {
+        typ: scalar_Timestamp2->GraphQLScalar.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          GraphQLSchema.currentTime(src)
+        }),
+      },
       "me": {
         typ: get_User()->GraphQLObjectType.toGraphQLType,
         description: ?None,

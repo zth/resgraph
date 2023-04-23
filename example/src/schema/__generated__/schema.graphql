@@ -1,8 +1,13 @@
+scalar Timestamp
+
+scalar Timestamp2
+
 interface HasName {
   name: String!
 }
 
 type Query {
+  currentTime: Timestamp2
   me(onlyIfAvailable: Boolean!): User
 }
 
