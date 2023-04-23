@@ -11,6 +11,16 @@ let printBuildTime = buildDuration => {
   )
 }
 
+let helpText = `
+**ResGraph v0.1.0 CLI**
+This is the CLI of ResGraph. All available configuration is made via adding a \`resgraph.json\` file in the root of your project.
+Available commands:
+
+build      | Builds the project.
+watch      | Builds the project and watches for changes.
+help       | Show this help message.
+`
+
 try {
   switch argsList {
   | list{"build"} =>
@@ -74,7 +84,10 @@ try {
     )
     Console.log("Watching for changes...")
   | list{"lsp", configFilePath} => Lsp.start(~configFilePath, ~mode=Lsp.Stdio)
-  | v => Console.error("Invalid command: " ++ v->List.toArray->Array.joinWith(" "))
+  | list{"help"} => Console.log(helpText)
+  | v =>
+    Console.log("Invalid command: " ++ v->List.toArray->Array.joinWith(" "))
+    Console.log(helpText)
   }
 } catch {
 | Exn.Error(e) => Console.error("Error: " ++ e->Exn.message->Option.getWithDefault("-"))
