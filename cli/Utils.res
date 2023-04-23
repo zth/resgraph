@@ -1,3 +1,8 @@
+type config = {
+  src: string,
+  outputFolder: string,
+}
+
 let resolveRelative = path => Path.resolve([Process.process->Process.cwd, path])
 
 type privateCliCall =
@@ -83,10 +88,12 @@ let runIfCompilerDone = (fn, ~compilerLogPath) => {
   }
 }
 
-let setupWatcher = (~onResult, ~src, ~outputFolder) => {
+let setupWatcher = (~onResult, ~onStartRebuild, ~config) => {
+  let {src, outputFolder} = config
   open Bindings.Chokidar
 
   let generateSchema = () => {
+    onStartRebuild()
     let res = callPrivateCli(GenerateSchema({src, outputFolder, dumpSchemaSdl: true}))
     onResult(res)
   }
@@ -109,3 +116,38 @@ let createFileInTempDir = (~extension="") => {
   tempFileId := tempFileId.contents + 1
   Path.join([Os.tmpdir(), tempFileName])
 }
+
+let parseConfig = rawConfig => {
+  switch rawConfig->JSON.Decode.object {
+  | None => None
+  | Some(dict) =>
+    switch (
+      dict->Dict.get("src")->Option.flatMap(JSON.Decode.string),
+      dict->Dict.get("outputFolder")->Option.flatMap(JSON.Decode.string),
+    ) {
+    | (Some(src), Some(outputFolder)) =>
+      Some({
+        src: src->resolveRelative,
+        outputFolder: outputFolder->resolveRelative,
+      })
+    | _ => None
+    }
+  }
+}
+
+let readConfigFromDir = dir => {
+  let readConfigResult =
+    [dir, "./resgraph.json"]
+    ->Path.resolve
+    ->Fs.readFileSync
+    ->Node.Buffer.toStringWithEncoding(#utf8)
+    ->JSON.parseExn
+    ->parseConfig
+
+  switch readConfigResult {
+  | None => Result.Error("Could not parse config, something is wrong")
+  | Some(config) => Ok(config)
+  }
+}
+
+let readConfigFromCwd = () => readConfigFromDir(Process.process->Process.cwd)

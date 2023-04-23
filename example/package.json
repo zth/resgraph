@@ -6,8 +6,8 @@
   "scripts": {
     "res:build": "rescript build -with-deps",
     "res:watch": "rescript build -with-deps -w",
-    "resgraph:watch": "node ../cli/Cli.mjs watch ./src ./src/schema/__generated__",
-    "resgraph:build": "node ../cli/Cli.mjs build ./src ./src/schema/__generated__",
+    "resgraph:watch": "node ../cli/Cli.mjs watch",
+    "resgraph:build": "node ../cli/Cli.mjs build",
     "resgraph": "node ../cli/Cli.mjs",
     "watch-app": "export DUMP_SCHEMA=true && nodemon ./src/App.mjs --watch ./src/*.mjs"
   },

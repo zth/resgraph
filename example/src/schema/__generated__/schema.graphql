@@ -3,7 +3,7 @@ interface HasName {
 }
 
 type Query {
-  me: User
+  me(onlyIfAvailable: Boolean!): User
 }
 
 type User implements HasName {

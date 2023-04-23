@@ -4,13 +4,32 @@ external argv: array<option<string>> = "process.argv"
 let args = argv->Array.sliceToEnd(~start=2)->Array.keepSome
 let argsList = args->List.fromArray
 
+let printBuildTime = buildDuration => {
+  Console.log(
+    `Build succeeded in ${(buildDuration /. 1000.)
+        ->Float.toFixedWithPrecision(~digits=2)} seconds.`,
+  )
+}
+
 try {
   switch argsList {
-  | list{"build", src, outputFolder} =>
-    let res = Utils.callPrivateCli(GenerateSchema({src, outputFolder}))
+  | list{"build"} =>
+    let config = switch Utils.readConfigFromCwd() {
+    | Error(msg) => panic(msg)
+    | Ok(config) => config
+    }
+
+    open PerfHooks.Performance
+    let timeStart = performance->now
+
+    let res = Utils.callPrivateCli(
+      GenerateSchema({src: config.src, outputFolder: config.outputFolder}),
+    )
     switch res {
     | Completion(_) | NotInitialized => ()
-    | Success(_) => Console.log("Build succeeded.")
+    | Success(_) =>
+      let buildDuration = performance->now -. timeStart
+      printBuildTime(buildDuration)
     | Error({errors}) =>
       let fileContentCache = Dict.make()
 
@@ -32,8 +51,28 @@ try {
 
       Process.process->Process.exitWithCode(1)
     }
-  | list{"watch", src, outputFolder} =>
-    let _ = Utils.setupWatcher(~onResult=_ => (), ~src, ~outputFolder)
+  | list{"watch"} =>
+    let config = switch Utils.readConfigFromCwd() {
+    | Error(msg) => panic(msg)
+    | Ok(config) => config
+    }
+
+    open PerfHooks.Performance
+    let timeStart = ref(0.)
+
+    let _watcher = Utils.setupWatcher(
+      ~onResult=_ => {
+        let buildDuration = performance->now -. timeStart.contents
+        printBuildTime(buildDuration)
+      },
+      ~onStartRebuild=() => {
+        Console.clear()
+        Console.log("Rebuilding.")
+        timeStart := performance->now
+      },
+      ~config,
+    )
+    Console.log("Watching for changes...")
   | list{"lsp", configFilePath} => Lsp.start(~configFilePath, ~mode=Lsp.Stdio)
   | v => Console.error("Invalid command: " ++ v->List.toArray->Array.joinWith(" "))
   }

@@ -55,9 +55,10 @@ t_Query.contents = GraphQLObjectType.make({
         typ: get_User()->GraphQLObjectType.toGraphQLType,
         description: ?None,
         deprecationReason: ?None,
+        args: {"onlyIfAvailable": {typ: Scalars.boolean->Scalars.toGraphQLType->nonNull}}->makeArgs,
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
-          GraphQLSchema.me(src)
+          GraphQLSchema.me(src, ~onlyIfAvailable=args["onlyIfAvailable"])
         }),
       },
     }->makeFields,

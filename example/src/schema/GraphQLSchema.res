@@ -8,6 +8,10 @@ type user = {
 }
 
 @gql.field
-let me = (_: query) => {
-  Some({name: "Test User", age: 35})
+let me = (_: query, ~onlyIfAvailable) => {
+  if onlyIfAvailable {
+    Some({name: "Test User", age: 35})
+  } else {
+    None
+  }
 }

@@ -316,39 +316,12 @@ external processOnMessage: (@as(json`"message"`) _, onMessageCallback) => unit =
 @val
 external exitProcess: int => unit = "process.exit"
 
-type config = {
-  src: string,
-  outputFolder: string,
-}
-
-let parseConfig = rawConfig => {
-  switch rawConfig->JSON.Decode.object {
-  | None => None
-  | Some(dict) =>
-    switch (
-      dict->Dict.get("src")->Option.flatMap(JSON.Decode.string),
-      dict->Dict.get("outputFolder")->Option.flatMap(JSON.Decode.string),
-    ) {
-    | (Some(src), Some(outputFolder)) =>
-      Some({
-        src: src->Utils.resolveRelative,
-        outputFolder: outputFolder->Utils.resolveRelative,
-      })
-    | _ => None
-    }
-  }
-}
-
 let start = (~mode, ~configFilePath) => {
-  let config = switch configFilePath
-  ->Fs.readFileSync
-  ->Node.Buffer.toStringWithEncoding(#utf8)
-  ->JSON.parseExn
-  ->parseConfig {
-  | None =>
-    log("Could not parse config, something is wrong")
-    panic("Could not parse config. Something is wrong.")
-  | Some(config) => config
+  let config = switch Utils.readConfigFromDir(configFilePath) {
+  | Error(msg) =>
+    log(msg)
+    panic(msg)
+  | Ok(config) => config
   }
 
   let currentResult = ref(Utils.NotInitialized)
@@ -397,10 +370,14 @@ let start = (~mode, ~configFilePath) => {
     })
   }
 
-  let watcher = Utils.setupWatcher(~onResult=res => {
-    currentResult := res
-    publishDiagnostics()
-  }, ~src=config.src, ~outputFolder=config.outputFolder)
+  let watcher = Utils.setupWatcher(
+    ~onStartRebuild=() => (),
+    ~onResult=res => {
+      currentResult := res
+      publishDiagnostics()
+    },
+    ~config,
+  )
 
   let openedFile = (uri, text) => {
     log(`opened ${uri}`)

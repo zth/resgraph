@@ -31,7 +31,7 @@
 - [x] Interfaces picked up that nobody implements should not be printed at all
 - [ ] Optimize prop resolution
 - [ ] Valdiate duplicate names on adding things
-- [ ] Use `resgraph.json` as base everywhere, and allow CLI to override as needed
+- [x] Use `resgraph.json` as base everywhere, and allow CLI to override as needed
 - [x] Allow dumping schema to SDL
 - [ ] Init command
 - [ ] CI check command
