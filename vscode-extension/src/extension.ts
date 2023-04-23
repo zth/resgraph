@@ -19,13 +19,14 @@ export async function activate(context: ExtensionContext) {
   if (c == null) throw new Error("Could not find config.");
 
   let { filepath } = c;
+  let fileDir = dirname(filepath);
 
   let serverOptions: ServerOptions = {
     transport: TransportKind.stdio,
-    command: resolve(dirname(filepath), "../cli/Cli.mjs"),
-    args: ["lsp", filepath],
+    command: resolve(fileDir, "../cli/Cli.mjs"),
+    args: ["lsp", fileDir],
     options: {
-      cwd: dirname(filepath),
+      cwd: fileDir,
     },
   };
 
