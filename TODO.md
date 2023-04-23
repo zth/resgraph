@@ -54,11 +54,16 @@
 - [ ] Custom scalars with automatic conversion (is this already natively supported perhaps?)
 - [ ] Default values for arguments. Would need to parse the AST which I'm trying to avoid (can maybe do it lazily only if there are resolvers?)
 
+## Relay
+
+- [ ] Opt in to nodeInterface
+- [ ] Node interface ID helpers
+- [ ] Basic connection type
+
 ## Validations
 
-- Object has no fields (annotate at least one with @gql.field, or create a resolver)
-- Input object has invalid field types
-- Interface is used as return type but does not have a implemented resolver
+- [x] Object has no fields (annotate at least one with @gql.field, or create a resolver)
+- [x] Input object has invalid field types
 
 ## Code actions
 
