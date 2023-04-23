@@ -36,11 +36,19 @@
 - [ ] Init command
 - [ ] CI check command
 - [x] Allow abstract custom scalars to not have serialize/parse when we can inspect the implementation to be a serializable GraphQL type
+- [ ] Allow customizing enum case value via `@as`.
 
 ## Bugs
 
 - [x] Custom scalar isn't inferred in return position (probably just walked on by)
 - [x] Custom scalar in module is shaky
+
+## Alpha
+
+- [ ] Some sort of docs
+- [ ] Package and build all parts in CI
+- [ ] Publish package
+- [ ] Publish VSCode extension
 
 ## Project integration
 

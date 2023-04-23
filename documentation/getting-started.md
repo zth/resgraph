@@ -1,0 +1,3 @@
+- Run init command
+- Configure your context type
+- Configure your server (we provide 1st class support for GraphQL Yoga. Mimicking that support for other frameworks should be easy.)
