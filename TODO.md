@@ -58,6 +58,7 @@
 
 ## Future
 
+- [ ] Special handling of result type?
 - [ ] Relay helpers
 - [ ] One-off generated types for polyvariants. Input objects, input enums, etc
 - [ ] Custom scalars with automatic conversion (is this already natively supported perhaps?)
