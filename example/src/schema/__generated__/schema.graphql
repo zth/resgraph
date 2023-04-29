@@ -2,11 +2,17 @@ scalar Timestamp
 
 scalar Timestamp2
 
+enum TimestampFormat {
+  Timestamp
+  HumanReadable
+}
+
 interface HasName {
   name: String!
 }
 
 type Query {
+  currentTimeFloat(format: TimestampFormat): String
   currentTime: Timestamp2
   me(onlyIfAvailable: Boolean!): User
 }

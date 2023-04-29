@@ -15,7 +15,11 @@
     }
   ],
   "suffix": ".mjs",
-  "bs-dependencies": ["@rescript/core", "rescript-nodejs"],
+  "bs-dependencies": [
+    "@rescript/core",
+    "rescript-nodejs",
+    "@glennsl/rescript-fetch"
+  ],
   "bsc-flags": ["-open NodeJs", "-open RescriptCore"],
   "js-post-build": {
     "cmd": "./scripts/post-build.sh"

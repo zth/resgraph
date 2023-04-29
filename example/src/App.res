@@ -13,21 +13,19 @@ if shouldDumpSchema {
   )
 }
 
-module Yoga = GraphQLYoga.MakeYoga({
-  type appContext = ResGraphContext.context
-})
-
-open Yoga
+open GraphQLYoga
 
 let yoga = createYoga({
   schema: ResGraphSchema.schema,
   context: async ({request}) => {
-    ignore(request)
+    open ResGraphContext
+
     {
-      ResGraphContext.currentUserId: Some("123"),
+      currentUserId: request->Request.headers->Headers.get("x-user-id"),
     }
   },
 })
+
 let server = NodeHttpServer.createServer(yoga)
 
 server->NodeHttpServer.listen(9797, () => {

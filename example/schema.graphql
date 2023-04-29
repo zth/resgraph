@@ -1,5 +1,14 @@
 type Query {
+  currentTime: Timestamp2
+  currentTimeFloat(format: TimestampFormat): String
   me(onlyIfAvailable: Boolean!): User
+}
+
+scalar Timestamp2
+
+enum TimestampFormat {
+  Timestamp
+  HumanReadable
 }
 
 type User implements HasName {

@@ -29,3 +29,18 @@ let currentTime = (_: query) => {
   let timestamp: timestamp2 = Date.now()
   timestamp->Some
 }
+
+@gql.enum
+type timestampFormat = Timestamp | HumanReadable
+
+@gql.field
+let currentTimeFloat = (_: query, ~format=Timestamp) => {
+  let timestamp = Date.now()
+
+  Some(
+    switch format {
+    | Timestamp => timestamp->Float.toString
+    | HumanReadable => "Hello"
+    },
+  )
+}

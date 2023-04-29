@@ -1,31 +1,33 @@
-module type MakeYogaConfig = {
-  type appContext
+module Request = Fetch.Request
+module Headers = Fetch.Headers
+module Body = Fetch.Body
+module FormData = Fetch.FormData
+module Blob = Fetch.Blob
+
+module Server = {
+  type t
 }
 
-module MakeYoga = (C: MakeYogaConfig) => {
-  type appContext = C.appContext
-
-  module Server = {
-    type t
-  }
-
-  module NodeHttpServer = {
-    type t
-
-    @module("node:http") external createServer: Server.t => t = "createServer"
-
-    @send external listen: (t, int, unit => unit) => unit = "listen"
-  }
-
-  type request
-
-  type contextConfig = {request: request}
-
-  type createServerConfig = {
-    schema?: ResGraph.schema<appContext>,
-    context?: contextConfig => promise<appContext>,
-  }
-
-  @module("graphql-yoga")
-  external createYoga: createServerConfig => Server.t = "createYoga"
+type graphqlParams = {
+  query?: string,
+  operationName?: string,
+  variables?: Dict.t<ResGraph.JSON.t>,
+  extensions?: Dict.t<ResGraph.JSON.t>,
 }
+
+type contextConfig = {request: Request.t, params: graphqlParams}
+
+type createServerConfig<'appContext> = {
+  schema: ResGraph.schema<'appContext>,
+  context: contextConfig => promise<'appContext>,
+}
+
+module NodeHttpServer = {
+  type t
+
+  @module("node:http") external createServer: Server.t => t = "createServer"
+
+  @send external listen: (t, int, unit => unit) => unit = "listen"
+}
+
+external createYoga: createServerConfig<'appContext> => Server.t = "createYoga"

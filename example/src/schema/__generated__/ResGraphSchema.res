@@ -21,6 +21,18 @@ let applyConversionToInputObject: (
 
 let scalar_Timestamp = GraphQLScalar.make({name: "Timestamp", description: ?None})
 let scalar_Timestamp2 = GraphQLScalar.make({name: "Timestamp2", description: ?None})
+let enum_TimestampFormat = GraphQLEnumType.make({
+  name: "TimestampFormat",
+  description: ?None,
+  values: {
+    "Timestamp": {GraphQLEnumType.value: "Timestamp", description: ?None, deprecationReason: ?None},
+    "HumanReadable": {
+      GraphQLEnumType.value: "HumanReadable",
+      description: ?None,
+      deprecationReason: ?None,
+    },
+  }->makeEnumValues,
+})
 let i_HasName: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
 let get_HasName = () => i_HasName.contents
 let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
@@ -60,6 +72,16 @@ t_Query.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
           GraphQLSchema.currentTime(src)
+        }),
+      },
+      "currentTimeFloat": {
+        typ: Scalars.string->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {"format": {typ: enum_TimestampFormat->GraphQLEnumType.toGraphQLType}}->makeArgs,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          GraphQLSchema.currentTimeFloat(src, ~format=?args["format"]->Nullable.toOption)
         }),
       },
       "me": {

@@ -38,6 +38,12 @@
 - [x] Allow abstract custom scalars to not have serialize/parse when we can inspect the implementation to be a serializable GraphQL type
 - [ ] Allow customizing enum case value via `@as`.
 - [ ] Config file JSON schema.
+- [ ] Query/mutation as abstract types.
+
+## Ideas
+
+- [ ] Inline records in unions to synthetsize types?
+- [ ] Shorthand resolver? Reusable resolver? Case is "I have a `userId` and just want to use an existing resolver fn to use it"
 
 ## Bugs
 

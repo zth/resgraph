@@ -22,7 +22,8 @@
     "@rescript/core": "^0.2.0",
     "chalk": "^5.2.0",
     "chokidar": "^3.5.3",
-    "rescript": "^11.0.0-alpha.4",
+    "rescript": "^11.0.0-alpha.5",
+    "@glennsl/rescript-fetch": "0.2.0",
     "rescript-nodejs": "^14.3.1",
     "vscode-jsonrpc": "^5.0.1"
   }

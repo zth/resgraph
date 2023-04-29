@@ -1,4 +1,4 @@
-You define an enum by defining a variant without payloads and tag it with `@gql.enum`:
+Enums are defined by defining a variant without payloads and annotate it with `@gql.enum`:
 
 ```rescript
 @gql.enum
@@ -12,13 +12,54 @@ enum UserStatus {
 }
 ```
 
-- Enums must be variants without payloads
+Notice enums _must_ be variants without payloads, or ResGraph will complain.
 
 ## Using enums in the schema
 
 Enums are valid to use anywhere in your schema where they are valid in GraphQL. ResGraph just needs to understand that it's your particular enum it's looking for. A few examples:
 
-- Add examples
+```rescript
+@gql.enum
+type userStatus = Online | Offline
+
+@gql.type
+type user = {
+  id: string,
+
+  @gql.field
+  currentStatus: option<userStatus>
+}
+
+@gql.field
+let lastKnownStatus = (user: user, ~ctx: ResGraphContext.context) => {
+  // Returns promise<option<userStatus>>
+  ctx.dataLoaders.user.lastKnownStatus.load(~userId=user.id)
+}
+
+@gql.field
+let currentUsersWithStatus = (_: query, ~status: userStatus, ~ctx: ResGraphContext.context) => {
+  // Returns promise<array<user>>
+  ctx.dataLoaders.user.byCurrentStatus.load(~status)
+}
+```
+
+This above will generate the following GraphQL:
+
+```graphql
+enum UserStatus {
+  Online
+  Offline
+}
+
+type User {
+  currentStatus: UserStatus
+  lastKnownStatus: UserStatus
+}
+
+type Query {
+  currentUsersWithStatus: [User!]!
+}
+```
 
 ## Comments and deprecations
 
@@ -70,3 +111,5 @@ enum UserStatus {
   OFFLINE
 }
 ```
+
+Let's look at how enum's close friend [unions are defined](unions) in ResGraph.
