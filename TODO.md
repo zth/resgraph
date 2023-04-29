@@ -2,7 +2,7 @@
 - [x] Mutations
 - [x] Subscriptions (definition, but behavior is broken)
 - [x] Interfaces
-- [ ] Rethink root value for query/subscriptions/mutations
+- [x] Rethink root value for query/subscriptions/mutations
 - [x] Validate that enums are only variant cases without payloads
 - [x] Have some way to propagate diagnostics somewhere
 - [x] Tag loc properly on all items
@@ -13,7 +13,6 @@
 - [x] Nullability in arguments
 - [x] Runtime conversion for arguments to match ReScript representation
 - [x] Runtime conversion for input objects to match ReScript representation
-- [ ] Figure out how to do subscriptions properly. Async iterators? What else exists?
 - [ ] How to import and use existing things from the ecosystem?
 - [x] Think about and fix compilation
 - [x] Traverse structure cache/circuit breaker
@@ -21,7 +20,6 @@
 - [ ] Directives
 - [x] Custom scalars
 - [x] Custom scalars with custom serializer/parser
-- [ ] Should custom scalar parseValue/serialize have an explicit annotation?
 - [x] ~~Figure out a good way to bridge graphql-js validations (print dummy schema without resolvers and run validation on that?)~
 - [x] Sort alphabetically in schema output to simplify conflicts/make regeneration stable
 - [x] Write empty schema def to prevent type errors on errors from ResGraph
@@ -39,6 +37,8 @@
 - [x] Allow customizing enum case value via `@as`.
 - [ ] Config file JSON schema.
 - [x] Query/mutation as abstract types.
+- [ ] Figure out how to do subscriptions properly. Async iterators? What else exists?
+- [ ] Should custom scalar parseValue/serialize have an explicit annotation?
 
 ## Ideas
 
