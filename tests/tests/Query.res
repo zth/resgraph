@@ -1,2 +1,2 @@
 @gql.type
-type query = {}
+type query

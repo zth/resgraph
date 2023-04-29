@@ -38,7 +38,7 @@
 - [x] Allow abstract custom scalars to not have serialize/parse when we can inspect the implementation to be a serializable GraphQL type
 - [x] Allow customizing enum case value via `@as`.
 - [ ] Config file JSON schema.
-- [ ] Query/mutation as abstract types.
+- [x] Query/mutation as abstract types.
 
 ## Ideas
 

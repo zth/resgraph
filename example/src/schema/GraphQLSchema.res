@@ -1,5 +1,5 @@
 @gql.type
-type query = {}
+type query
 
 @gql.type
 type user = {

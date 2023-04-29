@@ -139,6 +139,19 @@ let rec findGraphQLType ~env ?(typeContext = Default) ~debug ?loc ~schemaState
           extractGqlAttribute ~env ~schemaState item.attributes
         in
         match (gqlAttribute, item) with
+        | ( Some ObjectType,
+            {
+              attributes;
+              name = ("query" | "mutation") as name;
+              kind = Abstract None;
+            } ) ->
+          let id = name in
+          let displayName = capitalizeFirstChar id in
+          noticeObjectType id ~displayName ~debug ~schemaState ~env
+            ?description:(GenerateSchemaUtils.attributesToDocstring attributes)
+            ~makeFields:(fun () -> [])
+            ~loc:item.decl.type_loc;
+          Some (GraphQLObjectType {id; displayName})
         | Some ObjectType, {attributes; name; kind = Record fields} ->
           let id = name in
           let displayName = capitalizeFirstChar id in
@@ -491,6 +504,24 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
              traverseStructure ~implStructure
                ~modulePath:(intfStructure.name :: modulePath)
                ~schemaState ~env ~full ~debug intfStructure
+           | ( Type
+                 ( {
+                     name = "query" | "mutation";
+                     kind = Abstract None;
+                     attributes;
+                     decl;
+                   },
+                   _ ),
+               Some ObjectType ) ->
+             (* @gql.type type query *)
+             (* @gql.type type mutation *)
+             let id = item.name in
+             let displayName = capitalizeFirstChar item.name in
+             noticeObjectType ~env ~debug ~loc:decl.type_loc ~schemaState
+               ?description:(attributesToDocstring attributes)
+               ~displayName
+               ~makeFields:(fun () -> [])
+               id
            | Type ({kind = Record fields; attributes; decl}, _), Some ObjectType
              ->
              (* @gql.type type someType = {...} *)

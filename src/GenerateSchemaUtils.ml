@@ -157,6 +157,11 @@ let rec findModulePathOfType ~schemaState ~(env : SharedTypes.QueryEnv.t)
          | Type ({kind = Record _}, _), ObjectType, Some ObjectType
            when item.name = name ->
            Some modulePath
+         | ( Type ({name = "query" | "mutation"; kind = Abstract None}, _),
+             ObjectType,
+             Some ObjectType )
+           when item.name = name ->
+           Some modulePath
          | Type ({kind = Record _}, _), Interface, Some Interface
            when item.name = name ->
            Some modulePath
