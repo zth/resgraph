@@ -19,6 +19,9 @@ noticing group
 noticing pet
 Adding union userOrGroup
 Adding enum userStatus
+[@res.doc,@as]
+[@res.doc]
+[@res.doc,@deprecated]
 Checking for type to attach resolver name to
 Checking for type to attach resolver currentStatus to
 Checking for type to attach resolver allNames to
@@ -86,8 +89,8 @@ let enum_UserStatus = GraphQLEnumType.make({
   name: "UserStatus",
   description: "Indicates what status a user currently has.",
   values: {
-    "Online": {
-      GraphQLEnumType.value: "Online",
+    "ONLINE": {
+      GraphQLEnumType.value: "ONLINE",
       description: "User is online.",
       deprecationReason: ?None,
     },

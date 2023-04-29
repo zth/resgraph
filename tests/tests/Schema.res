@@ -39,7 +39,9 @@ type userOrGroup = | /** This is a user.*/ User(user) | /** And this is a group.
 /** Indicates what status a user currently has. */
 @gql.enum
 type userStatus =
-  | /** User is online. */ Online
+  | /** User is online. */
+  @as("ONLINE")
+  Online
   | /** User is offline. */ Offline
   | /** User is idle. */
   @deprecated("Use 'Offline' instead.")

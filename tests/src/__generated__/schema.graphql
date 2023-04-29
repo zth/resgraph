@@ -20,7 +20,7 @@ scalar TimestampList
 enum UserStatus {
 
   """User is online."""
-  Online
+  ONLINE
 
   """User is offline."""
   Offline

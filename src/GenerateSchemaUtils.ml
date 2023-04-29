@@ -352,6 +352,29 @@ let attributesToDocstring attributes =
   | None -> None
   | Some doc -> Some (doc |> trimString)
 
+(** Pulls out name from `as` attribute. *)
+let nameFromAttribute (attributes : Parsetree.attributes) ~default =
+  Printf.printf "%s\n" (DumpAst.printAttributes attributes);
+  match
+    attributes
+    |> List.find_map (fun (attr : Parsetree.attribute) ->
+           match attr with
+           | ( {Location.txt = "as"},
+               PStr
+                 [
+                   {
+                     pstr_desc =
+                       Pstr_eval
+                         ( {pexp_desc = Pexp_constant (Pconst_string (name, _))},
+                           _ );
+                   };
+                 ] ) ->
+             Some name
+           | _ -> None)
+  with
+  | Some name -> name
+  | None -> default
+
 let findContextArgName (args : gqlArg list) =
   args
   |> List.find_map (fun (arg : gqlArg) ->

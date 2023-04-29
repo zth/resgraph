@@ -36,7 +36,7 @@
 - [ ] Init command
 - [ ] CI check command
 - [x] Allow abstract custom scalars to not have serialize/parse when we can inspect the implementation to be a serializable GraphQL type
-- [ ] Allow customizing enum case value via `@as`.
+- [x] Allow customizing enum case value via `@as`.
 - [ ] Config file JSON schema.
 - [ ] Query/mutation as abstract types.
 

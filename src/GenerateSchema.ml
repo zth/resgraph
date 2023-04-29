@@ -10,7 +10,7 @@ let variantCasesToEnumValues ~schemaState ~(env : SharedTypes.QueryEnv.t)
          | Args [] ->
            Some
              {
-               value = case.cname.txt;
+               value = nameFromAttribute case.attributes ~default:case.cname.txt;
                description = case.attributes |> attributesToDocstring;
                deprecationReason = case.deprecated;
                loc = case.cname.loc;

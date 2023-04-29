@@ -48,8 +48,8 @@ let enum_UserStatus = GraphQLEnumType.make({
   name: "UserStatus",
   description: "Indicates what status a user currently has.",
   values: {
-    "Online": {
-      GraphQLEnumType.value: "Online",
+    "ONLINE": {
+      GraphQLEnumType.value: "ONLINE",
       description: "User is online.",
       deprecationReason: ?None,
     },
