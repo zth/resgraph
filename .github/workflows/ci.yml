@@ -104,13 +104,13 @@ jobs:
       - run: tar -xvf binary.tar
         working-directory: ./bin
 
-      - name: Download MacOS ARM binary
-        uses: actions/download-artifact@v3
-        with:
-          name: macos-arm
-          path: ./bin
-      - run: tar -xvf binary.tar
-        working-directory: ./bin
+      #- name: Download MacOS ARM binary
+      #  uses: actions/download-artifact@v3
+      #  with:
+      #    name: macos-arm
+      #    path: ./bin
+      #- run: tar -xvf binary.tar
+      #  working-directory: ./bin
 
       - name: Download Linux binary
         uses: actions/download-artifact@v3
@@ -147,10 +147,9 @@ jobs:
         run: npm pack
 
       - uses: actions/upload-artifact@v3
-        if: startsWith(github.ref, 'refs/tags/')
         with:
-          name: resgraph-${{ steps.tag_name.outputs.tag }}.tgz
-          path: resgraph-${{ steps.tag_name.outputs.tag }}.tgz
+          name: resgraph*.tgz
+          path: resgraph.tgz
 
       #- name: Publish latest master to GitHub
       #  if: github.ref == 'refs/heads/master'
