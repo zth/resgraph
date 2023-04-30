@@ -1,3 +1,5 @@
+@@directive("#!/usr/bin/env node")
+
 @val
 external argv: array<option<string>> = "process.argv"
 

@@ -7,6 +7,9 @@
     "res:build": "rescript build -with-deps",
     "res:watch": "rescript build -with-deps -w"
   },
+  "bin": {
+    "resgraph": "cli/Cli.mjs"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/zth/resgraph.git"
@@ -26,5 +29,12 @@
     "@glennsl/rescript-fetch": "0.2.0",
     "rescript-nodejs": "^14.3.1",
     "vscode-jsonrpc": "^5.0.1"
-  }
+  },
+  "files": [
+    "bin/*",
+    "cli/**/*.mjs",
+    "package.json",
+    "LICENSE",
+    "README.md"
+  ]
 }
