@@ -71,7 +71,7 @@ jobs:
       # https://github.com/actions/upload-artifact/tree/ee69f02b3dfdecd58bb31b4d133da38ba6fe3700#permission-loss
       - name: Compress files
         run: |
-          cd analysis
+          cd bin
           mkdir ${{matrix.artifact-folder}}
           mv resgraph.exe ${{matrix.artifact-folder}}
           tar -cvf binary.tar ${{matrix.artifact-folder}}
