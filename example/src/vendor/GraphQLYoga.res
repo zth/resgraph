@@ -30,4 +30,5 @@ module NodeHttpServer = {
   @send external listen: (t, int, unit => unit) => unit = "listen"
 }
 
+@module("graphql-yoga")
 external createYoga: createServerConfig<'appContext> => Server.t = "createYoga"
