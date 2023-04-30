@@ -73,7 +73,7 @@ jobs:
         run: |
           cd bin
           mkdir ${{matrix.artifact-folder}}
-          mv resgraph.exe ${{matrix.artifact-folder}}
+          mv dev/resgraph.exe ${{matrix.artifact-folder}}
           tar -cvf binary.tar ${{matrix.artifact-folder}}
 
       - uses: actions/upload-artifact@v3
