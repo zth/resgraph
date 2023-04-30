@@ -1,7 +1,7 @@
 SHELL = /bin/bash
 
 node_modules/.bin/rescript:
-	npm install
+	npm install --legacy-peer-deps
 
 build: node_modules/.bin/rescript
 	node_modules/.bin/rescript

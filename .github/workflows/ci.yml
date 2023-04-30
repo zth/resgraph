@@ -93,7 +93,7 @@ jobs:
         with:
           node-version: 16
 
-      - run: npm ci
+      - run: npm ci --legacy-peer-deps
       - run: npm run res:build
 
       - name: Download MacOS binary
