@@ -2,6 +2,8 @@
 
 ## main
 
+## 0.1.3
+
 ### Bug fix
 
 - Escape descriptions in GraphQL schema.
