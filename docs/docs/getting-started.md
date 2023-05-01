@@ -86,7 +86,7 @@ ResGraph will automatically generate 3 things by default:
 
 #### Build and watch mode
 
-Notice we built our schema using the one-shot command `resgraph build`. If you want to watch for changes and automatically rerun ResGraph, run `resgraph watch`. However, if you're also using VSCode, you're encouraged to instead use the [ResGraph VSCode extension](TODO), which will run ResGraph in watch mode for you, show you errors and so on, directly inside of VSCode.
+Notice we built our schema using the one-shot command `resgraph build`. If you want to watch for changes and automatically rerun ResGraph, run `resgraph watch`. However, if you're also using VSCode, you're encouraged to instead use the [ResGraph VSCode extension](getting-started), which will run ResGraph in watch mode for you, show you errors and so on, directly inside of VSCode.
 
 Excellent, we now have a schema! Let's hook it up to your server.
 

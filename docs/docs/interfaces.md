@@ -70,7 +70,7 @@ type User implements HasName {
 
 ## Exposing fields from the interface
 
-Just like with [fields on object types](TODO-LINK), you can expose fields on interfaces either directly via `@gql.field`, or by defining a function with `@gql.field`.
+Just like with [fields on object types](object-types#fields), you can expose fields on interfaces either directly via `@gql.field`, or by defining a function with `@gql.field`.
 
 When defining a function you add the interface type as the first unlabelled argument so ResGraph understands this field is for the interface. Each type implementing that interface will then get a copy of that field added to it automatically. An example:
 
