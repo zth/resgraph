@@ -1,8 +1,107 @@
 # ResGraph
 
-Build GraphQL servers in ReScript.
+Build GraphQL servers in ReScript. [Check out the docs on getting started](https://zth.github.io/resgraph/docs/getting-started).
 
-[Check out the docs on getting started](https://zth.github.io/resgraph/docs/getting-started)
+```rescript
+@gql.type
+type query
+
+/** A timestamp. */
+@gql.scalar
+type timestamp = float
+
+/** A thing with a name. */
+@gql.interface
+type hasName = {@gql.field name: string}
+
+@gql.type
+type user = {
+  ...hasName,
+  @gql.field /** When this user was created. */ createdAt: timestamp,
+  @gql.field @deprecated("Use 'name' instead") fullName: string,
+}
+
+/** Format for text. */
+@gql.enum
+type textFormat = Uppercase | Lowercase | Capitalized
+
+/** The user's initials, e.g 'Alice Smith' becomes 'AS'. */
+@gql.field
+let initials = (user: user, ~format=Uppercase) => {
+  let initials = getInitials(user.name)
+
+  switch format {
+  | Uppercase | Capitalized => initials->String.toUpperCase
+  | Lowercase => initials->String.toLowerCase
+  }
+}
+
+/** The current time on the server. */
+@gql.field
+let currentTime = (_: query): timestamp => {
+  Date.now()
+}
+
+/** The currently logged in user, if any. */
+@gql.field
+let loggedInUser = async (_: query, ~ctx: ResGraphContext.context): option<user> => {
+  switch ctx.currentUserId {
+  | None => None
+  | Some(userId) => await ctx.dataLoaders.userById.load(~userId)
+  }
+}
+```
+
+Generates this schema:
+
+```graphql
+type Query {
+  """
+  The current time on the server.
+  """
+  currentTime: Timestamp!
+
+  """
+  The currently logged in user, if any.
+  """
+  loggedInUser: User
+}
+
+"""
+A timestamp.
+"""
+scalar Timestamp
+
+type User implements HasName {
+  """
+  When this user was created.
+  """
+  createdAt: Timestamp!
+  fullName: String! @deprecated(reason: "Use 'name' instead")
+
+  """
+  The user's initials, e.g 'Alice Smith' becomes 'AS'.
+  """
+  initials(format: TextFormat): String!
+  name: String!
+}
+
+"""
+A thing with a name.
+"""
+interface HasName {
+  name: String!
+}
+
+"""
+Format for text.
+"""
+enum TextFormat {
+  Uppercase
+  Lowercase
+  Capitalized
+}
+```
 
 ## Introduction
 
