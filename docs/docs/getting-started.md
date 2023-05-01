@@ -14,11 +14,9 @@ Let's start by setting up ResGraph in your project.
 
 ResGraph relies on features in ReScript `v11`, which is currently in alpha. Make sure you run `>= rescript@11.0.0-alpha.5` and for the best results, set `"uncurried": true` in your `bsconfig.json`.
 
-Also make sure you have `@rescript/core` installed and set up in your project.
-
 ```bash
 # Install both `graphql` and `graphql-yoga` so we can set your server up
-npm i resgraph graphql graphql-yoga
+npm i resgraph graphql graphql-yoga @rescript/core @glennsl/rescript-fetch
 ```
 
 Add `resgraph` to your `bs-dependencies` in `bsconfig.json`:
@@ -26,7 +24,7 @@ Add `resgraph` to your `bs-dependencies` in `bsconfig.json`:
 ```json
 {
   "uncurried": true,
-  "bs-dependencies": ["resgraph", "@rescript/core"]
+  "bs-dependencies": ["resgraph", "@rescript/core", "@glennsl/rescript-fetch"]
 }
 ```
 
@@ -121,14 +119,16 @@ let yoga = createYoga({
 
 let server = NodeHttpServer.createServer(yoga)
 
-let port = 3000
+let port = 4555
 
 server->NodeHttpServer.listen(port, () => {
   Console.info(`Server is running on http://localhost:${port->Int.toString}/graphql`)
 })
 ```
 
-There, we have the simplest possible server running. Before we break down what we did and why, you can ensure everything works by going to [GraphiQL](http://localhost:3000/graphql) and trying this query:
+After this builds (`npx rescript build`, or just run the compiler in watch mode), you can go ahead and run `node src/App.mjs` and you have yourself the simplest possible server running.
+
+Before we break down what we did and why, you can ensure everything works by going to [GraphiQL](http://localhost:4555/graphql) and trying this query:
 
 ```graphql
 query {
