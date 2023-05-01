@@ -8,7 +8,7 @@
       "subdirs": true
     },
     {
-      "dir": "src",
+      "dir": "src/res",
       "subdirs": true
     }
   ],
