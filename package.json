@@ -37,6 +37,7 @@
     "bsconfig.json",
     "package.json",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ]
 }
