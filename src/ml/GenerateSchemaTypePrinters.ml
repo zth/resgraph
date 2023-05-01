@@ -153,7 +153,7 @@ let printField ?(context = CtxDefault) (field : gqlField) =
   let printableArgs = GenerateSchemaUtils.onlyPrintableArgs field.args in
   Printf.sprintf "{typ: %s, description: %s, deprecationReason: %s, %s%s}"
     (printGraphQLType field.typ)
-    (field.description |> undefinedOrValueAsString)
+    (field.description |> descriptionAsString)
     (field.deprecationReason |> undefinedOrValueAsString)
     (if printableArgs |> List.length > 0 then
      Printf.sprintf " args: {%s}->makeArgs, " (printArgs printableArgs)
@@ -167,7 +167,7 @@ let printInputObjectField (field : gqlField) =
   Printf.sprintf
     "{GraphQLInputObjectType.typ: %s, description: %s, deprecationReason: %s}"
     (printGraphQLType field.typ)
-    (field.description |> undefinedOrValueAsString)
+    (field.description |> descriptionAsString)
     (field.deprecationReason |> undefinedOrValueAsString)
 
 let printFields ?context (fields : gqlField list) =
@@ -193,7 +193,7 @@ let printObjectType (typ : gqlObjectType) =
   Printf.sprintf
     "{name: \"%s\", description: %s, interfaces: [%s], fields: () => %s}"
     typ.displayName
-    (undefinedOrValueAsString typ.description)
+    (descriptionAsString typ.description)
     (typ.interfaces |> List.sort String.compare
     |> List.map (fun id ->
            Printf.sprintf "get_%s()"
@@ -205,14 +205,14 @@ let printScalar (typ : gqlScalar) =
   match typ.encoderDecoderLoc with
   | None ->
     Printf.sprintf "{ name: \"%s\", description: %s}" typ.displayName
-      (undefinedOrValueAsString typ.description)
+      (descriptionAsString typ.description)
   | Some encoderDecoderLoc ->
     Printf.sprintf
       "{ let config: GraphQLScalar.config<%s> = {name: \"%s\", description: \
        %s, parseValue: %s, serialize: %s}; config}"
       (typeLocationToAccessor typ.typeLocation)
       typ.displayName
-      (undefinedOrValueAsString typ.description)
+      (descriptionAsString typ.description)
       (typeLocationModuleToAccesor encoderDecoderLoc ["parseValue"])
       (typeLocationModuleToAccesor encoderDecoderLoc ["serialize"])
 
@@ -221,7 +221,7 @@ let printInterfaceType (typ : gqlInterface) =
     "{name: \"%s\", description: %s, interfaces: [%s], fields: () => %s, \
      resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(%s)}"
     typ.displayName
-    (undefinedOrValueAsString typ.description)
+    (descriptionAsString typ.description)
     (typ.interfaces |> List.sort String.compare
     |> List.map (fun id ->
            Printf.sprintf "get_%s()"
@@ -233,7 +233,7 @@ let printInterfaceType (typ : gqlInterface) =
 let printInputObjectType (typ : gqlInputObjectType) =
   Printf.sprintf "{name: \"%s\", description: %s, fields: () => %s}"
     typ.displayName
-    (undefinedOrValueAsString typ.description)
+    (descriptionAsString typ.description)
     (printInputObjectFields typ.fields)
 
 let printUnionType (union : gqlUnion) =
@@ -241,7 +241,7 @@ let printUnionType (union : gqlUnion) =
     "{name: \"%s\", description: %s, types: () => [%s], resolveType: \
      GraphQLUnionType.makeResolveUnionTypeFn(%s)}"
     union.displayName
-    (undefinedOrValueAsString union.description)
+    (descriptionAsString union.description)
     (union.types
     |> List.sort (fun (m1 : gqlUnionMember) m2 ->
            String.compare m1.displayName m2.displayName)
@@ -333,14 +333,14 @@ let printSchemaJsFile schemaState processSchema =
               "let enum_%s = GraphQLEnumType.make({name: \"%s\", description: \
                %s, values: {%s}->makeEnumValues})"
               enum.displayName enum.displayName
-              (undefinedOrValueAsString enum.description)
+              (descriptionAsString enum.description)
               (enum.values
               |> List.map (fun (v : gqlEnumValue) ->
                      Printf.sprintf
                        "\"%s\": {GraphQLEnumType.value: \"%s\", description: \
                         %s, deprecationReason: %s}"
                        v.value v.value
-                       (undefinedOrValueAsString v.description)
+                       (descriptionAsString v.description)
                        (undefinedOrValueAsString v.deprecationReason))
               |> String.concat ", ")));
 

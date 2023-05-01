@@ -30,8 +30,7 @@ let scalar_TimestampHidden = GraphQLScalar.make({
 })
 let scalar_TimestampHiddenSerializable = GraphQLScalar.make({
   name: "TimestampHiddenSerializable",
-  description: "A timestamp, but with the implementation hidden in the server. Under the
-    hood, it's serializable.",
+  description: "A timestamp, but with the implementation hidden in the server. Under the\n    hood, it's serializable.",
 })
 let scalar_TimestampZ = GraphQLScalar.make({
   let config: GraphQLScalar.config<CustomScalars.TimestampZ.t> = {
@@ -42,7 +41,10 @@ let scalar_TimestampZ = GraphQLScalar.make({
   }
   config
 })
-let scalar_Timestamp = GraphQLScalar.make({name: "Timestamp", description: "A timestamp."})
+let scalar_Timestamp = GraphQLScalar.make({
+  name: "Timestamp",
+  description: "A timestamp. \"Testing quotes here\".",
+})
 let scalar_TimestampList = GraphQLScalar.make({name: "TimestampList", description: ?None})
 let enum_UserStatus = GraphQLEnumType.make({
   name: "UserStatus",
@@ -61,7 +63,7 @@ let enum_UserStatus = GraphQLEnumType.make({
     "Idle": {
       GraphQLEnumType.value: "Idle",
       description: "User is idle.",
-      deprecationReason: "Use 'Offline' instead.",
+      deprecationReason: "Use 'Offline' instead. This should be \"escaped\".",
     },
   }->makeEnumValues,
 })

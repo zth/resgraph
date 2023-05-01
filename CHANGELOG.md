@@ -2,6 +2,10 @@
 
 ## main
 
+### Bug fix
+
+- Escape descriptions in GraphQL schema.
+
 ## 0.1.2
 
 ### Bug fix

@@ -996,11 +996,11 @@ let generateSchema ~writeStateFile ~sourceFolder ~debug ~outputFolder
   else
     let schemaCode =
       GenerateSchemaTypePrinters.printSchemaJsFile schemaState processedSchema
-      |> formatCode
+      |> formatCode ~debug
     in
     let assetCode =
       GenerateSchemaTypePrinters.printSchemaAssets ~schemaState ~processedSchema
-      |> formatCode
+      |> formatCode ~debug
     in
 
     (* TODO: Do this in parallell in some fancy way *)

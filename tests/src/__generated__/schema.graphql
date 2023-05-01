@@ -10,7 +10,7 @@ scalar TimestampHiddenSerializable
 scalar TimestampZ
 
 
-"""A timestamp."""
+"""A timestamp. "Testing quotes here"."""
 scalar Timestamp
 
 scalar TimestampList
@@ -26,7 +26,7 @@ enum UserStatus {
   Offline
 
   """User is idle."""
-  Idle @deprecated(reason: "Use 'Offline' instead.")
+  Idle @deprecated(reason: "Use 'Offline' instead. This should be \"escaped\".")
 }
 
 

@@ -111,7 +111,7 @@ let getFieldAttribute gqlAttribute =
 let getFieldAttributeFromRawAttributes ~env ~schemaState attributes =
   attributes |> extractGqlAttribute ~env ~schemaState |> getFieldAttribute
 
-let formatCode code =
+let formatCode ~debug code =
   let {Res_driver.parsetree = structure; comments; diagnostics} =
     Res_driver.parseImplementationFromSource ~forPrinter:true ~source:code
       ~displayFilename:"Schema.res"
@@ -121,9 +121,11 @@ let formatCode code =
       structure
   in
   if List.length diagnostics > 0 then
-    "\n\n== SYNTAX ERRORS ==\n"
-    ^ (Diagnostics.get_diagnostics diagnostics |> String.concat "\n\n")
-    ^ "\n\n== RAW CODE ==\n" ^ code ^ "\n\n === END ==\n" ^ printed
+    if debug then
+      "\n\n== SYNTAX ERRORS ==\n"
+      ^ (Diagnostics.get_diagnostics diagnostics |> String.concat "\n\n")
+      ^ "\n\n== RAW CODE ==\n" ^ code ^ "\n\n === END ==\n" ^ printed
+    else "/* Code had syntax errors. This is an internal ResGraph error. */"
   else printed
 
 type expectedType =
@@ -327,10 +329,12 @@ let addFieldToInterfaceType ~env ~loc ~field ~schemaState typeName =
   in
   Hashtbl.replace schemaState.interfaces typeName typ
 
-let undefinedOrValueAsString v =
+let undefinedOrValueAsString ?(escape = false) v =
   match v with
   | None -> "?(None)"
-  | Some v -> Printf.sprintf "\"%s\"" v
+  | Some v -> Printf.sprintf "\"%s\"" (if escape then Json.escape v else v)
+
+let descriptionAsString v = undefinedOrValueAsString ~escape:true v
 
 let trimString str =
   let isSpace = function

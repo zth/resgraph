@@ -1,6 +1,6 @@
 type user = User.user
 
-/** A timestamp. */
+/** A timestamp. "Testing quotes here". */
 @gql.scalar
 type timestamp = float
 
@@ -44,7 +44,7 @@ type userStatus =
   Online
   | /** User is offline. */ Offline
   | /** User is idle. */
-  @deprecated("Use 'Offline' instead.")
+  @deprecated(`Use 'Offline' instead. This should be "escaped".`)
   Idle
 
 module UserFields = {
