@@ -154,21 +154,9 @@ jobs:
           name: resgraph.tgz
           path: resgraph.tgz
 
-      #- name: Publish latest master to GitHub
-      #  if: github.ref == 'refs/heads/master'
-      #  uses: marvinpinto/action-automatic-releases@latest
-      #  with:
-      #    repo_token: "${{ secrets.GITHUB_TOKEN }}"
-      #    automatic_release_tag: "latest-master"
-      #    prerelease: true
-      #    title: "Latest master"
-      #    files: rescript-vscode-latest-master.vsix
-
-      #- name: Publish release version to GitHub
-      #  if: startsWith(github.ref, 'refs/tags/')
-      #  uses: marvinpinto/action-automatic-releases@latest
-      #  with:
-      #    repo_token: "${{ secrets.GITHUB_TOKEN }}"
-      #    prerelease: false
-      #    title: ${{ steps.tag_name.outputs.tag }}
-      #    files: rescript-vscode-${{ steps.tag_name.outputs.tag }}.vsix
+      - name: Publish release version if wanted
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: JS-DevTools/npm-publish@v1
+        with:
+          token: ${{ secrets.NPM_TOKEN }}
+          package: ./package.json
