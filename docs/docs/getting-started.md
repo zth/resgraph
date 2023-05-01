@@ -12,9 +12,22 @@ Let's start by setting up ResGraph in your project.
 
 ### Installation
 
+ResGraph relies on features in ReScript `v11`, which is currently in alpha. Make sure you run `>= rescript@11.0.0-alpha.5` and for the best results, set `"uncurried": true` in your `bsconfig.json`.
+
+Also make sure you have `@rescript/core` installed and set up in your project.
+
 ```bash
 # Install both `graphql` and `graphql-yoga` so we can set your server up
 npm i resgraph graphql graphql-yoga
+```
+
+Add `resgraph` to your `bs-dependencies` in `bsconfig.json`:
+
+```json
+{
+  "uncurried": true,
+  "bs-dependencies": ["resgraph", "@rescript/core"]
+}
 ```
 
 ### `resgraph.json`
@@ -29,7 +42,7 @@ Add a `resgraph.json` file in the root of your ReScript project, and paste this 
 ```
 
 - `src` is the folder where code that can define GraphQL lives
-- `outputFolder` is where you want ResGraph to output the files it generates
+- `outputFolder` is where you want ResGraph to output the files it generates. **Ensure that this folder exists**. Create it if you don't already have it.
 
 ### `ResGraphContext.res`
 
@@ -60,7 +73,7 @@ let currentTime = (_: query) => {
 
 > The root `Query` type is mandatory in a GraphQL schema, and is the base from where all queries will be made.
 
-Run `npx resgraph build`. This should generate your first schema, looking like this:
+Make sure ReScript has built your changes (`npx rescript build`). Then run `npx resgraph build`. This should generate your first schema, looking like this:
 
 ```graphql
 type Query {
