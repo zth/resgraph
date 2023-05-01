@@ -1,3 +1,9 @@
+---
+sidebar_position: 5
+---
+
+# Interfaces
+
 Interfaces are defined by tagging a record with `@gql.interface`:
 
 ```rescript

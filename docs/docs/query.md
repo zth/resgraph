@@ -1,3 +1,9 @@
+---
+sidebar_position: 7
+---
+
+# Query
+
 The heart of your GraphQL server is the `Query` type. The first thing you'll do setting up your GraphQL server is to define your query type:
 
 ```rescript

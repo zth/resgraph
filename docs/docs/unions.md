@@ -1,3 +1,9 @@
+---
+sidebar_position: 4
+---
+
+# Unions
+
 You define a union by defining a variant with payloads of types tagged with `@gql.type`, and annotate that variant with `@gql.union`:
 
 ```rescript

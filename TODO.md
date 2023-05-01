@@ -39,6 +39,7 @@
 - [x] Query/mutation as abstract types.
 - [ ] Figure out how to do subscriptions properly. Async iterators? What else exists?
 - [ ] Should custom scalar parseValue/serialize have an explicit annotation?
+- [ ] Peer deps for `graphql` and `graphql-yoga`
 
 ## Ideas
 

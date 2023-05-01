@@ -1,3 +1,9 @@
+---
+sidebar_position: 3
+---
+
+# Enums
+
 Enums are defined by defining a variant without payloads and annotate it with `@gql.enum`:
 
 ```rescript

@@ -1,3 +1,9 @@
+---
+sidebar_position: 7
+---
+
+# Input Objects
+
 Input objects are defined by using a record annotated with `@gql.inputObject`:
 
 ```rescript

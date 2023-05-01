@@ -1,3 +1,5 @@
+# Valid GraphQL types in ReScript
+
 Given that fields and arguments will be exposed to the outside world through your schema, they can only be of types that can be transformed to valid GraphQL types.
 
 Valid GraphQL types are:

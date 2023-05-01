@@ -1,3 +1,9 @@
+---
+sidebar_position: 2
+---
+
+# Object Types
+
 [GraphQL object types](https://graphql.org/learn/schema/#object-types-and-fields) are defined using the annotation `@gql.type` on a ReScript record:
 
 ```rescript
@@ -114,13 +120,13 @@ type User {
 }
 ```
 
-Arguments can also be [input objects](input-objects).
+Arguments can also be [input objects](input-objects), [custom scalars](custom-scalars) and so on.
 
 > Note: Anything exposed to GraphQL, like fields, arguments and so on, must all be [valid GraphQL types](valid-graphql-types). ResGraph will complain (and tell you how to fix it) if you try and use anything not valid.
 
 #### Handling `null` in arguments
 
-By default, all optional arguments are collapsed into a ReScript `option`. But, arguments can be explicitly set to `null` from the client in GraphQL. So, by default, whether the argument value was indeed `null` (or just not set) is lost. This is OK for the vast majority of cases, but there _are_ cases when you do want to know whether some argument was explicitly `null`.
+By default, all optional arguments are collapsed into a ReScript `option`. But, arguments can be explicitly set to `null` from the client in GraphQL. So, by default, whether the argument value was indeed `null` or just not set, is lost. This is OK for the vast majority of cases, but there _are_ cases when you do want to know whether some argument was explicitly `null`.
 
 To solve that, just ensure your argument is of type `Js.Nullable.t` (TODO: Core `Nullable.t` instead). For any argument that's annotated as (or inferred to be) `Js.Nullable.t`, ResGraph will preserve `null` values.
 
@@ -130,9 +136,9 @@ Let's look at an example:
 @gql.field
 let wasNull = async (_: query, ~blogPostId: Js.Nullable.t<ResGraph.id>) => {
   switch blogPostId {
-    | Null => "Value was null"
-    | Undefined => "Value was undefined"
-    | Value(blogPostId) => "Id was: " ++ blogPostId->ResGraph.idToString
+  | Null => "Value was null"
+  | Undefined => "Value was undefined"
+  | Value(blogPostId) => "Id was: " ++ blogPostId->ResGraph.idToString
   }
 }
 ```
@@ -145,7 +151,7 @@ type Query {
 
 ### Deprecating fields
 
-Similarly, deprecating fields is also easy via the `@deprecated` attribute:
+Deprecate fields via the `@deprecated` attribute:
 
 ```rescript
 @gql.type
@@ -168,7 +174,7 @@ type User {
 
 ### Using app context in field functions
 
-It's also easy to use the app context in your field functions. Simply add a labelled argument annotated with `ResGraphContext.context` (the context you've created and defined) and ResGraph will inject your app context into that argument for your field:
+To use the app context in your field functions, add a labelled argument annotated with `ResGraphContext.context` (the context you've created and defined) and ResGraph will inject your app context into that argument for your field:
 
 ```rescript
 /** The full name of the user. */
@@ -186,5 +192,3 @@ let fullName = (user: user, ~includeInitials=false, ~ctx: ResGraphContext.contex
 ```
 
 This is going to be where you use data loaders and other per-request contextual helpers from.
-
-There, that's all you need to know about object types and their fields. Not so hard, right? Let's move on to [enums](enums).

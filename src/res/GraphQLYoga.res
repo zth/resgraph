@@ -17,6 +17,8 @@ type graphqlParams = {
 
 type contextConfig = {request: Request.t, params: graphqlParams}
 
+// This is the bare minimum right now, but should be extended with all options here eventually:
+// https://github.com/dotansimha/graphql-yoga/blob/main/packages/graphql-yoga/src/server.ts#L85
 type createServerConfig<'appContext> = {
   schema: ResGraph.schema<'appContext>,
   context: contextConfig => promise<'appContext>,

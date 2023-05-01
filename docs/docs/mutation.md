@@ -1,3 +1,9 @@
+---
+sidebar_position: 8
+---
+
+# Mutations
+
 If your GraphQL API has mutations, you'll need to define a `mutation` type:
 
 ```rescript

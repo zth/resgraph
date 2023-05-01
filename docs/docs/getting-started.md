@@ -1,6 +1,28 @@
+---
+sidebar_position: 1
+---
+
+# Getting Started
+
+> Note that ResGraph is currently _alpha grade software_. Help us out as we work out the details for a stable release.
+
+At a high level, ResGraph works like this:
+
+- Scans your projects for `@gql` annotations
+- Transforms the types and values annotated with `@gql` into a `graphql-js` schema
+
+ResGraph has it's own watcher and build process that's easy to start and keep running.
+
 ## Setup
 
-Let's start by setting up ResGraph in your project. Follow the steps below.
+Let's start by setting up ResGraph in your project.
+
+### Installation
+
+```bash
+# Install both `graphql` and `graphql-yoga` so we can set your server up
+npm i resgraph graphql graphql-yoga
+```
 
 ### `resgraph.json`
 
@@ -18,14 +40,14 @@ Add a `resgraph.json` file in the root of your ReScript project, and paste this 
 
 ### `ResGraphContext.res`
 
-Create a `ResGraphContext.res` file anywhere in your project, and add a `context` type in there:
+Create a `ResGraphContext.res` file anywhere in your project, and add a `context` type in there. The `context` can have anything you'd like in it:
 
 ```rescript
 // ResGraphContext.res
 type context = {currentUserId: option<string>}
 ```
 
-This is the type of your [per-request GraphQL context](object-types#using-app-context-in-field-functions). Fill this out continuously as needed.
+This is the type of your [per-request GraphQL context](object-types#using-app-context-in-field-functions), and ResGraph will ensure you fill out and provide this to every request as you create your server.
 
 ### Define a query type
 
@@ -62,7 +84,9 @@ ResGraph will automatically generate 3 things by default:
 2. `ResGraphSchemaAssets.res`. This holds various generated helpers for your schema. More on that file later.
 3. `schema.graphql`. This is a schema SDL file dumped from ResGraph. This is intended to be used as a debug utility primarily.
 
-Also notice we built our schema using the one-shot command `resgraph build`. If you want to watch for changes and automatically rerun ResGraph, run `resgraph watch`. However, if you're also using VSCode, you're encouraged to instead use the [ResGraph VSCode extension](TODO), which will run ResGraph in watch mode for you, show you errors and so on, directly inside of VSCode.
+#### Build and watch mode
+
+Notice we built our schema using the one-shot command `resgraph build`. If you want to watch for changes and automatically rerun ResGraph, run `resgraph watch`. However, if you're also using VSCode, you're encouraged to instead use the [ResGraph VSCode extension](TODO), which will run ResGraph in watch mode for you, show you errors and so on, directly inside of VSCode.
 
 Excellent, we now have a schema! Let's hook it up to your server.
 
@@ -124,6 +148,8 @@ let yoga = createYoga({
   },
 })
 ```
+
+> Pulling out `currentUserId` is just to examplify that this is per-request context.
 
 This creates your Yoga server by linking together your schema (from the generated file `ResGraphSchema`) to a function that produces your specific app context type.
 

@@ -1,3 +1,5 @@
+# Relay
+
 ## Node interface
 
 The `Node` interface is a central part of building Relay compliant GraphQL servers, and yet it's somewhat mysterious and slightly hard to get right.

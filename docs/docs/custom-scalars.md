@@ -1,3 +1,9 @@
+---
+sidebar_position: 6
+---
+
+# Custom Scalars
+
 A custom scalar is a scalar type in your schema where the underlying value is (somewhat) opaque to the client.
 
 Custom scalars are defined using the `@gql.scalar` attribute in ResGraph. Here follows a description of how you can leverage simple and more advanced type setups for custom scalars.
@@ -129,8 +135,6 @@ module Datetime: {
 
   let parseValue: ResGraph.GraphQLLiteralValue.t => option<t>
   let serialize: t => ResGraph.GraphQLLiteralValue.t
-
-  let fromString: string => t
 } = {
   type t = Date.t
 
