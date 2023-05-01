@@ -55,7 +55,7 @@ jobs:
         with:
           node-version: 16
 
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci
       - run: opam install dune cppo
       # - run: npm run res:build
 
@@ -93,7 +93,7 @@ jobs:
         with:
           node-version: 16
 
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci
       - run: npm run res:build
 
       - name: Download MacOS binary
