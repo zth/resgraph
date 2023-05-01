@@ -146,9 +146,12 @@ jobs:
       - name: Package release
         run: npm pack
 
+      - name: Rename package
+        run: mv resgraph*.tgz resgraph.tgz
+
       - uses: actions/upload-artifact@v3
         with:
-          name: resgraph*.tgz
+          name: resgraph.tgz
           path: resgraph.tgz
 
       #- name: Publish latest master to GitHub
