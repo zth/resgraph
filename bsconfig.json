@@ -6,6 +6,10 @@
     {
       "dir": "cli",
       "subdirs": true
+    },
+    {
+      "dir": "src",
+      "subdirs": true
     }
   ],
   "package-specs": [
