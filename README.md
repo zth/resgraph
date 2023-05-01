@@ -111,6 +111,21 @@ enum TextFormat {
 
 ResGraph lets you build _implementation first_ GraphQL servers, where your types and code is the source of truth for the schema.
 
+## Features
+
+- [x] Query
+- [x] Mutations
+- [ ] Subscriptions
+- [x] Context
+- [x] Object types
+- [x] Input types
+- [x] Interfaces
+- [x] Enums
+- [x] Unions
+- [x] Custom scalars (including custom serializers/parsers)
+- [ ] Directives
+- [ ] Relay helpers (coming very soon)
+
 ## Development notes
 
 This is a heavy work-in-progess. The repo itself was originally forked from the ReScript editor tooling, which means that there's a ton of stuff lying around that aren't really used. This will be cleaned up later.
