@@ -32,7 +32,9 @@
   },
   "files": [
     "bin/*",
+    "src/res/*",
     "cli/**/*.mjs",
+    "bsconfig.json",
     "package.json",
     "LICENSE",
     "README.md"

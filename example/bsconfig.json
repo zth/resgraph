@@ -4,6 +4,10 @@
   "version": "0.1.0",
   "sources": [
     {
+      "dir": "../src/res",
+      "subdirs": true
+    },
+    {
       "dir": "src",
       "subdirs": true
     }

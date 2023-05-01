@@ -1,5 +1,5 @@
 {
-  "name": "rescript-relay-router",
+  "name": "resgraph",
   "version": "0.1.0",
   "uncurried": true,
   "sources": [
