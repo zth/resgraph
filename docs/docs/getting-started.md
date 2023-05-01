@@ -19,7 +19,9 @@ ResGraph relies on features in ReScript `v11`, which is currently in alpha. Make
 npm i resgraph graphql graphql-yoga @rescript/core @glennsl/rescript-fetch
 ```
 
-Add `resgraph` to your `bs-dependencies` in `bsconfig.json`:
+> We rely on `@glennsl/rescript-fetch` for various fetch related things needed in GraphQL Yoga. We also rely on `@rescript/core`, the (future) standard library for ReScript.
+
+Add the various dependencies to your `bs-dependencies` in `bsconfig.json`:
 
 ```json
 {
