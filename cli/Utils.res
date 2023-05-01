@@ -54,6 +54,7 @@ let hasDevBin = Lazy.from_fun(() => Fs.existsSync(devBinLocation))
 let callPrivateCli = command => {
   let hasDevBin = hasDevBin->Lazy.force
 
+  // TODO: macos-arm
   let binLocation = if hasDevBin {
     devBinLocation
   } else {

@@ -32,7 +32,7 @@
   },
   "files": [
     "bin/*",
-    "src/res/*",
+    "src/res",
     "cli/**/*.mjs",
     "bsconfig.json",
     "package.json",
