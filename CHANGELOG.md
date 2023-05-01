@@ -2,6 +2,8 @@
 
 ## main
 
+## 0.1.2
+
 ### Bug fix
 
 - Include full ReScript src dir.
