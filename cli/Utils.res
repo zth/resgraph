@@ -1,3 +1,11 @@
+// Some ad hoc simple bindings to URL
+type url = {pathname: string}
+
+@module("url") @new external makeUrl: (string, string) => url = "URL"
+
+@val external currentFileUrl: string = "import.meta.url"
+// End URL bindings
+
 type config = {
   src: string,
   outputFolder: string,
@@ -61,7 +69,7 @@ let callPrivateCli = command => {
     "../bin/" ++ Os.platform() ++ "/resgraph.exe"
   }
 
-  binLocation
+  (binLocation->makeUrl(currentFileUrl)).pathname
   ->ChildProcess.execFileSyncWith(
     command->privateCliCallToArgs,
     ChildProcess.execFileSyncOptions(~maxBuffer=infinity, ()),
