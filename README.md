@@ -2,6 +2,8 @@
 
 Build GraphQL servers in ReScript. [Check out the docs on getting started](https://zth.github.io/resgraph/docs/getting-started).
 
+This ReScript code:
+
 ```rescript
 @gql.type
 type query
@@ -102,6 +104,8 @@ enum TextFormat {
   Capitalized
 }
 ```
+
+[Check out the docs on getting started](https://zth.github.io/resgraph/docs/getting-started).
 
 ## Introduction
 
