@@ -1,6 +1,6 @@
 for file in tests/*.res; do
   output="$(dirname $file)/expected/$(basename $file).txt"
-  ../resgraph.exe test $file &> $output
+  ../bin/dev/resgraph.exe test $file &> $output
   # CI. We use LF, and the CI OCaml fork prints CRLF. Convert.
   if [ "$RUNNER_OS" == "Windows" ]; then
     perl -pi -e 's/\r\n/\n/g' -- $output

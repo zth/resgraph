@@ -1,5 +1,5 @@
 {
-  "name": "rescript-relay-router",
+  "name": "resgraph",
   "version": "0.1.0",
   "uncurried": true,
   "sources": [
@@ -20,8 +20,5 @@
     "rescript-nodejs",
     "@glennsl/rescript-fetch"
   ],
-  "bsc-flags": ["-open NodeJs", "-open RescriptCore"],
-  "js-post-build": {
-    "cmd": "./scripts/post-build.sh"
-  }
+  "bsc-flags": ["-open NodeJs", "-open RescriptCore"]
 }

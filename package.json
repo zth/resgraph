@@ -7,6 +7,9 @@
     "res:build": "rescript build -with-deps",
     "res:watch": "rescript build -with-deps -w"
   },
+  "bin": {
+    "resgraph": "cli/Cli.mjs"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/zth/resgraph.git"
@@ -19,12 +22,22 @@
   },
   "homepage": "https://github.com/zth/resgraph#readme",
   "dependencies": {
-    "@rescript/core": "^0.2.0",
+    "@rescript/core": "0.3.0",
     "chalk": "^5.2.0",
     "chokidar": "^3.5.3",
     "rescript": "^11.0.0-alpha.5",
     "@glennsl/rescript-fetch": "0.2.0",
     "rescript-nodejs": "^14.3.1",
     "vscode-jsonrpc": "^5.0.1"
-  }
+  },
+  "files": [
+    "bin/*",
+    "src/res",
+    "cli/**/*.mjs",
+    "bsconfig.json",
+    "package.json",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md"
+  ]
 }

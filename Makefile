@@ -1,9 +1,9 @@
 SHELL = /bin/bash
 
 build-resgraph-binary:
-	rm -f resgraph.exe
+	rm -f bin/dev/resgraph.exe
 	dune build
-	cp _build/install/default/bin/resgraph resgraph.exe
+	cp _build/install/default/bin/resgraph bin/dev/resgraph.exe
 
 build-tests:
 	make -C tests build
@@ -22,7 +22,7 @@ test-resgraph-binary: build-resgraph-binary
 test: test-resgraph-binary
 
 clean:
-	rm -f resgraph.exe
+	rm -f bin/dev/resgraph.exe
 	dune clean
 	make -C tests clean
 	make -C reanalyze clean

@@ -6,6 +6,10 @@
   },
   "sources": [
     {
+      "dir": "../src/res",
+      "subdirs": true
+    },
+    {
       "dir": "src",
       "subdirs": true
     },

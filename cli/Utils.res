@@ -47,8 +47,21 @@ external toCallResult: string => callResult = "JSON.parse"
 
 external infinity: int = "Infinity"
 
+let devBinLocation = "../bin/dev/resgraph.exe"
+
+let hasDevBin = Lazy.from_fun(() => Fs.existsSync(devBinLocation))
+
 let callPrivateCli = command => {
-  "../resgraph.exe"
+  let hasDevBin = hasDevBin->Lazy.force
+
+  // TODO: macos-arm
+  let binLocation = if hasDevBin {
+    devBinLocation
+  } else {
+    "../bin/" ++ Os.platform() ++ "/resgraph.exe"
+  }
+
+  binLocation
   ->ChildProcess.execFileSyncWith(
     command->privateCliCallToArgs,
     ChildProcess.execFileSyncOptions(~maxBuffer=infinity, ()),
