@@ -6,13 +6,6 @@ sidebar_position: 1
 
 > Note that ResGraph is currently _alpha grade software_. Help us out as we work out the details for a stable release.
 
-At a high level, ResGraph works like this:
-
-- Scans your projects for `@gql` annotations
-- Transforms the types and values annotated with `@gql` into a `graphql-js` schema
-
-ResGraph has it's own watcher and build process that's easy to start and keep running.
-
 ## Setup
 
 Let's start by setting up ResGraph in your project.
@@ -164,5 +157,16 @@ server->NodeHttpServer.listen(port, () => {
   Console.info(`Server is running on http://localhost:${port->Int.toString}/graphql`)
 })
 ```
+
+## How does ResGraph work
+
+At a high level, ResGraph works like this:
+
+- Scans your projects for `@gql` annotations
+- Reads type information, transforms the types and values annotated with `@gql` into a `graphql-js` schema
+
+ResGraph runs on the compiled artifacts ReScript's compiler produces. So, ResGraph needs to run _after_ the compiler runs. Don't worry though, ResGraph has it's own watcher and build process that's easy to use and handles all of this.
+
+## Next steps
 
 There! We're all set up and your server is running. We can now continue our ResGraph journey by talking about how to define the primary building block of GraphQL - [object types](object-types).

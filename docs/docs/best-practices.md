@@ -2,6 +2,7 @@
 
 - Annotate resolver functions or inference might surprise you.
 - Active dumping the debug schema so you'll always be able to easily audit any changes to your schema.
+- Commit generated files
 
 ## Project structure
 
