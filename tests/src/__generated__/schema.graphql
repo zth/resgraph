@@ -77,9 +77,6 @@ interface Node {
 
 """A group in the system."""
 type Group implements Node & HasName {
-
-  """The id of the object."""
-  id: ID!
   name: String!
 
   """The timestamp when this group was created."""
@@ -87,6 +84,9 @@ type Group implements Node & HasName {
 
   """When this group was last modified."""
   modifiedAt: TimestampHidden
+
+  """The id of the object."""
+  id: ID!
   abbreviatedName: String
 }
 
@@ -126,10 +126,6 @@ type User implements Node & HasName {
   allNames: [String!]!
   currentStatus: UserStatus!
   name(includeFullName: Boolean): String!
-  id: ID!
-
-  """The id of the object."""
-  id: ID!
   name: String!
 
   """The age of the user."""
@@ -137,6 +133,9 @@ type User implements Node & HasName {
 
   """The last age of the user."""
   lastAge: Int @deprecated(reason: "Use 'age' instead.")
+
+  """The id of the object."""
+  id: ID!
   abbreviatedName: String
 }
 

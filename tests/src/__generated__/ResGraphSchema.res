@@ -186,9 +186,9 @@ t_Group.contents = GraphQLObjectType.make({
         typ: Scalars.id->Scalars.toGraphQLType->nonNull,
         description: "The id of the object.",
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
-          src["id"]
+          NodeInterfaceResolver.id(src, ~typename=Group)
         }),
       },
       "modifiedAt": {
@@ -531,20 +531,11 @@ t_User.contents = GraphQLObjectType.make({
       },
       "id": {
         typ: Scalars.id->Scalars.toGraphQLType->nonNull,
-        description: ?None,
+        description: "The id of the object.",
         deprecationReason: ?None,
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
-          NodeInterfaceResolver.id(src)
-        }),
-      },
-      "id": {
-        typ: Scalars.id->Scalars.toGraphQLType->nonNull,
-        description: "The id of the object.",
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
-          let src = typeUnwrapper(src)
-          src["id"]
+          NodeInterfaceResolver.id(src, ~typename=User)
         }),
       },
       "lastAge": {

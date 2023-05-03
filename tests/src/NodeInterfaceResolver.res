@@ -67,7 +67,8 @@ let nodes = (query: Query.query, ~ids, ~ctx: ResGraphContext.context) => {
   ids->Array.map(id => node(query, ~id, ~ctx))
 }
 
+/** The id of the object.*/
 @gql.field
-let id = (user: User.user) => {
-  nodeInterfaceIdToString(~typename=User, ~id=user.id->ResGraph.idToString)
+let id = (node: NodeInterface.node, ~typename: ResGraphSchemaAssets.node_implementedBy) => {
+  nodeInterfaceIdToString(~typename, ~id=node.id->ResGraph.idToString)
 }

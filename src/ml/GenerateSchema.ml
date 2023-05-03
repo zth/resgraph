@@ -101,7 +101,8 @@ let rec findGraphQLType ~env ?(typeContext = Default) ~debug ?loc ~schemaState
     | ["ResGraphSchemaAssets"; typeName]
       when Utils.endsWith typeName "_implementedBy" ->
       Some
-        (InjectInterfaceTypename (String.split_on_char '_' typeName |> List.hd))
+        (InjectInterfaceTypename
+           (Str.split (Str.regexp_string "_implementedBy") typeName |> List.hd))
     | ["Js"; "Nullable"; "t"] -> (
       match typeArgs with
       | [typeArg] -> (
