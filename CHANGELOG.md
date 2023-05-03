@@ -2,6 +2,10 @@
 
 ## main
 
+### New Features
+
+- Add snippets for boilerplate for connections and field functions. https://github.com/zth/resgraph/pull/8
+
 ## 0.1.3
 
 ### Bug fix
