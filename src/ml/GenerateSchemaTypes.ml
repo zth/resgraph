@@ -6,6 +6,7 @@ type graphqlType =
   | RescriptNullable of graphqlType
   | Scalar of scalar
   | InjectContext
+  | InjectInterfaceTypename of string  (** ID of interface *)
   | GraphQLObjectType of {id: string; displayName: string}
   | GraphQLInputObject of {id: string; displayName: string}
   | GraphQLEnum of {id: string; displayName: string}
@@ -85,6 +86,8 @@ type gqlField = {
   loc: Location.t;
   fileName: string;
   fileUri: Uri.t;
+  onType: string option;
+      (** The type this field is on, if that information is needed *)
 }
 
 type gqlObjectType = {

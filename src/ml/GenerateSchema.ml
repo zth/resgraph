@@ -98,6 +98,10 @@ let rec findGraphQLType ~env ?(typeContext = Default) ~debug ?loc ~schemaState
     match pathIdentToList path with
     | ["ResGraph"; "id"] -> Some (Scalar ID)
     | ["ResGraphContext"; "context"] -> Some InjectContext
+    | ["ResGraphSchemaAssets"; typeName]
+      when Utils.endsWith typeName "_implementedBy" ->
+      Some
+        (InjectInterfaceTypename (String.split_on_char '_' typeName |> List.hd))
     | ["Js"; "Nullable"; "t"] -> (
       match typeArgs with
       | [typeArg] -> (
@@ -316,6 +320,7 @@ and inputObjectFieldsOfRecordFields ~env ~debug ~schemaState
                description = field.attributes |> attributesToDocstring;
                deprecationReason = field.deprecated;
                loc = field.fname.loc;
+               onType = None;
              })
 
 and variantCasesToUnionValues ~env ~debug ~schemaState ~full
@@ -414,6 +419,7 @@ and objectTypeFieldsOfRecordFields ~env ~schemaState ~debug
                description = field.attributes |> attributesToDocstring;
                deprecationReason = field.deprecated;
                loc = field.fname.loc;
+               onType = None;
              })
 
 and extractResolverFunctionInfo ~resolverName ~env ?loc
@@ -743,6 +749,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                    args =
                      mapFunctionArgs ~full ~debug ~env ~schemaState
                        ~fnLoc:item.loc args;
+                   onType = None;
                  }
                in
                addFieldToObjectType ~env ~loc:item.loc ~field ~schemaState id
@@ -769,6 +776,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                    args =
                      mapFunctionArgs ~full ~debug ~env ~schemaState
                        ~fnLoc:item.loc args;
+                   onType = None;
                  }
                in
                addFieldToInterfaceType ~env ~loc:item.loc ~field ~schemaState id
