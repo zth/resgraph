@@ -4,6 +4,7 @@
 
 ### New Features
 
+- Allow injecting current `typename` for "general" field functions on interfaces. https://github.com/zth/resgraph/pull/9
 - Add snippets for boilerplate for connections and field functions. https://github.com/zth/resgraph/pull/8
 
 ## 0.1.3
