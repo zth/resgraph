@@ -1,6 +1,4 @@
-type completables =
-  | Decorator of {label: string}
-  | Interface of {label: string; seenItems: string list}
+type completables = Decorator of {label: string}
 
 (* Can't trust the parser's location
    E.g. @foo. let x... gives as label @foo.let *)
@@ -85,35 +83,8 @@ let completion ~debug ~path ~pos ~currentFile =
     | None -> []
     | Some completion -> (
       match completion with
-      | Interface {label} -> (
-        match Cmt.loadFullCmtFromPath ~path with
-        | None -> []
-        | Some full -> (
-          try
-            let schemaState, _processedSchema =
-              GenerateSchemaUtils.readStateFile ~package:full.package
-            in
-            let res = ref [] in
-            schemaState.GenerateSchemaTypes.interfaces
-            |> Hashtbl.iter (fun name _intf ->
-                   if Utils.startsWith name label then
-                     res :=
-                       {
-                         Protocol.label = name;
-                         kind = 4;
-                         tags = [];
-                         detail = "";
-                         sortText = None;
-                         filterText = None;
-                         insertTextFormat = None;
-                         insertText = None;
-                         documentation = None;
-                       }
-                       :: !res);
-            !res
-          with _ -> []))
       | Decorator {label} ->
-        GenerateSchemaUtils.validAttributes
+        (GenerateSchemaUtils.validAttributes
         |> List.filter_map (fun (attrName, desc) ->
                if Utils.startsWith attrName label then
                  let completionItem : Protocol.completionItem =
@@ -131,6 +102,24 @@ let completion ~debug ~path ~pos ~currentFile =
                  in
                  Some completionItem
                else None))
+        @ (GenerateSchemaUtils.snippets
+          |> List.filter_map (fun (attrName, desc, snippetText) ->
+                 if Utils.startsWith attrName label then
+                   let completionItem : Protocol.completionItem =
+                     {
+                       label = attrName;
+                       kind = 4;
+                       tags = [];
+                       detail = desc;
+                       sortText = Some "a";
+                       filterText = None;
+                       insertTextFormat = Some Snippet;
+                       insertText = Some snippetText;
+                       documentation = None;
+                     }
+                   in
+                   Some completionItem
+                 else None)))
   in
   Printf.printf "{\"status\": \"Completion\", \"items\": %s}"
     (completions |> List.map Protocol.stringifyCompletionItem |> Protocol.array)

@@ -39,6 +39,34 @@ let validAttributes =
     ("gql.scalar", "");
   ]
 
+let snippets =
+  [
+    ( "gql.type snippet - connection",
+      "Boilerplate for creating a new GraphQL connection for pagination.",
+      {|gql.type
+/** An edge in a connection. */
+type ${1:entity}Edge = {
+  /** A cursor for use in pagination. */
+  @gql.field
+  cursor: string,
+  /** The item at the end of the edge. */
+  @gql.field
+  node: option<${1:entity}>
+}
+
+/** A connection to a list of items. */
+@gql.type
+type ${1:entity}Connection = {
+  /** Information to aid in pagination. */
+  @gql.field
+  pageInfo: ResGraph.Connections.pageInfo,
+  /** A list of edges. */
+  @gql.field
+  edges: option<array<option<${1:entity}Edge>>>
+}|}
+    );
+  ]
+
 let hasGqlAnnotation attributes =
   attributes
   |> List.exists (fun ((name, _payload) : Parsetree.attribute) ->
