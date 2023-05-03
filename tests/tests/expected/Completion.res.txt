@@ -48,6 +48,15 @@ Attribute id:g:[0:3->0:5] label:g
     "tags": [],
     "detail": "",
     "documentation": null
+  }, {
+    "label": "gql.type snippet - connection",
+    "kind": 4,
+    "tags": [],
+    "detail": "Boilerplate for creating a new GraphQL connection for pagination.",
+    "documentation": null,
+    "sortText": "a",
+    "insertText": "gql.type\n/** An edge in a connection. */\ntype ${1:entity}Edge = {\n  /** A cursor for use in pagination. */\n  @gql.field\n  cursor: string,\n  /** The item at the end of the edge. */\n  @gql.field\n  node: option<${1:entity}>\n}\n\n/** A connection to a list of items. */\n@gql.type\ntype ${1:entity}Connection = {\n  /** Information to aid in pagination. */\n  @gql.field\n  pageInfo: ResGraph.Connections.pageInfo,\n  /** A list of edges. */\n  @gql.field\n  edges: option<array<option<${1:entity}Edge>>>\n}",
+    "insertTextFormat": 2
   }]}
 Complete tests/Completion.res 3:10
 Attribute id:gql.ty:[3:3->3:10] label:gql.ty
@@ -57,4 +66,13 @@ Attribute id:gql.ty:[3:3->3:10] label:gql.ty
     "tags": [],
     "detail": "Indicates that the annotated record is a GraphQL Object Type.",
     "documentation": null
+  }, {
+    "label": "gql.type snippet - connection",
+    "kind": 4,
+    "tags": [],
+    "detail": "Boilerplate for creating a new GraphQL connection for pagination.",
+    "documentation": null,
+    "sortText": "a",
+    "insertText": "gql.type\n/** An edge in a connection. */\ntype ${1:entity}Edge = {\n  /** A cursor for use in pagination. */\n  @gql.field\n  cursor: string,\n  /** The item at the end of the edge. */\n  @gql.field\n  node: option<${1:entity}>\n}\n\n/** A connection to a list of items. */\n@gql.type\ntype ${1:entity}Connection = {\n  /** Information to aid in pagination. */\n  @gql.field\n  pageInfo: ResGraph.Connections.pageInfo,\n  /** A list of edges. */\n  @gql.field\n  edges: option<array<option<${1:entity}Edge>>>\n}",
+    "insertTextFormat": 2
   }]}
