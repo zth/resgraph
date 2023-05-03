@@ -127,6 +127,22 @@ type User implements HasName {
 }
 ```
 
+#### Accessing what type the interface field function is currently working on
+
+Occasionally it'll be useful to know what type the interface field is currently working on, even if you're working on a general interface field. You can get access to that by annotating a labelled argument to the function with `ResGraphSchemaAssets.<interfaceTypeName>_implementedBy`. Example:
+
+```rescript
+/** The ID of a node in the graph. */
+let id = (node: node, ~typename: ResGraphSchemaAssets.node_implementedBy) => {
+  switch typename {
+  | User => `User:${node.id}`->ResGraph.id
+  | Group => `Group:${node.id}`->ResGraph.id
+  }
+}
+```
+
+More information on `ResGraphSchemaAssets.<interfaceTypeName>_implementedBy` and friends [lower on this page](#extras).
+
 ### Overriding interface fields per type
 
 Sometimes you might want to override that interface field resolver per type. Just define a new field function for that particular type, and it'll take precedence over the generic interface field:
