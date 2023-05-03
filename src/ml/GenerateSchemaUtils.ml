@@ -65,6 +65,13 @@ type ${1:entity}Connection = {
   edges: option<array<option<${1:entity}Edge>>>
 }|}
     );
+    ( "gql.type snippet - field function on type",
+      "Boilerplate for adding a new field to a type via a function.",
+      {|gql.field
+let ${1:fieldName} = (${2:entity}: ${2:entity}) => {
+  ${0:Some(entity.prop)}
+}|}
+    );
   ]
 
 let hasGqlAnnotation attributes =
