@@ -426,6 +426,13 @@ let findContextArgName (args : gqlArg list) =
          | InjectContext -> Some arg.name
          | _ -> None)
 
+let findInterfaceTypeArgName (args : gqlArg list) =
+  args
+  |> List.find_map (fun (arg : gqlArg) ->
+         match arg.typ with
+         | InjectInterfaceTypename _ -> Some arg.name
+         | _ -> None)
+
 let rec typeNeedsConversion (graphqlType : graphqlType) =
   match graphqlType with
   | List inner ->
@@ -651,7 +658,12 @@ let processSchema (schemaState : schemaState) =
                                   typ.fields
                                   @ (interface.fields
                                     |> List.filter (fun (field : gqlField) ->
-                                           doesNotHaveField field.name));
+                                           doesNotHaveField field.name)
+                                    |> List.map (fun (field : gqlField) ->
+                                           {
+                                             field with
+                                             onType = Some typ.displayName;
+                                           }));
                               };
 
                             (* Map interface as implemented by this type *)
@@ -717,12 +729,14 @@ let processSchema (schemaState : schemaState) =
   GenerateSchemaValidation.validateSchema schemaState;
   processedSchema
 
+let isPrintableArg (arg : gqlArg) =
+  match arg.typ with
+  | InjectContext | InjectInterfaceTypename _ -> false
+  | _ -> true
+
 (** Some arguments aren't intended to be printed in the `args` list, like
   `InjectContext` which controls injecting context into the resolver. *)
-let onlyPrintableArgs (args : gqlArg list) =
-  args
-  |> List.filter (fun (arg : gqlArg) ->
-         if arg.typ = InjectContext then false else true)
+let onlyPrintableArgs (args : gqlArg list) = args |> List.filter isPrintableArg
 
 let isFileContentsTheSame filePath s =
   try

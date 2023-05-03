@@ -170,7 +170,7 @@ t_Group.contents = GraphQLObjectType.make({
         deprecationReason: ?None,
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
-          HasNameInterfaceResolvers.abbreviatedName(src)
+          HasNameInterfaceResolvers.abbreviatedName(src, ~typeName=Group)
         }),
       },
       "createdAt": {
@@ -241,7 +241,7 @@ t_Pet.contents = GraphQLObjectType.make({
         deprecationReason: ?None,
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
-          HasNameInterfaceResolvers.abbreviatedName(src)
+          HasNameInterfaceResolvers.abbreviatedName(src, ~typeName=Pet)
         }),
       },
       "age": {
@@ -497,7 +497,7 @@ t_User.contents = GraphQLObjectType.make({
         deprecationReason: ?None,
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
-          HasNameInterfaceResolvers.abbreviatedName(src)
+          HasNameInterfaceResolvers.abbreviatedName(src, ~typeName=User)
         }),
       },
       "age": {

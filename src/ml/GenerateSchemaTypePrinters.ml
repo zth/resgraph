@@ -11,6 +11,9 @@ let printResolverForField (field : gqlField) =
   | Resolver {moduleName; fnName; pathToFn} ->
     let ctxArgName = findContextArgName field.args in
     let hasCtxArg = ctxArgName |> Option.is_some in
+
+    let intfTypeArgName = findInterfaceTypeArgName field.args in
+    let hasIntTypeArg = intfTypeArgName |> Option.is_some in
     let resolverCode =
       Printf.sprintf "(src, args, ctx) => {let src = typeUnwrapper(src); %s(src"
         ([moduleName] @ pathToFn @ [fnName] |> String.concat ".")
@@ -22,6 +25,11 @@ let printResolverForField (field : gqlField) =
         |> List.map (fun (arg : gqlArg) ->
                if hasCtxArg && Some arg.name = ctxArgName then
                  Printf.sprintf "~%s=ctx" (ctxArgName |> Option.get)
+               else if hasIntTypeArg && Some arg.name = intfTypeArgName then
+                 match field.onType with
+                 | Some name ->
+                   Printf.sprintf "~%s=%s" (intfTypeArgName |> Option.get) name
+                 | _ -> ""
                else
                  let argsText =
                    generateConverter
@@ -71,7 +79,7 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
   | GraphQLUnion {displayName} ->
     Printf.sprintf "get_%s()->GraphQLUnionType.toGraphQLType%s" displayName
       nullablePostfix
-  | InjectContext -> "Obj.magic()"
+  | InjectContext | InjectInterfaceTypename _ -> "Obj.magic()"
 
 let displayNameFromImplementedBy
     (interfaceImplementedBy : interfaceImplementedBy) =
@@ -146,8 +154,9 @@ let printArgs (args : gqlArg list) =
   args
   |> List.sort (fun (a1 : gqlArg) a2 -> String.compare a1.name a2.name)
   |> List.filter_map (fun (arg : gqlArg) ->
-         if arg.typ = InjectContext then None
-         else Some (Printf.sprintf "\"%s\": %s" arg.name (printArg arg)))
+         if isPrintableArg arg then
+           Some (Printf.sprintf "\"%s\": %s" arg.name (printArg arg))
+         else None)
   |> String.concat ", "
 let printField ?(context = CtxDefault) (field : gqlField) =
   let printableArgs = GenerateSchemaUtils.onlyPrintableArgs field.args in
