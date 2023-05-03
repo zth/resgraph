@@ -729,6 +729,34 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
              with
              | Some (GraphQLObjectType {id}, args, returnType) ->
                (* Resolver for object type. *)
+               let args =
+                 mapFunctionArgs ~full ~debug ~env ~schemaState ~fnLoc:item.loc
+                   args
+               in
+               (* Validate that inject intf typename arg is not present here, as
+                  it's only valid in interface fns. *)
+               (match
+                  args
+                  |> List.find_opt (fun (arg : gqlArg) ->
+                         match arg.typ with
+                         | InjectInterfaceTypename _ -> true
+                         | _ -> false)
+                with
+               | None -> ()
+               | Some {name} ->
+                 schemaState
+                 |> addDiagnostic
+                      ~diagnostic:
+                        {
+                          loc = item.loc;
+                          fileUri = env.file.uri;
+                          message =
+                            Printf.sprintf
+                              "Argument \"%s\" is trying to inject a interface \
+                               typename, that's however only valid for field \
+                               functions adding fields to interfaces."
+                              name;
+                        });
                let field =
                  {
                    loc = item.loc;
@@ -747,15 +775,43 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                          pathToFn = modulePath;
                        };
                    typ = returnType;
-                   args =
-                     mapFunctionArgs ~full ~debug ~env ~schemaState
-                       ~fnLoc:item.loc args;
+                   args;
                    onType = None;
                  }
                in
                addFieldToObjectType ~env ~loc:item.loc ~field ~schemaState id
              | Some (GraphQLInterface {id}, args, returnType) ->
                (* Resolver for interface type. *)
+               let args =
+                 mapFunctionArgs ~full ~debug ~env ~schemaState ~fnLoc:item.loc
+                   args
+               in
+               (* Validate interface typename injection if present. *)
+               (match
+                  args
+                  |> List.find_map (fun (arg : gqlArg) ->
+                         match arg.typ with
+                         | InjectInterfaceTypename targetIntfId ->
+                           Some (targetIntfId, arg)
+                         | _ -> None)
+                with
+               | Some (targetIntfId, arg) when targetIntfId <> id ->
+                 schemaState
+                 |> addDiagnostic
+                      ~diagnostic:
+                        {
+                          loc = item.loc;
+                          fileUri = env.file.uri;
+                          message =
+                            Printf.sprintf
+                              "Argument \"%s\" is trying to inject a interface \
+                               typename, but it's targeting the wrong \
+                               interface (\"%s\" vs wanted \"%s\"). Please \
+                               change the type annotation to \
+                               \"ResGraphSchemaAssets.%s_implementedBy\"."
+                              arg.name targetIntfId id id;
+                        }
+               | _ -> ());
                let field =
                  {
                    loc = item.loc;
@@ -774,9 +830,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                          pathToFn = modulePath;
                        };
                    typ = returnType;
-                   args =
-                     mapFunctionArgs ~full ~debug ~env ~schemaState
-                       ~fnLoc:item.loc args;
+                   args;
                    onType = None;
                  }
                in
