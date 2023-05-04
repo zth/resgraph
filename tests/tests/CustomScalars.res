@@ -1,6 +1,7 @@
 module TimestampZ = {
   @gql.scalar
   type t = string
+  //   ^hov
 
   open ResGraph.GraphQLLiteralValue
 
