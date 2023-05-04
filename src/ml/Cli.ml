@@ -6,10 +6,10 @@ let main () =
   match Array.to_list Sys.argv with
   | [_; "generate-schema"; sourceFolder; outputFolder; "true"] ->
     GenerateSchema.generateSchema ~writeStateFile:true ~sourceFolder
-      ~debug:false ~outputFolder ~writeSdlFile:true
+      ~debug:false ~outputFolder ~writeSdlFile:true ~printToStdOut:true
   | [_; "generate-schema"; sourceFolder; outputFolder] ->
     GenerateSchema.generateSchema ~writeStateFile:true ~sourceFolder
-      ~debug:false ~outputFolder ~writeSdlFile:false
+      ~debug:false ~outputFolder ~writeSdlFile:false ~printToStdOut:true
   | [_; "completion"; path; line; col; currentFile] ->
     Completion.completion ~debug:false ~path
       ~pos:(int_of_string line, int_of_string col)

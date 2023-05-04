@@ -8,11 +8,13 @@ let test ~path =
     | None -> raise (Failure "Did not find test root folder.")
     | Some package -> package
   in
-  let generateSchema () =
-    GenerateSchema.generateSchema ~writeStateFile:true ~sourceFolder ~debug:true
-      ~outputFolder:"./src/__generated__" ~writeSdlFile:true
+  let generateSchema debug =
+    GenerateSchema.generateSchema ~writeStateFile:true ~sourceFolder ~debug
+      ~printToStdOut:debug ~outputFolder:"./src/__generated__"
+      ~writeSdlFile:true
   in
-  if GenerateSchemaUtils.stateFileExists package = false then generateSchema ();
+  if GenerateSchemaUtils.stateFileExists package = false then
+    generateSchema false;
   Uri.stripPath := true;
   match Files.readFile path with
   | None -> assert false
@@ -54,7 +56,7 @@ let test ~path =
           (match String.sub rest 0 3 with
           | "db+" -> Log.verbose := true
           | "db-" -> Log.verbose := false
-          | "gen" -> generateSchema ()
+          | "gen" -> generateSchema true
           | "com" ->
             print_endline
               ("Complete " ^ path ^ " " ^ string_of_int line ^ ":"
