@@ -955,8 +955,8 @@ let printErrorState diagnostics =
     "{\n  \"status\": \"Error\",\n  \"errors\": \n    [\n      %s\n    ]\n}"
     (diagnostics |> List.rev |> List.map printDiagnostic |> String.concat ",\n")
 
-let generateSchema ~writeStateFile ~sourceFolder ~debug ~outputFolder
-    ~writeSdlFile =
+let generateSchema ~printToStdOut ~writeStateFile ~sourceFolder ~debug
+    ~outputFolder ~writeSdlFile =
   if debug then Printf.printf "generating schema from %s\n\n" sourceFolder;
   (* Holds cmt cache so we don't do heavy cmt processing multiple times. *)
   let cmtCache = Hashtbl.create 100 in
@@ -1047,11 +1047,12 @@ let generateSchema ~writeStateFile ~sourceFolder ~debug ~outputFolder
   let sdlOutputPath = outputFolder ^ "/schema.graphql" in
 
   if schemaState.diagnostics |> List.length > 0 then (
-    Printf.printf
-      "{\n  \"status\": \"Error\",\n  \"errors\": \n    [\n      %s\n    ]\n}"
-      (schemaState.diagnostics |> List.rev
-      |> List.map (fun (_, diagnostic) -> printDiagnostic diagnostic)
-      |> String.concat ",\n");
+    if printToStdOut then
+      Printf.printf
+        "{\n  \"status\": \"Error\",\n  \"errors\": \n    [\n      %s\n    ]\n}"
+        (schemaState.diagnostics |> List.rev
+        |> List.map (fun (_, diagnostic) -> printDiagnostic diagnostic)
+        |> String.concat ",\n");
 
     (* Write an empty schema just to avoid type errors in the generated code. *)
     GenerateSchemaUtils.writeIfHasChanges schemaOutputPath
@@ -1088,5 +1089,6 @@ let generateSchema ~writeStateFile ~sourceFolder ~debug ~outputFolder
     (* Write assets file *)
     GenerateSchemaUtils.writeIfHasChanges assetsOutputPath assetCode;
 
-    if debug then schemaCode |> print_endline
-    else Printf.printf "{\"status\": \"Success\", \"ok\": true}"
+    if debug && printToStdOut then schemaCode |> print_endline
+    else if printToStdOut then
+      Printf.printf "{\"status\": \"Success\", \"ok\": true}"

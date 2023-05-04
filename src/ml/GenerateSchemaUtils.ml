@@ -398,7 +398,6 @@ let attributesToDocstring attributes =
 
 (** Pulls out name from `as` attribute. *)
 let nameFromAttribute (attributes : Parsetree.attributes) ~default =
-  Printf.printf "%s\n" (DumpAst.printAttributes attributes);
   match
     attributes
     |> List.find_map (fun (attr : Parsetree.attribute) ->
