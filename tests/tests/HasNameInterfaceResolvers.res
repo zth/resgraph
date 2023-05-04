@@ -6,6 +6,7 @@ let hasName = (_: Query.query, ~id: ResGraph.id): option<ResGraphSchemaAssets.ha
 
 @gql.field
 let abbreviatedName = (
+  // ^hov
   name: HasNameInterface.hasName,
   ~typeName: ResGraphSchemaAssets.hasName_implementedBy,
 ) => {
