@@ -847,3 +847,13 @@ let emptyLoc =
     loc_end = Lexing.dummy_pos;
     loc_ghost = true;
   }
+
+let lastModuleInPath modulePath =
+  let rec loop modulePath current =
+    match modulePath with
+    | SharedTypes.ModulePath.File _ -> current
+    | IncludedModule (_, inner) -> loop inner current
+    | ExportedModule {name; modulePath = inner} -> loop inner name
+    | NotVisible -> current
+  in
+  loop modulePath ""

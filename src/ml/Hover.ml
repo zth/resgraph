@@ -11,7 +11,7 @@ let newHover ~full locItem =
   in
 
   match locItem.locType with
-  | TypeDefinition (name, decl, _stamp) -> (
+  | TypeDefinition (name, decl, stamp) -> (
     let schemaState = Lazy.force schemaState in
     match
       GenerateSchemaUtils.extractGqlAttribute ~schemaState
@@ -46,6 +46,22 @@ let newHover ~full locItem =
         Some
           (banner "union"
           ^ Markdown.graphqlCodeBlock (GenerateSchemaSDL.printUnion union)))
+    | Some Scalar when name = "t" -> (
+      (* module Timestamp = { @gql.scalar type = float } *)
+      (* The module name is the scalar name here. *)
+      match Stamps.findType file.stamps stamp with
+      | None -> None
+      | Some declared -> (
+        let moduleName =
+          GenerateSchemaUtils.lastModuleInPath declared.modulePath
+        in
+        match Hashtbl.find_opt schemaState.scalars moduleName with
+        | None -> None
+        | Some scalar ->
+          Some
+            (banner "scalar"
+            ^ Markdown.graphqlCodeBlock (GenerateSchemaSDL.printScalar scalar)))
+      )
     | Some Scalar -> (
       match Hashtbl.find_opt schemaState.scalars name with
       | None -> None
