@@ -2,6 +2,17 @@ let diagnosticSyntax ~path =
   print_endline (Diagnostics.document_syntax ~path |> Protocol.array)
 
 let test ~path =
+  let sourceFolder = "./src/" in
+  let package =
+    match Packages.getPackage ~uri:(Uri.fromPath sourceFolder) with
+    | None -> raise (Failure "Did not find test root folder.")
+    | Some package -> package
+  in
+  let generateSchema () =
+    GenerateSchema.generateSchema ~writeStateFile:true ~sourceFolder ~debug:true
+      ~outputFolder:"./src/__generated__" ~writeSdlFile:true
+  in
+  if GenerateSchemaUtils.stateFileExists package = false then generateSchema ();
   Uri.stripPath := true;
   match Files.readFile path with
   | None -> assert false
@@ -43,10 +54,7 @@ let test ~path =
           (match String.sub rest 0 3 with
           | "db+" -> Log.verbose := true
           | "db-" -> Log.verbose := false
-          | "gen" ->
-            GenerateSchema.generateSchema ~writeStateFile:true
-              ~sourceFolder:"./src/" ~debug:true
-              ~outputFolder:"./src/__generated__" ~writeSdlFile:true
+          | "gen" -> generateSchema ()
           | "com" ->
             print_endline
               ("Complete " ^ path ^ " " ^ string_of_int line ^ ":"
