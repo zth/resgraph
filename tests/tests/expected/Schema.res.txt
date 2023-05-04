@@ -1,3 +1,13 @@
+Hover tests/Schema.res 4:6
+{"status": "Hover", "item": {"contents": {"kind": "markdown", "value": "```graphql\n\n\"\"\"A timestamp. \"Testing quotes here\".\"\"\"\nscalar Timestamp\n```"}}}
+Hover tests/Schema.res 11:18
+{"status": "Hover", "item": null}
+Hover tests/Schema.res 38:13
+{"status": "Hover", "item": {"contents": {"kind": "markdown", "value": "```graphql\n\n\"\"\"A user or a group.\"\"\"\nunion UserOrGroup {\n\n  \"\"\" This is a user.\"\"\"\n  User\n\n  \"\"\" And this is a group. \"\"\"\n  Group\n}\n```"}}}
+Hover tests/Schema.res 43:12
+{"status": "Hover", "item": {"contents": {"kind": "markdown", "value": "```graphql\n\n\"\"\"Indicates what status a user currently has.\"\"\"\nenum UserStatus {\n\n  \"\"\"User is online.\"\"\"\n  ONLINE\n\n  \"\"\"User is offline.\"\"\"\n  Offline\n\n  \"\"\"User is idle.\"\"\"\n  Idle @deprecated(reason: \"Use 'Offline' instead. This should be \\\"escaped\\\".\")\n}\n```"}}}
+Hover tests/Schema.res 79:6
+{"status": "Hover", "item": {"contents": {"kind": "markdown", "value": "```graphql\n\n\"\"\"Additional for searching for a user.\"\"\"\ninput UserConfigContext {\n  groupId: String\n  name: String\n}\n```"}}}
 generating schema from ./src/
 
 Adding scalar TimestampZ
@@ -658,3 +668,5 @@ union_UserOrGroup.contents = GraphQLUnionType.make({
 let schema = GraphQLSchemaType.make({"query": get_Query(), "mutation": get_Mutation()})
 
 
+Hover tests/Schema.res 202:10
+{"status": "Hover", "item": null}
