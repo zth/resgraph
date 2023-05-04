@@ -793,6 +793,9 @@ let writeIfHasChanges path contents =
 let getStateFilePath (package : SharedTypes.package) =
   package.rootPath ^ "/lib/.resgraphState.marshal"
 
+let stateFileExists (package : SharedTypes.package) =
+  Files.exists (getStateFilePath package)
+
 let writeStateFile ~package ~schemaState ~processedSchema =
   let s = Marshal.to_bytes (schemaState, processedSchema) [Compat_32] in
   let ch = open_out_bin (getStateFilePath package) in
