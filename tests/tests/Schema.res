@@ -3,12 +3,14 @@ type user = User.user
 /** A timestamp. "Testing quotes here". */
 @gql.scalar
 type timestamp = float
+//    ^hov
 
 @gql.scalar
 type timestampList = array<float>
 
 @gql.interface
 type interfaceNobodyImplements = {@gql.field weirdField: string}
+//                ^hov
 
 /** A group in the system. */
 @gql.type
@@ -35,10 +37,12 @@ type pet = {
 /** A user or a group. */
 @gql.union
 type userOrGroup = | /** This is a user.*/ User(user) | /** And this is a group. */ Group(group)
+//           ^hov
 
 /** Indicates what status a user currently has. */
 @gql.enum
 type userStatus =
+  //        ^hov
   | /** User is online. */
   @as("ONLINE")
   Online
@@ -74,6 +78,7 @@ type query = Query.query
 
 @gql.inputObject /** Additional for searching for a user.*/
 type userConfigContext = {
+  //  ^hov
   groupId: Js.Nullable.t<string>,
   name?: string,
 }
@@ -194,3 +199,6 @@ let currentTimeFlat = (_: query) => {
 }
 
 // ^gen
+
+type g = group
+//        ^hov  TODO: Dig

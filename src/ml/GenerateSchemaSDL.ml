@@ -85,6 +85,59 @@ let printSourceLocDirective (typeLocation : typeLocation) =
       (typeLocation.fileUri |> Uri.toPath)
       (start |> fst) (start |> snd) (end_ |> fst) (end_ |> snd)
 
+let printInputObject (input : gqlInputObjectType) =
+  Printf.sprintf "%sinput %s%s {\n%s\n}"
+    (printDescription input.description 0)
+    input.displayName
+    (printSourceLocDirective input.typeLocation)
+    (printFields input.fields)
+
+let printScalar (scalar : gqlScalar) =
+  Printf.sprintf "%sscalar %s"
+    (printDescription scalar.description 0)
+    scalar.displayName
+
+let printEnum (enum : gqlEnum) =
+  Printf.sprintf "%senum %s%s {\n%s\n}"
+    (printDescription enum.description 0)
+    enum.displayName
+    (printSourceLocDirective enum.typeLocation)
+    (enum.values
+    |> List.map (fun (v : gqlEnumValue) ->
+           Printf.sprintf "%s  %s%s"
+             (printDescription v.description 2)
+             v.value
+             (printDeprecatedDirective v.deprecationReason))
+    |> String.concat "\n")
+
+let printUnion (union : gqlUnion) =
+  Printf.sprintf "%sunion %s%s {\n%s\n}"
+    (printDescription union.description 0)
+    union.displayName
+    (printSourceLocDirective union.typeLocation)
+    (union.types
+    |> List.map (fun (v : gqlUnionMember) ->
+           Printf.sprintf "%s  %s"
+             (printDescription v.description 2)
+             v.displayName)
+    |> String.concat "\n")
+
+let printInterface (intf : gqlInterface) =
+  Printf.sprintf "%sinterface %s%s%s {\n%s\n}"
+    (printDescription intf.description 0)
+    intf.displayName
+    (printImplements intf.interfaces)
+    (printSourceLocDirective intf.typeLocation)
+    (printFields intf.fields)
+
+let printObjectType (typ : gqlObjectType) =
+  Printf.sprintf "%stype %s%s%s {\n%s\n}"
+    (printDescription typ.description 0)
+    typ.displayName
+    (printImplements typ.interfaces)
+    (printSourceLocDirective typ.typeLocation)
+    (printFields typ.fields)
+
 let printSchemaSDL (schemaState : schemaState) =
   let code = ref "" in
   let addWithNewLine text = code := !code ^ text ^ "\n" in
@@ -99,66 +152,25 @@ let printSchemaSDL (schemaState : schemaState) =
 
   schemaState.scalars
   |> iterHashtblAlphabetically (fun _ (scalar : gqlScalar) ->
-         addSection
-           (Printf.sprintf "%sscalar %s"
-              (printDescription scalar.description 0)
-              scalar.displayName));
+         addSection (printScalar scalar));
 
   schemaState.enums
   |> iterHashtblAlphabetically (fun _name (enum : gqlEnum) ->
-         addSection
-           (Printf.sprintf "%senum %s%s {\n%s\n}"
-              (printDescription enum.description 0)
-              enum.displayName
-              (printSourceLocDirective enum.typeLocation)
-              (enum.values
-              |> List.map (fun (v : gqlEnumValue) ->
-                     Printf.sprintf "%s  %s%s"
-                       (printDescription v.description 2)
-                       v.value
-                       (printDeprecatedDirective v.deprecationReason))
-              |> String.concat "\n")));
+         addSection (printEnum enum));
 
   schemaState.unions
   |> iterHashtblAlphabetically (fun _name (union : gqlUnion) ->
-         addSection
-           (Printf.sprintf "%sunion %s%s {\n%s\n}"
-              (printDescription union.description 0)
-              union.displayName
-              (printSourceLocDirective union.typeLocation)
-              (union.types
-              |> List.map (fun (v : gqlUnionMember) ->
-                     Printf.sprintf "%s  %s"
-                       (printDescription v.description 2)
-                       v.displayName)
-              |> String.concat "\n")));
+         addSection (printUnion union));
 
   schemaState.inputObjects
   |> iterHashtblAlphabetically (fun _name (input : gqlInputObjectType) ->
-         addSection
-           (Printf.sprintf "%sinput %s%s {\n%s\n}"
-              (printDescription input.description 0)
-              input.displayName
-              (printSourceLocDirective input.typeLocation)
-              (printFields input.fields)));
+         addSection (printInputObject input));
 
   schemaState.interfaces
   |> iterHashtblAlphabetically (fun _name (intf : gqlInterface) ->
-         addSection
-           (Printf.sprintf "%sinterface %s%s%s {\n%s\n}"
-              (printDescription intf.description 0)
-              intf.displayName
-              (printImplements intf.interfaces)
-              (printSourceLocDirective intf.typeLocation)
-              (printFields intf.fields)));
+         addSection (printInterface intf));
 
   schemaState.types
   |> iterHashtblAlphabetically (fun _name (typ : gqlObjectType) ->
-         addSection
-           (Printf.sprintf "%stype %s%s%s {\n%s\n}"
-              (printDescription typ.description 0)
-              typ.displayName
-              (printImplements typ.interfaces)
-              (printSourceLocDirective typ.typeLocation)
-              (printFields typ.fields)));
+         addSection (printObjectType typ));
   !code

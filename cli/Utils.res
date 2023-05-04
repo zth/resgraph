@@ -16,6 +16,7 @@ let resolveRelative = path => Path.resolve([Process.process->Process.cwd, path])
 type privateCliCall =
   | GenerateSchema({src: string, outputFolder: string, dumpSchemaSdl?: bool})
   | Completion({filePath: string, position: LspProtocol.loc, tmpname: string})
+  | Hover({filePath: string, position: LspProtocol.loc})
 
 let privateCliCallToArgs = call =>
   switch call {
@@ -36,6 +37,12 @@ let privateCliCallToArgs = call =>
       position.character->Int.toString,
       tmpname,
     ]
+  | Hover({filePath, position}) => [
+      "hover",
+      filePath,
+      position.line->Int.toString,
+      position.character->Int.toString,
+    ]
   }
 
 type generateError = {
@@ -50,6 +57,7 @@ type callResult =
   | Success({ok: bool})
   | Error({errors: array<generateError>})
   | Completion({items: array<LspProtocol.completionItem>})
+  | Hover({item: LspProtocol.hover})
 
 external toCallResult: string => callResult = "JSON.parse"
 

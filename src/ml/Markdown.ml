@@ -1,5 +1,7 @@
 let spacing = "\n```\n \n```\n"
 let codeBlock code = Printf.sprintf "```rescript\n%s\n```" code
+
+let graphqlCodeBlock code = Printf.sprintf "```graphql\n%s\n```" code
 let divider = "\n---\n"
 
 type link = {startPos: Protocol.position; file: string; label: string}

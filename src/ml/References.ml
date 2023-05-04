@@ -19,92 +19,14 @@ let locItemsForPos ~extra pos =
 let lineColToCmtLoc ~pos:(line, col) = (line + 1, col)
 
 let getLocItem ~full ~pos ~debug =
-  let log n msg = if debug then Printf.printf "getLocItem #%d: %s\n" n msg in
+  ignore debug;
   let pos = lineColToCmtLoc ~pos in
   let locItems = locItemsForPos ~extra:full.extra pos in
   if !Log.verbose then
     print_endline
       ("locItems:\n  "
       ^ (locItems |> List.map locItemToString |> String.concat "\n  "));
-  let nameOf li =
-    match li.locType with
-    | Typed (n, _, _) -> n
-    | _ -> "NotFound"
-  in
   match locItems with
-  | li1 :: li2 :: li3 :: ({locType = Typed ("makeProps", _, _)} as li4) :: _
-    when full.file.uri |> Uri.isInterface ->
-    log 1 "heuristic for makeProps in interface files";
-    if debug then
-      Printf.printf "n1:%s n2:%s n3:%s\n" (nameOf li1) (nameOf li2) (nameOf li3);
-    Some li4
-  | [
-   {locType = Constant _};
-   ({locType = Typed ("createDOMElementVariadic", _, _)} as li2);
-  ] ->
-    log 3 "heuristic for <div>";
-    Some li2
-  | {locType = Typed ("makeProps", _, _)}
-    :: ({locType = Typed ("make", _, _)} as li2)
-    :: _ ->
-    log 4
-      "heuristic for </Comp> within fragments: take make as makeProps does not \
-       work\n\
-       the type is not great but jump to definition works";
-    Some li2
-  | [
-   ({locType = Typed (_, _, LocalReference _)} as li1);
-   ({locType = Typed (_, _, _)} as li2);
-  ]
-    when li1.loc = li2.loc ->
-    log 5
-      "heuristic for JSX and compiler combined:\n\
-       ~x becomes Props#x\n\
-       heuristic for: [Props, x], give loc of `x`";
-    if debug then Printf.printf "n1:%s n2:%s\n" (nameOf li1) (nameOf li2);
-    Some li2
-  | [
-   ({locType = Typed (_, _, LocalReference _)} as li1);
-   ({locType = Typed (_, _, GlobalReference ("Js_OO", ["unsafe_downgrade"], _))}
-   as li2);
-   li3;
-  ]
-  (* For older compiler 9.0 or earlier *)
-    when li1.loc = li2.loc && li2.loc = li3.loc ->
-    (* Not currently testable on 9.1.4 *)
-    log 6
-      "heuristic for JSX and compiler combined:\n\
-       ~x becomes Js_OO.unsafe_downgrade(Props)#x\n\
-       heuristic for: [Props, unsafe_downgrade, x], give loc of `x`";
-    Some li3
-  | [
-   ({locType = Typed (_, _, LocalReference (_, Value))} as li1);
-   ({locType = Typed (_, _, Definition (_, Value))} as li2);
-  ] ->
-    log 7
-      "heuristic for JSX on type-annotated labeled (~arg:t):\n\
-       (~arg:t) becomes Props#arg\n\
-       Props has the location range of arg:t\n\
-       arg has the location range of arg\n\
-       heuristic for: [Props, arg], give loc of `arg`";
-    if debug then Printf.printf "n1:%s n2:%s\n" (nameOf li1) (nameOf li2);
-    Some li2
-  | [li1; li2; li3] when li1.loc = li2.loc && li2.loc = li3.loc ->
-    (* Not currently testable on 9.1.4 *)
-    log 8
-      "heuristic for JSX with at most one child\n\
-       heuristic for: [makeProps, make, createElement], give the loc of `make` ";
-    Some li2
-  | [li1; li2; li3; li4]
-    when li1.loc = li2.loc && li2.loc = li3.loc && li3.loc = li4.loc ->
-    log 9
-      "heuristic for JSX variadic, e.g. <C> {x} {y} </C>\n\
-       heuristic for: [React.null, makeProps, make, createElementVariadic], \
-       give the loc of `make`";
-    if debug then
-      Printf.printf "n1:%s n2:%s n3:%s n4:%s\n" (nameOf li1) (nameOf li2)
-        (nameOf li3) (nameOf li4);
-    Some li3
   | {locType = Typed (_, {desc = Tconstr (path, _, _)}, _)} :: li :: _
     when Utils.isUncurriedInternal path ->
     Some li
@@ -184,6 +106,39 @@ let definedForLoc ~file ~package locKind =
       match declaredForTip ~stamps:file.stamps stamp tip with
       | None -> None
       | Some declared -> Some (declared.docstring, `Declared))
+  in
+  match locKind with
+  | NotFound -> None
+  | LocalReference (stamp, tip) | Definition (stamp, tip) ->
+    inner ~file stamp tip
+  | GlobalReference (moduleName, path, tip) -> (
+    maybeLog ("Getting global " ^ moduleName);
+    match ProcessCmt.fileForModule ~package moduleName with
+    | None ->
+      Log.log ("Cannot get module " ^ moduleName);
+      None
+    | Some file -> (
+      let env = QueryEnv.fromFile file in
+      match exportedForTip ~env ~path ~package ~tip with
+      | None -> None
+      | Some (env, name, stamp) -> (
+        maybeLog ("Getting for " ^ string_of_int stamp ^ " in " ^ name);
+        match inner ~file:env.file stamp tip with
+        | None ->
+          Log.log "could not get defined";
+          None
+        | Some res ->
+          maybeLog "Yes!! got it";
+          Some res)))
+
+let definedForLoc2 ~(file : File.t) ~package locKind =
+  let inner ~(file : File.t) stamp (tip : Tip.t) =
+    maybeLog
+      ("Trying for declared " ^ Tip.toString tip ^ " " ^ string_of_int stamp
+     ^ " in file " ^ Uri.toString file.uri);
+    match declaredForTip ~stamps:file.stamps stamp tip with
+    | None -> None
+    | Some declared -> Some declared
   in
   match locKind with
   | NotFound -> None

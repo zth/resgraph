@@ -444,6 +444,7 @@ let start = (~mode, ~configFilePath) => {
           ~id=msg->Message.getId,
           ~result=Message.InitializeResult.make(
             ~completionProvider={triggerCharacters: [`@`]},
+            ~hoverProvider=true,
             ~textDocumentSync=Full,
             (),
           )->Message.Result.fromInitialize,
@@ -479,8 +480,13 @@ let start = (~mode, ~configFilePath) => {
           }
         | _ =>
           switch msg->Message.LspMessage.decodeLspMessage {
-          | Hover(_params) =>
-            Message.Response.make(~id=msg->Message.getId, ~result=Message.Result.null(), ())
+          | Hover(params) =>
+            let filePath = params.textDocument.uri->fileURLToPath
+            let result = switch Utils.callPrivateCli(Hover({filePath, position: params.position})) {
+            | Hover({item}) => Message.Result.fromHover(item)
+            | _ => Message.Result.null()
+            }
+            Message.Response.make(~id=msg->Message.getId, ~result, ())
             ->Message.Response.asMessage
             ->send
           | CodeLens(_params) =>

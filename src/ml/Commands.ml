@@ -55,6 +55,11 @@ let test ~path =
             Completion.completion ~debug:true ~path ~pos:(line, col)
               ~currentFile;
             Sys.remove currentFile
+          | "hov" ->
+            print_endline
+              ("Hover " ^ path ^ " " ^ string_of_int line ^ ":"
+             ^ string_of_int col);
+            Hover.hover ~path ~pos:(line, col) ~debug:true
           | "ast" ->
             print_endline
               ("Dump AST " ^ path ^ " " ^ string_of_int line ^ ":"
