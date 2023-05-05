@@ -11,6 +11,7 @@
 ### Bug fix
 
 - Ensure schema SDL file is dumped also on build by default. This will eventually be configurable.
+- Fix bug where some interface spreads wouldn't be picked up if the type definition had single line comments.
 
 ## 0.1.3
 

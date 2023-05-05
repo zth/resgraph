@@ -597,7 +597,7 @@ let processSchema (schemaState : schemaState) =
            try
              let line = input_line fileChannel in
              if lineNumber > endLine then
-               (String.concat "" (List.rev acc), lineNumber + 1, hasSpread)
+               (String.concat "\n" (List.rev acc), lineNumber + 1, hasSpread)
              else if lineNumber >= startLine && lineNumber <= endLine then
                loop
                  ~hasSpread:(hasSpread || hasSpreadText line)
@@ -614,7 +614,7 @@ let processSchema (schemaState : schemaState) =
                  (lineNumber + 1) acc entry
            with End_of_file ->
              close_in fileChannel;
-             (String.concat "" (List.rev acc), lineNumber + 1, hasSpread)
+             (String.concat "\n" (List.rev acc), lineNumber + 1, hasSpread)
          in
          let lastEndlingLine = ref 0 in
          entries

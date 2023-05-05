@@ -16,6 +16,7 @@ type interfaceNobodyImplements = {@gql.field weirdField: string}
 @gql.type
 type group = {
   ...NodeInterface.node,
+  // Single line comment in here...
   ...HasNameInterface.hasName,
   /** The group name.*/
   memberIds: array<string>,
