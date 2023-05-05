@@ -79,7 +79,7 @@ try {
       GenerateSchema({src: config.src, outputFolder: config.outputFolder}),
     )
     switch res {
-    | Completion(_) | NotInitialized => ()
+    | Completion(_) | Hover(_) | NotInitialized => ()
     | Success(_) =>
       let buildDuration = performance->now -. timeStart
       printBuildTime(buildDuration)
