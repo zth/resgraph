@@ -206,6 +206,19 @@ type userEdge = ResGraph.Connections.edge<user>
 @gql.type
 type userConnection = ResGraph.Connections.connection<userEdge>
 
+/** The total count of edges in the connection right now. */
+@gql.field
+let totalCount = (connection: userConnection) => {
+  Some(connection.edges->Option.getWithDefault([])->Array.length)
+}
+
+@gql.field
+let allUsers = (_: query, ~first, ~last, ~before, ~after): option<userConnection> => {
+  let users: array<user> = [{age: 12, id: "123", name: "Hello", lastAge: None}]
+
+  users->ResGraph.Connections.connectionFromArray(~args={first, last, after, before})->Some
+}
+
 // ^gen
 
 type g = group

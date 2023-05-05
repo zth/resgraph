@@ -118,6 +118,7 @@ type Pet implements HasName {
 }
 
 type Query {
+  allUsers(first: Int, last: Int, before: String, after: String): UserConnection
   currentTimeFlat: Timestamp!
   currentTime: TimestampHidden
   customScalarImplSerializable: TimestampHiddenSerializable
@@ -157,6 +158,9 @@ type User implements Node & HasName {
 }
 
 type UserConnection {
+
+  """The total count of edges in the connection right now."""
+  totalCount: Int
 
   """Information to aid in pagination."""
   pageInfo: User!
