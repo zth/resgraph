@@ -96,6 +96,7 @@ type gqlObjectType = {
   fields: gqlField list;
   description: string option;
   typeLocation: typeLocation;
+  syntheticLocation: SharedTypes.File.t option;
   interfaces: string list;
 }
 

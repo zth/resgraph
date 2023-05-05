@@ -75,12 +75,18 @@ let t_Group: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Group = () => t_Group.contents
 let t_Mutation: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Mutation = () => t_Mutation.contents
+let t_PageInfo: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let get_PageInfo = () => t_PageInfo.contents
 let t_Pet: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Pet = () => t_Pet.contents
 let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Query = () => t_Query.contents
 let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_User = () => t_User.contents
+let t_UserConnection: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let get_UserConnection = () => t_UserConnection.contents
+let t_UserEdge: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let get_UserEdge = () => t_UserEdge.contents
 let input_UserConfig: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
 let get_UserConfig = () => input_UserConfig.contents
 let input_UserConfig_conversionInstructions = []
@@ -225,6 +231,50 @@ t_Mutation.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
           Schema.Mutations.addUser(src, ~name=args["name"])
+        }),
+      },
+    }->makeFields,
+})
+t_PageInfo.contents = GraphQLObjectType.make({
+  name: "PageInfo",
+  description: "Information about pagination in a connection.",
+  interfaces: [],
+  fields: () =>
+    {
+      "endCursor": {
+        typ: Scalars.string->Scalars.toGraphQLType,
+        description: "When paginating forwards, the cursor to continue.",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["endCursor"]
+        }),
+      },
+      "hasNextPage": {
+        typ: Scalars.boolean->Scalars.toGraphQLType->nonNull,
+        description: "When paginating forwards, are there more items?",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["hasNextPage"]
+        }),
+      },
+      "hasPreviousPage": {
+        typ: Scalars.boolean->Scalars.toGraphQLType->nonNull,
+        description: "When paginating backwards, are there more items?",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["hasPreviousPage"]
+        }),
+      },
+      "startCursor": {
+        typ: Scalars.string->Scalars.toGraphQLType,
+        description: "When paginating backwards, the cursor to continue.",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["startCursor"]
         }),
       },
     }->makeFields,
@@ -564,6 +614,60 @@ t_User.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, _args, _ctx) => {
           let src = typeUnwrapper(src)
           src["name"]
+        }),
+      },
+    }->makeFields,
+})
+t_UserConnection.contents = GraphQLObjectType.make({
+  name: "UserConnection",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "edges": {
+        typ: GraphQLListType.make(
+          get_UserEdge()->GraphQLObjectType.toGraphQLType,
+        )->GraphQLListType.toGraphQLType,
+        description: "A list of edges.",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["edges"]
+        }),
+      },
+      "pageInfo": {
+        typ: get_User()->GraphQLObjectType.toGraphQLType->nonNull,
+        description: "Information to aid in pagination.",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["pageInfo"]
+        }),
+      },
+    }->makeFields,
+})
+t_UserEdge.contents = GraphQLObjectType.make({
+  name: "UserEdge",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "cursor": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: "A cursor for use in pagination.",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["cursor"]
+        }),
+      },
+      "node": {
+        typ: get_User()->GraphQLObjectType.toGraphQLType,
+        description: "The item at the end of the edge.",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["node"]
         }),
       },
     }->makeFields,

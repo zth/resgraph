@@ -200,6 +200,12 @@ let currentTimeFlat = (_: query) => {
   timestamp
 }
 
+@gql.type
+type userEdge = ResGraph.Connections.edge<user>
+
+@gql.type
+type userConnection = ResGraph.Connections.connection<userEdge>
+
 // ^gen
 
 type g = group
