@@ -94,6 +94,23 @@ type Mutation {
   addUser(name: String!): User
 }
 
+
+"""Information about pagination in a connection."""
+type PageInfo {
+
+  """When paginating forwards, are there more items?"""
+  hasNextPage: Boolean!
+
+  """When paginating backwards, are there more items?"""
+  hasPreviousPage: Boolean!
+
+  """When paginating backwards, the cursor to continue."""
+  startCursor: String
+
+  """When paginating forwards, the cursor to continue."""
+  endCursor: String
+}
+
 type Pet implements HasName {
   name: String!
   age: Int!
@@ -137,5 +154,23 @@ type User implements Node & HasName {
   """The id of the object."""
   id: ID!
   abbreviatedName: String
+}
+
+type UserConnection {
+
+  """Information to aid in pagination."""
+  pageInfo: User!
+
+  """A list of edges."""
+  edges: [UserEdge]
+}
+
+type UserEdge {
+
+  """The item at the end of the edge."""
+  node: User
+
+  """A cursor for use in pagination."""
+  cursor: String!
 }
 

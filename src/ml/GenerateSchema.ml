@@ -167,6 +167,16 @@ let rec findGraphQLType ~env ?(typeContext = Default) ~debug ?loc ~schemaState
               |> objectTypeFieldsOfRecordFields ~env ~debug ~full ~schemaState)
             ~loc:item.decl.type_loc;
           Some (GraphQLObjectType {id; displayName})
+        | ( Some ObjectType,
+            {attributes; name; kind = Abstract (Some (_p, typeArgs))} )
+          when List.length typeArgs > 0 ->
+          let id = name in
+          let displayName = capitalizeFirstChar id in
+          noticeObjectType id ~displayName ~debug ~schemaState ~env
+            ?description:(GenerateSchemaUtils.attributesToDocstring attributes)
+            ~makeFields:(fun () -> [])
+            ~loc:item.decl.type_loc;
+          Some (GraphQLObjectType {id; displayName})
         | Some InputObject, {name; kind = Record fields; attributes; decl} ->
           let id = name in
           let displayName = capitalizeFirstChar id in
@@ -374,7 +384,7 @@ and variantCasesToUnionValues ~env ~debug ~schemaState ~full
                };
            None)
 
-and objectTypeFieldsOfRecordFields ~env ~schemaState ~debug
+and objectTypeFieldsOfRecordFields ?instantiate ~env ~schemaState ~debug
     ~(full : SharedTypes.full) (fields : SharedTypes.field list) =
   fields
   |> List.filter_map (fun (field : SharedTypes.field) ->
@@ -385,8 +395,14 @@ and objectTypeFieldsOfRecordFields ~env ~schemaState ~debug
          | None -> None
          | Some attr -> Some (field, attr))
   |> List.filter_map (fun ((field : SharedTypes.field), _attr) ->
+         let fieldType =
+           match instantiate with
+           | None -> field.typ
+           | Some (typeArgs, typeParams) ->
+             TypeUtils.instantiateType ~typeParams ~typeArgs field.typ
+         in
          let typ =
-           findGraphQLType field.typ ~debug ~loc:field.fname.loc ~full ~env
+           findGraphQLType fieldType ~debug ~loc:field.fname.loc ~full ~env
              ~schemaState
          in
          match typ with
@@ -480,7 +496,7 @@ and mapFunctionArgs ~full ~env ~debug ~schemaState ~fnLoc
                }))
 
 and traverseStructure ?(modulePath = []) ?implStructure ?originModule
-    ~(schemaState : schemaState) ~env ~debug ~full
+    ~(schemaState : schemaState) ~env ~debug ~(full : SharedTypes.full)
     (structure : SharedTypes.Module.structure) =
   if
     originModule |> Option.is_some
@@ -529,6 +545,26 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                ~displayName
                ~makeFields:(fun () -> [])
                id
+           | ( Type ({kind = Abstract (Some (path, typeArgs)); attributes}, _),
+               Some ObjectType )
+             when List.length typeArgs > 0 -> (
+             (* @gql.type type someType = someCreatorRecord<typeArg1> *)
+             let id = item.name in
+             let displayName = capitalizeFirstChar item.name in
+             match
+               References.digConstructor ~env ~package:full.package path
+             with
+             | Some (envForCreator, {item = {kind = Record fields; decl}}) ->
+               noticeObjectType ~env ~debug ~loc:decl.type_loc ~schemaState
+                 ?description:(attributesToDocstring attributes)
+                 ~displayName ~force:true ~syntheticLocation:envForCreator.file
+                 ~makeFields:(fun () ->
+                   fields
+                   |> objectTypeFieldsOfRecordFields
+                        ~instantiate:(typeArgs, decl.type_params)
+                        ~env ~full ~schemaState ~debug)
+                 id
+             | _ -> ())
            | Type ({kind = Record fields; attributes; decl}, _), Some ObjectType
              ->
              (* @gql.type type someType = {...} *)

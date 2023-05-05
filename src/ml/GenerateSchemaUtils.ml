@@ -199,6 +199,11 @@ let rec findModulePathOfType ~schemaState ~(env : SharedTypes.QueryEnv.t)
              Some ObjectType )
            when item.name = name ->
            Some modulePath
+         | ( Type ({kind = Abstract (Some (_p, typeArgs))}, _),
+             ObjectType,
+             Some ObjectType )
+           when item.name = name && List.length typeArgs > 0 ->
+           Some modulePath
          | Type ({kind = Record _}, _), Interface, Some Interface
            when item.name = name ->
            Some modulePath
@@ -263,9 +268,9 @@ let capitalizeFirstChar s =
   if String.length s = 0 then s
   else String.mapi (fun i c -> if i = 0 then Char.uppercase_ascii c else c) s
 
-let noticeObjectType ~env ~loc ~debug ~schemaState ~displayName ?description
-    ~makeFields typeName =
-  if Hashtbl.mem schemaState.types typeName then ()
+let noticeObjectType ?(force = false) ?syntheticLocation ~env ~loc ~debug
+    ~schemaState ~displayName ?description ~makeFields typeName =
+  if Hashtbl.mem schemaState.types typeName && force = false then ()
   else (
     if debug then Printf.printf "noticing %s\n" typeName;
     let typ : gqlObjectType =
@@ -278,6 +283,7 @@ let noticeObjectType ~env ~loc ~debug ~schemaState ~displayName ?description
         typeLocation =
           findTypeLocation ~schemaState typeName ~env ~loc
             ~expectedType:ObjectType;
+        syntheticLocation;
       }
     in
     Hashtbl.add schemaState.types typeName typ;
@@ -341,6 +347,7 @@ let addFieldToObjectType ~env ~loc ~field ~schemaState typeName =
         typeLocation =
           findTypeLocation ~schemaState typeName ~env ~loc
             ~expectedType:ObjectType;
+        syntheticLocation = None;
       }
     | Some typ -> {typ with fields = field :: typ.fields}
   in
@@ -533,7 +540,11 @@ let processSchema (schemaState : schemaState) =
   (* Figure out all files that needs reading to check for interface spreads *)
   schemaState.types
   |> Hashtbl.iter (fun _name (t : gqlObjectType) ->
-         let fileUri = t.typeLocation.fileUri |> Uri.toPath in
+         let fileUri =
+           match t.syntheticLocation with
+           | None -> t.typeLocation.fileUri |> Uri.toPath
+           | Some file -> file.uri |> Uri.toPath
+         in
          match Hashtbl.find_opt positionsToRead fileUri with
          | None ->
            Hashtbl.add positionsToRead fileUri
