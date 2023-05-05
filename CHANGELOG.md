@@ -8,6 +8,10 @@
 - Allow injecting current `typename` for "general" field functions on interfaces. https://github.com/zth/resgraph/pull/9
 - Add snippets for boilerplate for connections and field functions. https://github.com/zth/resgraph/pull/8
 
+### Bug fix
+
+- Ensure schema SDL file is dumped also on build by default. This will eventually be configurable.
+
 ## 0.1.3
 
 ### Bug fix

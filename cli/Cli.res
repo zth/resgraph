@@ -76,7 +76,7 @@ try {
     let timeStart = performance->now
 
     let res = Utils.callPrivateCli(
-      GenerateSchema({src: config.src, outputFolder: config.outputFolder}),
+      GenerateSchema({src: config.src, outputFolder: config.outputFolder, dumpSchemaSdl: true}),
     )
     switch res {
     | Completion(_) | Hover(_) | NotInitialized => ()
