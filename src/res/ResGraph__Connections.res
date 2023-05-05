@@ -1,19 +1,55 @@
-@gql.type /** Information about pagination in a connection. */
+/** Information about pagination in a connection. */
+@gql.type
 type pageInfo = {
-  @gql.field /** When paginating forwards, are there more items? */ hasNextPage: bool,
-  @gql.field /** When paginating backwards, are there more items? */ hasPreviousPage: bool,
-  @gql.field /** When paginating backwards, the cursor to continue. */ startCursor: option<string>,
-  @gql.field /** When paginating forwards, the cursor to continue. */ endCursor: option<string>,
+  /** When paginating forwards, are there more items? */
+  @gql.field
+  hasNextPage: bool,
+  /** When paginating backwards, are there more items? */
+  @gql.field
+  hasPreviousPage: bool,
+  /** When paginating backwards, the cursor to continue. */
+  @gql.field
+  startCursor: option<string>,
+  /** When paginating forwards, the cursor to continue. */
+  @gql.field
+  endCursor: option<string>,
 }
 
 /** An edge in a connection. */
 type edge<'node> = {
-  @gql.field /** The item at the end of the edge. */ node: option<'node>,
-  @gql.field /** A cursor for use in pagination. */ cursor: string,
+  /** The item at the end of the edge. */
+  @gql.field
+  node: option<'node>,
+  /** A cursor for use in pagination. */
+  @gql.field
+  cursor: string,
 }
 
 /** A connection to a list of items. */
 type connection<'edge> = {
-  @gql.field /** Information to aid in pagination. */ pageInfo: pageInfo,
-  @gql.field /** A list of edges. */ edges: option<array<option<'edge>>>,
+  /** Information to aid in pagination. */
+  @gql.field
+  pageInfo: pageInfo,
+  /** A list of edges. */
+  @gql.field
+  edges: option<array<option<'edge>>>,
 }
+
+type forwardConnectionArgs = {
+  after: option<string>,
+  first: option<int>,
+}
+
+type backwardConnectionArgs = {
+  before: option<string>,
+  last: option<int>,
+}
+
+type connectionArgs = {
+  ...forwardConnectionArgs,
+  ...backwardConnectionArgs,
+}
+
+@module("./graphqlRelayConnections.mjs")
+external connectionFromArray: (array<'node>, ~args: connectionArgs) => connection<edge<'node>> =
+  "connectionFromArray"

@@ -320,6 +320,27 @@ t_Query.contents = GraphQLObjectType.make({
   interfaces: [],
   fields: () =>
     {
+      "allUsers": {
+        typ: get_UserConnection()->GraphQLObjectType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {
+          "after": {typ: Scalars.string->Scalars.toGraphQLType},
+          "before": {typ: Scalars.string->Scalars.toGraphQLType},
+          "first": {typ: Scalars.int->Scalars.toGraphQLType},
+          "last": {typ: Scalars.int->Scalars.toGraphQLType},
+        }->makeArgs,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.allUsers(
+            src,
+            ~after=args["after"]->Nullable.toOption,
+            ~before=args["before"]->Nullable.toOption,
+            ~first=args["first"]->Nullable.toOption,
+            ~last=args["last"]->Nullable.toOption,
+          )
+        }),
+      },
       "allowExplicitNull": {
         typ: Scalars.string->Scalars.toGraphQLType->nonNull,
         description: ?None,
@@ -642,6 +663,15 @@ t_UserConnection.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, _args, _ctx) => {
           let src = typeUnwrapper(src)
           src["pageInfo"]
+        }),
+      },
+      "totalCount": {
+        typ: Scalars.int->Scalars.toGraphQLType,
+        description: "The total count of edges in the connection right now.",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.totalCount(src)
         }),
       },
     }->makeFields,

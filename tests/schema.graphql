@@ -1,4 +1,5 @@
 type Query {
+  allUsers(after: String, before: String, first: Int, last: Int): UserConnection
   allowExplicitNull(someNullable: String): String!
   currentTime: TimestampHidden
   currentTimeFlat: Timestamp!
@@ -18,10 +19,68 @@ type Query {
   searchForUser(input: UserConfig!): User
 }
 
+type UserConnection {
+  """A list of edges."""
+  edges: [UserEdge]
+
+  """Information to aid in pagination."""
+  pageInfo: User!
+  totalCount: Int
+}
+
+type UserEdge {
+  """A cursor for use in pagination."""
+  cursor: String!
+
+  """The item at the end of the edge."""
+  node: User
+}
+
+"""A user in the system."""
+type User implements HasName & Node {
+  abbreviatedName: String
+
+  """The age of the user."""
+  age: Int!
+  allNames: [String!]!
+  currentStatus: UserStatus!
+
+  """The id of the object."""
+  id: ID!
+
+  """The last age of the user."""
+  lastAge: Int @deprecated(reason: "Use 'age' instead.")
+  name: String!
+}
+
+"""An entity with a name."""
+interface HasName {
+  abbreviatedName: String
+  name: String!
+}
+
+"""An object with an ID"""
+interface Node {
+  """The id of the object."""
+  id: ID!
+}
+
+"""Indicates what status a user currently has."""
+enum UserStatus {
+  """User is online."""
+  ONLINE
+
+  """User is offline."""
+  Offline
+
+  """User is idle."""
+  Idle @deprecated(reason: "Use 'Offline' instead. This should be \"escaped\".")
+}
+
 """A timestamp, but with the implementation hidden in the server."""
 scalar TimestampHidden
 
-"""A timestamp."""
+"""A timestamp. "Testing quotes here"."""
 scalar Timestamp
 
 scalar TimestampZ
@@ -48,47 +107,6 @@ type Group implements HasName & Node {
   """When this group was last modified."""
   modifiedAt: TimestampHidden
   name: String!
-}
-
-"""An entity with a name."""
-interface HasName {
-  abbreviatedName: String
-  name: String!
-}
-
-"""An object with an ID"""
-interface Node {
-  """The id of the object."""
-  id: ID!
-}
-
-"""A user in the system."""
-type User implements HasName & Node {
-  abbreviatedName: String
-
-  """The age of the user."""
-  age: Int!
-  allNames: [String!]!
-  currentStatus: UserStatus!
-
-  """The id of the object."""
-  id: ID!
-
-  """The last age of the user."""
-  lastAge: Int @deprecated(reason: "Use 'age' instead.")
-  name: String!
-}
-
-"""Indicates what status a user currently has."""
-enum UserStatus {
-  """User is online."""
-  Online
-
-  """User is offline."""
-  Offline
-
-  """User is idle."""
-  Idle @deprecated(reason: "Use 'Offline' instead.")
 }
 
 type Pet implements HasName {

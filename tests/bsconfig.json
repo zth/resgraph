@@ -4,6 +4,12 @@
   "reanalyze": {
     "analysis": ["dce"]
   },
+
+  "package-specs": {
+    "in-source": true,
+    "module": "es6",
+    "suffix": ".mjs"
+  },
   "sources": [
     {
       "dir": "../src/res",

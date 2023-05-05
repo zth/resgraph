@@ -51,6 +51,8 @@ Checking for type to attach resolver currentTime to
 Checking for type to attach resolver currentTimeFlat to
 noticing userEdge
 noticing userConnection
+Checking for type to attach resolver totalCount to
+Checking for type to attach resolver allUsers to
 @@warning("-27-32")
 
 open ResGraph__GraphQLJs
@@ -373,6 +375,27 @@ t_Query.contents = GraphQLObjectType.make({
   interfaces: [],
   fields: () =>
     {
+      "allUsers": {
+        typ: get_UserConnection()->GraphQLObjectType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {
+          "after": {typ: Scalars.string->Scalars.toGraphQLType},
+          "before": {typ: Scalars.string->Scalars.toGraphQLType},
+          "first": {typ: Scalars.int->Scalars.toGraphQLType},
+          "last": {typ: Scalars.int->Scalars.toGraphQLType},
+        }->makeArgs,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.allUsers(
+            src,
+            ~after=args["after"]->Nullable.toOption,
+            ~before=args["before"]->Nullable.toOption,
+            ~first=args["first"]->Nullable.toOption,
+            ~last=args["last"]->Nullable.toOption,
+          )
+        }),
+      },
       "allowExplicitNull": {
         typ: Scalars.string->Scalars.toGraphQLType->nonNull,
         description: ?None,
@@ -697,6 +720,15 @@ t_UserConnection.contents = GraphQLObjectType.make({
           src["pageInfo"]
         }),
       },
+      "totalCount": {
+        typ: Scalars.int->Scalars.toGraphQLType,
+        description: "The total count of edges in the connection right now.",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.totalCount(src)
+        }),
+      },
     }->makeFields,
 })
 t_UserEdge.contents = GraphQLObjectType.make({
@@ -774,5 +806,5 @@ union_UserOrGroup.contents = GraphQLUnionType.make({
 let schema = GraphQLSchemaType.make({"query": get_Query(), "mutation": get_Mutation()})
 
 
-Hover tests/Schema.res 210:10
+Hover tests/Schema.res 223:10
 {"status": "Hover", "item": null}
