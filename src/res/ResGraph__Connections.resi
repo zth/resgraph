@@ -46,35 +46,30 @@ type connectionWithExtra<'edge, 'extra> = {
   extra: 'extra,
 }
 
+/** TODO: Docs */
 type forwardConnectionArgs = {
   after: option<string>,
   first: option<int>,
 }
 
+/** TODO: Docs */
 type backwardConnectionArgs = {
   before: option<string>,
   last: option<int>,
 }
 
+/** TODO: Docs */
 type connectionArgs = {
   ...forwardConnectionArgs,
   ...backwardConnectionArgs,
 }
 
-@module("./graphqlRelayConnections.mjs")
-external connectionFromArray: (array<'node>, ~args: connectionArgs) => connection<edge<'node>> =
-  "connectionFromArray"
+/** TODO: Docs */
+let connectionFromArray: (array<'node>, ~args: connectionArgs) => connection<edge<'node>>
 
-@module("./graphqlRelayConnections.mjs")
-external connectionFromArrayWithExtra_: (
-  array<'node>,
+/** TODO: Docs */
+let connectionFromArrayWithExtra: (
+  array<'a>,
   ~args: connectionArgs,
-) => connectionWithExtra<edge<'node>, 'extra> = "connectionFromArray"
-
-let connectionFromArrayWithExtra = (array, ~args, ~extra) => {
-  let conn = array->connectionFromArrayWithExtra_(~args)
-  {
-    ...conn,
-    extra,
-  }
-}
+  ~extra: 'b,
+) => connectionWithExtra<edge<'a>, 'b>

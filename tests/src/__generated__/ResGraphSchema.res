@@ -667,7 +667,7 @@ t_UserConnection.contents = GraphQLObjectType.make({
       },
       "totalCount": {
         typ: Scalars.int->Scalars.toGraphQLType,
-        description: "The total count of edges in the connection right now.",
+        description: "The total count of edges available in the connection.",
         deprecationReason: ?None,
         resolve: makeResolveFn((src, args, ctx) => {
           let src = typeUnwrapper(src)
