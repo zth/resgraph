@@ -203,20 +203,27 @@ let currentTimeFlat = (_: query) => {
 @gql.type
 type userEdge = ResGraph.Connections.edge<user>
 
-@gql.type
-type userConnection = ResGraph.Connections.connection<userEdge>
+type connectionExtra = {totalCountFromServer: int}
 
-/** The total count of edges in the connection right now. */
+@gql.type
+type userConnection = ResGraph.Connections.connectionWithExtra<userEdge, connectionExtra>
+
+/** The total count of edges available in the connection. */
 @gql.field
 let totalCount = (connection: userConnection) => {
-  Some(connection.edges->Option.getWithDefault([])->Array.length)
+  Some(connection.extra.totalCountFromServer)
 }
 
 @gql.field
 let allUsers = (_: query, ~first, ~last, ~before, ~after): option<userConnection> => {
   let users: array<user> = [{age: 12, id: "123", name: "Hello", lastAge: None}]
 
-  users->ResGraph.Connections.connectionFromArray(~args={first, last, after, before})->Some
+  users
+  ->ResGraph.Connections.connectionFromArrayWithExtra(
+    ~args={first, last, after, before},
+    ~extra={totalCountFromServer: 25},
+  )
+  ->Some
 }
 
 // ^gen

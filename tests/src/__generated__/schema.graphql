@@ -159,7 +159,7 @@ type User implements Node & HasName {
 
 type UserConnection {
 
-  """The total count of edges in the connection right now."""
+  """The total count of edges available in the connection."""
   totalCount: Int
 
   """Information to aid in pagination."""
