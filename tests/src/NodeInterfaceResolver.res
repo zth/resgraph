@@ -1,62 +1,62 @@
+open ResGraphSchemaAssets
+
+let typeMap: node_typeMap<int> = {
+  group: 1,
+  user: 2,
+}
+
+let nodeTypeMap = NodeInterfaceTypeMap.make(typeMap, ~valueToString=Int.toString)
+
 let decodeNodeInterfaceId = id => {
-  let id = id->ResGraph.idToString
-  switch id->String.split(":")->List.fromArray {
-  | list{id, ...params} => (
-      id->ResGraphSchemaAssets.decodeImplementedByInterface_node,
-      params->List.toArray,
-    )
-  | list{} => (None, [])
+  open ResGraphSchemaAssets
+
+  switch id->ResGraph.idToString->String.split(":")->List.fromArray {
+  | list{typeValue, id, ...params} =>
+    switch nodeTypeMap->NodeInterfaceTypeMap.getTypeByStringifiedValue(typeValue) {
+    | None => None
+    | Some(typ) => Some(typ, id, params->List.toArray)
+    }
+  | _ => None
   }
 }
 
 /** Sketched out examples of type safe id producing/decoding functions for the
     Node interface. Could be base64 encoded etc. */
-let nodeInterfaceIdToString = (
-  ~typename: ResGraphSchemaAssets.node_implementedBy,
-  ~id,
-  ~extra=[],
-) => {
-  let rawId =
-    `${typename->ResGraphSchemaAssets.node_typenameToString}:${id}` ++ if extra->Array.length > 0 {
-      `:${extra->Array.joinWith(":")}`
-    } else {
-      ""
-    }
+let nodeInterfaceIdToString = (~typename: node_implementedBy, ~id, ~extra=[]) => {
+  let value = nodeTypeMap->NodeInterfaceTypeMap.getStringifiedValueByType(typename)
+  let nodeId = `${value}:${id}`
 
-  rawId->ResGraph.id
+  let nodeId = if extra->Array.length > 0 {
+    `${nodeId}:${extra->Array.joinWith(":")}`
+  } else {
+    nodeId
+  }
+
+  nodeId->ResGraph.id
 }
 
 /** Fetches an object given its ID.*/
 @gql.field
-let node = async (_: Query.query, ~id, ~ctx: ResGraphContext.context): option<
-  ResGraphSchemaAssets.node_resolver,
-> => {
-  let (typename, params) = decodeNodeInterfaceId(id)
-
-  switch typename {
+let node = async (_: Query.query, ~id, ~ctx: ResGraphContext.context): option<node_resolver> => {
+  switch decodeNodeInterfaceId(id) {
   | None => None
-  | Some(User) =>
-    switch params {
-    | [userId] =>
-      switch await ctx.userById(~userId) {
+  | Some(typename, id, _extraParams) =>
+    switch typename {
+    | User =>
+      switch await ctx.userById(~userId=id) {
       | None => None
       | Some(user) => Some(User(user))
       }
-    | _ => None
-    }
-  | Some(Group) =>
-    switch params {
-    | [groupId] =>
+    | Group =>
       Some(
         Group({
           Schema.name: "TestGroup",
           memberIds: [],
-          id: groupId->ResGraph.id,
+          id,
           createdAt: None,
           modifiedAt: None,
         }),
       )
-    | _ => None
     }
   }
 }
@@ -69,6 +69,6 @@ let nodes = (query: Query.query, ~ids, ~ctx: ResGraphContext.context) => {
 
 /** The id of the object.*/
 @gql.field
-let id = (node: NodeInterface.node, ~typename: ResGraphSchemaAssets.node_implementedBy) => {
-  nodeInterfaceIdToString(~typename, ~id=node.id->ResGraph.idToString)
+let id = (node: NodeInterface.node, ~typename: node_implementedBy) => {
+  nodeInterfaceIdToString(~typename, ~id=node.id)
 }

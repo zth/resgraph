@@ -103,13 +103,13 @@ module QueryFields = {
   let entity = (_: query, ~id: ResGraph.id, ~ctx: ResGraphContext.context) => {
     ignore(id)
     ignore(ctx)
-    User({id: "234"->ResGraph.id, name: "Hello", age: 35, lastAge: None})
+    User({id: "234", name: "Hello", age: 35, lastAge: None})
   }
 
   @gql.field
   let searchForUser = (_: query, ~input: userConfig): option<user> => {
     Some({
-      id: "123"->ResGraph.id,
+      id: "123",
       name: input.name->Option.getWithDefault("Hello"),
       age: 35,
       lastAge: None,
@@ -184,7 +184,7 @@ module Mutations = {
   @gql.field
   let addUser = (_: mutation, ~name) => {
     // ^hov
-    Some({id: "123"->ResGraph.id, User.name, age: 35, lastAge: None})
+    Some({id: "123", User.name, age: 35, lastAge: None})
   }
 }
 
