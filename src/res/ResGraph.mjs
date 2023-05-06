@@ -7,9 +7,12 @@ var $$JSON;
 
 var Connections;
 
+var Utils;
+
 export {
   GraphQLLiteralValue ,
   $$JSON ,
   Connections ,
+  Utils ,
 }
 /* No side effect */

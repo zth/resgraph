@@ -32,7 +32,7 @@ let nodeInterfaceIdToString = (~typename: node_implementedBy, ~id, ~extra=[]) =>
     nodeId
   }
 
-  nodeId->ResGraph.id
+  nodeId->ResGraph.Utils.Base64.encode->ResGraph.id
 }
 
 /** Fetches an object given its ID.*/
