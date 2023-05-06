@@ -268,7 +268,7 @@ let capitalizeFirstChar s =
   if String.length s = 0 then s
   else String.mapi (fun i c -> if i = 0 then Char.uppercase_ascii c else c) s
 
-let noticeObjectType ?(force = false) ?syntheticLocation ~env ~loc ~debug
+let noticeObjectType ?(force = false) ?typeCreatorLocation ~env ~loc ~debug
     ~schemaState ~displayName ?description ~makeFields typeName =
   if Hashtbl.mem schemaState.types typeName && force = false then ()
   else (
@@ -283,7 +283,7 @@ let noticeObjectType ?(force = false) ?syntheticLocation ~env ~loc ~debug
         typeLocation =
           findTypeLocation ~schemaState typeName ~env ~loc
             ~expectedType:ObjectType;
-        syntheticLocation;
+        typeCreatorLocation;
       }
     in
     Hashtbl.add schemaState.types typeName typ;
@@ -347,7 +347,7 @@ let addFieldToObjectType ~env ~loc ~field ~schemaState typeName =
         typeLocation =
           findTypeLocation ~schemaState typeName ~env ~loc
             ~expectedType:ObjectType;
-        syntheticLocation = None;
+        typeCreatorLocation = None;
       }
     | Some typ -> {typ with fields = field :: typ.fields}
   in
@@ -541,9 +541,9 @@ let processSchema (schemaState : schemaState) =
   schemaState.types
   |> Hashtbl.iter (fun _name (t : gqlObjectType) ->
          let fileUri =
-           match t.syntheticLocation with
+           match t.typeCreatorLocation with
            | None -> t.typeLocation.fileUri |> Uri.toPath
-           | Some file -> file.uri |> Uri.toPath
+           | Some {env} -> env.file.uri |> Uri.toPath
          in
          match Hashtbl.find_opt positionsToRead fileUri with
          | None ->
