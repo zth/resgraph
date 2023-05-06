@@ -41,7 +41,17 @@ let validAttributes =
 
 let snippets =
   [
-    ( "gql.type snippet - connection",
+    ( "gql.type snippet - simple connection",
+      "Boilerplate for creating a new simple GraphQL connection for pagination.",
+      {|gql.type
+/** An edge in a connection. */
+type ${1:entity}Edge = ResGraph.Connections.edge<${1:entity}>
+
+/** A connection to a list of items. */
+@gql.type
+type ${1:entity}Connection = ResGraph.Connections.connection<${1:entity}Edge>|}
+    );
+    ( "gql.type snippet - full connection",
       "Boilerplate for creating a new GraphQL connection for pagination.",
       {|gql.type
 /** An edge in a connection. */
