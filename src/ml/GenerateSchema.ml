@@ -66,8 +66,9 @@ let rec extractFunctionType ~env ~package typ =
 type typeContext = Default | ReturnType
 
 (* Extracts valid GraphQL types from type exprs *)
-let rec findGraphQLType ~env ?(typeContext = Default) ~debug ?loc ~schemaState
-    ~(full : SharedTypes.full) (typ : Types.type_expr) =
+let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
+    ~debug ?loc ~schemaState ~(full : SharedTypes.full) (typ : Types.type_expr)
+    =
   match typ.desc with
   | Tlink te | Tsubst te | Tpoly (te, []) ->
     findGraphQLType te ?loc ~env ~schemaState ~full ~debug ~typeContext
@@ -265,7 +266,7 @@ let rec findGraphQLType ~env ?(typeContext = Default) ~debug ?loc ~schemaState
                        item.name;
                  };
           None)
-      | _ ->
+      | None ->
         schemaState
         |> addDiagnostic
              ~diagnostic:
@@ -395,11 +396,21 @@ and objectTypeFieldsOfRecordFields ?instantiate ~env ~schemaState ~debug
          | None -> None
          | Some attr -> Some (field, attr))
   |> List.filter_map (fun ((field : SharedTypes.field), _attr) ->
-         let fieldType =
+         let fieldType, env =
            match instantiate with
-           | None -> field.typ
-           | Some (typeArgs, typeParams) ->
-             TypeUtils.instantiateType ~typeParams ~typeArgs field.typ
+           | None -> (field.typ, env)
+           | Some (typeArgs, typeParams, envFromInstantiate) ->
+             let instantiated =
+               TypeUtils.instantiateType ~typeParams ~typeArgs field.typ
+             in
+             (* If this field was instantiated we need to use the original env
+                coming from the type variable contexts in order to properly look
+                up other types. If not however, we stick with the env we were
+                passed to start with. *)
+             let didInstantiate =
+               TypeUtils.checkIfVarsWereInstantiated instantiated
+             in
+             (instantiated, if didInstantiate then envFromInstantiate else env)
          in
          let typ =
            findGraphQLType fieldType ~debug ~loc:field.fname.loc ~full ~env
@@ -562,8 +573,8 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                  ~makeFields:(fun () ->
                    fields
                    |> objectTypeFieldsOfRecordFields
-                        ~instantiate:(typeArgs, decl.type_params)
-                        ~env ~full ~schemaState ~debug)
+                        ~instantiate:(typeArgs, decl.type_params, env)
+                        ~env:envForCreator ~full ~schemaState ~debug)
                  id
              | _ -> ())
            | Type ({kind = Record fields; attributes; decl}, _), Some ObjectType

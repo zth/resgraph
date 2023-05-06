@@ -163,7 +163,7 @@ type UserConnection {
   totalCount: Int
 
   """Information to aid in pagination."""
-  pageInfo: User!
+  pageInfo: PageInfo!
 
   """A list of edges."""
   edges: [UserEdge]

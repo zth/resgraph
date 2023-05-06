@@ -657,7 +657,7 @@ t_UserConnection.contents = GraphQLObjectType.make({
         }),
       },
       "pageInfo": {
-        typ: get_User()->GraphQLObjectType.toGraphQLType->nonNull,
+        typ: get_PageInfo()->GraphQLObjectType.toGraphQLType->nonNull,
         description: "Information to aid in pagination.",
         deprecationReason: ?None,
         resolve: makeResolveFn((src, _args, _ctx) => {
