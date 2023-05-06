@@ -87,7 +87,7 @@ type userConnection = ResGraph.Connections.connection<userEdge>
 
 /** All currently active users. */
 @gql.field
-let currentlyActiveUsers = (
+let currentlyActiveUsers = async (
   _: query,
   ~ctx: ResGraphContext.context,
   ~first,
@@ -233,7 +233,7 @@ Finally, whenever constructing this connection we'll use `connectionFromArrayWit
 ```rescript
 /** All currently active users. */
 @gql.field
-let currentlyActiveUsers = (
+let currentlyActiveUsers = async (
   _: query,
   ~ctx: ResGraphContext.context,
   ~first,
@@ -337,7 +337,7 @@ You'll need to implement the logic for constructing and paginating the connectio
 ```rescript
 /** Friends of the user. */
 @gql.field
-let friends = (
+let friends = async (
   user: user,
   ~ctx: ResGraphContext.context,
   ~first,
