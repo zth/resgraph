@@ -49,7 +49,16 @@ Attribute id:g:[0:3->0:5] label:g
     "detail": "",
     "documentation": null
   }, {
-    "label": "gql.type snippet - connection",
+    "label": "gql.type snippet - simple connection",
+    "kind": 4,
+    "tags": [],
+    "detail": "Boilerplate for creating a new simple GraphQL connection for pagination.",
+    "documentation": null,
+    "sortText": "@gql.a",
+    "insertText": "gql.type\n/** An edge in a connection. */\ntype ${1:entity}Edge = ResGraph.Connections.edge<${1:entity}>\n\n/** A connection to a list of items. */\n@gql.type\ntype ${1:entity}Connection = ResGraph.Connections.connection<${1:entity}Edge>",
+    "insertTextFormat": 2
+  }, {
+    "label": "gql.type snippet - full connection",
     "kind": 4,
     "tags": [],
     "detail": "Boilerplate for creating a new GraphQL connection for pagination.",
@@ -76,7 +85,16 @@ Attribute id:gql.ty:[3:3->3:10] label:gql.ty
     "detail": "Indicates that the annotated record is a GraphQL Object Type.",
     "documentation": null
   }, {
-    "label": "gql.type snippet - connection",
+    "label": "gql.type snippet - simple connection",
+    "kind": 4,
+    "tags": [],
+    "detail": "Boilerplate for creating a new simple GraphQL connection for pagination.",
+    "documentation": null,
+    "sortText": "@gql.a",
+    "insertText": "gql.type\n/** An edge in a connection. */\ntype ${1:entity}Edge = ResGraph.Connections.edge<${1:entity}>\n\n/** A connection to a list of items. */\n@gql.type\ntype ${1:entity}Connection = ResGraph.Connections.connection<${1:entity}Edge>",
+    "insertTextFormat": 2
+  }, {
+    "label": "gql.type snippet - full connection",
     "kind": 4,
     "tags": [],
     "detail": "Boilerplate for creating a new GraphQL connection for pagination.",
