@@ -278,11 +278,11 @@ let capitalizeFirstChar s =
   if String.length s = 0 then s
   else String.mapi (fun i c -> if i = 0 then Char.uppercase_ascii c else c) s
 
-let noticeObjectType ?(force = false) ?typeCreatorLocation ~env ~loc ~debug
+let noticeObjectType ?(force = false) ?typeCreatorLocation ~env ~loc
     ~schemaState ~displayName ?description ~makeFields typeName =
   if Hashtbl.mem schemaState.types typeName && force = false then ()
-  else (
-    if debug then Printf.printf "noticing %s\n" typeName;
+  else
+    (*Printf.printf "noticing %s\n" typeName;*)
     let typ : gqlObjectType =
       {
         id = typeName;
@@ -301,7 +301,7 @@ let noticeObjectType ?(force = false) ?typeCreatorLocation ~env ~loc ~debug
     | "query" -> schemaState.query <- Some typ
     | "mutation" -> schemaState.mutation <- Some typ
     | "subscription" -> schemaState.subscription <- Some typ
-    | _ -> ())
+    | _ -> ()
 
 let addEnum id ~(makeEnum : unit -> gqlEnum) ~debug ~schemaState =
   if Hashtbl.mem schemaState.enums id then ()

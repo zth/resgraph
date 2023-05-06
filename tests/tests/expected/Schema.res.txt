@@ -17,20 +17,15 @@ Adding scalar TimestampHidden
 Adding scalar TimestampHiddenSerializable
 Adding interface hasName
 Checking for type to attach resolver hasName to
-noticing query
 Checking for type to attach resolver abbreviatedName to
 Adding interface node
 Checking for type to attach resolver node to
 Checking for type to attach resolver nodes to
 Checking for type to attach resolver id to
-noticing pageInfo
 Adding scalar timestamp
 Adding scalar timestampList
 Adding interface interfaceNobodyImplements
-noticing group
-noticing pet
 Adding union userOrGroup
-noticing user
 Adding enum userStatus
 Checking for type to attach resolver name to
 Checking for type to attach resolver currentStatus to
@@ -45,12 +40,9 @@ Checking for type to attach resolver listAsArgs to
 Checking for type to attach resolver pet to
 Checking for type to attach resolver customScalar to
 Checking for type to attach resolver customScalarImplSerializable to
-noticing mutation
 Checking for type to attach resolver addUser to
 Checking for type to attach resolver currentTime to
 Checking for type to attach resolver currentTimeFlat to
-noticing userEdge
-noticing userConnection
 Checking for type to attach resolver totalCount to
 Checking for type to attach resolver allUsers to
 @@warning("-27-32")
