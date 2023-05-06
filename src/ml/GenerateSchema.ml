@@ -408,7 +408,7 @@ and objectTypeFieldsOfRecordFields ?instantiate ~env ~schemaState ~debug
                 up other types. If not however, we stick with the env we were
                 passed to start with. *)
              let didInstantiate =
-               TypeUtils.checkIfVarsWereInstantiated instantiated
+               TypeUtils.checkIfNoUninstantiatedVars instantiated
              in
              (instantiated, if didInstantiate then envFromInstantiate else env)
          in
