@@ -16,7 +16,7 @@
   "license": "ISC",
   "dependencies": {
     "@rescript/core": "0.3.1",
-    "rescript": "^11.0.0-alpha.5",
+    "rescript": "^11.0.0-alpha.6",
     "@glennsl/rescript-fetch": "^0.2.0"
   },
   "devDependencies": {
