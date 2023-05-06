@@ -45,3 +45,46 @@ let instantiateType ~typeParams ~typeArgs (t : Types.type_expr) =
       | Rabsent -> Rabsent
     in
     loop t
+
+let checkIfNoUninstantiatedVars (t : Types.type_expr) =
+  let didInst = ref true in
+  let hadArgs = ref false in
+  let rec loop (t : Types.type_expr) =
+    match t.desc with
+    | Tlink t -> loop t
+    | Tvar _ -> didInst := false
+    | Tunivar _ -> didInst := false
+    | Tconstr (_, args, _) ->
+      args |> List.iter loop;
+      if List.length args > 0 then hadArgs := true
+    | Tsubst t -> loop t
+    | Tvariant rd -> rowDesc rd
+    | Tnil -> ()
+    | Tarrow (_, t1, t2, _) ->
+      loop t1;
+      loop t2
+    | Ttuple tl -> tl |> List.iter loop
+    | Tobject (t, _) -> loop t
+    | Tfield (_, _, t1, t2) ->
+      loop t1;
+      loop t2
+    | Tpoly (t, []) -> loop t
+    | Tpoly (t, tl) ->
+      loop t;
+      tl |> List.iter loop
+    | Tpackage (_, _, tl) -> tl |> List.iter loop
+  and rowDesc (rd : Types.row_desc) =
+    rd.row_fields |> List.iter (fun (_, rf) -> rowField rf);
+    loop rd.row_more;
+    match rd.row_name with
+    | None -> ()
+    | Some (_, tl) -> tl |> List.iter loop
+  and rowField (rf : Types.row_field) =
+    match rf with
+    | Rpresent None -> ()
+    | Rpresent (Some t) -> loop t
+    | Reither (_, tl, _, _) -> tl |> List.iter loop
+    | Rabsent -> ()
+  in
+  loop t;
+  !hadArgs && !didInst
