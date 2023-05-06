@@ -26,7 +26,7 @@ type UserConnection {
   """Information to aid in pagination."""
   pageInfo: User!
 
-  """The total count of edges in the connection right now."""
+  """The total count of edges available in the connection."""
   totalCount: Int
 }
 
