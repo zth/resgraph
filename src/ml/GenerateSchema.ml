@@ -557,7 +557,8 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
              | Some (envForCreator, {item = {kind = Record fields; decl}}) ->
                noticeObjectType ~env ~debug ~loc:decl.type_loc ~schemaState
                  ?description:(attributesToDocstring attributes)
-                 ~displayName ~force:true ~syntheticLocation:envForCreator.file
+                 ~displayName ~force:true
+                 ~typeCreatorLocation:{env = envForCreator; loc = decl.type_loc}
                  ~makeFields:(fun () ->
                    fields
                    |> objectTypeFieldsOfRecordFields
