@@ -153,7 +153,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
             } ) ->
           let id = name in
           let displayName = capitalizeFirstChar id in
-          noticeObjectType id ~displayName ~debug ~schemaState ~env
+          noticeObjectType id ~displayName ~schemaState ~env
             ?description:(GenerateSchemaUtils.attributesToDocstring attributes)
             ~makeFields:(fun () -> [])
             ~loc:item.decl.type_loc;
@@ -161,7 +161,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
         | Some ObjectType, {attributes; name; kind = Record fields} ->
           let id = name in
           let displayName = capitalizeFirstChar id in
-          noticeObjectType id ~displayName ~debug ~schemaState ~env
+          noticeObjectType id ~displayName ~schemaState ~env
             ?description:(GenerateSchemaUtils.attributesToDocstring attributes)
             ~makeFields:(fun () ->
               fields
@@ -173,7 +173,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
           when List.length typeArgs > 0 ->
           let id = name in
           let displayName = capitalizeFirstChar id in
-          noticeObjectType id ~displayName ~debug ~schemaState ~env
+          noticeObjectType id ~displayName ~schemaState ~env
             ?description:(GenerateSchemaUtils.attributesToDocstring attributes)
             ~makeFields:(fun () -> [])
             ~loc:item.decl.type_loc;
@@ -551,7 +551,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
              (* @gql.type type mutation *)
              let id = item.name in
              let displayName = capitalizeFirstChar item.name in
-             noticeObjectType ~env ~debug ~loc:decl.type_loc ~schemaState
+             noticeObjectType ~env ~loc:decl.type_loc ~schemaState
                ?description:(attributesToDocstring attributes)
                ~displayName
                ~makeFields:(fun () -> [])
@@ -566,7 +566,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                References.digConstructor ~env ~package:full.package path
              with
              | Some (envForCreator, {item = {kind = Record fields; decl}}) ->
-               noticeObjectType ~env ~debug ~loc:decl.type_loc ~schemaState
+               noticeObjectType ~env ~loc:decl.type_loc ~schemaState
                  ?description:(attributesToDocstring attributes)
                  ~displayName ~force:true
                  ~typeCreatorLocation:{env = envForCreator; loc = decl.type_loc}
@@ -582,7 +582,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
              (* @gql.type type someType = {...} *)
              let id = item.name in
              let displayName = capitalizeFirstChar item.name in
-             noticeObjectType ~env ~debug ~loc:decl.type_loc ~schemaState
+             noticeObjectType ~env ~loc:decl.type_loc ~schemaState
                ?description:(attributesToDocstring attributes)
                ~displayName
                ~makeFields:(fun () ->
