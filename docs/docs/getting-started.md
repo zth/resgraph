@@ -19,7 +19,7 @@ ResGraph relies on features in ReScript `v11`, which is currently in alpha. Make
 npm i resgraph graphql graphql-yoga @rescript/core @glennsl/rescript-fetch
 ```
 
-> We rely on `@glennsl/rescript-fetch` for various fetch related things needed in GraphQL Yoga. We also rely on `@rescript/core`, the (future) standard library for ReScript.
+> We rely on `@glennsl/rescript-fetch` for various fetch related things needed in [GraphQL Yoga](graphql-yoga). We also rely on `@rescript/core`, the (future) standard library for ReScript.
 
 Add the various dependencies to your `bs-dependencies` in `bsconfig.json`:
 
@@ -98,7 +98,7 @@ Excellent, we now have a schema! Let's hook it up to your server.
 
 ### Hooking up your schema to GraphQL Yoga
 
-> ResGraph ships with GraphQL Yoga bindings, and we're using it to expose your schema. This is because Yoga is well maintained and well established in the ecosystem. However, hooking up ResGraph to other servers should be simple as well, since the primary artifact of ResGraph is just a `graphql-js` schema.
+> ResGraph ships with [GraphQL Yoga](graphql-yoga) bindings, and we're using it to expose your schema. This is because Yoga is well maintained and well established in the ecosystem. However, hooking up ResGraph to other servers should be simple as well, since the primary artifact of ResGraph is just a `graphql-js` schema.
 
 Let's expose your schema through GraphQL Yoga. Paste this into `App.res`:
 
