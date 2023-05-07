@@ -2,6 +2,8 @@
 
 ## main
 
+## 0.2.0
+
 ### New Features
 
 - Hovering on `@gql` types now show what GraphQL they yield directly in the hover. https://github.com/zth/resgraph/pull/12
