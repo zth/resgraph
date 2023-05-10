@@ -43,9 +43,9 @@ let node = async (_: Query.query, ~id, ~ctx: ResGraphContext.context): option<no
   | Some(typename, id, _extraParams) =>
     switch typename {
     | User =>
-      switch await ctx.userById(~userId=id) {
-      | None => None
-      | Some(user) => Some(User(user))
+      switch await ctx.dataLoaders.user.byId->DataLoader.load(id) {
+      | Error(_) => None
+      | Ok(user) => Some(User(user))
       }
     | Group =>
       Some(
