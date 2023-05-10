@@ -27,7 +27,8 @@ Configure your `bsconfig.json`, including adding the various dependencies to you
 {
   "uncurried": true,
   "bs-dependencies": ["resgraph", "@rescript/core", "@glennsl/rescript-fetch"],
-  "bsc-flags": ["-open RescriptCore"]
+  "bsc-flags": ["-open RescriptCore"],
+  "suffix": ".mjs"
 }
 ```
 

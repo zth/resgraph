@@ -127,6 +127,9 @@ let setupWatcher = (~onResult, ~onStartRebuild, ~config) => {
     onResult(res)
   }
 
+  // Build on watcher start
+  generateSchema()
+
   watcher
   ->watch(Path.resolve([Process.process->Process.cwd, "./lib/bs/.compiler.log"]))
   ->Watcher.onChange(compilerLogPath => {

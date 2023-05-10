@@ -6,6 +6,11 @@
 
 - Ship (opinionated) bindings to `DataLoader` by default. https://github.com/zth/resgraph/pull/21
 
+### Bug fix
+
+- Ensure build is triggered directly when starting watch mode.
+- Print errors in watch mode.
+
 ## 0.2.0
 
 ### New Features

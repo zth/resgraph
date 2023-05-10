@@ -84,24 +84,7 @@ try {
       let buildDuration = performance->now -. timeStart
       printBuildTime(buildDuration)
     | Error({errors}) =>
-      let fileContentCache = Dict.make()
-
-      errors->Array.forEach(error => {
-        let fileContentLines = switch fileContentCache->Dict.get(error.file) {
-        | Some(content) => content
-        | None =>
-          let contents =
-            error.file
-            ->Fs.readFileSync
-            ->Node.Buffer.toStringWithEncoding(#utf8)
-            ->String.split(Os.eol)
-          fileContentCache->Dict.set(error.file, contents)
-          contents
-        }
-
-        ErrorPrinter.prettyPrintDiagnostic(~lines=fileContentLines, ~diagnostic=error)
-      })
-
+      ErrorPrinter.printErrors(errors)
       Process.process->Process.exitWithCode(1)
     }
   | list{"watch"} =>
@@ -114,9 +97,14 @@ try {
     let timeStart = ref(0.)
 
     let _watcher = Utils.setupWatcher(
-      ~onResult=_ => {
+      ~onResult=res => {
         let buildDuration = performance->now -. timeStart.contents
         printBuildTime(buildDuration)
+
+        switch res {
+        | Error({errors}) => ErrorPrinter.printErrors(errors)
+        | _ => ()
+        }
       },
       ~onStartRebuild=() => {
         Console.clear()
