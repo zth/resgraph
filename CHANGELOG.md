@@ -2,6 +2,8 @@
 
 ## main
 
+## 0.3.0
+
 ### New Features
 
 - Ship (opinionated) bindings to `DataLoader` by default. https://github.com/zth/resgraph/pull/21
