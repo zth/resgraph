@@ -23,8 +23,8 @@ export async function activate(context: ExtensionContext) {
 
   let serverOptions: ServerOptions = {
     transport: TransportKind.stdio,
-    command: resolve(fileDir, "../cli/Cli.mjs"),
-    args: ["lsp", fileDir],
+    command: "npx",
+    args: ["resgraph", "lsp", fileDir],
     options: {
       cwd: fileDir,
     },

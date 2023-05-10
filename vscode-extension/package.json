@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "main": "./build/extension.js",
   "engines": {
-    "vscode": "^1.62.0"
+    "vscode": "^1.77.0"
   },
   "scripts": {
     "vscode:prepublish": "yarn build",
