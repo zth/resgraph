@@ -96,8 +96,14 @@ type userConfig = {
 module QueryFields = {
   @gql.field
   let me = async (_: query, ~ctx: ResGraphContext.context) => {
-    let user = await ctx.loadCurrentUser()
-    user
+    switch ctx.currentUserId {
+    | None => None
+    | Some(userId) =>
+      switch await ctx.dataLoaders.user.byId->DataLoader.load(userId) {
+      | Ok(user) => Some(user)
+      | Error(_error) => None
+      }
+    }
   }
 
   @gql.field

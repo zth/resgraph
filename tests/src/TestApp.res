@@ -21,18 +21,9 @@ let yoga = createYoga({
     ignore(request)
     {
       ResGraphContext.currentUserId: Some("123"),
-      loadCurrentUser: async () => Some({
-        id: "123",
-        User.name: "TestUser",
-        age: 35,
-        lastAge: None,
-      }),
-      userById: async (~userId) => Some({
-        id: userId,
-        User.name: "Testing testing",
-        age: 37,
-        lastAge: None,
-      }),
+      dataLoaders: {
+        user: UserDataLoaders.make(),
+      },
     }
   },
 })
