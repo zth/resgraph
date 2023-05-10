@@ -12,7 +12,7 @@ Let's start by setting up ResGraph in your project.
 
 ### Installation
 
-ResGraph relies on features in ReScript `v11`, which is currently in alpha. Make sure you run `>= rescript@11.0.0-alpha.5` and for the best results, set `"uncurried": true` in your `bsconfig.json`.
+ResGraph relies on features in ReScript `v11`, which is currently in alpha. Make sure you run `>= rescript@11.0.0-alpha.6` and for the best results, set `"uncurried": true` in your `bsconfig.json`.
 
 ```bash
 # Install both `graphql` and `graphql-yoga` so we can set your server up
@@ -21,12 +21,13 @@ npm i resgraph graphql graphql-yoga @rescript/core @glennsl/rescript-fetch
 
 > We rely on `@glennsl/rescript-fetch` for various fetch related things needed in [GraphQL Yoga](graphql-yoga). We also rely on `@rescript/core`, the (future) standard library for ReScript.
 
-Add the various dependencies to your `bs-dependencies` in `bsconfig.json`:
+Configure your `bsconfig.json`, including adding the various dependencies to your `bs-dependencies`:
 
 ```json
 {
   "uncurried": true,
-  "bs-dependencies": ["resgraph", "@rescript/core", "@glennsl/rescript-fetch"]
+  "bs-dependencies": ["resgraph", "@rescript/core", "@glennsl/rescript-fetch"],
+  "bsc-flags": ["-open RescriptCore"]
 }
 ```
 

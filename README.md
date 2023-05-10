@@ -1,6 +1,6 @@
 # ResGraph
 
-Build GraphQL servers in ReScript. [Check out the docs on getting started](https://zth.github.io/resgraph/docs/getting-started).
+Build implementation-first GraphQL servers in ReScript. [Check out the docs on getting started](https://zth.github.io/resgraph/docs/getting-started).
 
 This ReScript code:
 
