@@ -73,7 +73,7 @@ Attribute id:g:[0:3->0:5] label:g
     "detail": "Boilerplate for adding a new field to a type via a function.",
     "documentation": null,
     "sortText": "@gql.a",
-    "insertText": "gql.field\nlet ${1:fieldName} = (${2:entity}: ${2:entity}) => {\n  ${0:Some(entity.prop)}\n}",
+    "insertText": "gql.field\nlet ${1:fieldName} = async (${2:entity}: ${2:entity}) => {\n  ${0:Some(entity.prop)}\n}",
     "insertTextFormat": 2
   }]}
 Complete tests/Completion.res 3:10
@@ -109,7 +109,7 @@ Attribute id:gql.ty:[3:3->3:10] label:gql.ty
     "detail": "Boilerplate for adding a new field to a type via a function.",
     "documentation": null,
     "sortText": "@gql.a",
-    "insertText": "gql.field\nlet ${1:fieldName} = (${2:entity}: ${2:entity}) => {\n  ${0:Some(entity.prop)}\n}",
+    "insertText": "gql.field\nlet ${1:fieldName} = async (${2:entity}: ${2:entity}) => {\n  ${0:Some(entity.prop)}\n}",
     "insertTextFormat": 2
   }]}
 Complete tests/Completion.res 6:15

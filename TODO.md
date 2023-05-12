@@ -72,7 +72,7 @@
 - Expose field as GraphQL field
 - Generate resolver for type
 - Bring in interface type arg
-- Bring in ctx type arg
+- ~~Bring in ctx type arg~~ Solved with autocomplete instead
 
 ## Snippets
 

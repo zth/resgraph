@@ -78,7 +78,7 @@ type ${1:entity}Connection = {
     ( "gql.type snippet - field function on type",
       "Boilerplate for adding a new field to a type via a function.",
       {|gql.field
-let ${1:fieldName} = (${2:entity}: ${2:entity}) => {
+let ${1:fieldName} = async (${2:entity}: ${2:entity}) => {
   ${0:Some(entity.prop)}
 }|}
     );
