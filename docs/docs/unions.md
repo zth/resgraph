@@ -37,10 +37,10 @@ union Entity = User | Group
 
 Each variant case can be called whatever you want it to (although it's good practice to follow the name of the GraphQL type it holds), but rememeber that the payload of each union variant case must be one of:
 
-- Exactly 1 type that has a `@gql.type` annotation
-- An inline record
+- Exactly 1 type that has a `@gql.type` annotation.
+- An inline record.
 
-But don't worry, ResGraph will complain if you try anything else.
+Don't worry, ResGraph will complain if you try anything else.
 
 You can add comments on the union type definition itself, as well as each variant case, and they'll end up in the schema.
 

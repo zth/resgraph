@@ -8,7 +8,7 @@
 
 ### Bug fix
 
-- Variant constructor names for union members are now allowed to be anything, since they are never exposed out to GraphQL anyway (only the typename of the object type payload is).
+- Variant constructor names for union members are now allowed to be anything.
 
 ## 0.3.0
 
