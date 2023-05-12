@@ -7,6 +7,7 @@ type Query {
   customScalarImplSerializable: TimestampHiddenSerializable
   entity(id: ID!): UserOrGroup!
   hasName(id: ID!): HasName
+  inlineUnion: InlineUnion
   listAsArgs(list1: [String], list2: [[String]], list3: [[[String!]!]], nullableInnerList: [String], nullableList: [String], optionalList: [String!], regularList: [String]!): [String!]!
   me: User
 
@@ -124,6 +125,16 @@ type Group implements HasName & Node {
   """When this group was last modified."""
   modifiedAt: TimestampHidden
   name: String!
+}
+
+union InlineUnion = InlineUnionNotOk | InlineUnionOk | User
+
+type InlineUnionNotOk {
+  reason: String!
+}
+
+type InlineUnionOk {
+  message: String!
 }
 
 type Pet implements HasName {

@@ -2,6 +2,10 @@
 
 ## main
 
+### New Features
+
+- Inline records are now allowed on unions. Using inline records will create a "synthetic" type for that particular payload.
+
 ### Bug fix
 
 - Variant constructor names for union members are now allowed to be anything, since they are never exposed out to GraphQL anyway (only the typename of the object type payload is).

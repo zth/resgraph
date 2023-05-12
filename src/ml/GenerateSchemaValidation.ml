@@ -83,8 +83,11 @@ let validateSchema (schemaState : schemaState) =
 
   schemaState.types
   |> Hashtbl.iter (fun _name (typ : gqlObjectType) ->
-         validateFields ~ownerTypeLocation:typ.typeLocation
-           ~ownerName:typ.displayName ~schemaState typ.fields);
+         match typ.typeLocation with
+         | Some typeLocation ->
+           validateFields ~ownerTypeLocation:typeLocation
+             ~ownerName:typ.displayName ~schemaState typ.fields
+         | None -> ());
 
   schemaState.inputObjects
   |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->

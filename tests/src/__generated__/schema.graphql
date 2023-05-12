@@ -29,6 +29,12 @@ enum UserStatus {
   Idle @deprecated(reason: "Use 'Offline' instead. This should be \"escaped\".")
 }
 
+union InlineUnion {
+  InlineUnionOk
+  InlineUnionNotOk
+  User
+}
+
 
 """A user or a group."""
 union UserOrGroup {
@@ -72,6 +78,19 @@ interface Node {
 
   """The id of the object."""
   id: ID!
+}
+
+type InlineUnionNotOk {
+
+  """Stuff"""
+  reason: String!
+
+  """Whether this is liked or not."""
+  liked: Boolean @deprecated(reason: "Use something else.")
+}
+
+type InlineUnionOk {
+  message: String!
 }
 
 
@@ -118,6 +137,7 @@ type Pet implements HasName {
 }
 
 type Query {
+  inlineUnion: InlineUnion
   allUsers(first: Int, last: Int, before: String, after: String): UserConnection
   currentTimeFlat: Timestamp!
   currentTime: TimestampHidden
@@ -136,6 +156,10 @@ type Query {
   """Fetches an object given its ID."""
   node(id: ID!): Node
   hasName(id: ID!): HasName
+}
+
+type SomeType {
+  msg: String!
 }
 
 

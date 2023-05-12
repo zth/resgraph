@@ -99,7 +99,7 @@ type gqlObjectType = {
   displayName: string;
   fields: gqlField list;
   description: string option;
-  typeLocation: typeLocation;
+  typeLocation: typeLocation option;
   typeCreatorLocation: typeCreatorLocation option;
       (** If this type is synthetic, this will hold the location of the type creator that created the type. *)
   interfaces: string list;

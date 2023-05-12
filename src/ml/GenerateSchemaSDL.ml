@@ -73,23 +73,26 @@ let printFields fields =
 
 let printSourceLoc = false
 
-let printSourceLocDirective (typeLocation : typeLocation) =
+let printSourceLocDirective (typeLocation : typeLocation option) =
   if printSourceLoc = false then ""
   else
-    let start = typeLocation.loc |> Loc.start in
+    match typeLocation with
+    | None -> ""
+    | Some typeLocation ->
+      let start = typeLocation.loc |> Loc.start in
 
-    let end_ = typeLocation.loc |> Loc.end_ in
-    Printf.sprintf
-      " @sourceLoc(fileUri: \"%s\", startLine: %i, startCol: %i, endLine: %i, \
-       endCol: %i)"
-      (typeLocation.fileUri |> Uri.toPath)
-      (start |> fst) (start |> snd) (end_ |> fst) (end_ |> snd)
+      let end_ = typeLocation.loc |> Loc.end_ in
+      Printf.sprintf
+        " @sourceLoc(fileUri: \"%s\", startLine: %i, startCol: %i, endLine: \
+         %i, endCol: %i)"
+        (typeLocation.fileUri |> Uri.toPath)
+        (start |> fst) (start |> snd) (end_ |> fst) (end_ |> snd)
 
 let printInputObject (input : gqlInputObjectType) =
   Printf.sprintf "%sinput %s%s {\n%s\n}"
     (printDescription input.description 0)
     input.displayName
-    (printSourceLocDirective input.typeLocation)
+    (printSourceLocDirective (Some input.typeLocation))
     (printFields input.fields)
 
 let printScalar (scalar : gqlScalar) =
@@ -101,7 +104,7 @@ let printEnum (enum : gqlEnum) =
   Printf.sprintf "%senum %s%s {\n%s\n}"
     (printDescription enum.description 0)
     enum.displayName
-    (printSourceLocDirective enum.typeLocation)
+    (printSourceLocDirective (Some enum.typeLocation))
     (enum.values
     |> List.map (fun (v : gqlEnumValue) ->
            Printf.sprintf "%s  %s%s"
@@ -114,7 +117,7 @@ let printUnion (union : gqlUnion) =
   Printf.sprintf "%sunion %s%s {\n%s\n}"
     (printDescription union.description 0)
     union.displayName
-    (printSourceLocDirective union.typeLocation)
+    (printSourceLocDirective (Some union.typeLocation))
     (union.types
     |> List.map (fun (v : gqlUnionMember) ->
            Printf.sprintf "%s  %s"
@@ -127,7 +130,7 @@ let printInterface (intf : gqlInterface) =
     (printDescription intf.description 0)
     intf.displayName
     (printImplements intf.interfaces)
-    (printSourceLocDirective intf.typeLocation)
+    (printSourceLocDirective (Some intf.typeLocation))
     (printFields intf.fields)
 
 let printObjectType (typ : gqlObjectType) =

@@ -236,3 +236,21 @@ let allUsers = (_: query, ~first, ~last, ~before, ~after): option<userConnection
 
 type g = group
 //        ^hov  TODO: Dig
+
+@gql.union
+type inlineUnion =
+  | Ok({message: string})
+  | NotOk({
+      /** Stuff */
+      reason: string,
+      /** Whether this is liked or not. */
+      @deprecated("Use something else.")
+      liked?: bool,
+    })
+  | User(user)
+
+@gql.field
+let inlineUnion = (_: query) => NotOk({reason: "No way Jose"})->Some
+
+@gql.type
+type someType = {@gql.field msg: string}

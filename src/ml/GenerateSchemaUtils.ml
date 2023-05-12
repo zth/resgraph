@@ -279,7 +279,8 @@ let capitalizeFirstChar s =
   else String.mapi (fun i c -> if i = 0 then Char.uppercase_ascii c else c) s
 
 let noticeObjectType ?(force = false) ?typeCreatorLocation ~env ~loc
-    ~schemaState ~displayName ?description ~makeFields typeName =
+    ~schemaState ~displayName ?description ?(ignoreTypeLocation = false)
+    ~makeFields typeName =
   if Hashtbl.mem schemaState.types typeName && force = false then ()
   else
     (*Printf.printf "noticing %s\n" typeName;*)
@@ -291,8 +292,11 @@ let noticeObjectType ?(force = false) ?typeCreatorLocation ~env ~loc
         description;
         interfaces = [];
         typeLocation =
-          findTypeLocation ~schemaState typeName ~env ~loc
-            ~expectedType:ObjectType;
+          (if ignoreTypeLocation then None
+          else
+            Some
+              (findTypeLocation ~schemaState typeName ~env ~loc
+                 ~expectedType:ObjectType));
         typeCreatorLocation;
       }
     in
@@ -355,8 +359,9 @@ let addFieldToObjectType ~env ~loc ~field ~schemaState typeName =
         interfaces = [];
         description = field.description;
         typeLocation =
-          findTypeLocation ~schemaState typeName ~env ~loc
-            ~expectedType:ObjectType;
+          Some
+            (findTypeLocation ~schemaState typeName ~env ~loc
+               ~expectedType:ObjectType);
         typeCreatorLocation = None;
       }
     | Some typ -> {typ with fields = field :: typ.fields}
@@ -550,33 +555,35 @@ let processSchema (schemaState : schemaState) =
   (* Figure out all files that needs reading to check for interface spreads *)
   schemaState.types
   |> Hashtbl.iter (fun _name (t : gqlObjectType) ->
-         let fileUri =
-           match t.typeCreatorLocation with
-           | None -> t.typeLocation.fileUri |> Uri.toPath
-           | Some {env} -> env.file.uri |> Uri.toPath
-         in
-         match Hashtbl.find_opt positionsToRead fileUri with
-         | None ->
-           Hashtbl.add positionsToRead fileUri
-             [
-               {
-                 id = t.id;
-                 position =
-                   ( t.typeLocation.loc |> Loc.start,
-                     t.typeLocation.loc |> Loc.end_ );
-                 typ = ObjectType;
-               };
-             ]
-         | Some existingEntries ->
-           Hashtbl.replace positionsToRead fileUri
-             ({
-                id = t.id;
-                position =
-                  ( t.typeLocation.loc |> Loc.start,
-                    t.typeLocation.loc |> Loc.end_ );
-                typ = ObjectType;
-              }
-             :: existingEntries));
+         match t.typeLocation with
+         | None -> ()
+         | Some typeLocation -> (
+           let fileUri =
+             match t.typeCreatorLocation with
+             | None -> typeLocation.fileUri |> Uri.toPath
+             | Some {env} -> env.file.uri |> Uri.toPath
+           in
+           match Hashtbl.find_opt positionsToRead fileUri with
+           | None ->
+             Hashtbl.add positionsToRead fileUri
+               [
+                 {
+                   id = t.id;
+                   position =
+                     ( typeLocation.loc |> Loc.start,
+                       typeLocation.loc |> Loc.end_ );
+                   typ = ObjectType;
+                 };
+               ]
+           | Some existingEntries ->
+             Hashtbl.replace positionsToRead fileUri
+               ({
+                  id = t.id;
+                  position =
+                    (typeLocation.loc |> Loc.start, typeLocation.loc |> Loc.end_);
+                  typ = ObjectType;
+                }
+               :: existingEntries)));
 
   schemaState.interfaces
   |> Hashtbl.iter (fun _name (t : gqlInterface) ->

@@ -71,6 +71,10 @@ let i_HasName: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
 let get_HasName = () => i_HasName.contents
 let i_Node: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
 let get_Node = () => i_Node.contents
+let t_InlineUnionNotOk: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let get_InlineUnionNotOk = () => t_InlineUnionNotOk.contents
+let t_InlineUnionOk: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let get_InlineUnionOk = () => t_InlineUnionOk.contents
 let t_Group: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Group = () => t_Group.contents
 let t_Mutation: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
@@ -81,6 +85,8 @@ let t_Pet: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Pet = () => t_Pet.contents
 let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Query = () => t_Query.contents
+let t_SomeType: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let get_SomeType = () => t_SomeType.contents
 let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_User = () => t_User.contents
 let t_UserConnection: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
@@ -109,8 +115,17 @@ input_UserConfig_conversionInstructions->Array.pushMany([
 input_UserConfigContext_conversionInstructions->Array.pushMany([
   ("name", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
 ])
+let union_InlineUnion: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
+let get_InlineUnion = () => union_InlineUnion.contents
 let union_UserOrGroup: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
 let get_UserOrGroup = () => union_UserOrGroup.contents
+
+let union_InlineUnion_resolveType = (v: Schema.inlineUnion) =>
+  switch v {
+  | Ok(_) => "InlineUnionOk"
+  | NotOk(_) => "InlineUnionNotOk"
+  | User(_) => "User"
+  }
 
 let union_UserOrGroup_resolveType = (v: Schema.userOrGroup) =>
   switch v {
@@ -163,6 +178,49 @@ i_Node.contents = GraphQLInterfaceType.make({
       },
     }->makeFields,
   resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Node_resolveType),
+})
+t_InlineUnionNotOk.contents = GraphQLObjectType.make({
+  name: "InlineUnionNotOk",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "liked": {
+        typ: Scalars.boolean->Scalars.toGraphQLType,
+        description: "Whether this is liked or not.",
+        deprecationReason: "Use something else.",
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["liked"]
+        }),
+      },
+      "reason": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: "Stuff",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["reason"]
+        }),
+      },
+    }->makeFields,
+})
+t_InlineUnionOk.contents = GraphQLObjectType.make({
+  name: "InlineUnionOk",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "message": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["message"]
+        }),
+      },
+    }->makeFields,
 })
 t_Group.contents = GraphQLObjectType.make({
   name: "Group",
@@ -407,6 +465,15 @@ t_Query.contents = GraphQLObjectType.make({
           HasNameInterfaceResolvers.hasName(src, ~id=args["id"])
         }),
       },
+      "inlineUnion": {
+        typ: get_InlineUnion()->GraphQLUnionType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.inlineUnion(src)
+        }),
+      },
       "listAsArgs": {
         typ: GraphQLListType.make(Scalars.string->Scalars.toGraphQLType->nonNull)
         ->GraphQLListType.toGraphQLType
@@ -552,6 +619,23 @@ t_Query.contents = GraphQLObjectType.make({
               input_UserConfig_conversionInstructions,
             ),
           )
+        }),
+      },
+    }->makeFields,
+})
+t_SomeType.contents = GraphQLObjectType.make({
+  name: "SomeType",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "msg": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["msg"]
         }),
       },
     }->makeFields,
@@ -740,6 +824,12 @@ input_UserConfigContext.contents = GraphQLInputObjectType.make({
         deprecationReason: ?None,
       },
     }->makeFields,
+})
+union_InlineUnion.contents = GraphQLUnionType.make({
+  name: "InlineUnion",
+  description: ?None,
+  types: () => [get_InlineUnionNotOk(), get_InlineUnionOk(), get_User()],
+  resolveType: GraphQLUnionType.makeResolveUnionTypeFn(union_InlineUnion_resolveType),
 })
 union_UserOrGroup.contents = GraphQLUnionType.make({
   name: "UserOrGroup",

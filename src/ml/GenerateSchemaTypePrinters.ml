@@ -93,8 +93,9 @@ let idFromImplementedBy (interfaceImplementedBy : interfaceImplementedBy) =
 let typeLocationFromImplementedBy
     (interfaceImplementedBy : interfaceImplementedBy) =
   match interfaceImplementedBy with
-  | ObjectType {typeLocation} | Interface {typeLocation} ->
+  | ObjectType {typeLocation = Some typeLocation} | Interface {typeLocation} ->
     typeLocationToAccessor typeLocation
+  | ObjectType {typeLocation = None} -> raise (Failure "Error code: TLFIB_MTL")
 
 let sortImplementedBy (a1 : interfaceImplementedBy) a2 =
   String.compare

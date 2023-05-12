@@ -233,7 +233,8 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                 id;
                 displayName;
                 types =
-                  variantCasesToUnionValues cases ~env ~full ~schemaState ~debug;
+                  variantCasesToUnionValues cases ~env ~full ~schemaState ~debug
+                    ~ownerName:displayName;
                 description = item.attributes |> attributesToDocstring;
                 typeLocation =
                   findTypeLocation ~loc:item.decl.type_loc ~schemaState ~env
@@ -335,11 +336,30 @@ and inputObjectFieldsOfRecordFields ~env ~debug ~schemaState
                onType = None;
              })
 
-and variantCasesToUnionValues ~env ~debug ~schemaState ~full
+and variantCasesToUnionValues ~env ~debug ~schemaState ~full ~ownerName
     (cases : SharedTypes.Constructor.t list) =
   cases
   |> List.filter_map (fun (case : SharedTypes.Constructor.t) ->
          match case.args with
+         | InlineRecord fields ->
+           let syntheticTypeName = ownerName ^ case.cname.txt in
+           let id = syntheticTypeName in
+           noticeObjectType id ~displayName:syntheticTypeName
+             ~ignoreTypeLocation:true ~schemaState ~env
+             ~makeFields:(fun () ->
+               fields
+               |> objectTypeFieldsOfInlineRecordFields ~env ~full ~schemaState
+                    ~debug)
+             ~loc:case.cname.loc;
+           Some
+             {
+               objectTypeId = id;
+               displayName = syntheticTypeName;
+               loc = case.cname.loc;
+               description =
+                 case.attributes |> ProcessAttributes.findDocAttribute;
+               constructorName = case.cname.txt;
+             }
          | Args [(typ, _)] -> (
            match
              findGraphQLType ~debug ~loc:case.cname.loc ~env ~schemaState ~full
@@ -432,6 +452,64 @@ and objectTypeFieldsOfRecordFields ?instantiate ~env ~schemaState ~debug
                          field to be a valid GraphQL type, or expose this \
                          field via a custom written resolver instead if you \
                          need to transform it before exposing it in GraphQL."
+                        field.fname.txt;
+                  };
+           None
+         | Some typ ->
+           let name = field.fname.txt in
+           Some
+             {
+               name;
+               resolverStyle = Property name;
+               typ;
+               fileName = env.file.moduleName;
+               fileUri = env.file.uri;
+               args = [];
+               description = field.attributes |> attributesToDocstring;
+               deprecationReason = field.deprecated;
+               loc = field.fname.loc;
+               onType = None;
+             })
+
+and objectTypeFieldsOfInlineRecordFields ?instantiate ~env ~schemaState ~debug
+    ~(full : SharedTypes.full) (fields : SharedTypes.field list) =
+  fields
+  |> List.filter_map (fun (field : SharedTypes.field) ->
+         let fieldType, env =
+           match instantiate with
+           | None -> (field.typ, env)
+           | Some (typeArgs, typeParams, envFromInstantiate) ->
+             let instantiated =
+               TypeUtils.instantiateType ~typeParams ~typeArgs field.typ
+             in
+             (* If this field was instantiated we need to use the original env
+                coming from the type variable contexts in order to properly look
+                up other types. If not however, we stick with the env we were
+                passed to start with. *)
+             let didInstantiate =
+               TypeUtils.checkIfNoUninstantiatedVars instantiated
+             in
+             (instantiated, if didInstantiate then envFromInstantiate else env)
+         in
+         let typ =
+           findGraphQLType fieldType ~debug ~loc:field.fname.loc ~full ~env
+             ~schemaState
+         in
+         match typ with
+         | None ->
+           schemaState
+           |> addDiagnostic
+                ~diagnostic:
+                  {
+                    fileUri = env.file.uri;
+                    loc = field.fname.loc;
+                    message =
+                      Printf.sprintf
+                        "Field `%s` is not a valid GraphQL type. Please change \
+                         the type of this field to be a valid GraphQL type, or \
+                         expose this field via a custom written resolver \
+                         instead if you need to transform it before exposing \
+                         it in GraphQL."
                         field.fname.txt;
                   };
            None
@@ -638,15 +716,16 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                  })
            | Type (({kind = Variant cases} as item), _), Some Union ->
              (* @gql.union type userOrGroup = User(user) | Group(group) *)
+             let displayName = capitalizeFirstChar item.name in
              addUnion item.name
                ~makeUnion:(fun () ->
                  {
                    id = item.name;
-                   displayName = capitalizeFirstChar item.name;
+                   displayName;
                    description = item.attributes |> attributesToDocstring;
                    types =
                      variantCasesToUnionValues cases ~env ~full ~schemaState
-                       ~debug;
+                       ~debug ~ownerName:displayName;
                    typeLocation =
                      findTypeLocation ~loc:item.decl.type_loc ~env ~schemaState
                        ~expectedType:Union item.name;
