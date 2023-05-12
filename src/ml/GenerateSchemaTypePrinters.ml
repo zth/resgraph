@@ -474,7 +474,7 @@ let printSchemaJsFile schemaState processSchema =
               (typeLocationToAccessor union.typeLocation)
               (union.types
               |> List.map (fun (member : gqlUnionMember) ->
-                     Printf.sprintf " | %s(_) => \"%s\"" member.displayName
+                     Printf.sprintf " | %s(_) => \"%s\"" member.constructorName
                        member.displayName)
               |> String.concat "\n")));
 

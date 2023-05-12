@@ -56,6 +56,7 @@ type gqlUnionMember = {
   objectTypeId: string;
   displayName: string;
   description: string option;
+  constructorName: string;
   loc: Location.t;
 }
 

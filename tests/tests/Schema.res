@@ -37,7 +37,7 @@ type pet = {
 
 /** A user or a group. */
 @gql.union
-type userOrGroup = | /** This is a user.*/ User(user) | /** And this is a group. */ Group(group)
+type userOrGroup = | /** This is a user.*/ Usr(user) | /** And this is a group. */ Group(group)
 //           ^hov
 
 /** Indicates what status a user currently has. */
@@ -110,7 +110,7 @@ module QueryFields = {
   let entity = (_: query, ~id: ResGraph.id, ~ctx: ResGraphContext.context) => {
     ignore(id)
     ignore(ctx)
-    User({id: "234", name: "Hello", age: 35, lastAge: None})
+    Usr({id: "234", name: "Hello", age: 35, lastAge: None})
   }
 
   @gql.field

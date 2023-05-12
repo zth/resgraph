@@ -353,6 +353,7 @@ and variantCasesToUnionValues ~env ~debug ~schemaState ~full
                  loc = case.cname.loc;
                  description =
                    case.attributes |> ProcessAttributes.findDocAttribute;
+                 constructorName = case.cname.txt;
                }
            | _ ->
              addDiagnostic schemaState

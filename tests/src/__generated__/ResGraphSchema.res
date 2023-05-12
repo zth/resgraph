@@ -114,7 +114,7 @@ let get_UserOrGroup = () => union_UserOrGroup.contents
 
 let union_UserOrGroup_resolveType = (v: Schema.userOrGroup) =>
   switch v {
-  | User(_) => "User"
+  | Usr(_) => "User"
   | Group(_) => "Group"
   }
 
