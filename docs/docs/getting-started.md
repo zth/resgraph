@@ -10,6 +10,8 @@ sidebar_position: 1
 
 Let's start by setting up ResGraph in your project.
 
+You can either follow these instructions below, if you want to understand how everything fits together. Or you can [use our project template](https://github.com/zth/resgraph-template) to get started quickly.
+
 ### Installation
 
 ResGraph relies on features in ReScript `v11`, which is currently in alpha. Make sure you run `>= rescript@11.0.0-alpha.6` and for the best results, set `"uncurried": true` in your `bsconfig.json`.

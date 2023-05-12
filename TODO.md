@@ -43,39 +43,24 @@
 
 ## Ideas
 
-- [ ] Inline records in unions to synthetsize types?
+- [x] Inline records in unions to synthetsize types?
 - [ ] Shorthand resolver? Reusable resolver? Case is "I have a `userId` and just want to use an existing resolver fn to use it"
-
-## Bugs
-
-- [x] Custom scalar isn't inferred in return position (probably just walked on by)
-- [x] Custom scalar in module is shaky
 
 ## Alpha
 
-- [ ] Some sort of docs
-- [ ] Package and build all parts in CI
-- [ ] Publish package
-- [ ] Publish VSCode extension
+- [x] Some sort of docs
+- [x] Package and build all parts in CI
+- [x] Publish package
+- [x] Publish VSCode extension
 
 ## Project integration
 
 - Example with `graphql-yoga`, compression, and so on
-- Get and construct app context from request
 
 ## Future
 
-- [ ] Special handling of result type?
-- [ ] Relay helpers
 - [ ] One-off generated types for polyvariants. Input objects, input enums, etc
-- [ ] Custom scalars with automatic conversion (is this already natively supported perhaps?)
-- [ ] Default values for arguments. Would need to parse the AST which I'm trying to avoid (can maybe do it lazily only if there are resolvers?)
-
-## Relay
-
-- [ ] Opt in to nodeInterface
-- [ ] Node interface ID helpers
-- [ ] Basic connection type
+- [ ] Default values for arguments. Would need to parse the AST
 
 ## Validations
 
@@ -89,7 +74,8 @@
 - Bring in interface type arg
 - Bring in ctx type arg
 
-## Questions to answer
+## Snippets
 
-- Should the node interface come built in...? Or just show how to define it easily?
-- How to reuse resolvers for several types? Just link/expose like you want, the tool only cares about the types
+- Add new field on query
+- Add new mutation
+- Full mutation with payload and all
