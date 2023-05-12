@@ -2,6 +2,10 @@
 
 ## main
 
+### New Features
+
+- [LSP] Add autocompletion for `ctx: ResGraphContext.context` to make using context easier.
+
 ### Bug fix
 
 - Print variants properly in debug SDL.

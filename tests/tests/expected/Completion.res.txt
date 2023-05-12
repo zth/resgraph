@@ -112,3 +112,23 @@ Attribute id:gql.ty:[3:3->3:10] label:gql.ty
     "insertText": "gql.field\nlet ${1:fieldName} = (${2:entity}: ${2:entity}) => {\n  ${0:Some(entity.prop)}\n}",
     "insertTextFormat": 2
   }]}
+Complete tests/Completion.res 6:15
+Attribute id:res.namedArgLoc:[6:13->6:15] label:ct
+{"status": "Completion", "items": [{
+    "label": "ctx: ResGraphContext.context",
+    "kind": 4,
+    "tags": [],
+    "detail": "Insert ResGraphContext arg.",
+    "documentation": null,
+    "insertText": "ctx: ResGraphContext.context"
+  }]}
+Complete tests/Completion.res 9:36
+Attribute id:res.namedArgLoc:[9:35->9:36] label:c
+{"status": "Completion", "items": [{
+    "label": "ctx: ResGraphContext.context",
+    "kind": 4,
+    "tags": [],
+    "detail": "Insert ResGraphContext arg.",
+    "documentation": null,
+    "insertText": "ctx: ResGraphContext.context"
+  }]}

@@ -9,6 +9,8 @@ import {
 import { cosmiconfig } from "cosmiconfig";
 import { dirname, resolve } from "path";
 
+const DEBUG = true;
+
 export async function activate(context: ExtensionContext) {
   let currentWorkspacePath = workspace.workspaceFolders?.[0].uri.fsPath;
   if (currentWorkspacePath == null) throw new Error("Init failed.");
@@ -21,14 +23,27 @@ export async function activate(context: ExtensionContext) {
   let { filepath } = c;
   let fileDir = dirname(filepath);
 
-  let serverOptions: ServerOptions = {
-    transport: TransportKind.stdio,
-    command: "npx",
-    args: ["resgraph", "lsp", fileDir],
-    options: {
-      cwd: fileDir,
-    },
-  };
+  if (DEBUG) {
+    window.showInformationMessage("Running in debug mode." + __filename);
+  }
+
+  let serverOptions: ServerOptions = DEBUG
+    ? {
+        transport: TransportKind.stdio,
+        command: "node",
+        args: [resolve(__filename, "../../../cli/Cli.mjs"), "lsp", fileDir],
+        options: {
+          cwd: fileDir,
+        },
+      }
+    : {
+        transport: TransportKind.stdio,
+        command: "npx",
+        args: ["resgraph", "lsp", fileDir],
+        options: {
+          cwd: fileDir,
+        },
+      };
 
   let clientOptions: LanguageClientOptions = {
     documentSelector: [{ scheme: "file", language: "rescript" }],

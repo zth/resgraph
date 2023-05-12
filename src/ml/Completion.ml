@@ -1,4 +1,4 @@
-type completables = Decorator of {label: string}
+type completables = Decorator of {label: string} | Ctx
 
 (* Can't trust the parser's location
    E.g. @foo. let x... gives as label @foo.let *)
@@ -53,7 +53,19 @@ let completionWithParser ~debug ~path ~pos ~currentFile ~text =
      | _ -> ());
     Ast_iterator.default_iterator.attribute iterator (id, payload)
   in
-  let iterator = {Ast_iterator.default_iterator with attribute} in
+  let expr (iterator : Ast_iterator.iterator) (exp : Parsetree.expression) =
+    (match exp.pexp_desc with
+    | Pexp_fun (Labelled lbl, _, {ppat_loc; ppat_desc = Ppat_var {txt}}, _)
+      when ppat_loc |> Loc.hasPos ~pos:posBeforeCursor
+           && lbl = txt
+           && (lbl = "c" || lbl = "ct" || lbl = "ctx") ->
+      (* (~c<com>) *)
+      (* Looking for ctx: ResGraphContext.context *)
+      setResult Ctx
+    | _ -> ());
+    Ast_iterator.default_iterator.expr iterator exp
+  in
+  let iterator = {Ast_iterator.default_iterator with attribute; expr} in
 
   if Filename.check_suffix path ".res" then (
     let parser =
@@ -83,6 +95,20 @@ let completion ~debug ~path ~pos ~currentFile =
     | None -> []
     | Some completion -> (
       match completion with
+      | Ctx ->
+        [
+          {
+            Protocol.label = "ctx: ResGraphContext.context";
+            kind = 4;
+            tags = [];
+            detail = "Insert ResGraphContext arg.";
+            sortText = None;
+            filterText = None;
+            insertTextFormat = None;
+            insertText = Some "ctx: ResGraphContext.context";
+            documentation = None;
+          };
+        ]
       | Decorator {label} ->
         (GenerateSchemaUtils.validAttributes
         |> List.filter_map (fun (attrName, desc) ->
