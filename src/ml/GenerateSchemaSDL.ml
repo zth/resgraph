@@ -114,14 +114,16 @@ let printEnum (enum : gqlEnum) =
     |> String.concat "\n")
 
 let printUnion (union : gqlUnion) =
-  Printf.sprintf "%sunion %s%s {\n%s\n}"
+  Printf.sprintf "%sunion %s%s = \n%s\n"
     (printDescription union.description 0)
     union.displayName
     (printSourceLocDirective (Some union.typeLocation))
     (union.types
     |> List.map (fun (v : gqlUnionMember) ->
-           Printf.sprintf "%s  %s"
-             (printDescription v.description 2)
+           Printf.sprintf "  | %s%s"
+             (match v.description with
+             | None -> ""
+             | Some desc -> Printf.sprintf "\"\"\"%s\"\"\" " desc)
              v.displayName)
     |> String.concat "\n")
 

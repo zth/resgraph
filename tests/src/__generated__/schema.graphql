@@ -29,22 +29,18 @@ enum UserStatus {
   Idle @deprecated(reason: "Use 'Offline' instead. This should be \"escaped\".")
 }
 
-union InlineUnion {
-  InlineUnionOk
-  InlineUnionNotOk
-  User
-}
+union InlineUnion = 
+  | InlineUnionOk
+  | InlineUnionNotOk
+  | User
+
 
 
 """A user or a group."""
-union UserOrGroup {
+union UserOrGroup = 
+  | """ This is a user.""" User
+  | """ And this is a group. """ Group
 
-  """ This is a user."""
-  User
-
-  """ And this is a group. """
-  Group
-}
 
 
 """Configuration for searching for a user."""
