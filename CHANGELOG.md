@@ -2,6 +2,8 @@
 
 ## main
 
+## 0.4.0
+
 ### New Features
 
 - Inline records are now allowed on unions. Using inline records will create a "synthetic" type for that particular payload.
