@@ -56,11 +56,7 @@ type setPasswordPayload = Ok({affectedUser: user}) | Failed({reason: string})
 This defines a variant called `setPasswordPayload` with two cases - `Ok` and `Failed`. Each of those cases also has additional fields through an inline record. The above will generate the following GraphQL:
 
 ```graphql
-union SetPasswordPayload
-{
-  SetPasswordPayloadOk
-  SetPasswordPayloadFailed
-}
+union SetPasswordPayload = SetPasswordPayloadOk | SetPasswordPayloadFailed
 
 type SetPasswordPayloadFailed {
   reason: String!
