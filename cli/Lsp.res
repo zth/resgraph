@@ -443,7 +443,7 @@ let start = (~mode, ~configFilePath) => {
         Message.Response.make(
           ~id=msg->Message.getId,
           ~result=Message.InitializeResult.make(
-            ~completionProvider={triggerCharacters: [`@`]},
+            ~completionProvider={triggerCharacters: ["@", "~"]},
             ~hoverProvider=true,
             ~textDocumentSync=Full,
             (),
