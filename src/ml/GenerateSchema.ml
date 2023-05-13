@@ -345,7 +345,10 @@ and variantCasesToUnionValues ~env ~debug ~schemaState ~full ~ownerName
            let syntheticTypeName = ownerName ^ case.cname.txt in
            let id = syntheticTypeName in
            noticeObjectType id ~displayName:syntheticTypeName
-             ~ignoreTypeLocation:true ~schemaState ~env
+             ~ignoreTypeLocation:true
+             ~syntheticTypeLocation:
+               {fileUri = env.file.uri; loc = case.cname.loc}
+             ~schemaState ~env
              ~makeFields:(fun () ->
                fields
                |> objectTypeFieldsOfInlineRecordFields ~env ~full ~schemaState

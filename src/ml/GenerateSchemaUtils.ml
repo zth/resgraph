@@ -233,9 +233,13 @@ let capitalizeFirstChar s =
   if String.length s = 0 then s
   else String.mapi (fun i c -> if i = 0 then Char.uppercase_ascii c else c) s
 
+let uncapitalizeFirstChar s =
+  if String.length s = 0 then s
+  else String.mapi (fun i c -> if i = 0 then Char.lowercase_ascii c else c) s
+
 let noticeObjectType ?(force = false) ?typeCreatorLocation ~env ~loc
-    ~schemaState ~displayName ?description ?(ignoreTypeLocation = false)
-    ~makeFields typeName =
+    ~schemaState ~displayName ?syntheticTypeLocation ?description
+    ?(ignoreTypeLocation = false) ~makeFields typeName =
   if Hashtbl.mem schemaState.types typeName && force = false then ()
   else
     (*Printf.printf "noticing %s\n" typeName;*)
@@ -243,6 +247,7 @@ let noticeObjectType ?(force = false) ?typeCreatorLocation ~env ~loc
       {
         id = typeName;
         displayName;
+        syntheticTypeLocation;
         fields = makeFields ();
         description;
         interfaces = [];
@@ -309,6 +314,7 @@ let addFieldToObjectType ~env ~loc ~field ~schemaState typeName =
     | None ->
       {
         id = typeName;
+        syntheticTypeLocation = None;
         displayName = capitalizeFirstChar typeName;
         fields = [field];
         interfaces = [];

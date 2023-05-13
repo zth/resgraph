@@ -94,12 +94,15 @@ type gqlField = {
 type typeCreatorLocation = {env: SharedTypes.QueryEnv.t; loc: Location.t}
 (** The location of the type creator. *)
 
+type syntheticTypeLocation = {fileUri: Uri.t; loc: Location.t}
+
 type gqlObjectType = {
   id: string;
   displayName: string;
   fields: gqlField list;
   description: string option;
   typeLocation: typeLocation option;
+  syntheticTypeLocation: syntheticTypeLocation option;
   typeCreatorLocation: typeCreatorLocation option;
       (** If this type is synthetic, this will hold the location of the type creator that created the type. *)
   interfaces: string list;
