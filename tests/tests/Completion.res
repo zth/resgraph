@@ -10,3 +10,4 @@
 // @gql.field let me = (_: query, ~c) => {None}
 //                                  ^com
 
+type x
