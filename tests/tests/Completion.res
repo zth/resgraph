@@ -1,13 +1,12 @@
 // @g
-//  ^com
+//  ^ com
 
 // @gql.ty type someType = {one: int}
-//        ^com
+//        ^ com
 
 // let _ = (~ct)
-//             ^com
+//             ^ com
 
 // @gql.field let me = (_: query, ~c) => {None}
-//                                  ^com
+//                                  ^ com
 
-type x
