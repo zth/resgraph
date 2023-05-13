@@ -2,6 +2,8 @@
 
 ## main
 
+## 0.5.0
+
 ### New Features
 
 - [LSP] Add autocompletion for `ctx: ResGraphContext.context` to make using context easier.
