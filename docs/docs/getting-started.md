@@ -8,6 +8,8 @@ sidebar_position: 1
 
 ## Setup
 
+> You're encouraged to use our [dedicated VSCode extension](https://marketplace.visualstudio.com/items?itemName=GabrielNordeborn.vscode-resgraph) that provides in-editor error messages, autocomplete, hovers, snippets, and more.
+
 Let's start by setting up ResGraph in your project.
 
 You can either follow these instructions below, if you want to understand how everything fits together. Or you can [use our project template](https://github.com/zth/resgraph-template) to get started quickly.

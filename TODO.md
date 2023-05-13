@@ -59,3 +59,7 @@
 
 - Synthetic types, type creators etc - clean up
 - Make id handling more sane
+
+## Documentation
+
+- Ensure snippets are covered
