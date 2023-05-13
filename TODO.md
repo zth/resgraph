@@ -54,3 +54,12 @@
 
 - [ ] One-off generated types for polyvariants. Input objects, input enums, etc
 - [ ] Default values for arguments. Would need to parse the AST
+
+## For refactor
+
+- Synthetic types, type creators etc - clean up
+- Make id handling more sane
+
+## Documentation
+
+- Ensure snippets are covered

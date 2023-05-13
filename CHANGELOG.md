@@ -6,6 +6,8 @@
 
 - [LSP] Add autocompletion for `ctx: ResGraphContext.context` to make using context easier.
 - [LSP] Context aware snippets for inserting new query fields and full mutations.
+- [LSP] Support showing info about the backing ReScript code when hovering in `schema.graphql`.
+- [LSP] Support jump-to-definition to the backing ReScript code from items in `schema.graphql`.
 
 ### Bug fix
 

@@ -4,6 +4,7 @@ Build implementation-first GraphQL servers in ReScript, with first class Relay i
 
 - [Check out the docs on getting started](https://zth.github.io/resgraph/docs/getting-started).
 - [Use this template to get started quickly](https://github.com/zth/resgraph-template).
+- [Install the dedicated VSCode extension](https://marketplace.visualstudio.com/items?itemName=GabrielNordeborn.vscode-resgraph)
 
 ## What it looks like
 

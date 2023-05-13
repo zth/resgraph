@@ -1,4 +1,12 @@
-import { ExtensionContext, workspace, window } from "vscode";
+import {
+  ExtensionContext,
+  workspace,
+  window,
+  commands,
+  Range,
+  Position,
+  Uri,
+} from "vscode";
 import {
   LanguageClient,
   LanguageClientOptions,
@@ -46,12 +54,18 @@ export async function activate(context: ExtensionContext) {
       };
 
   let clientOptions: LanguageClientOptions = {
-    documentSelector: [{ scheme: "file", language: "rescript" }],
+    documentSelector: [
+      { scheme: "file", language: "rescript" },
+      { scheme: "file", language: "graphql" },
+    ],
     synchronize: {
       fileEvents: workspace.createFileSystemWatcher("**/*.res"),
     },
     outputChannelName: "ResGraph Language Server",
     revealOutputChannelOn: RevealOutputChannelOn.Never,
+    markdown: {
+      isTrusted: true,
+    },
   };
 
   const client = new LanguageClient(
@@ -59,6 +73,20 @@ export async function activate(context: ExtensionContext) {
     "ResGraph Language Server",
     serverOptions,
     clientOptions
+  );
+
+  context.subscriptions.push(
+    commands.registerCommand(
+      "vscode-resgraph.go_to_location",
+      async (fileUri: string, startLine: number, startCol: number) => {
+        await window.showTextDocument(Uri.parse(fileUri), {
+          selection: new Range(
+            new Position(startLine, startCol),
+            new Position(startLine, startCol)
+          ),
+        });
+      }
+    )
   );
 
   const disposable = client.start();
