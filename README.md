@@ -1,6 +1,6 @@
 # ResGraph
 
-Build implementation-first GraphQL servers in ReScript.
+Build implementation-first GraphQL servers in ReScript, with first class Relay integration.
 
 - [Check out the docs on getting started](https://zth.github.io/resgraph/docs/getting-started).
 - [Use this template to get started quickly](https://github.com/zth/resgraph-template).

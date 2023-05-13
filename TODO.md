@@ -46,13 +46,6 @@
 - [x] Inline records in unions to synthetsize types?
 - [ ] Shorthand resolver? Reusable resolver? Case is "I have a `userId` and just want to use an existing resolver fn to use it"
 
-## Alpha
-
-- [x] Some sort of docs
-- [x] Package and build all parts in CI
-- [x] Publish package
-- [x] Publish VSCode extension
-
 ## Project integration
 
 - Example with `graphql-yoga`, compression, and so on
@@ -61,21 +54,3 @@
 
 - [ ] One-off generated types for polyvariants. Input objects, input enums, etc
 - [ ] Default values for arguments. Would need to parse the AST
-
-## Validations
-
-- [x] Object has no fields (annotate at least one with @gql.field, or create a resolver)
-- [x] Input object has invalid field types
-
-## Code actions
-
-- Expose field as GraphQL field
-- Generate resolver for type
-- Bring in interface type arg
-- ~~Bring in ctx type arg~~ Solved with autocomplete instead
-
-## Snippets
-
-- Add new field on query
-- Add new mutation
-- Full mutation with payload and all
