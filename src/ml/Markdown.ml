@@ -11,15 +11,15 @@ let linkToCommandArgs link =
     link.startPos.character
 
 let makeGotoCommand link =
-  Printf.sprintf "[%s](command:rescript-vscode.go_to_location?%s)" link.label
+  Printf.sprintf "[%s](command:vscode-resgraph.go_to_location?%s)" link.label
     (Uri.encodeURIComponent (linkToCommandArgs link))
 
-let goToDefinitionText ~env ~pos =
-  let startLine, startCol = Pos.ofLexing pos in
-  "\nGo to: "
+let goToDefinitionText ~(loc : Location.t) ~fileUri =
+  let line, character = Pos.ofLexing loc.loc_start in
+  "\n"
   ^ makeGotoCommand
       {
-        label = "Type definition";
-        file = Uri.toString env.SharedTypes.QueryEnv.file.uri;
-        startPos = {line = startLine; character = startCol};
+        label = "Open ReScript code for this definition";
+        file = Uri.toString fileUri;
+        startPos = {line; character};
       }

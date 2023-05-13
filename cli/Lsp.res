@@ -482,50 +482,61 @@ let start = (~mode, ~configFilePath) => {
           switch msg->Message.LspMessage.decodeLspMessage {
           | Hover(params) =>
             let filePath = params.textDocument.uri->fileURLToPath
-            let result = switch Utils.callPrivateCli(Hover({filePath, position: params.position})) {
-            | Hover({item}) => Message.Result.fromHover(item)
-            | _ => Message.Result.null()
-            }
-            Message.Response.make(~id=msg->Message.getId, ~result, ())
-            ->Message.Response.asMessage
-            ->send
-          | CodeLens(_params) =>
-            Message.Response.make(~id=msg->Message.getId, ~result=Message.Result.null(), ())
-            ->Message.Response.asMessage
-            ->send
-          | DocumentLinks(_params) =>
-            Message.Response.make(~id=msg->Message.getId, ~result=Message.Result.null(), ())
-            ->Message.Response.asMessage
-            ->send
-          | Completion(params) =>
-            switch resFilesCache->Dict.get(params.textDocument.uri) {
-            | None =>
-              Message.Response.make(~id=msg->Message.getId, ~result=Message.Result.null(), ())
+            switch params.textDocument.uri->Path.extname {
+            | ".graphql" =>
+              let result = switch LspCompleteGraphQL.hoverAtPos(
+                ~path=filePath,
+                ~pos=params.position,
+              ) {
+              | Some(hover) => hover->Message.Result.fromHover
+              | None => Message.Result.null()
+              }
+              Message.Response.make(~id=msg->Message.getId, ~result, ())
               ->Message.Response.asMessage
               ->send
-            | Some(code) =>
-              let filePath = params.textDocument.uri->fileURLToPath
-              let tmpname = Utils.createFileInTempDir()
-              Fs.writeFileSyncWith(
-                tmpname,
-                Buffer.fromString(code),
-                Fs.writeFileOptions(~encoding="utf-8", ()),
-              )
+            | ".res" | ".resi" =>
               let result = switch Utils.callPrivateCli(
-                Completion({filePath, position: params.position, tmpname}),
+                Hover({filePath, position: params.position}),
               ) {
-              | Completion({items}) => Message.Result.fromCompletionItems(items)
+              | Hover({item}) => Message.Result.fromHover(item)
               | _ => Message.Result.null()
               }
               Message.Response.make(~id=msg->Message.getId, ~result, ())
               ->Message.Response.asMessage
               ->send
+            | _ => ()
             }
-
-          | CodeAction(_params) =>
-            Message.Response.make(~id=msg->Message.getId, ~result=Message.Result.null(), ())
-            ->Message.Response.asMessage
-            ->send
+          | Completion(params) =>
+            switch params.textDocument.uri->Path.extname {
+            | ".graphql" =>
+              Message.Response.make(~id=msg->Message.getId, ~result=Message.Result.null(), ())
+              ->Message.Response.asMessage
+              ->send
+            | _ =>
+              switch resFilesCache->Dict.get(params.textDocument.uri) {
+              | None =>
+                Message.Response.make(~id=msg->Message.getId, ~result=Message.Result.null(), ())
+                ->Message.Response.asMessage
+                ->send
+              | Some(code) =>
+                let filePath = params.textDocument.uri->fileURLToPath
+                let tmpname = Utils.createFileInTempDir()
+                Fs.writeFileSyncWith(
+                  tmpname,
+                  Buffer.fromString(code),
+                  Fs.writeFileOptions(~encoding="utf-8", ()),
+                )
+                let result = switch Utils.callPrivateCli(
+                  Completion({filePath, position: params.position, tmpname}),
+                ) {
+                | Completion({items}) => Message.Result.fromCompletionItems(items)
+                | _ => Message.Result.null()
+                }
+                Message.Response.make(~id=msg->Message.getId, ~result, ())
+                ->Message.Response.asMessage
+                ->send
+              }
+            }
           | _ =>
             Message.Response.make(
               ~id=msg->Message.getId,

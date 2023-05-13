@@ -134,3 +134,118 @@ let hover ~path ~pos ~debug =
         | Some s -> Protocol.stringifyHover s))
   in
   Printf.printf "{\"status\": \"Hover\", \"item\": %s}" result
+
+type hoverGqlType =
+  | ObjectType of gqlObjectType
+  | Interface of gqlInterface
+  | Enum of gqlEnum
+  | InputObject of gqlInputObjectType
+  | Union of gqlUnion
+  | Scalar of gqlScalar
+
+let findGqlType typename ~schemaState =
+  match Hashtbl.find_opt schemaState.types typename with
+  | Some obj -> Some (ObjectType obj)
+  | None -> (
+    match Hashtbl.find_opt schemaState.interfaces typename with
+    | Some intf -> Some (Interface intf)
+    | None -> (
+      match Hashtbl.find_opt schemaState.enums typename with
+      | Some enum -> Some (Enum enum)
+      | None -> (
+        match Hashtbl.find_opt schemaState.inputObjects typename with
+        | Some inputobj -> Some (InputObject inputobj)
+        | None -> (
+          match Hashtbl.find_opt schemaState.unions typename with
+          | Some union -> Some (Union union)
+          | None -> (
+            match Hashtbl.find_opt schemaState.scalars typename with
+            | Some scalar -> Some (Scalar scalar)
+            | None -> (
+              match
+                Hashtbl.find_opt schemaState.types
+                  (* This is very hacky. Fix in refactor fixing IDs *)
+                  (GenerateSchemaUtils.capitalizeFirstChar typename)
+              with
+              | Some obj -> Some (ObjectType obj)
+              | None -> None))))))
+
+let makeTypeHoverText ~typename ~id ~(typeLocation : typeLocation) =
+  Printf.sprintf "%s type defined by:\n%s\n" typename
+    (Markdown.codeBlock (Printf.sprintf "type %s" id))
+  ^ Markdown.divider
+  ^ Markdown.goToDefinitionText ~loc:typeLocation.loc
+      ~fileUri:typeLocation.fileUri
+
+let hoverGraphQL ~path ~hoverHint =
+  match Packages.getPackage ~uri:(Uri.fromPath path) with
+  | None -> Protocol.null
+  | Some package ->
+    let schemaState, _ = GenerateSchemaUtils.readStateFile ~package in
+    let hoverStr =
+      match hoverHint |> String.split_on_char '.' with
+      | [typename] -> (
+        match
+          findGqlType
+            (typename |> GenerateSchemaUtils.uncapitalizeFirstChar)
+            ~schemaState
+        with
+        | None -> Protocol.null
+        | Some (Scalar typ) ->
+          Protocol.stringifyHover
+            (makeTypeHoverText ~typeLocation:typ.typeLocation ~typename:"Scalar"
+               ~id:typ.id)
+        | Some (ObjectType {syntheticTypeLocation = Some {fileUri; loc}}) ->
+          Protocol.stringifyHover
+            (Printf.sprintf "%s type defined by an inline record.\n" typename
+            ^ Markdown.divider
+            ^ Markdown.goToDefinitionText ~loc ~fileUri)
+        | Some (ObjectType {typeLocation = Some typeLocation; id}) ->
+          Protocol.stringifyHover
+            (makeTypeHoverText ~typeLocation ~typename:"Object" ~id)
+        | Some (Interface typ) ->
+          Protocol.stringifyHover
+            (makeTypeHoverText ~typeLocation:typ.typeLocation
+               ~typename:"Interface" ~id:typ.id)
+        | Some (Enum typ) ->
+          Protocol.stringifyHover
+            (makeTypeHoverText ~typeLocation:typ.typeLocation ~typename:"Enum"
+               ~id:typ.id)
+        | Some (InputObject typ) ->
+          Protocol.stringifyHover
+            (makeTypeHoverText ~typeLocation:typ.typeLocation
+               ~typename:"Input object" ~id:typ.id)
+        | Some (Union typ) ->
+          Protocol.stringifyHover
+            (makeTypeHoverText ~typeLocation:typ.typeLocation ~typename:"Union"
+               ~id:typ.id)
+        | Some (ObjectType {typeLocation = None}) -> Protocol.null)
+      | [typename; fieldName] -> (
+        match
+          findGqlType
+            (typename |> GenerateSchemaUtils.uncapitalizeFirstChar)
+            ~schemaState
+        with
+        | Some (ObjectType {fields} | Interface {fields} | InputObject {fields})
+          -> (
+          match
+            fields |> List.find_opt (fun (f : gqlField) -> f.name = fieldName)
+          with
+          | None -> Protocol.null
+          | Some {name; resolverStyle = Property propName; loc; fileUri} ->
+            Protocol.stringifyHover
+              (Printf.sprintf
+                 "Field `%s` is a regular field coming directly from the \
+                  property `%s`.\n"
+                 name propName
+              ^ Markdown.divider
+              ^ Markdown.goToDefinitionText ~loc ~fileUri)
+          | Some {name; resolverStyle = Resolver _resolver; loc; fileUri} ->
+            Protocol.stringifyHover
+              (Printf.sprintf "Field `%s` is a field function.\n" name
+              ^ Markdown.divider
+              ^ Markdown.goToDefinitionText ~loc ~fileUri))
+        | _ -> Protocol.null)
+      | _ -> Protocol.null
+    in
+    Printf.sprintf "{\"status\": \"Hover\", \"item\": %s}" hoverStr

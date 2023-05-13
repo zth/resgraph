@@ -17,6 +17,7 @@ type privateCliCall =
   | GenerateSchema({src: string, outputFolder: string, dumpSchemaSdl?: bool})
   | Completion({filePath: string, position: LspProtocol.loc, tmpname: string})
   | Hover({filePath: string, position: LspProtocol.loc})
+  | HoverGraphQL({filePath: string, hoverHint: string})
 
 let privateCliCallToArgs = call =>
   switch call {
@@ -43,6 +44,7 @@ let privateCliCallToArgs = call =>
       position.line->Int.toString,
       position.character->Int.toString,
     ]
+  | HoverGraphQL({filePath, hoverHint}) => ["hover-graphql", filePath, hoverHint]
   }
 
 type generateError = {
