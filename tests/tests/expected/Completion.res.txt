@@ -75,6 +75,24 @@ Attribute id:g:[0:3->0:5] label:g
     "sortText": "@gql.a",
     "insertText": "gql.field\nlet ${1:fieldName} = async (${2:entity}: ${2:entity}) => {\n  ${0:Some(entity.prop)}\n}",
     "insertTextFormat": 2
+  }, {
+    "label": "gql.field snippet - query field",
+    "kind": 4,
+    "tags": [],
+    "detail": "Boilerplate for adding a new field to the root query.",
+    "documentation": null,
+    "sortText": "@gql.a",
+    "insertText": "gql.field\nlet ${1:fieldName} = async (_: Query.query, ~ctx: ResGraphContext.context) => {\n  ${0:Some(entity.prop)}\n}",
+    "insertTextFormat": 2
+  }, {
+    "label": "gql.field snippet - full mutation",
+    "kind": 4,
+    "tags": [],
+    "detail": "Boilerplate for adding a new mutation the mutation type.",
+    "documentation": null,
+    "sortText": "@gql.a",
+    "insertText": "gql.union\ntype ${1:mutationName}Result = Success({ok: bool}) | Error({reason: string})\n\n@gql.field\nlet ${1:mutationName} = async (_: Schema.mutation, ~ctx: ResGraphContext.context) => {\n  Success({ok: true})\n}",
+    "insertTextFormat": 2
   }]}
 Complete tests/Completion.res 3:10
 Attribute id:gql.ty:[3:3->3:10] label:gql.ty
@@ -113,7 +131,7 @@ Attribute id:gql.ty:[3:3->3:10] label:gql.ty
     "insertTextFormat": 2
   }]}
 Complete tests/Completion.res 6:15
-Attribute id:res.namedArgLoc:[6:13->6:15] label:ct
+XXX Not found!
 {"status": "Completion", "items": [{
     "label": "ctx: ResGraphContext.context",
     "kind": 4,
@@ -123,7 +141,7 @@ Attribute id:res.namedArgLoc:[6:13->6:15] label:ct
     "insertText": "ctx: ResGraphContext.context"
   }]}
 Complete tests/Completion.res 9:36
-Attribute id:res.namedArgLoc:[9:35->9:36] label:c
+XXX Not found!
 {"status": "Completion", "items": [{
     "label": "ctx: ResGraphContext.context",
     "kind": 4,

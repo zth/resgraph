@@ -39,51 +39,6 @@ let validAttributes =
     ("gql.scalar", "");
   ]
 
-let snippets =
-  [
-    ( "gql.type snippet - simple connection",
-      "Boilerplate for creating a new simple GraphQL connection for pagination.",
-      {|gql.type
-/** An edge in a connection. */
-type ${1:entity}Edge = ResGraph.Connections.edge<${1:entity}>
-
-/** A connection to a list of items. */
-@gql.type
-type ${1:entity}Connection = ResGraph.Connections.connection<${1:entity}Edge>|}
-    );
-    ( "gql.type snippet - full connection",
-      "Boilerplate for creating a new GraphQL connection for pagination.",
-      {|gql.type
-/** An edge in a connection. */
-type ${1:entity}Edge = {
-  /** A cursor for use in pagination. */
-  @gql.field
-  cursor: string,
-  /** The item at the end of the edge. */
-  @gql.field
-  node: option<${1:entity}>
-}
-
-/** A connection to a list of items. */
-@gql.type
-type ${1:entity}Connection = {
-  /** Information to aid in pagination. */
-  @gql.field
-  pageInfo: ResGraph.Connections.pageInfo,
-  /** A list of edges. */
-  @gql.field
-  edges: option<array<option<${1:entity}Edge>>>
-}|}
-    );
-    ( "gql.type snippet - field function on type",
-      "Boilerplate for adding a new field to a type via a function.",
-      {|gql.field
-let ${1:fieldName} = async (${2:entity}: ${2:entity}) => {
-  ${0:Some(entity.prop)}
-}|}
-    );
-  ]
-
 let hasGqlAnnotation attributes =
   attributes
   |> List.exists (fun ((name, _payload) : Parsetree.attribute) ->
@@ -887,3 +842,99 @@ let lastModuleInPath modulePath =
     | NotVisible -> current
   in
   loop modulePath ""
+
+let makeSnippets ~path =
+  let baseSnippets =
+    [
+      ( "gql.type snippet - simple connection",
+        "Boilerplate for creating a new simple GraphQL connection for \
+         pagination.",
+        {|gql.type
+/** An edge in a connection. */
+type ${1:entity}Edge = ResGraph.Connections.edge<${1:entity}>
+
+/** A connection to a list of items. */
+@gql.type
+type ${1:entity}Connection = ResGraph.Connections.connection<${1:entity}Edge>|}
+      );
+      ( "gql.type snippet - full connection",
+        "Boilerplate for creating a new GraphQL connection for pagination.",
+        {|gql.type
+/** An edge in a connection. */
+type ${1:entity}Edge = {
+  /** A cursor for use in pagination. */
+  @gql.field
+  cursor: string,
+  /** The item at the end of the edge. */
+  @gql.field
+  node: option<${1:entity}>
+}
+
+/** A connection to a list of items. */
+@gql.type
+type ${1:entity}Connection = {
+  /** Information to aid in pagination. */
+  @gql.field
+  pageInfo: ResGraph.Connections.pageInfo,
+  /** A list of edges. */
+  @gql.field
+  edges: option<array<option<${1:entity}Edge>>>
+}|}
+      );
+      ( "gql.type snippet - field function on type",
+        "Boilerplate for adding a new field to a type via a function.",
+        {|gql.field
+let ${1:fieldName} = async (${2:entity}: ${2:entity}) => {
+  ${0:Some(entity.prop)}
+}|}
+      );
+    ]
+  in
+  let extendedSnippets =
+    match Packages.getPackage ~uri:(Uri.fromPath path) with
+    | None -> []
+    | Some package ->
+      let moduleName =
+        path |> Filename.basename |> Filename.remove_extension
+        |> capitalizeFirstChar
+      in
+      let schemaState, _ = readStateFile ~package in
+      let snippets = ref [] in
+      (match schemaState.query with
+      | Some {typeLocation = Some typeLocation} ->
+        snippets :=
+          !snippets
+          @ [
+              ( "gql.field snippet - query field",
+                "Boilerplate for adding a new field to the root query.",
+                Printf.sprintf
+                  {|gql.field
+let ${1:fieldName} = async (_: %s, ~ctx: ResGraphContext.context) => {
+  ${0:Some(entity.prop)}
+}|}
+                  (if typeLocation.fileName = moduleName then "query"
+                  else typeLocationToAccessor typeLocation) );
+            ]
+      | _ -> ());
+      (match schemaState.mutation with
+      | Some {typeLocation = Some typeLocation} ->
+        snippets :=
+          !snippets
+          @ [
+              ( "gql.field snippet - full mutation",
+                "Boilerplate for adding a new mutation the mutation type.",
+                Printf.sprintf
+                  {|gql.union
+type ${1:mutationName}Result = Success({ok: bool}) | Error({reason: string})
+
+@gql.field
+let ${1:mutationName} = async (_: %s, ~ctx: ResGraphContext.context) => {
+  Success({ok: true})
+}|}
+                  (if typeLocation.fileName = moduleName then "mutation"
+                  else typeLocationToAccessor typeLocation) );
+            ]
+      | _ -> ());
+      !snippets
+  in
+  baseSnippets @ extendedSnippets

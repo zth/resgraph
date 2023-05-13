@@ -45,11 +45,12 @@ let completionWithParser ~debug ~path ~pos ~currentFile ~text =
      with
      | Some offsetStart, Some offsetEnd ->
        let label = cleanAttributeLabel ~text ~offsetStart ~offsetEnd in
-       found := true;
-       if debug then
-         Printf.printf "Attribute id:%s:%s label:%s\n" id.txt
-           (Loc.toString id.loc) label;
-       setResult (Decorator {label})
+       if Utils.startsWith label "g" then (
+         found := true;
+         if debug then
+           Printf.printf "Attribute id:%s:%s label:%s\n" id.txt
+             (Loc.toString id.loc) label;
+         setResult (Decorator {label}))
      | _ -> ());
     Ast_iterator.default_iterator.attribute iterator (id, payload)
   in
@@ -128,7 +129,7 @@ let completion ~debug ~path ~pos ~currentFile =
                  in
                  Some completionItem
                else None))
-        @ (GenerateSchemaUtils.snippets
+        @ (GenerateSchemaUtils.makeSnippets ~path
           |> List.filter_map (fun (attrName, desc, snippetText) ->
                  if Utils.startsWith attrName label then
                    let completionItem : Protocol.completionItem =
