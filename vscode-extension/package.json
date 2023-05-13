@@ -1,7 +1,7 @@
 {
   "name": "vscode-resgraph",
   "description": "Improve quality-of-life of using ResGraph with VSCode.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "main": "./build/extension.js",
   "engines": {
     "vscode": "^1.77.0"
