@@ -170,9 +170,8 @@ let findGqlType typename ~schemaState =
               | Some obj -> Some (ObjectType obj)
               | None -> None))))))
 
-let makeTypeHoverText ~typename ~id ~(typeLocation : typeLocation) =
-  Printf.sprintf "%s type defined by:\n%s\n" typename
-    (Markdown.codeBlock (Printf.sprintf "type %s" id))
+let makeTypeHoverText ~typename ~(typeLocation : typeLocation) =
+  Printf.sprintf "%s type defined by ResGraph.\n" typename
   ^ Markdown.divider
   ^ Markdown.goToDefinitionText ~loc:typeLocation.loc
       ~fileUri:typeLocation.fileUri
@@ -193,32 +192,29 @@ let hoverGraphQL ~path ~hoverHint =
         | None -> Protocol.null
         | Some (Scalar typ) ->
           Protocol.stringifyHover
-            (makeTypeHoverText ~typeLocation:typ.typeLocation ~typename:"Scalar"
-               ~id:typ.id)
+            (makeTypeHoverText ~typeLocation:typ.typeLocation ~typename:"Scalar")
         | Some (ObjectType {syntheticTypeLocation = Some {fileUri; loc}}) ->
           Protocol.stringifyHover
             (Printf.sprintf "%s type defined by an inline record.\n" typename
             ^ Markdown.divider
             ^ Markdown.goToDefinitionText ~loc ~fileUri)
-        | Some (ObjectType {typeLocation = Some typeLocation; id}) ->
+        | Some (ObjectType {typeLocation = Some typeLocation}) ->
           Protocol.stringifyHover
-            (makeTypeHoverText ~typeLocation ~typename:"Object" ~id)
+            (makeTypeHoverText ~typeLocation ~typename:"Object")
         | Some (Interface typ) ->
           Protocol.stringifyHover
             (makeTypeHoverText ~typeLocation:typ.typeLocation
-               ~typename:"Interface" ~id:typ.id)
+               ~typename:"Interface")
         | Some (Enum typ) ->
           Protocol.stringifyHover
-            (makeTypeHoverText ~typeLocation:typ.typeLocation ~typename:"Enum"
-               ~id:typ.id)
+            (makeTypeHoverText ~typeLocation:typ.typeLocation ~typename:"Enum")
         | Some (InputObject typ) ->
           Protocol.stringifyHover
             (makeTypeHoverText ~typeLocation:typ.typeLocation
-               ~typename:"Input object" ~id:typ.id)
+               ~typename:"Input object")
         | Some (Union typ) ->
           Protocol.stringifyHover
-            (makeTypeHoverText ~typeLocation:typ.typeLocation ~typename:"Union"
-               ~id:typ.id)
+            (makeTypeHoverText ~typeLocation:typ.typeLocation ~typename:"Union")
         | Some (ObjectType {typeLocation = None}) -> Protocol.null)
       | [typename; fieldName] -> (
         match
@@ -249,3 +245,71 @@ let hoverGraphQL ~path ~hoverHint =
       | _ -> Protocol.null
     in
     Printf.sprintf "{\"status\": \"Hover\", \"item\": %s}" hoverStr
+
+let definitionGraphQL ~path ~definitionHint =
+  match Packages.getPackage ~uri:(Uri.fromPath path) with
+  | None -> Protocol.null
+  | Some package ->
+    let schemaState, _ = GenerateSchemaUtils.readStateFile ~package in
+    let definitionLoc =
+      match definitionHint |> String.split_on_char '.' with
+      | [typename] -> (
+        match
+          findGqlType
+            (typename |> GenerateSchemaUtils.uncapitalizeFirstChar)
+            ~schemaState
+        with
+        | Some (Scalar {typeLocation = {fileUri; loc}})
+        | Some (ObjectType {syntheticTypeLocation = Some {fileUri; loc}})
+        | Some (ObjectType {typeLocation = Some {fileUri; loc}})
+        | Some (Interface {typeLocation = {fileUri; loc}})
+        | Some (Enum {typeLocation = {fileUri; loc}})
+        | Some (InputObject {typeLocation = {fileUri; loc}})
+        | Some (Union {typeLocation = {fileUri; loc}}) ->
+          Some
+            {
+              Protocol.uri = fileUri |> Uri.toString;
+              range =
+                {
+                  start =
+                    (let line, character = loc.loc_start |> Pos.ofLexing in
+                     {line; character});
+                  end_ =
+                    (let line, character = loc.loc_end |> Pos.ofLexing in
+                     {line; character});
+                };
+            }
+        | _ -> None)
+      | [typename; fieldName] -> (
+        match
+          findGqlType
+            (typename |> GenerateSchemaUtils.uncapitalizeFirstChar)
+            ~schemaState
+        with
+        | Some (ObjectType {fields} | Interface {fields} | InputObject {fields})
+          -> (
+          match
+            fields |> List.find_opt (fun (f : gqlField) -> f.name = fieldName)
+          with
+          | None -> None
+          | Some {loc; fileUri} ->
+            Some
+              {
+                Protocol.uri = fileUri |> Uri.toString;
+                range =
+                  {
+                    start =
+                      (let line, character = loc.loc_start |> Pos.ofLexing in
+                       {line; character});
+                    end_ =
+                      (let line, character = loc.loc_end |> Pos.ofLexing in
+                       {line; character});
+                  };
+              })
+        | _ -> None)
+      | _ -> None
+    in
+    Printf.sprintf "{\"status\": \"Definition\", \"item\": %s}"
+      (match definitionLoc with
+      | None -> Protocol.null
+      | Some location -> Protocol.stringifyLocation location)

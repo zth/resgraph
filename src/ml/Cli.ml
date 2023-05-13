@@ -18,6 +18,8 @@ let main () =
     Hover.hover ~path ~pos:(int_of_string line, int_of_string col) ~debug:false
   | [_; "hover-graphql"; path; hoverHint] ->
     Hover.hoverGraphQL ~path ~hoverHint |> print_endline
+  | [_; "definition-graphql"; path; definitionHint] ->
+    Hover.definitionGraphQL ~path ~definitionHint |> print_endline
   | [_; "test"; path] -> Commands.test ~path
   | args when List.mem "-h" args || List.mem "--help" args -> prerr_endline help
   | _ ->

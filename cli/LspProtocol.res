@@ -255,3 +255,5 @@ let makeDocumentLink = (~range, ~fileUri, ~tooltip=?, ()) => {
   target: fileUri,
   tooltip,
 }
+
+@live type definition = location
