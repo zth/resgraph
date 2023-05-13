@@ -65,7 +65,9 @@ external infinity: int = "Infinity"
 
 let devBinLocation = "../bin/dev/resgraph.exe"
 
-let hasDevBin = Lazy.from_fun(() => Fs.existsSync(devBinLocation))
+let hasDevBin = Lazy.from_fun(() =>
+  (devBinLocation->makeUrl(currentFileUrl)).pathname->Fs.existsSync
+)
 
 let callPrivateCli = command => {
   let hasDevBin = hasDevBin->Lazy.force

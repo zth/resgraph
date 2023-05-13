@@ -1,4 +1,4 @@
-import { ExtensionContext, workspace, OutputChannel, window } from "vscode";
+import { ExtensionContext, workspace, window } from "vscode";
 import {
   LanguageClient,
   LanguageClientOptions,
