@@ -158,7 +158,31 @@ let hoverAtPos = (~path, ~pos: LspProtocol.loc) => {
   }
 }
 
-/*
-Console.log(
-  getTokenAtPosition(~queryText=`type User implements Node {}`, ~position={line: 0, character: 24}),
-)*/
+let definitionAtPos = (~path, ~pos: LspProtocol.loc) => {
+  try {
+    let fileContents = Fs.readFileSync(path)->Buffer.toStringWithEncoding(StringEncoding.utf8)
+
+    switch getTokenAtPosition(
+      ~queryText=fileContents,
+      ~position=(pos :> position),
+    )->findLookupValue {
+    | None => None
+    | Some(Typename(typename)) =>
+      switch Utils.callPrivateCli(Definition({filePath: path, definitionHint: typename})) {
+      | Definition({item}) => Some(item)
+      | _ => None
+      }
+    | Some(Field({ownerTypeName, fieldName})) =>
+      switch Utils.callPrivateCli(
+        Definition({filePath: path, definitionHint: `${ownerTypeName}.${fieldName}`}),
+      ) {
+      | Definition({item}) => Some(item)
+      | _ => None
+      }
+    }
+  } catch {
+  | Exn.Error(e) =>
+    Console.error(e)
+    None
+  }
+}

@@ -24,6 +24,7 @@ module Message = {
     | #"textDocument/documentLink"
     | #"textDocument/completion"
     | #"textDocument/codeAction"
+    | #"textDocument/definition"
   ] as 'a
 
   let jsonrpcVersion = "2.0"
@@ -73,6 +74,7 @@ module Message = {
     type documentLinkParams = {textDocument: textDocumentIdentifier}
     type completionParams = textDocumentPosition
     type codeActionParams = {textDocument: textDocumentIdentifier, range: LspProtocol.range}
+    type definitionParams = textDocumentPosition
 
     type t =
       | DidOpenTextDocumentNotification(didOpenTextDocumentParams)
@@ -83,6 +85,7 @@ module Message = {
       | DocumentLinks(documentLinkParams)
       | Completion(completionParams)
       | CodeAction(codeActionParams)
+      | Definition(definitionParams)
       | UnmappedMessage
 
     let decodeLspMessage = (msg: msg): t => {
@@ -95,6 +98,7 @@ module Message = {
       | #"textDocument/documentLink" => DocumentLinks(msg->unsafeGetParams)
       | #"textDocument/completion" => Completion(msg->unsafeGetParams)
       | #"textDocument/codeAction" => CodeAction(msg->unsafeGetParams)
+      | #"textDocument/definition" => Definition(msg->unsafeGetParams)
       | _ => UnmappedMessage
       }
     }
@@ -171,6 +175,7 @@ module Message = {
       ~codeLensProvider: bool=?,
       ~documentLinkProvider: bool=?,
       ~codeActionProvider: bool=?,
+      ~definitionProvider: bool=?,
       unit,
     ) => t
   } = {
@@ -190,6 +195,7 @@ module Message = {
       codeLensProvider: bool,
       documentLinkProvider: bool,
       codeActionProvider: bool,
+      definitionProvider: bool,
     }
 
     @live
@@ -202,6 +208,7 @@ module Message = {
       ~codeLensProvider=false,
       ~documentLinkProvider=false,
       ~codeActionProvider=false,
+      ~definitionProvider=false,
       (),
     ) => {
       capabilities: {
@@ -211,6 +218,7 @@ module Message = {
         codeLensProvider,
         documentLinkProvider,
         codeActionProvider,
+        definitionProvider,
       },
     }
   }
@@ -223,6 +231,7 @@ module Message = {
     external fromDocumentLinks: array<LspProtocol.documentLink> => t = "%identity"
     external fromCompletionItems: array<LspProtocol.completionItem> => t = "%identity"
     external fromCodeActions: array<LspProtocol.codeAction> => t = "%identity"
+    external fromDefinition: LspProtocol.definition => t = "%identity"
     external fromRoutesForFile: array<LspProtocol.Command.routeRendererReference> => t = "%identity"
     external fromRoutesMatchingUrl: array<LspProtocol.Command.routeRendererReference> => t =
       "%identity"
@@ -236,6 +245,7 @@ module Message = {
     external fromDocumentLinks: array<LspProtocol.documentLink> => t = "%identity"
     external fromCompletionItems: array<LspProtocol.completionItem> => t = "%identity"
     external fromCodeActions: array<LspProtocol.codeAction> => t = "%identity"
+    external fromDefinition: LspProtocol.definition => t = "%identity"
     external fromRoutesForFile: array<LspProtocol.Command.routeRendererReference> => t = "%identity"
     external fromRoutesMatchingUrl: array<LspProtocol.Command.routeRendererReference> => t =
       "%identity"
@@ -429,6 +439,11 @@ let start = (~mode, ~configFilePath) => {
       | _ => log("Could not handle notification message.")
       }
     } else if Message.isRequestMessage(msg) {
+      let sendNullresponse = () => {
+        Message.Response.make(~id=msg->Message.getId, ~result=Message.Result.null(), ())
+        ->Message.Response.asMessage
+        ->send
+      }
       switch (initialized.contents, msg->Message.getMethod) {
       | (false, method) if method != #initialize =>
         Message.Response.make(
@@ -446,6 +461,7 @@ let start = (~mode, ~configFilePath) => {
             ~completionProvider={triggerCharacters: ["@", "~"]},
             ~hoverProvider=true,
             ~textDocumentSync=Full,
+            ~definitionProvider=true,
             (),
           )->Message.Result.fromInitialize,
           (),
@@ -455,10 +471,7 @@ let start = (~mode, ~configFilePath) => {
 
       | (true, method) =>
         switch method {
-        | #initialize =>
-          Message.Response.make(~id=msg->Message.getId, ~result=Message.Result.null(), ())
-          ->Message.Response.asMessage
-          ->send
+        | #initialize => sendNullresponse()
         | #shutdown =>
           if shutdownRequestAlreadyReceived.contents === true {
             Message.Response.make(
@@ -504,7 +517,23 @@ let start = (~mode, ~configFilePath) => {
               Message.Response.make(~id=msg->Message.getId, ~result, ())
               ->Message.Response.asMessage
               ->send
-            | _ => ()
+            | _ => sendNullresponse()
+            }
+          | Definition(params) =>
+            let filePath = params.textDocument.uri->fileURLToPath
+            switch params.textDocument.uri->Path.extname {
+            | ".graphql" =>
+              let result = switch LspCompleteGraphQL.definitionAtPos(
+                ~path=filePath,
+                ~pos=params.position,
+              ) {
+              | Some(definition) => definition->Message.Result.fromDefinition
+              | None => Message.Result.null()
+              }
+              Message.Response.make(~id=msg->Message.getId, ~result, ())
+              ->Message.Response.asMessage
+              ->send
+            | _ => sendNullresponse()
             }
           | Completion(params) =>
             switch params.textDocument.uri->Path.extname {

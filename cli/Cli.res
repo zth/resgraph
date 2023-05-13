@@ -79,7 +79,7 @@ try {
       GenerateSchema({src: config.src, outputFolder: config.outputFolder, dumpSchemaSdl: true}),
     )
     switch res {
-    | Completion(_) | Hover(_) | NotInitialized => ()
+    | Completion(_) | Hover(_) | Definition(_) | NotInitialized => ()
     | Success(_) =>
       let buildDuration = performance->now -. timeStart
       printBuildTime(buildDuration)
