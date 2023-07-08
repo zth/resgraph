@@ -24,6 +24,16 @@ watch      | Builds the project and watches for changes.
 help       | Show this help message.
 `
 
+let validateConfig = config => {
+  let issues = []
+  config->InitProject.validateConfig(~issues)
+
+  if issues->Array.length > 0 {
+    issues->InitProject.printProjectIssues
+    Process.process->Process.exitWithCode(1)
+  }
+}
+
 try {
   switch argsList {
   | list{"init"} =>
@@ -34,32 +44,7 @@ try {
     let issues = InitProject.validateProject(projectDir)
 
     if issues->Array.length > 0 {
-      Console.error("⛔ One or more issues was encountered with this ResGraph project.\n")
-      issues->Array.forEach(issue =>
-        switch issue {
-        | MissingConfigFile =>
-          Console.error(
-            `- 🚫 The file "resgraph.json" does not exist in this project root (${projectDir}). Please create it and add + configure the content below to your liking:
-{
-  "src": "./src",
-  "outputFolder": "./src/__generated__"
-}`,
-          )
-        | MissingContextFile => /* TODO: Ask priv bin for whether assets exist */ ()
-        | OutputFolderDoesNotExist({path}) =>
-          Console.error(
-            `- 🚫 "outputFolder" in "resgraph.json" is configured to be "${path}", but that folder either does not exist, or is not possible to access.`,
-          )
-        | ConfigFileIssue =>
-          /* TODO: Link to docs */
-          Console.error(`- 🚫 "resgraph.json" exists but contains issues. Please double check it's configured correctly.`)
-        | SrcFolderDoesNotExist({path}) =>
-          Console.error(
-            `- 🚫 "src" in "resgraph.json" is configured to be "${path}", but that folder either does not exist, or is not possible to access.`,
-          )
-        }
-      )
-
+      issues->InitProject.printProjectIssues
       Process.process->Process.exitWithCode(1)
     } else {
       Console.log("✅ Project already set up correctly.")
@@ -71,6 +56,8 @@ try {
     | Error(msg) => panic(msg)
     | Ok(config) => config
     }
+
+    validateConfig(config)
 
     open PerfHooks.Performance
     let timeStart = performance->now
@@ -92,6 +79,8 @@ try {
     | Error(msg) => panic(msg)
     | Ok(config) => config
     }
+
+    validateConfig(config)
 
     open PerfHooks.Performance
     let timeStart = ref(0.)

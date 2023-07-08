@@ -2,6 +2,10 @@
 
 ## main
 
+### Bug fix
+
+- Ensure project folders exist before we try to build.
+
 ## 0.5.0
 
 ### New Features
