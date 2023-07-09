@@ -1173,8 +1173,8 @@ let generateSchema ~printToStdOut ~writeStateFile ~sourceFolder ~debug
             be necessary when this is a real package. Keep it for now to make
             tests work. *)
          match file with
-         | "ResGraph" | "ResGraphSchema" | "ResGraphSchemaAssets"
-         | "GraphQLYoga" | "Errors" | "ResGraph__GraphQLJs" ->
+         | "ResGraph" | "ResGraphSchema" | "GraphQLYoga" | "Errors"
+         | "ResGraph__GraphQLJs" ->
            ()
          | _ -> (
            match Hashtbl.find package.pathsForModule file with
