@@ -102,7 +102,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
   | Tconstr (Path.Pident {name = "float"}, [], _) -> Some (Scalar Float)
   | Tconstr (path, typeArgs, _) -> (
     match pathIdentToList path with
-    | [intfFilename; ("ImplementedBy" | "Resolver"); "t"]
+    | [intfFilename; "ImplementedBy"; "t"]
       when Utils.startsWith intfFilename "Interface_" -> (
       let interfaceName = extractInterfaceName intfFilename in
       match interfaceName with
