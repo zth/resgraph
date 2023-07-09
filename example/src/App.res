@@ -1,18 +1,5 @@
 @val external process: 'a = "process"
 
-let shouldDumpSchema = process["env"]["DUMP_SCHEMA"] === "true"
-
-if shouldDumpSchema {
-  open Node
-
-  Console.log("Dumping schema.")
-
-  Fs.writeFileAsUtf8Sync(
-    Path.resolve(Process.cwd(), "./schema.graphql"),
-    ResGraph.printSchema(ResGraphSchema.schema),
-  )
-}
-
 open GraphQLYoga
 
 let yoga = createYoga({
