@@ -65,6 +65,11 @@ let rec extractFunctionType ~env ~package typ =
 
 type typeContext = Default | ReturnType
 
+let intfNameRegexp = Str.regexp "^Interface_\\(.*\\)$"
+let extractInterfaceName str =
+  if Str.string_match intfNameRegexp str 0 then Some (Str.matched_group 1 str)
+  else None
+
 (* Extracts valid GraphQL types from type exprs *)
 let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
     ~debug ?loc ~schemaState ~(full : SharedTypes.full) (typ : Types.type_expr)
@@ -97,13 +102,14 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
   | Tconstr (Path.Pident {name = "float"}, [], _) -> Some (Scalar Float)
   | Tconstr (path, typeArgs, _) -> (
     match pathIdentToList path with
+    | [intfFilename; ("ImplementedBy" | "Resolver"); "t"]
+      when Utils.startsWith intfFilename "Interface_" -> (
+      let interfaceName = extractInterfaceName intfFilename in
+      match interfaceName with
+      | None -> None
+      | Some interfaceName -> Some (InjectInterfaceTypename interfaceName))
     | ["ResGraph"; "id"] -> Some (Scalar ID)
     | ["ResGraphContext"; "context"] -> Some InjectContext
-    | ["ResGraphSchemaAssets"; typeName]
-      when Utils.endsWith typeName "_implementedBy" ->
-      Some
-        (InjectInterfaceTypename
-           (Str.split (Str.regexp_string "_implementedBy") typeName |> List.hd))
     | ["Js"; "Nullable"; "t"] -> (
       match typeArgs with
       | [typeArg] -> (
@@ -939,7 +945,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                                typename, but it's targeting the wrong \
                                interface (\"%s\" vs wanted \"%s\"). Please \
                                change the type annotation to \
-                               \"ResGraphSchemaAssets.%s_implementedBy\"."
+                               \"Interface_%s.ImplementedBy.t\"."
                               arg.name targetIntfId id id;
                         }
                | _ -> ());
@@ -983,6 +989,9 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                       })
            | _, None ->
              (* Ignore values with no gql attribute. *)
+             ()
+           | _, Some (InterfaceResolver _) ->
+             (* Ignore interface resolvers, they're handled elsewhere *)
              ()
            | _, Some _ -> (
              (* Didn't match. Do some error reporting. *)
@@ -1174,7 +1183,6 @@ let generateSchema ~printToStdOut ~writeStateFile ~sourceFolder ~debug
 
   let processedSchema = processSchema schemaState in
   let schemaOutputPath = outputFolder ^ "/ResGraphSchema.res" in
-  let assetsOutputPath = outputFolder ^ "/ResGraphSchemaAssets.res" in
   let sdlOutputPath = outputFolder ^ "/schema.graphql" in
 
   if schemaState.diagnostics |> List.length > 0 then (
@@ -1193,10 +1201,10 @@ let generateSchema ~printToStdOut ~writeStateFile ~sourceFolder ~debug
       GenerateSchemaTypePrinters.printSchemaJsFile schemaState processedSchema
       |> formatCode ~debug
     in
-    let assetCode =
-      GenerateSchemaTypePrinters.printSchemaAssets ~schemaState ~processedSchema
-      |> formatCode ~debug
-    in
+
+    GenerateSchemaTypePrinters.cleanInterfaceFiles schemaState ~outputFolder;
+    GenerateSchemaTypePrinters.printInterfaceFiles schemaState ~processedSchema
+      ~outputFolder ~debug;
 
     (* TODO: Do this in parallell in some fancy way *)
     if writeStateFile then
@@ -1216,9 +1224,6 @@ let generateSchema ~printToStdOut ~writeStateFile ~sourceFolder ~debug
       "let schema: ResGraph.schema<ResGraphContext.context>\n"
     in
     GenerateSchemaUtils.writeIfHasChanges resiOutputPath resiContent;
-
-    (* Write assets file *)
-    GenerateSchemaUtils.writeIfHasChanges assetsOutputPath assetCode;
 
     if debug && printToStdOut then schemaCode |> print_endline
     else if printToStdOut then

@@ -1,5 +1,7 @@
+open Interface_hasName
+
 @gql.field
-let hasName = (_: Query.query, ~id: ResGraph.id): option<ResGraphSchemaAssets.hasName_resolver> => {
+let hasName = (_: Query.query, ~id: ResGraph.id): option<Resolver.t> => {
   ignore(id)
   Some(User({id: "123", name: "Test", lastAge: Some(35), age: 35}))
 }
@@ -8,7 +10,7 @@ let hasName = (_: Query.query, ~id: ResGraph.id): option<ResGraphSchemaAssets.ha
 let abbreviatedName = (
   // ^hov
   name: HasNameInterface.hasName,
-  ~typeName: ResGraphSchemaAssets.hasName_implementedBy,
+  ~typeName: ImplementedBy.t,
 ) => {
-  Some(typeName->ResGraphSchemaAssets.hasName_typenameToString ++ ":" ++ name.name)
+  Some(typeName->ImplementedBy.toString ++ ":" ++ name.name)
 }

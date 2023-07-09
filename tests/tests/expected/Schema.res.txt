@@ -182,14 +182,14 @@ let union_UserOrGroup_resolveType = (v: Schema.userOrGroup) =>
   | Group(_) => "Group"
   }
 
-let interface_HasName_resolveType = (v: ResGraphSchemaAssets.hasName_resolver) =>
+let interface_HasName_resolveType = (v: Interface_hasName.Resolver.t) =>
   switch v {
   | Pet(_) => "Pet"
   | Group(_) => "Group"
   | User(_) => "User"
   }
 
-let interface_Node_resolveType = (v: ResGraphSchemaAssets.node_resolver) =>
+let interface_Node_resolveType = (v: Interface_node.Resolver.t) =>
   switch v {
   | Group(_) => "Group"
   | User(_) => "User"
