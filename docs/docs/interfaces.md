@@ -129,7 +129,7 @@ type User implements HasName {
 
 #### Accessing what type the interface field function is currently working on
 
-Occasionally it'll be useful to know what type the interface field is currently working on, even if you're working on a general interface field. You can get access to that by annotating a labelled argument to the function with `Interface_<interfaceTypeName>.ImplementedBy.t`. Example:
+Occasionally it'll be useful to know what type the interface field is currently working on, even if you're working on a general interface field. You can get access to that by annotating a labelled argument to the function with `Interface_<interfaceName>.ImplementedBy.t`. Example:
 
 ```rescript
 /** The ID of a node in the graph. */
@@ -141,7 +141,7 @@ let id = (node: node, ~typename: Interface_node.ImplementedBy.t) => {
 }
 ```
 
-More information on `Interface_<interfaceTypeName>.ImplementedBy.t` and friends [lower on this page](#extras).
+More information on `Interface_<interfaceName>.ImplementedBy.t` and friends [lower on this page](#extras).
 
 ### Overriding interface fields per type
 
@@ -240,15 +240,16 @@ type Query {
 A few things to note:
 
 - Each interface will have its own `Interface_<interfaceName>` file generated. That file will contain a `Resolver` module, which has a type `t` that you can use when you want the return type of a field to be that interface.
-- This type will help you return _any_ of the types that implement that interface.
-- Because the generated type will link to GraphQL types in your application code, it's good practice to put these resolvers in their own files.
+- This type will ensure you return a valid type that implement that interface.
+- Because the generated type will link to GraphQL types in your application code, it's good practice to put these resolvers in their own files to avoid issues with circular dependencies.
 
 ### Extras
 
-It's often useful to know on the server what types actually implement an interface. ResGraph will automatically generate 2 helpful things in `Interface_<interfaceName>.res` to keep track of this:
+It's often useful to know on the server what types actually implement an interface. ResGraph will automatically generate 3 helpful things in the module `ImplementedBy` in `Interface_<interfaceName>.res` to keep track of this:
 
-1. `type Resolver.t = <all names of types implementing the interface>`.
-2. `type ImplementedBy.t = <all> let toString: t => string }`.
+1. A type `t` that represent the names of all types that implement this interface.
+2. A function `decode` that parses a string into an `option<t>`.
+3. A function `toString` that turns `t` into a `string`.
 
 A full example:
 
@@ -288,6 +289,7 @@ Notice both `User` and `Group` implements `HasName`. This generates the followin
 ```rescript
 module ImplementedBy = {
   type t = User | Group
+  let decode: string => option<t>
   let toString: t => string
 }
 ```
