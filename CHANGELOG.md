@@ -2,6 +2,12 @@
 
 ## main
 
+## 0.6.0
+
+### New Features
+
+- _breaking_ `ResGraphSchemaAssets.res` is no more, and you can remove it. Instead, all interfaces will have their own generated files emitted like `Interface_<interfaceName>.res`. The contents are also slightly restructured to help with type inference and reduce likelihood of circular dependencies. https://github.com/zth/resgraph/pull/27
+
 ### Bug fix
 
 - Ensure project folders exist before we try to build.
