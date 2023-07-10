@@ -1,18 +1,16 @@
-open ResGraphSchemaAssets
+open Interface_node
 
-let typeMap: node_typeMap<int> = {
+let typeMap: typeMap<int> = {
   group: 1,
   user: 2,
 }
 
-let nodeTypeMap = NodeInterfaceTypeMap.make(typeMap, ~valueToString=Int.toString)
+let nodeTypeMap = TypeMap.make(typeMap, ~valueToString=Int.toString)
 
 let decodeNodeInterfaceId = id => {
-  open ResGraphSchemaAssets
-
   switch id->ResGraph.idToString->String.split(":")->List.fromArray {
   | list{typeValue, id, ...params} =>
-    switch nodeTypeMap->NodeInterfaceTypeMap.getTypeByStringifiedValue(typeValue) {
+    switch nodeTypeMap->TypeMap.getTypeByStringifiedValue(typeValue) {
     | None => None
     | Some(typ) => Some(typ, id, params->List.toArray)
     }
@@ -22,8 +20,8 @@ let decodeNodeInterfaceId = id => {
 
 /** Sketched out examples of type safe id producing/decoding functions for the
     Node interface. Could be base64 encoded etc. */
-let nodeInterfaceIdToString = (~typename: node_implementedBy, ~id, ~extra=[]) => {
-  let value = nodeTypeMap->NodeInterfaceTypeMap.getStringifiedValueByType(typename)
+let nodeInterfaceIdToString = (~typename: ImplementedBy.t, ~id, ~extra=[]) => {
+  let value = nodeTypeMap->TypeMap.getStringifiedValueByType(typename)
   let nodeId = `${value}:${id}`
 
   let nodeId = if extra->Array.length > 0 {
@@ -37,7 +35,7 @@ let nodeInterfaceIdToString = (~typename: node_implementedBy, ~id, ~extra=[]) =>
 
 /** Fetches an object given its ID.*/
 @gql.field
-let node = async (_: Query.query, ~id, ~ctx: ResGraphContext.context): option<node_resolver> => {
+let node = async (_: Query.query, ~id, ~ctx: ResGraphContext.context): option<Resolver.t> => {
   switch decodeNodeInterfaceId(id) {
   | None => None
   | Some(typename, id, _extraParams) =>
@@ -69,6 +67,6 @@ let nodes = (query: Query.query, ~ids, ~ctx: ResGraphContext.context) => {
 
 /** The id of the object.*/
 @gql.field
-let id = (node: NodeInterface.node, ~typename: node_implementedBy) => {
+let id = (node: NodeInterface.node, ~typename: ImplementedBy.t) => {
   nodeInterfaceIdToString(~typename, ~id=node.id)
 }

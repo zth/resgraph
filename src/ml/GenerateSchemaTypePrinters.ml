@@ -70,6 +70,11 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
   | GraphQLInterface {displayName} ->
     Printf.sprintf "get_%s()->GraphQLInterfaceType.toGraphQLType%s" displayName
       nullablePostfix
+  | InjectInterfaceTypename intfId ->
+    (* TODO: Kill in refactor. This is weird and shouldn't be needed. *)
+    Printf.sprintf "get_%s()->GraphQLInterfaceType.toGraphQLType%s"
+      (capitalizeFirstChar intfId)
+      nullablePostfix
   | GraphQLInputObject {displayName} ->
     Printf.sprintf "get_%s()->GraphQLInputObjectType.toGraphQLType%s"
       displayName nullablePostfix
@@ -79,7 +84,7 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
   | GraphQLUnion {displayName} ->
     Printf.sprintf "get_%s()->GraphQLUnionType.toGraphQLType%s" displayName
       nullablePostfix
-  | InjectContext | InjectInterfaceTypename _ -> "Obj.magic()"
+  | InjectContext -> "Obj.magic()"
 
 let displayNameFromImplementedBy
     (interfaceImplementedBy : interfaceImplementedBy) =
@@ -105,8 +110,8 @@ let sortImplementedBy (a1 : interfaceImplementedBy) a2 =
 let printInterfaceResolverReturnType
     (gqlInterfaceIdentifier : gqlInterfaceIdentifier)
     ~(implementedBy : interfaceImplementedBy list) =
-  Printf.sprintf "@gql.interfaceResolver(\"%s\") type %s_resolver = %s"
-    gqlInterfaceIdentifier.id gqlInterfaceIdentifier.id
+  Printf.sprintf " @gql.interfaceResolver(\"%s\") type t = %s"
+    gqlInterfaceIdentifier.id
     (implementedBy
     |> List.sort sortImplementedBy
     |> List.map (fun (i : interfaceImplementedBy) ->
@@ -116,11 +121,10 @@ let printInterfaceResolverReturnType
     |> String.concat " | ")
 
 let printInterfaceImplementedByType
-    (gqlInterfaceIdentifier : gqlInterfaceIdentifier)
     ~(implementedBy : interfaceImplementedBy list) =
   if List.length implementedBy = 0 then ""
   else
-    Printf.sprintf "type %s_implementedBy = %s" gqlInterfaceIdentifier.id
+    Printf.sprintf "  type t = %s"
       (implementedBy
       |> List.sort sortImplementedBy
       |> List.map (fun (i : interfaceImplementedBy) ->
@@ -130,7 +134,7 @@ let printInterfaceImplementedByType
 let printNodeInterfaceAssets (implementedBy : interfaceImplementedBy list) =
   if List.length implementedBy = 0 then ""
   else
-    Printf.sprintf "type node_typeMap<'a> = {\n%s\n}\n\n"
+    Printf.sprintf "type typeMap<'a> = {\n%s\n}\n\n"
       (implementedBy
       |> List.sort sortImplementedBy
       |> List.map (fun (i : interfaceImplementedBy) ->
@@ -139,18 +143,18 @@ let printNodeInterfaceAssets (implementedBy : interfaceImplementedBy list) =
                (idFromImplementedBy i))
       |> String.concat "\n  ")
     ^ Printf.sprintf
-        {|module NodeInterfaceTypeMap: {
+        {|module TypeMap: {
   type t<'value>
-  let make: (node_typeMap<'value>, ~valueToString: 'value => string) => t<'value>
+  let make: (typeMap<'value>, ~valueToString: 'value => string) => t<'value>
 
   /** Takes a (stringified) value and returns what type it represents, if any. */
-  let getTypeByStringifiedValue: (t<'value>, string) => option<node_implementedBy>
+  let getTypeByStringifiedValue: (t<'value>, string) => option<ImplementedBy.t>
 
   /** Takes a type and returns what value it represents, as string. */
-  let getStringifiedValueByType: (t<'value>, node_implementedBy) => string
+  let getStringifiedValueByType: (t<'value>, ImplementedBy.t) => string
 } = {
-  external unsafe_toDict: node_typeMap<'value> => Js.Dict.t<'value> = "%%identity"
-  external unsafe_toType: string => node_implementedBy = "%%identity"
+  external unsafe_toDict: typeMap<'value> => Js.Dict.t<'value> = "%%identity"
+  external unsafe_toType: string => ImplementedBy.t = "%%identity"
   type t<'value> = {
     typeToValue: Js.Dict.t<'value>,
     valueToTypeAsString: Js.Dict.t<string>,
@@ -167,20 +171,17 @@ let printNodeInterfaceAssets (implementedBy : interfaceImplementedBy list) =
   }
 
   let getStringifiedValueByType = (t, typ) =>
-    t.typeToValue->Dict.get(typ->node_typenameToString)->Option.getExn->t.valueToString
+    t.typeToValue->Dict.get(typ->ImplementedBy.toString)->Option.getExn->t.valueToString
   let getTypeByStringifiedValue = (t, str) =>
     t.valueToTypeAsString->Dict.get(str)->Option.map(unsafe_toType)
 }|}
 
-let printInterfaceTypenameDecoder
-    (gqlInterfaceIdentifier : gqlInterfaceIdentifier)
-    ~(implementedBy : interfaceImplementedBy list) =
+let printInterfaceTypenameDecoder ~(implementedBy : interfaceImplementedBy list)
+    =
   if List.length implementedBy = 0 then ""
   else
     Printf.sprintf
-      "let decodeImplementedByInterface_%s = (str: string) => switch str { | \
-       %s | _ => None}"
-      gqlInterfaceIdentifier.id
+      "let decode = (str: string) => switch str { | %s | _ => None}"
       (implementedBy
       |> List.sort sortImplementedBy
       |> List.map (fun (i : interfaceImplementedBy) ->
@@ -189,14 +190,9 @@ let printInterfaceTypenameDecoder
       |> String.concat " | ")
 
 let printInterfaceTypenameToString
-    (gqlInterfaceIdentifier : gqlInterfaceIdentifier)
     ~(implementedBy : interfaceImplementedBy list) =
   if List.length implementedBy = 0 then ""
-  else
-    Printf.sprintf
-      "external %s_typenameToString: %s_implementedBy => string = \
-       \"%%identity\""
-      gqlInterfaceIdentifier.id gqlInterfaceIdentifier.id
+  else Printf.sprintf "external toString: t => string = \"%%identity\""
 
 let printArg (arg : gqlArg) =
   Printf.sprintf "{typ: %s}" (printGraphQLType arg.typ)
@@ -309,40 +305,66 @@ let printUnionType (union : gqlUnion) =
     |> String.concat ", ")
     (Printf.sprintf "union_%s_resolveType" union.displayName)
 
-let printSchemaAssets ~(schemaState : schemaState) ~processedSchema =
+let getIntfAssets (typ : gqlInterface) ~processedSchema ~debug =
   let code = ref "/* @generated */\n\n@@warning(\"-27-34-37\")\n\n" in
   let addWithNewLine text = code := !code ^ text ^ "\n" in
 
   (* Interface assets *)
+  let interfaceIdentifier = {id = typ.id; displayName = typ.displayName} in
+  match Hashtbl.find_opt processedSchema.interfaceImplementedBy typ.id with
+  | None -> ""
+  | Some implementedBy ->
+    addWithNewLine "module Resolver = {";
+    addWithNewLine
+      (printInterfaceResolverReturnType interfaceIdentifier ~implementedBy);
+    addWithNewLine "}";
+    addWithNewLine "";
+    addWithNewLine "module ImplementedBy = {";
+    addWithNewLine (printInterfaceImplementedByType ~implementedBy);
+    addWithNewLine "";
+    addWithNewLine (printInterfaceTypenameDecoder ~implementedBy);
+    addWithNewLine "";
+    addWithNewLine (printInterfaceTypenameToString ~implementedBy);
+    addWithNewLine "}";
+    addWithNewLine "";
+
+    (* Special treatment of the Node interface. *)
+    if typ.displayName = "Node" then
+      addWithNewLine (printNodeInterfaceAssets implementedBy);
+    !code |> formatCode ~debug
+
+let mkIntfFileName intfId = Printf.sprintf "interface_%s.res" intfId
+
+let mkIntfFilePath intfId ~outputFolder =
+  Printf.sprintf "%s/%s" outputFolder (mkIntfFileName intfId)
+
+let printInterfaceFiles (schemaState : schemaState) ~processedSchema ~debug
+    ~outputFolder =
   schemaState.interfaces
-  |> iterHashtblAlphabetically (fun _name (typ : gqlInterface) ->
-         let interfaceIdentifier =
-           {id = typ.id; displayName = typ.displayName}
-         in
-         match
-           Hashtbl.find_opt processedSchema.interfaceImplementedBy typ.id
-         with
-         | None -> ()
-         | Some implementedBy ->
-           addWithNewLine
-             (printInterfaceResolverReturnType interfaceIdentifier
-                ~implementedBy);
-           addWithNewLine "";
-           addWithNewLine
-             (printInterfaceImplementedByType interfaceIdentifier ~implementedBy);
-           addWithNewLine "";
-           addWithNewLine
-             (printInterfaceTypenameDecoder interfaceIdentifier ~implementedBy);
-           addWithNewLine "";
-           addWithNewLine
-             (printInterfaceTypenameToString interfaceIdentifier ~implementedBy);
-           addWithNewLine "";
+  |> Hashtbl.iter (fun intfId intf ->
+         let interfaceFileOutputLoc = mkIntfFilePath ~outputFolder intfId in
+         writeIfHasChanges interfaceFileOutputLoc
+           (getIntfAssets intf ~processedSchema ~debug))
 
-           (* Special treatment of the Node interface. *)
-           if typ.displayName = "Node" then
-             addWithNewLine (printNodeInterfaceAssets implementedBy));
-
-  !code
+let cleanInterfaceFiles (schemaState : schemaState) ~outputFolder =
+  let validNames =
+    Hashtbl.fold
+      (fun intfId _ acc -> mkIntfFilePath ~outputFolder intfId :: acc)
+      schemaState.interfaces []
+  in
+  let allGeneratedFiles = Array.to_list (Sys.readdir outputFolder) in
+  let filesToRemove =
+    allGeneratedFiles
+    |> List.filter (fun fileName ->
+           Filename.check_suffix fileName ".res"
+           && String.starts_with
+                (Filename.basename fileName)
+                ~prefix:"interface_"
+           && not (List.mem fileName validNames))
+  in
+  filesToRemove
+  |> List.iter (fun fileName ->
+         Sys.remove (Filename.concat outputFolder fileName))
 
 exception Interface_not_found of string
 
@@ -492,8 +514,8 @@ let printSchemaJsFile schemaState processSchema =
          in
          addWithNewLine
            (Printf.sprintf
-              "let interface_%s_resolveType = (v: \
-               ResGraphSchemaAssets.%s_resolver) => switch v {%s}\n"
+              "let interface_%s_resolveType = (v: Interface_%s.Resolver.t) => \
+               switch v {%s}\n"
               intf.displayName intf.id
               (implementedBy
               |> List.map (fun (member : interfaceImplementedBy) ->

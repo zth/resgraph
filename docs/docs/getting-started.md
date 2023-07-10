@@ -90,10 +90,10 @@ type Query {
 }
 ```
 
-ResGraph will automatically generate 3 things by default:
+ResGraph will automatically generate a number of things by default:
 
 1. The `ResGraphSchema.res` and `ResGraphSchema.resi` files. These hold the optimized `graphql-js` schema generated from your types and resolvers, that you then expose through your server.
-2. `ResGraphSchemaAssets.res`. This holds various generated helpers for your schema. More on that file later.
+2. `Interface_<interfaceName>.res` for each interface you use. These files hold generated helpers and assets for each interface you have and use.
 3. `schema.graphql`. This is a schema SDL file dumped from ResGraph. This is intended to be used as a debug utility primarily.
 
 #### Build and watch mode

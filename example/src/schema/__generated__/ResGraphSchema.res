@@ -35,12 +35,14 @@ let enum_TimestampFormat = GraphQLEnumType.make({
 })
 let i_HasName: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
 let get_HasName = () => i_HasName.contents
+let t_PageInfo: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let get_PageInfo = () => t_PageInfo.contents
 let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Query = () => t_Query.contents
 let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_User = () => t_User.contents
 
-let interface_HasName_resolveType = (v: ResGraphSchemaAssets.hasName_resolver) =>
+let interface_HasName_resolveType = (v: Interface_hasName.Resolver.t) =>
   switch v {
   | User(_) => "User"
   }
@@ -58,6 +60,50 @@ i_HasName.contents = GraphQLInterfaceType.make({
       },
     }->makeFields,
   resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_HasName_resolveType),
+})
+t_PageInfo.contents = GraphQLObjectType.make({
+  name: "PageInfo",
+  description: "Information about pagination in a connection.",
+  interfaces: [],
+  fields: () =>
+    {
+      "endCursor": {
+        typ: Scalars.string->Scalars.toGraphQLType,
+        description: "When paginating forwards, the cursor to continue.",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["endCursor"]
+        }),
+      },
+      "hasNextPage": {
+        typ: Scalars.boolean->Scalars.toGraphQLType->nonNull,
+        description: "When paginating forwards, are there more items?",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["hasNextPage"]
+        }),
+      },
+      "hasPreviousPage": {
+        typ: Scalars.boolean->Scalars.toGraphQLType->nonNull,
+        description: "When paginating backwards, are there more items?",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["hasPreviousPage"]
+        }),
+      },
+      "startCursor": {
+        typ: Scalars.string->Scalars.toGraphQLType,
+        description: "When paginating backwards, the cursor to continue.",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx) => {
+          let src = typeUnwrapper(src)
+          src["startCursor"]
+        }),
+      },
+    }->makeFields,
 })
 t_Query.contents = GraphQLObjectType.make({
   name: "Query",
