@@ -2,6 +2,12 @@
 
 ## main
 
+## 0.6.1
+
+### New Features
+
+- Depend on latest `@rescript/core`.
+
 ## 0.6.0
 
 ### New Features
