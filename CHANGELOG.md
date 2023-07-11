@@ -2,6 +2,8 @@
 
 ## main
 
+## 0.6.2
+
 ### Bug fix
 
 - Fix infinite rebuild loop with interface files being always re-added.
