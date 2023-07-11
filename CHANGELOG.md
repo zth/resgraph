@@ -2,6 +2,10 @@
 
 ## main
 
+### Bug fix
+
+- Fix infinite rebuild loop with interface files being always re-added.
+
 ## 0.6.1
 
 ### New Features

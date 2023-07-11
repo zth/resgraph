@@ -349,7 +349,7 @@ let printInterfaceFiles (schemaState : schemaState) ~processedSchema ~debug
 let cleanInterfaceFiles (schemaState : schemaState) ~outputFolder =
   let validNames =
     Hashtbl.fold
-      (fun intfId _ acc -> mkIntfFilePath ~outputFolder intfId :: acc)
+      (fun intfId _ acc -> mkIntfFileName intfId :: acc)
       schemaState.interfaces []
   in
   let allGeneratedFiles = Array.to_list (Sys.readdir outputFolder) in
