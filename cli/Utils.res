@@ -94,8 +94,7 @@ let callPrivateCli = command => {
 }
 
 let getLastBuiltFromCompilerLog = compilerLogPath => {
-  let compilerLogContents =
-    compilerLogPath->Fs.readFileSync->Node.Buffer.toString->String.split(Os.eol)
+  let compilerLogContents = compilerLogPath->Fs.readFileSync->Buffer.toString->String.split(Os.eol)
 
   // The "Done" marker is on the second line from the bottom, if it exists.
   let statusLine =
@@ -179,7 +178,7 @@ let readConfigFromDir = dir => {
     [dir, "./resgraph.json"]
     ->Path.resolve
     ->Fs.readFileSync
-    ->Node.Buffer.toStringWithEncoding(#utf8)
+    ->Buffer.toStringWithEncoding(StringEncoding.utf8)
     ->JSON.parseExn
     ->parseConfig
 

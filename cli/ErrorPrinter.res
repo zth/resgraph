@@ -80,7 +80,10 @@ let printErrors = (errors: array<Utils.generateError>) => {
     | Some(content) => content
     | None =>
       let contents =
-        error.file->Fs.readFileSync->Node.Buffer.toStringWithEncoding(#utf8)->String.split(Os.eol)
+        error.file
+        ->Fs.readFileSync
+        ->Buffer.toStringWithEncoding(StringEncoding.utf8)
+        ->String.split(Os.eol)
       fileContentCache->Dict.set(error.file, contents)
       contents
     }

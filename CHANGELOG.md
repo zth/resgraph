@@ -2,6 +2,8 @@
 
 ## main
 
+- Up to latest `rescript@next` and remove dependency on (now removed) legacy compiler Node bindings.
+
 ## 0.6.2
 
 ### Bug fix

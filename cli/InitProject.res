@@ -11,7 +11,7 @@ let readFile = (relativePath, ~dir) => {
 
   if Fs.existsSync(path) {
     try {
-      path->Fs.readFileSync->Node.Buffer.toStringWithEncoding(#utf8)->Ok
+      path->Fs.readFileSync->Buffer.toStringWithEncoding(StringEncoding.utf8)->Ok
     } catch {
     | Exn.Error(err) => Error(FileCouldNotBeRead(err->Exn.message))
     }
