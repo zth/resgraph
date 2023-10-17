@@ -306,7 +306,7 @@ t_InlineUnionNotOk.contents = GraphQLObjectType.make({
         typ: Scalars.boolean->Scalars.toGraphQLType,
         description: "Whether this is liked or not.",
         deprecationReason: "Use something else.",
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["liked"]
         }),
@@ -315,7 +315,7 @@ t_InlineUnionNotOk.contents = GraphQLObjectType.make({
         typ: Scalars.string->Scalars.toGraphQLType->nonNull,
         description: "Stuff",
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["reason"]
         }),
@@ -332,7 +332,7 @@ t_InlineUnionOk.contents = GraphQLObjectType.make({
         typ: Scalars.string->Scalars.toGraphQLType->nonNull,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["message"]
         }),
@@ -349,7 +349,7 @@ t_Group.contents = GraphQLObjectType.make({
         typ: Scalars.string->Scalars.toGraphQLType,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           HasNameInterfaceResolvers.abbreviatedName(src, ~typeName=Group)
         }),
@@ -358,7 +358,7 @@ t_Group.contents = GraphQLObjectType.make({
         typ: scalar_Timestamp->GraphQLScalar.toGraphQLType,
         description: "The timestamp when this group was created.",
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["createdAt"]
         }),
@@ -367,7 +367,7 @@ t_Group.contents = GraphQLObjectType.make({
         typ: Scalars.id->Scalars.toGraphQLType->nonNull,
         description: "The id of the object.",
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           NodeInterfaceResolver.id(src, ~typename=Group)
         }),
@@ -376,7 +376,7 @@ t_Group.contents = GraphQLObjectType.make({
         typ: scalar_TimestampHidden->GraphQLScalar.toGraphQLType,
         description: "When this group was last modified.",
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["modifiedAt"]
         }),
@@ -385,7 +385,7 @@ t_Group.contents = GraphQLObjectType.make({
         typ: Scalars.string->Scalars.toGraphQLType->nonNull,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["name"]
         }),
@@ -403,7 +403,7 @@ t_Mutation.contents = GraphQLObjectType.make({
         description: ?None,
         deprecationReason: ?None,
         args: {"name": {typ: Scalars.string->Scalars.toGraphQLType->nonNull}}->makeArgs,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.Mutations.addUser(src, ~name=args["name"])
         }),
@@ -420,7 +420,7 @@ t_PageInfo.contents = GraphQLObjectType.make({
         typ: Scalars.string->Scalars.toGraphQLType,
         description: "When paginating forwards, the cursor to continue.",
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["endCursor"]
         }),
@@ -429,7 +429,7 @@ t_PageInfo.contents = GraphQLObjectType.make({
         typ: Scalars.boolean->Scalars.toGraphQLType->nonNull,
         description: "When paginating forwards, are there more items?",
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["hasNextPage"]
         }),
@@ -438,7 +438,7 @@ t_PageInfo.contents = GraphQLObjectType.make({
         typ: Scalars.boolean->Scalars.toGraphQLType->nonNull,
         description: "When paginating backwards, are there more items?",
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["hasPreviousPage"]
         }),
@@ -447,7 +447,7 @@ t_PageInfo.contents = GraphQLObjectType.make({
         typ: Scalars.string->Scalars.toGraphQLType,
         description: "When paginating backwards, the cursor to continue.",
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["startCursor"]
         }),
@@ -464,7 +464,7 @@ t_Pet.contents = GraphQLObjectType.make({
         typ: Scalars.string->Scalars.toGraphQLType,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           HasNameInterfaceResolvers.abbreviatedName(src, ~typeName=Pet)
         }),
@@ -473,7 +473,7 @@ t_Pet.contents = GraphQLObjectType.make({
         typ: Scalars.int->Scalars.toGraphQLType->nonNull,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["age"]
         }),
@@ -482,7 +482,7 @@ t_Pet.contents = GraphQLObjectType.make({
         typ: Scalars.string->Scalars.toGraphQLType->nonNull,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["name"]
         }),
@@ -505,7 +505,7 @@ t_Query.contents = GraphQLObjectType.make({
           "first": {typ: Scalars.int->Scalars.toGraphQLType},
           "last": {typ: Scalars.int->Scalars.toGraphQLType},
         }->makeArgs,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.allUsers(
             src,
@@ -521,7 +521,7 @@ t_Query.contents = GraphQLObjectType.make({
         description: ?None,
         deprecationReason: ?None,
         args: {"someNullable": {typ: Scalars.string->Scalars.toGraphQLType}}->makeArgs,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.QueryFields.allowExplicitNull(src, ~someNullable=args["someNullable"])
         }),
@@ -530,7 +530,7 @@ t_Query.contents = GraphQLObjectType.make({
         typ: scalar_TimestampHidden->GraphQLScalar.toGraphQLType,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.currentTime(src)
         }),
@@ -539,7 +539,7 @@ t_Query.contents = GraphQLObjectType.make({
         typ: scalar_Timestamp->GraphQLScalar.toGraphQLType->nonNull,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.currentTimeFlat(src)
         }),
@@ -548,7 +548,7 @@ t_Query.contents = GraphQLObjectType.make({
         typ: scalar_TimestampZ->GraphQLScalar.toGraphQLType,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.QueryFields.customScalar(src)
         }),
@@ -557,7 +557,7 @@ t_Query.contents = GraphQLObjectType.make({
         typ: scalar_TimestampHiddenSerializable->GraphQLScalar.toGraphQLType,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.QueryFields.customScalarImplSerializable(src)
         }),
@@ -567,7 +567,7 @@ t_Query.contents = GraphQLObjectType.make({
         description: ?None,
         deprecationReason: ?None,
         args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.QueryFields.entity(src, ~ctx, ~id=args["id"])
         }),
@@ -594,7 +594,7 @@ t_Query.contents = GraphQLObjectType.make({
         description: ?None,
         deprecationReason: ?None,
         args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           HasNameInterfaceResolvers.hasName(src, ~id=args["id"])
         }),
@@ -603,7 +603,7 @@ t_Query.contents = GraphQLObjectType.make({
         typ: get_InlineUnion()->GraphQLUnionType.toGraphQLType,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.inlineUnion(src)
         }),
@@ -657,7 +657,7 @@ t_Query.contents = GraphQLObjectType.make({
             ->nonNull,
           },
         }->makeArgs,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.QueryFields.listAsArgs(
             src,
@@ -696,9 +696,9 @@ t_Query.contents = GraphQLObjectType.make({
         typ: get_User()->GraphQLObjectType.toGraphQLType,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
-          Schema.QueryFields.me(src, ~ctx)
+          Schema.QueryFields.me(src, ~ctx, ~info)
         }),
       },
       "node": {
@@ -706,7 +706,7 @@ t_Query.contents = GraphQLObjectType.make({
         description: "Fetches an object given its ID.",
         deprecationReason: ?None,
         args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           NodeInterfaceResolver.node(src, ~ctx, ~id=args["id"])
         }),
@@ -724,7 +724,7 @@ t_Query.contents = GraphQLObjectType.make({
             ->nonNull,
           },
         }->makeArgs,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           NodeInterfaceResolver.nodes(src, ~ctx, ~ids=args["ids"])
         }),
@@ -733,7 +733,7 @@ t_Query.contents = GraphQLObjectType.make({
         typ: get_Pet()->GraphQLObjectType.toGraphQLType,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.QueryFields.pet(src)
         }),
@@ -745,7 +745,7 @@ t_Query.contents = GraphQLObjectType.make({
         args: {
           "input": {typ: get_UserConfig()->GraphQLInputObjectType.toGraphQLType->nonNull},
         }->makeArgs,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.QueryFields.searchForUser(
             src,
@@ -767,7 +767,7 @@ t_SomeType.contents = GraphQLObjectType.make({
         typ: Scalars.string->Scalars.toGraphQLType->nonNull,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["msg"]
         }),
@@ -784,7 +784,7 @@ t_User.contents = GraphQLObjectType.make({
         typ: Scalars.string->Scalars.toGraphQLType,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           HasNameInterfaceResolvers.abbreviatedName(src, ~typeName=User)
         }),
@@ -793,7 +793,7 @@ t_User.contents = GraphQLObjectType.make({
         typ: Scalars.int->Scalars.toGraphQLType->nonNull,
         description: "The age of the user.",
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["age"]
         }),
@@ -804,7 +804,7 @@ t_User.contents = GraphQLObjectType.make({
         ->nonNull,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.UserFields.allNames(src)
         }),
@@ -813,7 +813,7 @@ t_User.contents = GraphQLObjectType.make({
         typ: enum_UserStatus->GraphQLEnumType.toGraphQLType->nonNull,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.UserFields.currentStatus(src)
         }),
@@ -822,7 +822,7 @@ t_User.contents = GraphQLObjectType.make({
         typ: Scalars.id->Scalars.toGraphQLType->nonNull,
         description: "The id of the object.",
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           NodeInterfaceResolver.id(src, ~typename=User)
         }),
@@ -831,7 +831,7 @@ t_User.contents = GraphQLObjectType.make({
         typ: Scalars.int->Scalars.toGraphQLType,
         description: "The last age of the user.",
         deprecationReason: "Use 'age' instead.",
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["lastAge"]
         }),
@@ -841,7 +841,7 @@ t_User.contents = GraphQLObjectType.make({
         description: ?None,
         deprecationReason: ?None,
         args: {"includeFullName": {typ: Scalars.boolean->Scalars.toGraphQLType}}->makeArgs,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.UserFields.name(src, ~includeFullName=args["includeFullName"]->Nullable.toOption)
         }),
@@ -850,7 +850,7 @@ t_User.contents = GraphQLObjectType.make({
         typ: Scalars.string->Scalars.toGraphQLType->nonNull,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["name"]
         }),
@@ -869,7 +869,7 @@ t_UserConnection.contents = GraphQLObjectType.make({
         )->GraphQLListType.toGraphQLType,
         description: "A list of edges.",
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["edges"]
         }),
@@ -878,7 +878,7 @@ t_UserConnection.contents = GraphQLObjectType.make({
         typ: get_PageInfo()->GraphQLObjectType.toGraphQLType->nonNull,
         description: "Information to aid in pagination.",
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["pageInfo"]
         }),
@@ -887,7 +887,7 @@ t_UserConnection.contents = GraphQLObjectType.make({
         typ: Scalars.int->Scalars.toGraphQLType,
         description: "The total count of edges available in the connection.",
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.totalCount(src)
         }),
@@ -904,7 +904,7 @@ t_UserEdge.contents = GraphQLObjectType.make({
         typ: Scalars.string->Scalars.toGraphQLType->nonNull,
         description: "A cursor for use in pagination.",
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["cursor"]
         }),
@@ -913,7 +913,7 @@ t_UserEdge.contents = GraphQLObjectType.make({
         typ: get_User()->GraphQLObjectType.toGraphQLType,
         description: "The item at the end of the edge.",
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["node"]
         }),

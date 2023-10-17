@@ -422,6 +422,13 @@ let findContextArgName (args : gqlArg list) =
          | InjectContext -> Some arg.name
          | _ -> None)
 
+let findInfoArgName (args : gqlArg list) =
+  args
+  |> List.find_map (fun (arg : gqlArg) ->
+         match arg.typ with
+         | InjectInfo -> Some arg.name
+         | _ -> None)
+
 let findInterfaceTypeArgName (args : gqlArg list) =
   args
   |> List.find_map (fun (arg : gqlArg) ->
@@ -784,7 +791,7 @@ let processSchema (schemaState : schemaState) =
 
 let isPrintableArg (arg : gqlArg) =
   match arg.typ with
-  | InjectContext | InjectInterfaceTypename _ -> false
+  | InjectContext | InjectInterfaceTypename _ | InjectInfo -> false
   | _ -> true
 
 (** Some arguments aren't intended to be printed in the `args` list, like

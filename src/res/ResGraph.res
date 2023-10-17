@@ -14,3 +14,5 @@ module JSON = ResGraph__GraphQLJs.GraphQLLiteralValue
 module Connections = ResGraph__Connections
 
 module Utils = ResGraph__Utils
+
+type info

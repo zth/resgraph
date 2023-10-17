@@ -7,15 +7,20 @@ let printResolverForField (field : gqlField) =
   match field.resolverStyle with
   | Property name ->
     Printf.sprintf
-      "(src, _args, _ctx) => {let src = typeUnwrapper(src); src[\"%s\"]}" name
+      "(src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src[\"%s\"]}"
+      name
   | Resolver {moduleName; fnName; pathToFn} ->
     let ctxArgName = findContextArgName field.args in
     let hasCtxArg = ctxArgName |> Option.is_some in
 
+    let infoArgName = findInfoArgName field.args in
+    let hasInfoArg = infoArgName |> Option.is_some in
+
     let intfTypeArgName = findInterfaceTypeArgName field.args in
     let hasIntTypeArg = intfTypeArgName |> Option.is_some in
     let resolverCode =
-      Printf.sprintf "(src, args, ctx) => {let src = typeUnwrapper(src); %s(src"
+      Printf.sprintf
+        "(src, args, ctx, info) => {let src = typeUnwrapper(src); %s(src"
         ([moduleName] @ pathToFn @ [fnName] |> String.concat ".")
     in
     if List.length field.args > 0 then
@@ -23,7 +28,9 @@ let printResolverForField (field : gqlField) =
       ^ (field.args
         |> List.sort (fun (a1 : gqlArg) a2 -> String.compare a1.name a2.name)
         |> List.map (fun (arg : gqlArg) ->
-               if hasCtxArg && Some arg.name = ctxArgName then
+               if hasInfoArg && Some arg.name = infoArgName then
+                 Printf.sprintf "~%s=info" (infoArgName |> Option.get)
+               else if hasCtxArg && Some arg.name = ctxArgName then
                  Printf.sprintf "~%s=ctx" (ctxArgName |> Option.get)
                else if hasIntTypeArg && Some arg.name = intfTypeArgName then
                  match field.onType with
@@ -84,7 +91,7 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
   | GraphQLUnion {displayName} ->
     Printf.sprintf "get_%s()->GraphQLUnionType.toGraphQLType%s" displayName
       nullablePostfix
-  | InjectContext -> "Obj.magic()"
+  | InjectContext | InjectInfo -> "Obj.magic()"
 
 let displayNameFromImplementedBy
     (interfaceImplementedBy : interfaceImplementedBy) =
