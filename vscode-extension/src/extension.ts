@@ -17,7 +17,7 @@ import {
 import { cosmiconfig } from "cosmiconfig";
 import { dirname, resolve } from "path";
 
-const DEBUG = true;
+const DEBUG = false;
 
 export async function activate(context: ExtensionContext) {
   let currentWorkspacePath = workspace.workspaceFolders?.[0].uri.fsPath;
