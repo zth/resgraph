@@ -5,11 +5,11 @@ let shouldDumpSchema = process["env"]["DUMP_SCHEMA"] === "true"
 if shouldDumpSchema {
   Console.log("Dumping schema...")
 
-  open Node
+  open NodeJs
 
-  Fs.writeFileAsUtf8Sync(
-    Path.resolve(Process.cwd(), "./schema.graphql"),
-    ResGraph.printSchema(ResGraphSchema.schema),
+  Fs.writeFileSync(
+    Path.resolve([Process.cwd(Process.process), "./schema.graphql"]),
+    ResGraph.printSchema(ResGraphSchema.schema)->Buffer.fromString,
   )
 }
 

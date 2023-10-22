@@ -28,7 +28,8 @@
   "bs-dependencies": [
     "@rescript/react",
     "@rescript/core",
-    "@glennsl/rescript-fetch"
+    "@glennsl/rescript-fetch",
+    "rescript-nodejs"
   ],
   "jsx": { "version": 4 }
 }
