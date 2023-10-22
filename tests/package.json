@@ -10,11 +10,12 @@
     "nodemon": "^2.0.22"
   },
   "dependencies": {
-    "@rescript/core": "0.3.1",
+    "@glennsl/rescript-fetch": "^0.2.0",
+    "@rescript/core": "0.5.0",
     "graphql": "^15.8.0",
     "graphql-yoga": "^3.8.0",
-    "rescript": "^11.0.0-alpha.5",
-    "@glennsl/rescript-fetch": "^0.2.0"
+    "rescript": "11.0.0-rc.4",
+    "rescript-nodejs": "^15.0.0"
   },
   "resolutions": {
     "graphql": "15.8.0"

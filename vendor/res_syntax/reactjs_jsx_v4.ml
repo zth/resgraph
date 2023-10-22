@@ -634,7 +634,13 @@ let rec recursivelyTransformNamedArgsForMake expr args newtypes coreType =
     in
     let alias =
       match pattern with
-      | {ppat_desc = Ppat_alias (_, {txt}) | Ppat_var {txt}} -> txt
+      | {
+       ppat_desc =
+         ( Ppat_alias (_, {txt})
+         | Ppat_var {txt}
+         | Ppat_constraint ({ppat_desc = Ppat_var {txt}}, _) );
+      } ->
+        txt
       | {ppat_desc = Ppat_any} -> "_"
       | _ -> getLabel arg
     in
@@ -852,7 +858,7 @@ let vbMatch ~expr (name, default, _, alias, loc, _) =
       Vb.mk
         (Pat.var (Location.mkloc alias loc))
         (Exp.match_
-           (Exp.ident {txt = Lident alias; loc = Location.none})
+           (Exp.ident {txt = Lident ("__" ^ alias); loc = Location.none})
            [
              Exp.case
                (Pat.construct
@@ -903,6 +909,10 @@ let mapBinding ~config ~emptyLoc ~pstr_loc ~fileName ~recFlag binding =
     let bindingWrapper, hasForwardRef, expression =
       modifiedBinding ~bindingLoc ~bindingPatLoc ~fnName binding
     in
+    let isAsync =
+      Ext_list.find_first binding.pvb_expr.pexp_attributes Ast_async.is_async
+      |> Option.is_some
+    in
     (* do stuff here! *)
     let namedArgList, newtypes, _typeConstraints =
       recursivelyTransformNamedArgsForMake
@@ -935,6 +945,9 @@ let mapBinding ~config ~emptyLoc ~pstr_loc ~fileName ~recFlag binding =
         Pat.constraint_
           (Pat.var @@ Location.mknoloc "props")
           (Typ.constr (Location.mknoloc @@ Lident "props") [Typ.any ()])
+    in
+    let innerExpression =
+      React_jsx_common.async_component ~async:isAsync innerExpression
     in
     let fullExpression =
       (* React component name should start with uppercase letter *)
@@ -978,6 +991,14 @@ let mapBinding ~config ~emptyLoc ~pstr_loc ~fileName ~recFlag binding =
         stripConstraintUnpack ~label pattern
       | _ -> pattern
     in
+    let safePatternLabel pattern =
+      match pattern with
+      | {ppat_desc = Ppat_var {txt; loc}} ->
+        {pattern with ppat_desc = Ppat_var {txt = "__" ^ txt; loc}}
+      | {ppat_desc = Ppat_alias (p, {txt; loc})} ->
+        {pattern with ppat_desc = Ppat_alias (p, {txt = "__" ^ txt; loc})}
+      | _ -> pattern
+    in
     let rec returnedExpression patternsWithLabel patternsWithNolabel
         ({pexp_desc} as expr) =
       match pexp_desc with
@@ -991,16 +1012,26 @@ let mapBinding ~config ~emptyLoc ~pstr_loc ~fileName ~recFlag binding =
             {ppat_desc = Ppat_construct ({txt = Lident "()"}, _)},
             expr ) ->
         (patternsWithLabel, patternsWithNolabel, expr)
-      | Pexp_fun (arg_label, _default, ({ppat_loc; ppat_desc} as pattern), expr)
+      | Pexp_fun (arg_label, default, ({ppat_loc; ppat_desc} as pattern), expr)
         -> (
         let patternWithoutConstraint =
           stripConstraintUnpack ~label:(getLabel arg_label) pattern
+        in
+        (*
+           If prop has the default value as Ident, it will get a build error
+           when the referenced Ident value and the prop have the same name.
+           So we add a "__" to label to resolve the build error.
+        *)
+        let patternWithSafeLabel =
+          match default with
+          | Some _ -> safePatternLabel patternWithoutConstraint
+          | _ -> patternWithoutConstraint
         in
         if isLabelled arg_label || isOptional arg_label then
           returnedExpression
             (( {loc = ppat_loc; txt = Lident (getLabel arg_label)},
                {
-                 patternWithoutConstraint with
+                 patternWithSafeLabel with
                  ppat_attributes =
                    (if isOptional arg_label then optionalAttrs else [])
                    @ pattern.ppat_attributes;
@@ -1059,6 +1090,7 @@ let mapBinding ~config ~emptyLoc ~pstr_loc ~fileName ~recFlag binding =
                 | _ -> [Typ.any ()]))))
         expression
     in
+    let expression = Ast_async.add_async_attribute ~async:isAsync expression in
     let expression =
       (* Add new tupes (type a,b,c) to make's definition *)
       newtypes
@@ -1360,25 +1392,39 @@ let expr ~config mapper expression =
       let recordOfChildren children =
         Exp.record [(Location.mknoloc (Lident "children"), children)] None
       in
-      let args =
-        [
-          (nolabel, fragment);
-          (match config.mode with
-          | "automatic" -> (
-            ( nolabel,
-              match childrenExpr with
-              | {pexp_desc = Pexp_array children} -> (
-                match children with
-                | [] -> emptyRecord ~loc:Location.none
-                | [child] -> recordOfChildren child
-                | _ -> recordOfChildren childrenExpr)
-              | _ -> recordOfChildren childrenExpr ))
-          | "classic" | _ -> (nolabel, childrenExpr));
-        ]
+      let applyReactArray expr =
+        Exp.apply
+          (Exp.ident
+             {txt = Ldot (Lident "React", "array"); loc = Location.none})
+          [(Nolabel, expr)]
       in
       let countOfChildren = function
         | {pexp_desc = Pexp_array children} -> List.length children
         | _ -> 0
+      in
+      let transformChildrenToProps childrenExpr =
+        match childrenExpr with
+        | {pexp_desc = Pexp_array children} -> (
+          match children with
+          | [] -> emptyRecord ~loc:Location.none
+          | [child] -> recordOfChildren child
+          | _ -> (
+            match config.mode with
+            | "automatic" -> recordOfChildren @@ applyReactArray childrenExpr
+            | "classic" | _ -> emptyRecord ~loc:Location.none))
+        | _ -> (
+          match config.mode with
+          | "automatic" -> recordOfChildren @@ applyReactArray childrenExpr
+          | "classic" | _ -> emptyRecord ~loc:Location.none)
+      in
+      let args =
+        (nolabel, fragment)
+        :: (nolabel, transformChildrenToProps childrenExpr)
+        ::
+        (match config.mode with
+        | "classic" when countOfChildren childrenExpr > 1 ->
+          [(nolabel, childrenExpr)]
+        | _ -> [])
       in
       Exp.apply
         ~loc (* throw away the [@JSX] attribute and keep the others, if any *)
@@ -1390,7 +1436,11 @@ let expr ~config mapper expression =
             Exp.ident ~loc {loc; txt = Ldot (Lident "React", "jsxs")}
           else Exp.ident ~loc {loc; txt = Ldot (Lident "React", "jsx")}
         | "classic" | _ ->
-          Exp.ident ~loc {loc; txt = Ldot (Lident "ReactDOM", "createElement")})
+          if countOfChildren childrenExpr > 1 then
+            Exp.ident ~loc
+              {loc; txt = Ldot (Lident "React", "createElementVariadic")}
+          else
+            Exp.ident ~loc {loc; txt = Ldot (Lident "React", "createElement")})
         args)
   (* Delegate to the default mapper, a deep identity traversal *)
   | e -> default_mapper.expr mapper e

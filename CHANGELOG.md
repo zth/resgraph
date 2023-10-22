@@ -2,6 +2,8 @@
 
 ## main
 
+- Support `rescript.json` in addition to `bsconfig.json`.
+
 ## 0.6.3
 
 - Up to latest `rescript@next` and remove dependency on (now removed) legacy compiler Node bindings.

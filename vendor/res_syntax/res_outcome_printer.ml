@@ -217,6 +217,9 @@ let rec printOutTypeDoc (outType : Outcometree.out_type) =
     ->
     (* function$<(int, int) => int, [#2]> -> (. int, int) => int *)
     printOutArrowType ~uncurried:true arrowType
+  | Otyp_constr (Oide_ident "function$", [Otyp_var _; _arity]) ->
+    (* function$<'a, arity> -> _ => _ *)
+    printOutTypeDoc (Otyp_stuff "_ => _")
   | Otyp_constr (outIdent, []) -> printOutIdentDoc ~allowUident:false outIdent
   | Otyp_manifest (typ1, typ2) ->
     Doc.concat [printOutTypeDoc typ1; Doc.text " = "; printOutTypeDoc typ2]
@@ -319,6 +322,7 @@ let rec printOutTypeDoc (outType : Outcometree.out_type) =
       ]
 
 and printOutArrowType ~uncurried typ =
+  let uncurried = Res_uncurried.getDotted ~uncurried !Config.uncurried in
   let typArgs, typ = collectArrowArgs typ [] in
   let args =
     Doc.join
@@ -348,7 +352,12 @@ and printOutArrowType ~uncurried typ =
     let needsParens =
       match typArgs with
       | _ when uncurried -> true
-      | [(_, (Otyp_tuple _ | Otyp_arrow _))] -> true
+      | [
+       ( _,
+         ( Otyp_tuple _ | Otyp_arrow _
+         | Otyp_constr (Oide_ident "function$", [Otyp_arrow _; _]) ) );
+      ] ->
+        true
       (* single argument should not be wrapped *)
       | [("", _)] -> false
       | _ -> true
