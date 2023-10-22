@@ -16,7 +16,7 @@ You can either follow these instructions below, if you want to understand how ev
 
 ### Installation
 
-ResGraph relies on features in ReScript `v11`, which is currently in alpha. Make sure you run `>= rescript@11.0.0-alpha.6` and for the best results, set `"uncurried": true` in your `bsconfig.json`.
+ResGraph relies on features in ReScript `v11`, which is currently in alpha. Make sure you run `>= rescript@11.0.0-alpha.6` and for the best results, set `"uncurried": true` in your `rescript.json` or `bsconfig.json`.
 
 ```bash
 # Install both `graphql` and `graphql-yoga` so we can set your server up
@@ -25,7 +25,7 @@ npm i resgraph graphql graphql-yoga @rescript/core @glennsl/rescript-fetch
 
 > We rely on `@glennsl/rescript-fetch` for various fetch related things needed in [GraphQL Yoga](graphql-yoga). We also rely on `@rescript/core`, the (future) standard library for ReScript.
 
-Configure your `bsconfig.json`, including adding the various dependencies to your `bs-dependencies`:
+Configure your `rescript.json` (or `bsconfig.json` if you haven't migrated yet), including adding the various dependencies to your `bs-dependencies`:
 
 ```json
 {

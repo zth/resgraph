@@ -45,7 +45,7 @@ let raiseErrorMultipleReactComponent ~loc =
 let optionalAttr = ({txt = "res.optional"; loc = Location.none}, PStr [])
 
 let extractUncurried typ =
-  if Ast_uncurried.typeIsUncurriedFun typ then
+  if Ast_uncurried.coreTypeIsUncurriedFun typ then
     let _arity, t = Ast_uncurried.typeExtractUncurriedFun typ in
     t
   else typ
@@ -63,3 +63,15 @@ let removeArity binding =
     | _ -> expr
   in
   {binding with pvb_expr = removeArityRecord binding.pvb_expr}
+
+let async_component ~async expr =
+  if async then
+    let open Ast_helper in
+    Exp.apply
+      (Exp.ident
+         {
+           loc = Location.none;
+           txt = Ldot (Lident "JsxPPXReactSupport", "asyncComponent");
+         })
+      [(Nolabel, expr)]
+  else expr
