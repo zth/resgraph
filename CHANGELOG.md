@@ -2,6 +2,8 @@
 
 ## main
 
+## 0.7.0
+
 - Support `rescript.json` in addition to `bsconfig.json`.
 
 ## 0.6.3
