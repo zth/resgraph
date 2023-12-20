@@ -110,6 +110,6 @@ try {
     Console.log(helpText)
   }
 } catch {
-| Exn.Error(e) => Console.error("Error: " ++ e->Exn.message->Option.getWithDefault("-"))
+| Exn.Error(e) => Console.error("Error: " ++ e->Exn.message->Option.getOr("-"))
 | _ => Console.error("Error!")
 }

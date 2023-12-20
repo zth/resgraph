@@ -97,8 +97,7 @@ let getLastBuiltFromCompilerLog = compilerLogPath => {
   let compilerLogContents = compilerLogPath->Fs.readFileSync->Buffer.toString->String.split(Os.eol)
 
   // The "Done" marker is on the second line from the bottom, if it exists.
-  let statusLine =
-    compilerLogContents[compilerLogContents->Array.length - 2]->Option.getWithDefault("")
+  let statusLine = compilerLogContents[compilerLogContents->Array.length - 2]->Option.getOr("")
 
   if statusLine->String.startsWith("#Done(") {
     statusLine
