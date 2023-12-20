@@ -2,6 +2,10 @@
 
 ## main
 
+- Update/improve `graphql-yoga` bindings.
+- Upgrade `@rescript/core`.
+- Bind `GraphQLError`.
+
 ## 0.7.0
 
 - Support `rescript.json` in addition to `bsconfig.json`.
