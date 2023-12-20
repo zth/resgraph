@@ -4,6 +4,16 @@ module Body = Fetch.Body
 module FormData = Fetch.FormData
 module Blob = Fetch.Blob
 
+module GraphQLError = {
+  type t
+  type options<'extensions> = {extensions?: {..} as 'extensions}
+
+  @module("graphql") @new
+  external make: (string, ~options: options<'extensions>=?) => t = "GraphQLError"
+
+  let raise: t => 'a = err => raise(Obj.magic(err))
+}
+
 module Envelope = {
   type plugin
 }
@@ -34,7 +44,7 @@ type logging =
   | @as("warn") LogLevelWarn
   | @as("error") LogLevelError
 
-type maskErrorFn = (~error: unknown, ~message: string, ~isDev: option<bool>) => Exn.t
+type maskErrorFn = (~error: Exn.t, ~message: string, ~isDev: option<bool>) => Exn.t
 type maskedErrorOpts = {
   maskError?: maskErrorFn,
   errorMessage?: string,
