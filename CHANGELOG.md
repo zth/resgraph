@@ -5,6 +5,7 @@
 - Update/improve `graphql-yoga` bindings.
 - Upgrade `@rescript/core`.
 - Bind `GraphQLError`.
+- Remove support for "type creators" since it's now natively supported in ReScript via type spreads.
 
 ## 0.7.0
 

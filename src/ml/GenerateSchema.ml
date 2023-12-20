@@ -415,7 +415,7 @@ and variantCasesToUnionValues ~env ~debug ~schemaState ~full ~ownerName
                };
            None)
 
-and objectTypeFieldsOfRecordFields ?instantiate ~env ~schemaState ~debug
+and objectTypeFieldsOfRecordFields ~env ~schemaState ~debug
     ~(full : SharedTypes.full) (fields : SharedTypes.field list) =
   fields
   |> List.filter_map (fun (field : SharedTypes.field) ->
@@ -426,22 +426,7 @@ and objectTypeFieldsOfRecordFields ?instantiate ~env ~schemaState ~debug
          | None -> None
          | Some attr -> Some (field, attr))
   |> List.filter_map (fun ((field : SharedTypes.field), _attr) ->
-         let fieldType, env =
-           match instantiate with
-           | None -> (field.typ, env)
-           | Some (typeArgs, typeParams, envFromInstantiate) ->
-             let instantiated =
-               TypeUtils.instantiateType ~typeParams ~typeArgs field.typ
-             in
-             (* If this field was instantiated we need to use the original env
-                coming from the type variable contexts in order to properly look
-                up other types. If not however, we stick with the env we were
-                passed to start with. *)
-             let didInstantiate =
-               TypeUtils.checkIfNoUninstantiatedVars instantiated
-             in
-             (instantiated, if didInstantiate then envFromInstantiate else env)
-         in
+         let fieldType = field.typ in
          let typ =
            findGraphQLType fieldType ~debug ~loc:field.fname.loc ~full ~env
              ~schemaState
@@ -480,26 +465,11 @@ and objectTypeFieldsOfRecordFields ?instantiate ~env ~schemaState ~debug
                onType = None;
              })
 
-and objectTypeFieldsOfInlineRecordFields ?instantiate ~env ~schemaState ~debug
+and objectTypeFieldsOfInlineRecordFields ~env ~schemaState ~debug
     ~(full : SharedTypes.full) (fields : SharedTypes.field list) =
   fields
   |> List.filter_map (fun (field : SharedTypes.field) ->
-         let fieldType, env =
-           match instantiate with
-           | None -> (field.typ, env)
-           | Some (typeArgs, typeParams, envFromInstantiate) ->
-             let instantiated =
-               TypeUtils.instantiateType ~typeParams ~typeArgs field.typ
-             in
-             (* If this field was instantiated we need to use the original env
-                coming from the type variable contexts in order to properly look
-                up other types. If not however, we stick with the env we were
-                passed to start with. *)
-             let didInstantiate =
-               TypeUtils.checkIfNoUninstantiatedVars instantiated
-             in
-             (instantiated, if didInstantiate then envFromInstantiate else env)
-         in
+         let fieldType = field.typ in
          let typ =
            findGraphQLType fieldType ~debug ~loc:field.fname.loc ~full ~env
              ~schemaState
@@ -644,27 +614,6 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                ~displayName
                ~makeFields:(fun () -> [])
                id
-           | ( Type ({kind = Abstract (Some (path, typeArgs)); attributes}, _),
-               Some ObjectType )
-             when List.length typeArgs > 0 -> (
-             (* @gql.type type someType = someCreatorRecord<typeArg1> *)
-             let id = item.name in
-             let displayName = capitalizeFirstChar item.name in
-             match
-               References.digConstructor ~env ~package:full.package path
-             with
-             | Some (envForCreator, {item = {kind = Record fields; decl}}) ->
-               noticeObjectType ~env ~loc:decl.type_loc ~schemaState
-                 ?description:(attributesToDocstring attributes)
-                 ~displayName ~force:true
-                 ~typeCreatorLocation:{env = envForCreator; loc = decl.type_loc}
-                 ~makeFields:(fun () ->
-                   fields
-                   |> objectTypeFieldsOfRecordFields
-                        ~instantiate:(typeArgs, decl.type_params, env)
-                        ~env:envForCreator ~full ~schemaState ~debug)
-                 id
-             | _ -> ())
            | Type ({kind = Record fields; attributes; decl}, _), Some ObjectType
              ->
              (* @gql.type type someType = {...} *)

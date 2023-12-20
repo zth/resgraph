@@ -6,17 +6,7 @@ function connectionFromArray(prim0, prim1) {
   return GraphqlRelayConnectionsMjs.connectionFromArray(prim0, prim1);
 }
 
-function connectionFromArrayWithExtra(array, args, extra) {
-  var conn = GraphqlRelayConnectionsMjs.connectionFromArray(array, args);
-  return {
-          pageInfo: conn.pageInfo,
-          edges: conn.edges,
-          extra: extra
-        };
-}
-
 export {
   connectionFromArray ,
-  connectionFromArrayWithExtra ,
 }
 /* ./graphqlRelayConnections.mjs Not a pure module */

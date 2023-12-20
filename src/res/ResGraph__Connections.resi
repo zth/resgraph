@@ -35,17 +35,6 @@ type connection<'edge> = {
   edges: option<array<option<'edge>>>,
 }
 
-/** A connection to a list of items. */
-type connectionWithExtra<'edge, 'extra> = {
-  /** Information to aid in pagination. */
-  @gql.field
-  pageInfo: pageInfo,
-  /** A list of edges. */
-  @gql.field
-  edges: option<array<option<'edge>>>,
-  extra: 'extra,
-}
-
 /** TODO: Docs */
 type forwardConnectionArgs = {
   after: option<string>,
@@ -66,10 +55,3 @@ type connectionArgs = {
 
 /** TODO: Docs */
 let connectionFromArray: (array<'node>, ~args: connectionArgs) => connection<edge<'node>>
-
-/** TODO: Docs */
-let connectionFromArrayWithExtra: (
-  array<'a>,
-  ~args: connectionArgs,
-  ~extra: 'b,
-) => connectionWithExtra<edge<'a>, 'b>

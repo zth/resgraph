@@ -35,17 +35,6 @@ type connection<'edge> = {
   edges: option<array<option<'edge>>>,
 }
 
-/** A connection to a list of items. */
-type connectionWithExtra<'edge, 'extra> = {
-  /** Information to aid in pagination. */
-  @gql.field
-  pageInfo: pageInfo,
-  /** A list of edges. */
-  @gql.field
-  edges: option<array<option<'edge>>>,
-  extra: 'extra,
-}
-
 type forwardConnectionArgs = {
   after: option<string>,
   first: option<int>,
@@ -64,17 +53,3 @@ type connectionArgs = {
 @module("./graphqlRelayConnections.mjs")
 external connectionFromArray: (array<'node>, ~args: connectionArgs) => connection<edge<'node>> =
   "connectionFromArray"
-
-@module("./graphqlRelayConnections.mjs")
-external connectionFromArrayWithExtra_: (
-  array<'node>,
-  ~args: connectionArgs,
-) => connectionWithExtra<edge<'node>, 'extra> = "connectionFromArray"
-
-let connectionFromArrayWithExtra = (array, ~args, ~extra) => {
-  let conn = array->connectionFromArrayWithExtra_(~args)
-  {
-    ...conn,
-    extra,
-  }
-}
