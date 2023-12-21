@@ -36,6 +36,7 @@ let validAttributes =
     ("gql.enum", "");
     ("gql.union", "");
     ("gql.inputObject", "");
+    ("gql.inputUnion", "");
     ("gql.scalar", "");
   ]
 
@@ -85,6 +86,7 @@ let extractGqlAttribute ~(schemaState : GenerateSchemaTypes.schemaState)
          | ["gql"; "enum"] -> Some Enum
          | ["gql"; "union"] -> Some Union
          | ["gql"; "inputObject"] -> Some InputObject
+         | ["gql"; "inputUnion"] -> Some InputUnion
          | "gql" :: _ ->
            schemaState
            |> addDiagnostic
@@ -134,6 +136,7 @@ type expectedType =
   | Field
   | Enum
   | Union
+  | InputUnion
   | Interface
   | Scalar
   | ScalarT of {modulePath: string list}
@@ -155,6 +158,9 @@ let rec findModulePathOfType ~schemaState ~(env : SharedTypes.QueryEnv.t)
            Some modulePath
          | Type ({kind = Variant _}, _), Union, Some Union when item.name = name
            ->
+           Some modulePath
+         | Type ({kind = Variant _}, _), InputUnion, Some InputUnion
+           when item.name = name ->
            Some modulePath
          | Type ({kind = Record _}, _), ObjectType, Some ObjectType
            when item.name = name ->
@@ -212,6 +218,7 @@ let findTypeLocation ~(env : SharedTypes.QueryEnv.t)
                  | Enum -> "enum"
                  | ObjectType -> "object type"
                  | InputObject -> "input object"
+                 | InputUnion -> "input union"
                  | Field -> "field"
                  | Interface -> "interface"
                  | Scalar | ScalarT _ -> "scalar")
@@ -278,6 +285,13 @@ let addUnion id ~(makeUnion : unit -> gqlUnion) ~debug ~schemaState =
   else (
     if debug then Printf.printf "Adding union %s\n" id;
     Hashtbl.replace schemaState.unions id (makeUnion ()))
+
+let addInputUnion id ~(makeInputUnion : unit -> gqlInputUnionType) ~debug
+    ~schemaState =
+  if Hashtbl.mem schemaState.unions id then ()
+  else (
+    if debug then Printf.printf "Adding input union %s\n" id;
+    Hashtbl.replace schemaState.inputUnions id (makeInputUnion ()))
 
 let addScalar ~debug ~schemaState ?description ~typeLocation ?encoderDecoderLoc
     id =
@@ -422,9 +436,43 @@ let rec typeNeedsConversion (graphqlType : graphqlType) =
     typeNeedsConversion inner
   | Nullable _ | RescriptNullable _
   (* Input objects might need conversion because they might have null-enabled fields *)
-  | GraphQLInputObject _ ->
+  | GraphQLInputObject _ | GraphQLInputUnion _ ->
     true
   | _ -> false
+
+let inputUnionToInputObj ~(state : schemaState) (inputUnion : gqlInputUnionType)
+    : gqlInputObjectType =
+  {
+    typeLocation = Some inputUnion.typeLocation;
+    syntheticTypeLocation = None;
+    description = inputUnion.description;
+    displayName = inputUnion.displayName;
+    id = inputUnion.id;
+    fields =
+      inputUnion.inputObjects
+      |> List.map (fun (iu : gqlUnionMember) ->
+             let inputObject =
+               Hashtbl.find state.inputObjects iu.objectTypeId
+             in
+             {
+               name = uncapitalizeFirstChar iu.constructorName;
+               resolverStyle = Property iu.displayName;
+               typ =
+                 Nullable
+                   (GraphQLInputObject
+                      {
+                        id = inputObject.id;
+                        displayName = inputObject.displayName;
+                      });
+               args = [];
+               deprecationReason = None;
+               description = iu.description;
+               loc = iu.loc;
+               fileName = inputUnion.typeLocation.fileName;
+               fileUri = inputUnion.typeLocation.fileUri;
+               onType = None;
+             });
+  }
 
 (* Runtime conversion for a structure of GraphQL types. *)
 let rec generateConverter lastValue (graphqlType : graphqlType) =
@@ -450,10 +498,34 @@ let rec generateConverter lastValue (graphqlType : graphqlType) =
     Printf.sprintf
       "%s->applyConversionToInputObject(input_%s_conversionInstructions)"
       lastValue displayName
+  | GraphQLInputUnion {displayName; inlineRecords} ->
+    (* TODO: Precompute/persist? *)
+    Printf.sprintf
+      "%s->applyConversionToInputObject(inputUnion_%s_conversionInstructions)->inputUnionUnwrapper([%s])"
+      lastValue displayName
+      (inlineRecords
+      |> List.map (fun s -> "\"" ^ s ^ "\"")
+      |> String.concat ", ")
   | _ -> lastValue
 
 let printInputObjectAssets (inputObject : gqlInputObjectType) =
   Printf.sprintf "input_%s_conversionInstructions->Array.pushMany([%s]);"
+    inputObject.displayName
+    (inputObject.fields
+    |> List.filter_map (fun (field : gqlField) ->
+           let converter = generateConverter "v" field.typ in
+           if converter = "v" then None
+           else
+             Some
+               (Printf.sprintf
+                  "(\"%s\", makeInputObjectFieldConverterFn((v) => %s))"
+                  field.name converter))
+    |> String.concat ", ")
+
+(* TODO: Unify with above *)
+let printInputUnionAssets ~state (inputUnion : gqlInputUnionType) =
+  let inputObject = inputUnionToInputObj ~state inputUnion in
+  Printf.sprintf "inputUnion_%s_conversionInstructions->Array.pushMany([%s]);"
     inputObject.displayName
     (inputObject.fields
     |> List.filter_map (fun (field : gqlField) ->

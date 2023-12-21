@@ -9,6 +9,11 @@ type graphqlType =
   | InjectInterfaceTypename of string  (** ID of interface *)
   | GraphQLObjectType of {id: string; displayName: string}
   | GraphQLInputObject of {id: string; displayName: string}
+  | GraphQLInputUnion of {
+      id: string;
+      displayName: string;
+      inlineRecords: string list;
+    }
   | GraphQLEnum of {id: string; displayName: string}
   | GraphQLUnion of {id: string; displayName: string}
   | GraphQLInterface of {id: string; displayName: string}
@@ -77,6 +82,7 @@ type gqlScalar = {
   encoderDecoderLoc: typeLocation option;
 }
 
+(* TODO: Can this be thinned out for some cases? Should be split up. *)
 type gqlField = {
   name: string;
   resolverStyle: fieldResolverStyle;
@@ -103,6 +109,7 @@ type gqlObjectType = {
   description: string option;
   typeLocation: typeLocation option;
   syntheticTypeLocation: syntheticTypeLocation option;
+  (* TODO: Can be removed? *)
   typeCreatorLocation: typeCreatorLocation option;
       (** If this type is synthetic, this will hold the location of the type creator that created the type. *)
   interfaces: string list;
@@ -122,12 +129,22 @@ type gqlInputObjectType = {
   displayName: string;
   fields: gqlField list;
   description: string option;
+  typeLocation: typeLocation option;
+  syntheticTypeLocation: syntheticTypeLocation option;
+}
+
+type gqlInputUnionType = {
+  id: string;
+  displayName: string;
+  inputObjects: gqlUnionMember list;
+  description: string option;
   typeLocation: typeLocation;
 }
 
 type schemaState = {
   types: (string, gqlObjectType) Hashtbl.t;
   inputObjects: (string, gqlInputObjectType) Hashtbl.t;
+  inputUnions: (string, gqlInputUnionType) Hashtbl.t;
   enums: (string, gqlEnum) Hashtbl.t;
   unions: (string, gqlUnion) Hashtbl.t;
   interfaces: (string, gqlInterface) Hashtbl.t;
@@ -154,6 +171,7 @@ type gqlAttributes =
   | Interface
   | InterfaceResolver of {interfaceId: string}  (** This is internal *)
   | InputObject
+  | InputUnion
   | Field
   | Enum
   | Union

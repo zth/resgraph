@@ -75,7 +75,7 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
     Printf.sprintf "get_%s()->GraphQLInterfaceType.toGraphQLType%s"
       (capitalizeFirstChar intfId)
       nullablePostfix
-  | GraphQLInputObject {displayName} ->
+  | GraphQLInputUnion {displayName} | GraphQLInputObject {displayName} ->
     Printf.sprintf "get_%s()->GraphQLInputObjectType.toGraphQLType%s"
       displayName nullablePostfix
   | GraphQLEnum {displayName} ->
@@ -382,6 +382,39 @@ let printSchemaJsFile schemaState processSchema =
      { if (src == null) return null; if (typeof src === 'object' && \
      src.hasOwnProperty('_0')) return src['_0']; return src;}`)";
 
+  (* Add the input union unwrapper. TODO: Explain more
+  *)
+  addWithNewLine
+    {|let inputUnionUnwrapper: ('src, array<string>) => 'return = %raw(`function inputUnionUnwrapper(src, inlineRecordTypenames) {
+      if (src == null) return null;
+    
+      let targetKey = null;
+      let targetValue = null;
+    
+      Object.entries(src).forEach(([key, value]) => {
+        if (value != null) {
+          targetKey = key;
+          targetValue = value;
+        }
+      });
+    
+      if (targetKey != null && targetValue != null) {
+        let tagName = targetKey.slice(0, 1).toUpperCase() + targetKey.slice(1);
+    
+        if (inlineRecordTypenames.includes(tagName)) {
+          return Object.assign({ TAG: tagName }, targetValue);
+        }
+    
+        return {
+          TAG: tagName,
+          _0: targetValue,
+        };
+      }
+    
+      return null;
+    }
+    `)|};
+
   (* Add conversion assets. *)
   addWithNewLine
     "type inputObjectFieldConverterFn; external \
@@ -485,6 +518,25 @@ let printSchemaJsFile schemaState processSchema =
            (Printf.sprintf "let get_%s = () => union_%s.contents"
               union.displayName union.displayName));
 
+  (* Print the input union type holders and getters *)
+  schemaState.inputUnions
+  |> iterHashtblAlphabetically (fun _name (inputUnion : gqlInputUnionType) ->
+         addWithNewLine
+           (Printf.sprintf
+              "let inputUnion_%s: ref<GraphQLInputObjectType.t> = \
+               Obj.magic({\"contents\": Js.null})"
+              inputUnion.displayName);
+         addWithNewLine
+           (Printf.sprintf "let get_%s = () => inputUnion_%s.contents"
+              inputUnion.displayName inputUnion.displayName);
+         addWithNewLine
+           (Printf.sprintf "let inputUnion_%s_conversionInstructions = [];"
+              inputUnion.displayName));
+
+  schemaState.inputUnions
+  |> iterHashtblAlphabetically (fun _name (typ : gqlInputUnionType) ->
+         addWithNewLine (typ |> printInputUnionAssets ~state:schemaState));
+
   addWithNewLine "";
 
   (* Print support functions for union type resolution *)
@@ -547,6 +599,16 @@ let printSchemaJsFile schemaState processSchema =
            (Printf.sprintf "input_%s.contents = GraphQLInputObjectType.make(%s)"
               typ.displayName
               (typ |> printInputObjectType)));
+
+  schemaState.inputUnions
+  |> iterHashtblAlphabetically (fun _name (typ : gqlInputUnionType) ->
+         addWithNewLine
+           (Printf.sprintf
+              "inputUnion_%s.contents = GraphQLInputObjectType.make(%s)"
+              typ.displayName
+              (typ
+              |> inputUnionToInputObj ~state:schemaState
+              |> printInputObjectType)));
 
   schemaState.unions
   |> iterHashtblAlphabetically (fun _name (union : gqlUnion) ->

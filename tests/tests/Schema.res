@@ -255,3 +255,32 @@ let inlineUnion = (_: query) => NotOk({reason: "No way Jose"})->Some
 
 @gql.type
 type someType = {@gql.field msg: string}
+
+@gql.inputUnion
+type paginationArgs =
+  Forward({first?: int, after?: string}) | Backwards({last?: int, before?: string})
+
+@gql.inputObject
+type coordinates = {
+  lat: float,
+  lon: float,
+}
+
+@gql.inputObject
+type address = {
+  streetAdddress: string,
+  postalCode: string,
+  city: string,
+}
+
+@gql.inputUnion
+type location = ByCoordinates(coordinates) | ByAddress(address) | ByMagicString({text: string})
+
+@gql.field
+let findThing = (_: query, ~location: location) => {
+  switch location {
+  | ByCoordinates({lat}) => Some("coordinates! " ++ lat->Float.toString)
+  | ByAddress({city}) => Some("address! " ++ city)
+  | ByMagicString({text}) => Some("Magic string! " ++ text)
+  }
+}

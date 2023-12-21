@@ -6,6 +6,7 @@ type Query {
   customScalar: TimestampZ
   customScalarImplSerializable: TimestampHiddenSerializable
   entity(id: ID!): UserOrGroup!
+  findThing(location: Location!): String
   hasName(id: ID!): HasName
   inlineUnion: InlineUnion
   listAsArgs(list1: [String], list2: [[String]], list3: [[[String!]!]], nullableInnerList: [String], nullableList: [String], optionalList: [String!], regularList: [String]!): [String!]!
@@ -127,9 +128,34 @@ type Group implements HasName & Node {
   name: String!
 }
 
+input Location {
+  byAddress: Address
+  byCoordinates: Coordinates
+  byMagicString: LocationByMagicString
+}
+
+input Address {
+  city: String!
+  postalCode: String!
+  streetAdddress: String!
+}
+
+input Coordinates {
+  lat: Float!
+  lon: Float!
+}
+
+input LocationByMagicString {
+  text: String!
+}
+
 union InlineUnion = InlineUnionNotOk | InlineUnionOk | User
 
 type InlineUnionNotOk {
+  """Whether this is liked or not."""
+  liked: Boolean @deprecated(reason: "Use something else.")
+
+  """Stuff"""
   reason: String!
 }
 

@@ -21,6 +21,7 @@ let rec graphqlTypeToString ?(nullable = false) (t : graphqlType) =
   | GraphQLInputObject {displayName}
   | GraphQLEnum {displayName}
   | GraphQLUnion {displayName}
+  | GraphQLInputUnion {displayName}
   | GraphQLInterface {displayName}
   | GraphQLScalar {displayName} ->
     Printf.sprintf "%s%s" displayName nullableSuffix
@@ -94,7 +95,15 @@ let printInputObject (input : gqlInputObjectType) =
   Printf.sprintf "%sinput %s%s {\n%s\n}"
     (printDescription input.description 0)
     input.displayName
-    (printSourceLocDirective (Some input.typeLocation))
+    (printSourceLocDirective input.typeLocation)
+    (printFields input.fields)
+
+let printInputUnion ~state (input : gqlInputUnionType) =
+  let input = inputUnionToInputObj ~state input in
+  Printf.sprintf "%sinput %s%s @oneOf {\n%s\n}"
+    (printDescription input.description 0)
+    input.displayName
+    (printSourceLocDirective input.typeLocation)
     (printFields input.fields)
 
 let printScalar (scalar : gqlScalar) =
@@ -172,6 +181,10 @@ let printSchemaSDL (schemaState : schemaState) =
   schemaState.inputObjects
   |> iterHashtblAlphabetically (fun _name (input : gqlInputObjectType) ->
          addSection (printInputObject input));
+
+  schemaState.inputUnions
+  |> iterHashtblAlphabetically (fun _name (input : gqlInputUnionType) ->
+         addSection (printInputUnion ~state:schemaState input));
 
   schemaState.interfaces
   |> iterHashtblAlphabetically (fun _name (intf : gqlInterface) ->
