@@ -274,7 +274,11 @@ type address = {
 }
 
 @gql.inputUnion
-type location = ByCoordinates(coordinates) | ByAddress(address) | ByMagicString({text: string})
+type location =
+  | ByCoordinates(coordinates)
+  | ByAddress(address)
+  | ByMagicString({text: string})
+  | ById(ResGraph.id)
 
 @gql.field
 let findThing = (_: query, ~location: location) => {
@@ -282,5 +286,6 @@ let findThing = (_: query, ~location: location) => {
   | ByCoordinates({lat}) => Some("coordinates! " ++ lat->Float.toString)
   | ByAddress({city}) => Some("address! " ++ city)
   | ByMagicString({text}) => Some("Magic string! " ++ text)
+  | ById(id) => Some(id->ResGraph.idToString)
   }
 }

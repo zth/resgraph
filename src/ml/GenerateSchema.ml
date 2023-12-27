@@ -256,7 +256,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
               {
                 id;
                 displayName;
-                inputObjects =
+                members =
                   variantCasesToInputUnionValues cases ~env ~full ~schemaState
                     ~debug ~ownerName:displayName;
                 description = item.attributes |> attributesToDocstring;
@@ -454,6 +454,7 @@ and variantCasesToInputUnionValues ~env ~debug ~schemaState ~full ~ownerName
          | InlineRecord fields ->
            let syntheticTypeName = ownerName ^ case.cname.txt in
            let id = syntheticTypeName in
+           let displayName = capitalizeFirstChar id in
            addInputObject id ~schemaState ~debug ~makeInputObject:(fun () ->
                {
                  id;
@@ -467,10 +468,10 @@ and variantCasesToInputUnionValues ~env ~debug ~schemaState ~full ~ownerName
                  syntheticTypeLocation =
                    Some {fileUri = env.file.uri; loc = case.cname.loc};
                });
-           let member : gqlUnionMember =
+           let member : gqlInputUnionMember =
              {
-               objectTypeId = id;
-               displayName = syntheticTypeName;
+               typ = GraphQLInputObject {displayName; id};
+               fieldName = uncapitalizeFirstChar case.cname.txt;
                loc = case.cname.loc;
                description =
                  case.attributes |> ProcessAttributes.findDocAttribute;
@@ -483,11 +484,11 @@ and variantCasesToInputUnionValues ~env ~debug ~schemaState ~full ~ownerName
              findGraphQLType ~debug ~loc:case.cname.loc ~env ~schemaState ~full
                typ
            with
-           | Some (GraphQLInputObject {id; displayName}) ->
+           | Some typ ->
              Some
                {
-                 objectTypeId = id;
-                 displayName;
+                 typ;
+                 fieldName = uncapitalizeFirstChar case.cname.txt;
                  loc = case.cname.loc;
                  description =
                    case.attributes |> ProcessAttributes.findDocAttribute;
@@ -811,7 +812,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                    id = item.name;
                    displayName;
                    description = item.attributes |> attributesToDocstring;
-                   inputObjects =
+                   members =
                      variantCasesToInputUnionValues cases ~env ~full
                        ~schemaState ~debug ~ownerName:displayName;
                    typeLocation =
@@ -1302,8 +1303,8 @@ let generateSchema ~printToStdOut ~writeStateFile ~sourceFolder ~debug
       GenerateSchemaUtils.writeStateFile ~package ~schemaState ~processedSchema;
 
     (if writeSdlFile then
-     let sdl = GenerateSchemaSDL.printSchemaSDL schemaState in
-     GenerateSchemaUtils.writeIfHasChanges sdlOutputPath sdl);
+       let sdl = GenerateSchemaSDL.printSchemaSDL schemaState in
+       GenerateSchemaUtils.writeIfHasChanges sdlOutputPath sdl);
 
     (* Write generated schema *)
     (* Write implementation file *)

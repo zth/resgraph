@@ -212,6 +212,7 @@ inputUnion_Location_conversionInstructions->Array.pushMany([
       }
     ),
   ),
+  ("byId", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
 ])
 inputUnion_PaginationArgs_conversionInstructions->Array.pushMany([
   (
@@ -1055,6 +1056,11 @@ inputUnion_Location.contents = GraphQLInputObjectType.make({
       },
       "byCoordinates": {
         GraphQLInputObjectType.typ: get_Coordinates()->GraphQLInputObjectType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "byId": {
+        GraphQLInputObjectType.typ: Scalars.id->Scalars.toGraphQLType,
         description: ?None,
         deprecationReason: ?None,
       },

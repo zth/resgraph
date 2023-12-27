@@ -52,8 +52,8 @@ let newHover ~full locItem =
       | Some union ->
         Some
           (banner "input union"
-          ^ Markdown.graphqlCodeBlock
-              (GenerateSchemaSDL.printInputUnion ~state:schemaState union)))
+          ^ Markdown.graphqlCodeBlock (GenerateSchemaSDL.printInputUnion union)
+          ))
     | Some Scalar when name = "t" -> (
       (* module Timestamp = { @gql.scalar type = float } *)
       (* The module name is the scalar name here. *)

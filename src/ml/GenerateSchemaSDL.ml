@@ -63,13 +63,13 @@ let printFields fields =
            (printDescription f.description 2)
            f.name
            (if List.length args > 0 then
-            Printf.sprintf "(%s)"
-              (args
-              |> List.map (fun (arg : gqlArg) ->
-                     Printf.sprintf "%s: %s" arg.name
-                       (graphqlTypeToString arg.typ))
-              |> String.concat ", ")
-           else "")
+              Printf.sprintf "(%s)"
+                (args
+                |> List.map (fun (arg : gqlArg) ->
+                       Printf.sprintf "%s: %s" arg.name
+                         (graphqlTypeToString arg.typ))
+                |> String.concat ", ")
+            else "")
            (graphqlTypeToString f.typ)
            (printDeprecatedDirective f.deprecationReason))
   |> String.concat "\n"
@@ -98,8 +98,8 @@ let printInputObject (input : gqlInputObjectType) =
     (printSourceLocDirective input.typeLocation)
     (printFields input.fields)
 
-let printInputUnion ~state (input : gqlInputUnionType) =
-  let input = inputUnionToInputObj ~state input in
+let printInputUnion (input : gqlInputUnionType) =
+  let input = inputUnionToInputObj input in
   Printf.sprintf "%sinput %s%s @oneOf {\n%s\n}"
     (printDescription input.description 0)
     input.displayName
@@ -184,7 +184,7 @@ let printSchemaSDL (schemaState : schemaState) =
 
   schemaState.inputUnions
   |> iterHashtblAlphabetically (fun _name (input : gqlInputUnionType) ->
-         addSection (printInputUnion ~state:schemaState input));
+         addSection (printInputUnion input));
 
   schemaState.interfaces
   |> iterHashtblAlphabetically (fun _name (intf : gqlInterface) ->

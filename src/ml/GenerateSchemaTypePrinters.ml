@@ -38,7 +38,7 @@ let printResolverForField (field : gqlField) =
                  in
                  Printf.sprintf "~%s=%s" arg.name
                    (if arg.isOptionLabelled then Printf.sprintf "?(%s)" argsText
-                   else argsText))
+                    else argsText))
         |> String.concat ", ")
       ^ ")}"
     else resolverCode ^ ")}"
@@ -211,8 +211,8 @@ let printField ?(context = CtxDefault) (field : gqlField) =
     (field.description |> descriptionAsString)
     (field.deprecationReason |> undefinedOrValueAsString)
     (if printableArgs |> List.length > 0 then
-     Printf.sprintf " args: {%s}->makeArgs, " (printArgs printableArgs)
-    else " ")
+       Printf.sprintf " args: {%s}->makeArgs, " (printArgs printableArgs)
+     else " ")
     (match context with
     | CtxDefault ->
       Printf.sprintf "resolve: makeResolveFn(%s)" (printResolverForField field)
@@ -228,22 +228,22 @@ let printInputObjectField (field : gqlField) =
 let printFields ?context (fields : gqlField list) =
   Printf.sprintf "{%s}->makeFields"
     (if fields |> List.length = 0 then "%raw(`{}`)"
-    else
-      fields
-      |> List.sort (fun (a1 : gqlField) a2 -> String.compare a1.name a2.name)
-      |> List.map (fun (field : gqlField) ->
-             Printf.sprintf "\"%s\": %s" field.name (printField ?context field))
-      |> String.concat ",\n")
+     else
+       fields
+       |> List.sort (fun (a1 : gqlField) a2 -> String.compare a1.name a2.name)
+       |> List.map (fun (field : gqlField) ->
+              Printf.sprintf "\"%s\": %s" field.name (printField ?context field))
+       |> String.concat ",\n")
 let printInputObjectFields (fields : gqlField list) =
   Printf.sprintf "{%s}->makeFields"
     (if fields |> List.length = 0 then "%raw(`{}`)"
-    else
-      fields
-      |> List.sort (fun (a1 : gqlField) a2 -> String.compare a1.name a2.name)
-      |> List.map (fun (field : gqlField) ->
-             Printf.sprintf "\"%s\": %s" field.name
-               (printInputObjectField field))
-      |> String.concat ",\n")
+     else
+       fields
+       |> List.sort (fun (a1 : gqlField) a2 -> String.compare a1.name a2.name)
+       |> List.map (fun (field : gqlField) ->
+              Printf.sprintf "\"%s\": %s" field.name
+                (printInputObjectField field))
+       |> String.concat ",\n")
 let printObjectType (typ : gqlObjectType) =
   Printf.sprintf
     "{name: \"%s\", description: %s, interfaces: [%s], fields: () => %s}"
@@ -535,7 +535,7 @@ let printSchemaJsFile schemaState processSchema =
 
   schemaState.inputUnions
   |> iterHashtblAlphabetically (fun _name (typ : gqlInputUnionType) ->
-         addWithNewLine (typ |> printInputUnionAssets ~state:schemaState));
+         addWithNewLine (typ |> printInputUnionAssets));
 
   addWithNewLine "";
 
@@ -606,9 +606,7 @@ let printSchemaJsFile schemaState processSchema =
            (Printf.sprintf
               "inputUnion_%s.contents = GraphQLInputObjectType.make(%s)"
               typ.displayName
-              (typ
-              |> inputUnionToInputObj ~state:schemaState
-              |> printInputObjectType)));
+              (typ |> inputUnionToInputObj |> printInputObjectType)));
 
   schemaState.unions
   |> iterHashtblAlphabetically (fun _name (union : gqlUnion) ->

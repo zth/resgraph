@@ -90,6 +90,7 @@ input Location @oneOf {
   byCoordinates: Coordinates
   byAddress: Address
   byMagicString: LocationByMagicString
+  byId: ID
 }
 
 input PaginationArgs @oneOf {

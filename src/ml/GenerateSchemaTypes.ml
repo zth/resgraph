@@ -133,10 +133,18 @@ type gqlInputObjectType = {
   syntheticTypeLocation: syntheticTypeLocation option;
 }
 
+type gqlInputUnionMember = {
+  fieldName: string;
+  typ: graphqlType;
+  description: string option;
+  constructorName: string;
+  loc: Location.t;
+}
+
 type gqlInputUnionType = {
   id: string;
   displayName: string;
-  inputObjects: gqlUnionMember list;
+  members: gqlInputUnionMember list;
   description: string option;
   typeLocation: typeLocation;
 }
