@@ -109,7 +109,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
       | None -> None
       | Some interfaceName -> Some (InjectInterfaceTypename interfaceName))
     | ["ResGraph"; "id"] -> Some (Scalar ID)
-    | ["ResGraph"; "info"] -> Some InjectInfo
+    | ["ResGraph"; "resolveInfo"] -> Some InjectInfo
     | ["ResGraphContext"; "context"] -> Some InjectContext
     | ["Js"; "Nullable"; "t"] -> (
       match typeArgs with
