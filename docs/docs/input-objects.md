@@ -61,3 +61,7 @@ and groupConfig = {
   additionalUserConfig?: userConfig,
 }
 ```
+
+### Input unions
+
+Often you'll find yourself in a scenario where you want to your input to be _one of_ several different values. For this, ResGraph has first class support for [input unions](input-unions).

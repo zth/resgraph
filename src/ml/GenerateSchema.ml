@@ -480,11 +480,15 @@ and variantCasesToInputUnionValues ~env ~debug ~schemaState ~full ~ownerName
            in
            Some member
          | Args [(typ, _)] -> (
+           (* TODO: Validate more that only input types are present. *)
            match
              findGraphQLType ~debug ~loc:case.cname.loc ~env ~schemaState ~full
                typ
            with
-           | Some typ ->
+           | Some
+               (( List _ | Nullable _ | RescriptNullable _ | Scalar _
+                | GraphQLInputObject _ | GraphQLInputUnion _ | GraphQLEnum _
+                | GraphQLScalar _ ) as typ) ->
              Some
                {
                  typ;
