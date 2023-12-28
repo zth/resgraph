@@ -502,10 +502,9 @@ and variantCasesToInputUnionValues ~env ~debug ~schemaState ~full ~ownerName
                    message =
                      Printf.sprintf
                        "The payload of the variant case `%s` of the GraphQL \
-                        input union variant `%s` is not a GraphQL input \
-                        object. The payload needs to be a single type \
-                        representing a GraphQL input object, meaning it's \
-                        annotated with @gql.inputObject."
+                        input union variant `%s` is not a valid GraphQL type. \
+                        The payload needs to be a single type representing a \
+                        valid GraphQL type."
                        case.cname.txt (case.typeDecl |> fst);
                    fileUri = env.file.uri;
                  };
@@ -519,9 +518,8 @@ and variantCasesToInputUnionValues ~env ~debug ~schemaState ~full ~ownerName
                    Printf.sprintf
                      "The payload of the variant case `%s` of the GraphQL \
                       input union variant `%s` is not a single payload. The \
-                      payload needs to be a single type representing a GraphQL \
-                      input object, meaning it's annotated with \
-                      @gql.inputObject."
+                      payload needs to be a single type representing a valid \
+                      GraphQL type."
                      case.cname.txt (case.typeDecl |> fst);
                  fileUri = env.file.uri;
                };
