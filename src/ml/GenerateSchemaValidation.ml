@@ -92,8 +92,11 @@ let validateSchema (schemaState : schemaState) =
   schemaState.inputObjects
   |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
          (* A lot has already been validated on adding the type itself. *)
-         validateFields ~ownerTypeLocation:typ.typeLocation
-           ~ownerName:typ.displayName ~schemaState typ.fields);
+         match typ.typeLocation with
+         | Some typeLocation ->
+           validateFields ~ownerTypeLocation:typeLocation
+             ~ownerName:typ.displayName ~schemaState typ.fields
+         | None -> ());
 
   schemaState.enums
   |> Hashtbl.iter (fun _name (typ : gqlEnum) ->

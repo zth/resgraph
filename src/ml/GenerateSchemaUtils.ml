@@ -36,6 +36,7 @@ let validAttributes =
     ("gql.enum", "");
     ("gql.union", "");
     ("gql.inputObject", "");
+    ("gql.inputUnion", "");
     ("gql.scalar", "");
   ]
 
@@ -85,6 +86,7 @@ let extractGqlAttribute ~(schemaState : GenerateSchemaTypes.schemaState)
          | ["gql"; "enum"] -> Some Enum
          | ["gql"; "union"] -> Some Union
          | ["gql"; "inputObject"] -> Some InputObject
+         | ["gql"; "inputUnion"] -> Some InputUnion
          | "gql" :: _ ->
            schemaState
            |> addDiagnostic
@@ -134,6 +136,7 @@ type expectedType =
   | Field
   | Enum
   | Union
+  | InputUnion
   | Interface
   | Scalar
   | ScalarT of {modulePath: string list}
@@ -155,6 +158,9 @@ let rec findModulePathOfType ~schemaState ~(env : SharedTypes.QueryEnv.t)
            Some modulePath
          | Type ({kind = Variant _}, _), Union, Some Union when item.name = name
            ->
+           Some modulePath
+         | Type ({kind = Variant _}, _), InputUnion, Some InputUnion
+           when item.name = name ->
            Some modulePath
          | Type ({kind = Record _}, _), ObjectType, Some ObjectType
            when item.name = name ->
@@ -212,6 +218,7 @@ let findTypeLocation ~(env : SharedTypes.QueryEnv.t)
                  | Enum -> "enum"
                  | ObjectType -> "object type"
                  | InputObject -> "input object"
+                 | InputUnion -> "input union"
                  | Field -> "field"
                  | Interface -> "interface"
                  | Scalar | ScalarT _ -> "scalar")
@@ -253,10 +260,10 @@ let noticeObjectType ?(force = false) ?typeCreatorLocation ~env ~loc
         interfaces = [];
         typeLocation =
           (if ignoreTypeLocation then None
-          else
-            Some
-              (findTypeLocation ~schemaState typeName ~env ~loc
-                 ~expectedType:ObjectType));
+           else
+             Some
+               (findTypeLocation ~schemaState typeName ~env ~loc
+                  ~expectedType:ObjectType));
         typeCreatorLocation;
       }
     in
@@ -278,6 +285,13 @@ let addUnion id ~(makeUnion : unit -> gqlUnion) ~debug ~schemaState =
   else (
     if debug then Printf.printf "Adding union %s\n" id;
     Hashtbl.replace schemaState.unions id (makeUnion ()))
+
+let addInputUnion id ~(makeInputUnion : unit -> gqlInputUnionType) ~debug
+    ~schemaState =
+  if Hashtbl.mem schemaState.unions id then ()
+  else (
+    if debug then Printf.printf "Adding input union %s\n" id;
+    Hashtbl.replace schemaState.inputUnions id (makeInputUnion ()))
 
 let addScalar ~debug ~schemaState ?description ~typeLocation ?encoderDecoderLoc
     id =
@@ -422,9 +436,33 @@ let rec typeNeedsConversion (graphqlType : graphqlType) =
     typeNeedsConversion inner
   | Nullable _ | RescriptNullable _
   (* Input objects might need conversion because they might have null-enabled fields *)
-  | GraphQLInputObject _ ->
+  | GraphQLInputObject _ | GraphQLInputUnion _ ->
     true
   | _ -> false
+
+let inputUnionToInputObj (inputUnion : gqlInputUnionType) : gqlInputObjectType =
+  {
+    typeLocation = Some inputUnion.typeLocation;
+    syntheticTypeLocation = None;
+    description = inputUnion.description;
+    displayName = inputUnion.displayName;
+    id = inputUnion.id;
+    fields =
+      inputUnion.members
+      |> List.map (fun (iu : gqlInputUnionMember) ->
+             {
+               name = uncapitalizeFirstChar iu.constructorName;
+               resolverStyle = Property iu.fieldName;
+               typ = Nullable iu.typ;
+               args = [];
+               deprecationReason = None;
+               description = iu.description;
+               loc = iu.loc;
+               fileName = inputUnion.typeLocation.fileName;
+               fileUri = inputUnion.typeLocation.fileUri;
+               onType = None;
+             });
+  }
 
 (* Runtime conversion for a structure of GraphQL types. *)
 let rec generateConverter lastValue (graphqlType : graphqlType) =
@@ -450,10 +488,34 @@ let rec generateConverter lastValue (graphqlType : graphqlType) =
     Printf.sprintf
       "%s->applyConversionToInputObject(input_%s_conversionInstructions)"
       lastValue displayName
+  | GraphQLInputUnion {displayName; inlineRecords} ->
+    (* TODO: Precompute/persist? *)
+    Printf.sprintf
+      "%s->applyConversionToInputObject(inputUnion_%s_conversionInstructions)->inputUnionUnwrapper([%s])"
+      lastValue displayName
+      (inlineRecords
+      |> List.map (fun s -> "\"" ^ s ^ "\"")
+      |> String.concat ", ")
   | _ -> lastValue
 
 let printInputObjectAssets (inputObject : gqlInputObjectType) =
   Printf.sprintf "input_%s_conversionInstructions->Array.pushMany([%s]);"
+    inputObject.displayName
+    (inputObject.fields
+    |> List.filter_map (fun (field : gqlField) ->
+           let converter = generateConverter "v" field.typ in
+           if converter = "v" then None
+           else
+             Some
+               (Printf.sprintf
+                  "(\"%s\", makeInputObjectFieldConverterFn((v) => %s))"
+                  field.name converter))
+    |> String.concat ", ")
+
+(* TODO: Unify with above *)
+let printInputUnionAssets (inputUnion : gqlInputUnionType) =
+  let inputObject = inputUnionToInputObj inputUnion in
+  Printf.sprintf "inputUnion_%s_conversionInstructions->Array.pushMany([%s]);"
     inputObject.displayName
     (inputObject.fields
     |> List.filter_map (fun (field : gqlField) ->
@@ -613,91 +675,94 @@ let processSchema (schemaState : schemaState) =
                 in
                 (* Check for interfaces *)
                 (if hasSpread then
-                 match findInterfacesOfType ~schemaState typeStr with
-                 | None -> ()
-                 | Some implementsInterfaces -> (
-                   (* Add all found interfaces to relevant types or interfaces. *)
-                   match entry.typ with
-                   | ObjectType ->
-                     Hashtbl.replace schemaState.types entry.id
-                       {
-                         (Hashtbl.find schemaState.types entry.id) with
-                         interfaces = implementsInterfaces;
-                       };
+                   match findInterfacesOfType ~schemaState typeStr with
+                   | None -> ()
+                   | Some implementsInterfaces -> (
+                     (* Add all found interfaces to relevant types or interfaces. *)
+                     match entry.typ with
+                     | ObjectType ->
+                       Hashtbl.replace schemaState.types entry.id
+                         {
+                           (Hashtbl.find schemaState.types entry.id) with
+                           interfaces = implementsInterfaces;
+                         };
 
-                     (* Process each interface for this type *)
-                     implementsInterfaces
-                     |> List.iter (fun intfId ->
-                            let interface =
-                              Hashtbl.find schemaState.interfaces intfId
-                            in
-                            let typ = Hashtbl.find schemaState.types entry.id in
-                            let doesNotHaveField name =
-                              typ.fields
-                              |> List.exists (fun (field : gqlField) ->
-                                     field.name = name)
-                              = false
-                            in
-                            (* Add relevant fields from interface to the type implementing it *)
-                            Hashtbl.replace schemaState.types entry.id
-                              {
-                                typ with
-                                fields =
-                                  typ.fields
-                                  @ (interface.fields
-                                    |> List.filter (fun (field : gqlField) ->
-                                           doesNotHaveField field.name)
-                                    |> List.map (fun (field : gqlField) ->
-                                           {
-                                             field with
-                                             onType = Some typ.displayName;
-                                           }));
-                              };
+                       (* Process each interface for this type *)
+                       implementsInterfaces
+                       |> List.iter (fun intfId ->
+                              let interface =
+                                Hashtbl.find schemaState.interfaces intfId
+                              in
+                              let typ =
+                                Hashtbl.find schemaState.types entry.id
+                              in
+                              let doesNotHaveField name =
+                                typ.fields
+                                |> List.exists (fun (field : gqlField) ->
+                                       field.name = name)
+                                = false
+                              in
+                              (* Add relevant fields from interface to the type implementing it *)
+                              Hashtbl.replace schemaState.types entry.id
+                                {
+                                  typ with
+                                  fields =
+                                    typ.fields
+                                    @ (interface.fields
+                                      |> List.filter (fun (field : gqlField) ->
+                                             doesNotHaveField field.name)
+                                      |> List.map (fun (field : gqlField) ->
+                                             {
+                                               field with
+                                               onType = Some typ.displayName;
+                                             }));
+                                };
 
-                            (* Map interface as implemented by this type *)
-                            match
-                              Hashtbl.find_opt
-                                processedSchema.interfaceImplementedBy intfId
-                            with
-                            | None ->
-                              Hashtbl.add processedSchema.interfaceImplementedBy
-                                intfId
-                                [
-                                  ObjectType
-                                    (Hashtbl.find schemaState.types entry.id);
-                                ]
-                            | Some item ->
-                              Hashtbl.replace
-                                processedSchema.interfaceImplementedBy intfId
-                                (ObjectType
-                                   (Hashtbl.find schemaState.types entry.id)
-                                :: item))
-                   | Interface ->
-                     Hashtbl.replace schemaState.interfaces entry.id
-                       {
-                         (Hashtbl.find schemaState.interfaces entry.id) with
-                         interfaces = implementsInterfaces;
-                       };
-                     implementsInterfaces
-                     |> List.iter (fun intfId ->
-                            match
-                              Hashtbl.find_opt
-                                processedSchema.interfaceImplementedBy intfId
-                            with
-                            | None ->
-                              Hashtbl.add processedSchema.interfaceImplementedBy
-                                intfId
-                                [
-                                  Interface
-                                    (Hashtbl.find schemaState.interfaces
-                                       entry.id);
-                                ]
-                            | Some item ->
-                              Hashtbl.replace
-                                processedSchema.interfaceImplementedBy intfId
-                                (Interface
-                                   (Hashtbl.find schemaState.interfaces entry.id)
-                                :: item))));
+                              (* Map interface as implemented by this type *)
+                              match
+                                Hashtbl.find_opt
+                                  processedSchema.interfaceImplementedBy intfId
+                              with
+                              | None ->
+                                Hashtbl.add
+                                  processedSchema.interfaceImplementedBy intfId
+                                  [
+                                    ObjectType
+                                      (Hashtbl.find schemaState.types entry.id);
+                                  ]
+                              | Some item ->
+                                Hashtbl.replace
+                                  processedSchema.interfaceImplementedBy intfId
+                                  (ObjectType
+                                     (Hashtbl.find schemaState.types entry.id)
+                                  :: item))
+                     | Interface ->
+                       Hashtbl.replace schemaState.interfaces entry.id
+                         {
+                           (Hashtbl.find schemaState.interfaces entry.id) with
+                           interfaces = implementsInterfaces;
+                         };
+                       implementsInterfaces
+                       |> List.iter (fun intfId ->
+                              match
+                                Hashtbl.find_opt
+                                  processedSchema.interfaceImplementedBy intfId
+                              with
+                              | None ->
+                                Hashtbl.add
+                                  processedSchema.interfaceImplementedBy intfId
+                                  [
+                                    Interface
+                                      (Hashtbl.find schemaState.interfaces
+                                         entry.id);
+                                  ]
+                              | Some item ->
+                                Hashtbl.replace
+                                  processedSchema.interfaceImplementedBy intfId
+                                  (Interface
+                                     (Hashtbl.find schemaState.interfaces
+                                        entry.id)
+                                  :: item))));
                 lastEndlingLine := endingLineNum);
          close_in fileChannel);
 
@@ -919,7 +984,7 @@ let ${1:fieldName} = async (_: %s, ~ctx: ResGraphContext.context) => {
   ${0:Some(entity.prop)}
 }|}
                   (if typeLocation.fileName = moduleName then "query"
-                  else typeLocationToAccessor typeLocation) );
+                   else typeLocationToAccessor typeLocation) );
             ]
       | _ -> ());
       (match schemaState.mutation with
@@ -938,7 +1003,7 @@ let ${1:mutationName} = async (_: %s, ~ctx: ResGraphContext.context) => {
   Success({ok: true})
 }|}
                   (if typeLocation.fileName = moduleName then "mutation"
-                  else typeLocationToAccessor typeLocation) );
+                   else typeLocationToAccessor typeLocation) );
             ]
       | _ -> ());
       !snippets

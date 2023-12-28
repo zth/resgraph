@@ -38,7 +38,7 @@ let printResolverForField (field : gqlField) =
                  in
                  Printf.sprintf "~%s=%s" arg.name
                    (if arg.isOptionLabelled then Printf.sprintf "?(%s)" argsText
-                   else argsText))
+                    else argsText))
         |> String.concat ", ")
       ^ ")}"
     else resolverCode ^ ")}"
@@ -75,7 +75,7 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
     Printf.sprintf "get_%s()->GraphQLInterfaceType.toGraphQLType%s"
       (capitalizeFirstChar intfId)
       nullablePostfix
-  | GraphQLInputObject {displayName} ->
+  | GraphQLInputUnion {displayName} | GraphQLInputObject {displayName} ->
     Printf.sprintf "get_%s()->GraphQLInputObjectType.toGraphQLType%s"
       displayName nullablePostfix
   | GraphQLEnum {displayName} ->
@@ -211,8 +211,8 @@ let printField ?(context = CtxDefault) (field : gqlField) =
     (field.description |> descriptionAsString)
     (field.deprecationReason |> undefinedOrValueAsString)
     (if printableArgs |> List.length > 0 then
-     Printf.sprintf " args: {%s}->makeArgs, " (printArgs printableArgs)
-    else " ")
+       Printf.sprintf " args: {%s}->makeArgs, " (printArgs printableArgs)
+     else " ")
     (match context with
     | CtxDefault ->
       Printf.sprintf "resolve: makeResolveFn(%s)" (printResolverForField field)
@@ -228,22 +228,22 @@ let printInputObjectField (field : gqlField) =
 let printFields ?context (fields : gqlField list) =
   Printf.sprintf "{%s}->makeFields"
     (if fields |> List.length = 0 then "%raw(`{}`)"
-    else
-      fields
-      |> List.sort (fun (a1 : gqlField) a2 -> String.compare a1.name a2.name)
-      |> List.map (fun (field : gqlField) ->
-             Printf.sprintf "\"%s\": %s" field.name (printField ?context field))
-      |> String.concat ",\n")
+     else
+       fields
+       |> List.sort (fun (a1 : gqlField) a2 -> String.compare a1.name a2.name)
+       |> List.map (fun (field : gqlField) ->
+              Printf.sprintf "\"%s\": %s" field.name (printField ?context field))
+       |> String.concat ",\n")
 let printInputObjectFields (fields : gqlField list) =
   Printf.sprintf "{%s}->makeFields"
     (if fields |> List.length = 0 then "%raw(`{}`)"
-    else
-      fields
-      |> List.sort (fun (a1 : gqlField) a2 -> String.compare a1.name a2.name)
-      |> List.map (fun (field : gqlField) ->
-             Printf.sprintf "\"%s\": %s" field.name
-               (printInputObjectField field))
-      |> String.concat ",\n")
+     else
+       fields
+       |> List.sort (fun (a1 : gqlField) a2 -> String.compare a1.name a2.name)
+       |> List.map (fun (field : gqlField) ->
+              Printf.sprintf "\"%s\": %s" field.name
+                (printInputObjectField field))
+       |> String.concat ",\n")
 let printObjectType (typ : gqlObjectType) =
   Printf.sprintf
     "{name: \"%s\", description: %s, interfaces: [%s], fields: () => %s}"
@@ -382,6 +382,39 @@ let printSchemaJsFile schemaState processSchema =
      { if (src == null) return null; if (typeof src === 'object' && \
      src.hasOwnProperty('_0')) return src['_0']; return src;}`)";
 
+  (* Add the input union unwrapper. TODO: Explain more
+  *)
+  addWithNewLine
+    {|let inputUnionUnwrapper: ('src, array<string>) => 'return = %raw(`function inputUnionUnwrapper(src, inlineRecordTypenames) {
+      if (src == null) return null;
+    
+      let targetKey = null;
+      let targetValue = null;
+    
+      Object.entries(src).forEach(([key, value]) => {
+        if (value != null) {
+          targetKey = key;
+          targetValue = value;
+        }
+      });
+    
+      if (targetKey != null && targetValue != null) {
+        let tagName = targetKey.slice(0, 1).toUpperCase() + targetKey.slice(1);
+    
+        if (inlineRecordTypenames.includes(tagName)) {
+          return Object.assign({ TAG: tagName }, targetValue);
+        }
+    
+        return {
+          TAG: tagName,
+          _0: targetValue,
+        };
+      }
+    
+      return null;
+    }
+    `)|};
+
   (* Add conversion assets. *)
   addWithNewLine
     "type inputObjectFieldConverterFn; external \
@@ -485,6 +518,25 @@ let printSchemaJsFile schemaState processSchema =
            (Printf.sprintf "let get_%s = () => union_%s.contents"
               union.displayName union.displayName));
 
+  (* Print the input union type holders and getters *)
+  schemaState.inputUnions
+  |> iterHashtblAlphabetically (fun _name (inputUnion : gqlInputUnionType) ->
+         addWithNewLine
+           (Printf.sprintf
+              "let inputUnion_%s: ref<GraphQLInputObjectType.t> = \
+               Obj.magic({\"contents\": Js.null})"
+              inputUnion.displayName);
+         addWithNewLine
+           (Printf.sprintf "let get_%s = () => inputUnion_%s.contents"
+              inputUnion.displayName inputUnion.displayName);
+         addWithNewLine
+           (Printf.sprintf "let inputUnion_%s_conversionInstructions = [];"
+              inputUnion.displayName));
+
+  schemaState.inputUnions
+  |> iterHashtblAlphabetically (fun _name (typ : gqlInputUnionType) ->
+         addWithNewLine (typ |> printInputUnionAssets));
+
   addWithNewLine "";
 
   (* Print support functions for union type resolution *)
@@ -547,6 +599,14 @@ let printSchemaJsFile schemaState processSchema =
            (Printf.sprintf "input_%s.contents = GraphQLInputObjectType.make(%s)"
               typ.displayName
               (typ |> printInputObjectType)));
+
+  schemaState.inputUnions
+  |> iterHashtblAlphabetically (fun _name (typ : gqlInputUnionType) ->
+         addWithNewLine
+           (Printf.sprintf
+              "inputUnion_%s.contents = GraphQLInputObjectType.make(%s)"
+              typ.displayName
+              (typ |> inputUnionToInputObj |> printInputObjectType)));
 
   schemaState.unions
   |> iterHashtblAlphabetically (fun _name (union : gqlUnion) ->

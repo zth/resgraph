@@ -46,6 +46,14 @@ let newHover ~full locItem =
         Some
           (banner "union"
           ^ Markdown.graphqlCodeBlock (GenerateSchemaSDL.printUnion union)))
+    | Some InputUnion -> (
+      match Hashtbl.find_opt schemaState.inputUnions name with
+      | None -> None
+      | Some union ->
+        Some
+          (banner "input union"
+          ^ Markdown.graphqlCodeBlock (GenerateSchemaSDL.printInputUnion union)
+          ))
     | Some Scalar when name = "t" -> (
       (* module Timestamp = { @gql.scalar type = float } *)
       (* The module name is the scalar name here. *)
@@ -140,6 +148,7 @@ type hoverGqlType =
   | Interface of gqlInterface
   | Enum of gqlEnum
   | InputObject of gqlInputObjectType
+  | InputUnion of gqlInputUnionType
   | Union of gqlUnion
   | Scalar of gqlScalar
 
@@ -156,19 +165,22 @@ let findGqlType typename ~schemaState =
         match Hashtbl.find_opt schemaState.inputObjects typename with
         | Some inputobj -> Some (InputObject inputobj)
         | None -> (
-          match Hashtbl.find_opt schemaState.unions typename with
-          | Some union -> Some (Union union)
+          match Hashtbl.find_opt schemaState.inputUnions typename with
+          | Some union -> Some (InputUnion union)
           | None -> (
-            match Hashtbl.find_opt schemaState.scalars typename with
-            | Some scalar -> Some (Scalar scalar)
+            match Hashtbl.find_opt schemaState.unions typename with
+            | Some union -> Some (Union union)
             | None -> (
-              match
-                Hashtbl.find_opt schemaState.types
-                  (* This is very hacky. Fix in refactor fixing IDs *)
-                  (GenerateSchemaUtils.capitalizeFirstChar typename)
-              with
-              | Some obj -> Some (ObjectType obj)
-              | None -> None))))))
+              match Hashtbl.find_opt schemaState.scalars typename with
+              | Some scalar -> Some (Scalar scalar)
+              | None -> (
+                match
+                  Hashtbl.find_opt schemaState.types
+                    (* This is very hacky. Fix in refactor fixing IDs *)
+                    (GenerateSchemaUtils.capitalizeFirstChar typename)
+                with
+                | Some obj -> Some (ObjectType obj)
+                | None -> None)))))))
 
 let makeTypeHoverText ~typename ~(typeLocation : typeLocation) =
   Printf.sprintf "%s type defined by ResGraph.\n" typename
@@ -208,14 +220,18 @@ let hoverGraphQL ~path ~hoverHint =
         | Some (Enum typ) ->
           Protocol.stringifyHover
             (makeTypeHoverText ~typeLocation:typ.typeLocation ~typename:"Enum")
-        | Some (InputObject typ) ->
+        | Some (InputObject {typeLocation = Some typeLocation}) ->
           Protocol.stringifyHover
-            (makeTypeHoverText ~typeLocation:typ.typeLocation
-               ~typename:"Input object")
+            (makeTypeHoverText ~typeLocation ~typename:"Input object")
         | Some (Union typ) ->
           Protocol.stringifyHover
             (makeTypeHoverText ~typeLocation:typ.typeLocation ~typename:"Union")
-        | Some (ObjectType {typeLocation = None}) -> Protocol.null)
+        | Some (InputUnion typ) ->
+          Protocol.stringifyHover
+            (makeTypeHoverText ~typeLocation:typ.typeLocation
+               ~typename:"Input union")
+        | Some (ObjectType {typeLocation = None}) -> Protocol.null
+        | Some (InputObject {typeLocation = None}) -> Protocol.null)
       | [typename; fieldName] -> (
         match
           findGqlType
@@ -264,8 +280,11 @@ let definitionGraphQL ~path ~definitionHint =
         | Some (ObjectType {typeLocation = Some {fileUri; loc}})
         | Some (Interface {typeLocation = {fileUri; loc}})
         | Some (Enum {typeLocation = {fileUri; loc}})
-        | Some (InputObject {typeLocation = {fileUri; loc}})
-        | Some (Union {typeLocation = {fileUri; loc}}) ->
+        | Some (InputObject {syntheticTypeLocation = Some {fileUri; loc}})
+        | Some (InputObject {typeLocation = Some {fileUri; loc}})
+        | Some
+            ( Union {typeLocation = {fileUri; loc}}
+            | InputUnion {typeLocation = {fileUri; loc}} ) ->
           Some
             {
               Protocol.uri = fileUri |> Uri.toString;

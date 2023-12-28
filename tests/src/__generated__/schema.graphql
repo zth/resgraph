@@ -42,6 +42,31 @@ union UserOrGroup =
   | """ And this is a group. """ Group
 
 
+input LocationByMagicString {
+  text: String!
+}
+
+input PaginationArgsBackwards {
+  last: Int
+  before: String
+}
+
+input PaginationArgsForward {
+  first: Int
+  after: String
+}
+
+input Address {
+  streetAdddress: String!
+  postalCode: String!
+  city: String!
+}
+
+input Coordinates {
+  lat: Float!
+  lon: Float!
+}
+
 
 """Configuration for searching for a user."""
 input UserConfig {
@@ -59,6 +84,18 @@ input UserConfig {
 input UserConfigContext {
   groupId: String
   name: String
+}
+
+input Location @oneOf {
+  byCoordinates: Coordinates
+  byAddress: Address
+  byMagicString: LocationByMagicString
+  byId: ID
+}
+
+input PaginationArgs @oneOf {
+  forward: PaginationArgsForward
+  backwards: PaginationArgsBackwards
 }
 
 
@@ -133,6 +170,7 @@ type Pet implements HasName {
 }
 
 type Query {
+  findThing(location: Location!): String
   inlineUnion: InlineUnion
   allUsers(first: Int, last: Int, before: String, after: String): UserConnection
   currentTimeFlat: Timestamp!

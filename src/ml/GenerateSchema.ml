@@ -195,9 +195,11 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                   inputObjectFieldsOfRecordFields fields ~env ~debug ~full
                     ~schemaState;
                 description = attributesToDocstring attributes;
+                syntheticTypeLocation = None;
                 typeLocation =
-                  findTypeLocation item.name ~env ~schemaState
-                    ~loc:decl.type_loc ~expectedType:InputObject;
+                  Some
+                    (findTypeLocation item.name ~env ~schemaState
+                       ~loc:decl.type_loc ~expectedType:InputObject);
               });
           Some (GraphQLInputObject {id; displayName = capitalizeFirstChar id})
         | Some Interface, {name; kind = Record fields; attributes; decl} ->
@@ -247,6 +249,33 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                     ~expectedType:Union id;
               });
           Some (GraphQLUnion {id; displayName})
+        | Some InputUnion, {name; kind = Variant cases} ->
+          let id = name in
+          let displayName = capitalizeFirstChar id in
+          addInputUnion id ~schemaState ~debug ~makeInputUnion:(fun () ->
+              {
+                id;
+                displayName;
+                members =
+                  variantCasesToInputUnionValues cases ~env ~full ~schemaState
+                    ~debug ~ownerName:displayName;
+                description = item.attributes |> attributesToDocstring;
+                typeLocation =
+                  findTypeLocation ~loc:item.decl.type_loc ~schemaState ~env
+                    ~expectedType:InputUnion id;
+              });
+          Some
+            (GraphQLInputUnion
+               {
+                 id;
+                 displayName;
+                 inlineRecords =
+                   cases
+                   |> List.filter_map (fun (c : SharedTypes.Constructor.t) ->
+                          match c.args with
+                          | InlineRecord _ -> Some c.cname.txt
+                          | _ -> None);
+               })
         | Some (InterfaceResolver {interfaceId}), {kind = Variant _} ->
           Some
             (GraphQLInterface
@@ -360,7 +389,7 @@ and variantCasesToUnionValues ~env ~debug ~schemaState ~full ~ownerName
                |> objectTypeFieldsOfInlineRecordFields ~env ~full ~schemaState
                     ~debug)
              ~loc:case.cname.loc;
-           Some
+           let member : gqlUnionMember =
              {
                objectTypeId = id;
                displayName = syntheticTypeName;
@@ -369,6 +398,8 @@ and variantCasesToUnionValues ~env ~debug ~schemaState ~full ~ownerName
                  case.attributes |> ProcessAttributes.findDocAttribute;
                constructorName = case.cname.txt;
              }
+           in
+           Some member
          | Args [(typ, _)] -> (
            match
              findGraphQLType ~debug ~loc:case.cname.loc ~env ~schemaState ~full
@@ -392,9 +423,9 @@ and variantCasesToUnionValues ~env ~debug ~schemaState ~full ~ownerName
                    message =
                      Printf.sprintf
                        "The payload of the variant case `%s` of the GraphQL \
-                        union variant `%s` is not a GraphL object. The payload \
-                        needs to be a single type representing a GraphQL \
-                        object, meaning it's annotated with @gql.type."
+                        union variant `%s` is not a GraphQL object. The \
+                        payload needs to be a single type representing a \
+                        GraphQL object, meaning it's annotated with @gql.type."
                        case.cname.txt (case.typeDecl |> fst);
                    fileUri = env.file.uri;
                  };
@@ -410,6 +441,89 @@ and variantCasesToUnionValues ~env ~debug ~schemaState ~full ~ownerName
                       union variant `%s` is not a single payload. The payload \
                       needs to be a single type representing a GraphQL object, \
                       meaning it's annotated with @gql.type."
+                     case.cname.txt (case.typeDecl |> fst);
+                 fileUri = env.file.uri;
+               };
+           None)
+
+and variantCasesToInputUnionValues ~env ~debug ~schemaState ~full ~ownerName
+    (cases : SharedTypes.Constructor.t list) =
+  cases
+  |> List.filter_map (fun (case : SharedTypes.Constructor.t) ->
+         match case.args with
+         | InlineRecord fields ->
+           let syntheticTypeName = ownerName ^ case.cname.txt in
+           let id = syntheticTypeName in
+           let displayName = capitalizeFirstChar id in
+           addInputObject id ~schemaState ~debug ~makeInputObject:(fun () ->
+               {
+                 id;
+                 displayName = capitalizeFirstChar id;
+                 fields =
+                   fields
+                   |> objectTypeFieldsOfInlineRecordFields ~env ~full
+                        ~schemaState ~debug;
+                 description = None;
+                 typeLocation = None;
+                 syntheticTypeLocation =
+                   Some {fileUri = env.file.uri; loc = case.cname.loc};
+               });
+           let member : gqlInputUnionMember =
+             {
+               typ = GraphQLInputObject {displayName; id};
+               fieldName = uncapitalizeFirstChar case.cname.txt;
+               loc = case.cname.loc;
+               description =
+                 case.attributes |> ProcessAttributes.findDocAttribute;
+               constructorName = case.cname.txt;
+             }
+           in
+           Some member
+         | Args [(typ, _)] -> (
+           (* TODO: Validate more that only input types are present. *)
+           match
+             findGraphQLType ~debug ~loc:case.cname.loc ~env ~schemaState ~full
+               typ
+           with
+           | Some
+               (( List _ | Nullable _ | RescriptNullable _ | Scalar _
+                | GraphQLInputObject _ | GraphQLInputUnion _ | GraphQLEnum _
+                | GraphQLScalar _ ) as typ) ->
+             Some
+               {
+                 typ;
+                 fieldName = uncapitalizeFirstChar case.cname.txt;
+                 loc = case.cname.loc;
+                 description =
+                   case.attributes |> ProcessAttributes.findDocAttribute;
+                 constructorName = case.cname.txt;
+               }
+           | _ ->
+             addDiagnostic schemaState
+               ~diagnostic:
+                 {
+                   loc = case.cname.loc;
+                   message =
+                     Printf.sprintf
+                       "The payload of the variant case `%s` of the GraphQL \
+                        input union variant `%s` is not a valid GraphQL type. \
+                        The payload needs to be a single type representing a \
+                        valid GraphQL type."
+                       case.cname.txt (case.typeDecl |> fst);
+                   fileUri = env.file.uri;
+                 };
+             None)
+         | _ ->
+           addDiagnostic schemaState
+             ~diagnostic:
+               {
+                 loc = case.cname.loc;
+                 message =
+                   Printf.sprintf
+                     "The payload of the variant case `%s` of the GraphQL \
+                      input union variant `%s` is not a single payload. The \
+                      payload needs to be a single type representing a valid \
+                      GraphQL type."
                      case.cname.txt (case.typeDecl |> fst);
                  fileUri = env.file.uri;
                };
@@ -638,9 +752,11 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                      inputObjectFieldsOfRecordFields fields ~env ~full
                        ~schemaState ~debug;
                    description = attributesToDocstring attributes;
+                   syntheticTypeLocation = None;
                    typeLocation =
-                     findTypeLocation item.name ~env ~schemaState
-                       ~loc:decl.type_loc ~expectedType:InputObject;
+                     Some
+                       (findTypeLocation item.name ~env ~schemaState
+                          ~loc:decl.type_loc ~expectedType:InputObject);
                  })
            | Type ({kind = Record fields; attributes; decl}, _), Some Interface
              ->
@@ -687,6 +803,23 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                    typeLocation =
                      findTypeLocation ~loc:item.decl.type_loc ~env ~schemaState
                        ~expectedType:Union item.name;
+                 })
+               ~schemaState ~debug
+           | Type (({kind = Variant cases} as item), _), Some InputUnion ->
+             (* @gql.inputUnion type location = Coordinates(coordinates) | Address(address) *)
+             let displayName = capitalizeFirstChar item.name in
+             addInputUnion item.name
+               ~makeInputUnion:(fun () ->
+                 {
+                   id = item.name;
+                   displayName;
+                   description = item.attributes |> attributesToDocstring;
+                   members =
+                     variantCasesToInputUnionValues cases ~env ~full
+                       ~schemaState ~debug ~ownerName:displayName;
+                   typeLocation =
+                     findTypeLocation ~loc:item.decl.type_loc ~env ~schemaState
+                       ~expectedType:InputUnion item.name;
                  })
                ~schemaState ~debug
            | Type (({name = "t"} as item), _), Some Scalar -> (
@@ -983,6 +1116,17 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                           not a record. Only records can represent GraphQL \
                           input objects.";
                    }
+             | Some InputUnion ->
+               add
+                 ~diagnostic:
+                   {
+                     baseDiagnostic with
+                     message =
+                       Printf.sprintf
+                         "This type is annotated with @gql.inputUnion, but is \
+                          not a variant. Only variants can represent GraphQL \
+                          input union.";
+                   }
              | Some Enum ->
                add
                  ~diagnostic:
@@ -1056,6 +1200,7 @@ let generateSchema ~printToStdOut ~writeStateFile ~sourceFolder ~debug
       enums = Hashtbl.create 10;
       unions = Hashtbl.create 10;
       inputObjects = Hashtbl.create 10;
+      inputUnions = Hashtbl.create 10;
       interfaces = Hashtbl.create 10;
       scalars = Hashtbl.create 10;
       query = None;
@@ -1160,8 +1305,8 @@ let generateSchema ~printToStdOut ~writeStateFile ~sourceFolder ~debug
       GenerateSchemaUtils.writeStateFile ~package ~schemaState ~processedSchema;
 
     (if writeSdlFile then
-     let sdl = GenerateSchemaSDL.printSchemaSDL schemaState in
-     GenerateSchemaUtils.writeIfHasChanges sdlOutputPath sdl);
+       let sdl = GenerateSchemaSDL.printSchemaSDL schemaState in
+       GenerateSchemaUtils.writeIfHasChanges sdlOutputPath sdl);
 
     (* Write generated schema *)
     (* Write implementation file *)

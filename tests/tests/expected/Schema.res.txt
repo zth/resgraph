@@ -47,11 +47,52 @@ Checking for type to attach resolver totalCount to
 Checking for type to attach resolver allUsers to
 Adding union inlineUnion
 Checking for type to attach resolver inlineUnion to
+Adding input union paginationArgs
+Adding input object PaginationArgsForward
+Adding input object PaginationArgsBackwards
+Adding input object coordinates
+Adding input object address
+Adding input union location
+Adding input object LocationByMagicString
+Checking for type to attach resolver findThing to
+Adding input union location
 @@warning("-27-32")
 
 open ResGraph__GraphQLJs
 
 let typeUnwrapper: 'src => 'return = %raw(`function typeUnwrapper(src) { if (src == null) return null; if (typeof src === 'object' && src.hasOwnProperty('_0')) return src['_0']; return src;}`)
+let inputUnionUnwrapper: (
+  'src,
+  array<string>,
+) => 'return = %raw(`function inputUnionUnwrapper(src, inlineRecordTypenames) {
+      if (src == null) return null;
+    
+      let targetKey = null;
+      let targetValue = null;
+    
+      Object.entries(src).forEach(([key, value]) => {
+        if (value != null) {
+          targetKey = key;
+          targetValue = value;
+        }
+      });
+    
+      if (targetKey != null && targetValue != null) {
+        let tagName = targetKey.slice(0, 1).toUpperCase() + targetKey.slice(1);
+    
+        if (inlineRecordTypenames.includes(tagName)) {
+          return Object.assign({ TAG: tagName }, targetValue);
+        }
+    
+        return {
+          TAG: tagName,
+          _0: targetValue,
+        };
+      }
+    
+      return null;
+    }
+    `)
 type inputObjectFieldConverterFn
 external makeInputObjectFieldConverterFn: ('a => 'b) => inputObjectFieldConverterFn = "%identity"
 
@@ -142,12 +183,38 @@ let t_UserConnection: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null}
 let get_UserConnection = () => t_UserConnection.contents
 let t_UserEdge: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_UserEdge = () => t_UserEdge.contents
+let input_LocationByMagicString: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let get_LocationByMagicString = () => input_LocationByMagicString.contents
+let input_LocationByMagicString_conversionInstructions = []
+let input_PaginationArgsBackwards: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let get_PaginationArgsBackwards = () => input_PaginationArgsBackwards.contents
+let input_PaginationArgsBackwards_conversionInstructions = []
+let input_PaginationArgsForward: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let get_PaginationArgsForward = () => input_PaginationArgsForward.contents
+let input_PaginationArgsForward_conversionInstructions = []
+let input_Address: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let get_Address = () => input_Address.contents
+let input_Address_conversionInstructions = []
+let input_Coordinates: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let get_Coordinates = () => input_Coordinates.contents
+let input_Coordinates_conversionInstructions = []
 let input_UserConfig: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
 let get_UserConfig = () => input_UserConfig.contents
 let input_UserConfig_conversionInstructions = []
 let input_UserConfigContext: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
 let get_UserConfigContext = () => input_UserConfigContext.contents
 let input_UserConfigContext_conversionInstructions = []
+input_LocationByMagicString_conversionInstructions->Array.pushMany([])
+input_PaginationArgsBackwards_conversionInstructions->Array.pushMany([
+  ("last", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  ("before", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+])
+input_PaginationArgsForward_conversionInstructions->Array.pushMany([
+  ("first", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  ("after", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+])
+input_Address_conversionInstructions->Array.pushMany([])
+input_Coordinates_conversionInstructions->Array.pushMany([])
 input_UserConfig_conversionInstructions->Array.pushMany([
   ("name", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
   (
@@ -168,6 +235,65 @@ let union_InlineUnion: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null}
 let get_InlineUnion = () => union_InlineUnion.contents
 let union_UserOrGroup: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
 let get_UserOrGroup = () => union_UserOrGroup.contents
+let inputUnion_Location: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let get_Location = () => inputUnion_Location.contents
+let inputUnion_Location_conversionInstructions = []
+let inputUnion_PaginationArgs: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let get_PaginationArgs = () => inputUnion_PaginationArgs.contents
+let inputUnion_PaginationArgs_conversionInstructions = []
+inputUnion_Location_conversionInstructions->Array.pushMany([
+  (
+    "byCoordinates",
+    makeInputObjectFieldConverterFn(v =>
+      switch v->Nullable.toOption {
+      | None => None
+      | Some(v) => v->applyConversionToInputObject(input_Coordinates_conversionInstructions)->Some
+      }
+    ),
+  ),
+  (
+    "byAddress",
+    makeInputObjectFieldConverterFn(v =>
+      switch v->Nullable.toOption {
+      | None => None
+      | Some(v) => v->applyConversionToInputObject(input_Address_conversionInstructions)->Some
+      }
+    ),
+  ),
+  (
+    "byMagicString",
+    makeInputObjectFieldConverterFn(v =>
+      switch v->Nullable.toOption {
+      | None => None
+      | Some(v) =>
+        v->applyConversionToInputObject(input_LocationByMagicString_conversionInstructions)->Some
+      }
+    ),
+  ),
+  ("byId", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+])
+inputUnion_PaginationArgs_conversionInstructions->Array.pushMany([
+  (
+    "forward",
+    makeInputObjectFieldConverterFn(v =>
+      switch v->Nullable.toOption {
+      | None => None
+      | Some(v) =>
+        v->applyConversionToInputObject(input_PaginationArgsForward_conversionInstructions)->Some
+      }
+    ),
+  ),
+  (
+    "backwards",
+    makeInputObjectFieldConverterFn(v =>
+      switch v->Nullable.toOption {
+      | None => None
+      | Some(v) =>
+        v->applyConversionToInputObject(input_PaginationArgsBackwards_conversionInstructions)->Some
+      }
+    ),
+  ),
+])
 
 let union_InlineUnion_resolveType = (v: Schema.inlineUnion) =>
   switch v {
@@ -504,6 +630,23 @@ t_Query.contents = GraphQLObjectType.make({
           Schema.QueryFields.entity(src, ~ctx, ~id=args["id"])
         }),
       },
+      "findThing": {
+        typ: Scalars.string->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {
+          "location": {typ: get_Location()->GraphQLInputObjectType.toGraphQLType->nonNull},
+        }->makeArgs,
+        resolve: makeResolveFn((src, args, ctx) => {
+          let src = typeUnwrapper(src)
+          Schema.findThing(
+            src,
+            ~location=args["location"]
+            ->applyConversionToInputObject(inputUnion_Location_conversionInstructions)
+            ->inputUnionUnwrapper(["ByMagicString"]),
+          )
+        }),
+      },
       "hasName": {
         typ: get_HasName()->GraphQLInterfaceType.toGraphQLType,
         description: ?None,
@@ -835,6 +978,91 @@ t_UserEdge.contents = GraphQLObjectType.make({
       },
     }->makeFields,
 })
+input_LocationByMagicString.contents = GraphQLInputObjectType.make({
+  name: "LocationByMagicString",
+  description: ?None,
+  fields: () =>
+    {
+      "text": {
+        GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+})
+input_PaginationArgsBackwards.contents = GraphQLInputObjectType.make({
+  name: "PaginationArgsBackwards",
+  description: ?None,
+  fields: () =>
+    {
+      "before": {
+        GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "last": {
+        GraphQLInputObjectType.typ: Scalars.int->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+})
+input_PaginationArgsForward.contents = GraphQLInputObjectType.make({
+  name: "PaginationArgsForward",
+  description: ?None,
+  fields: () =>
+    {
+      "after": {
+        GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "first": {
+        GraphQLInputObjectType.typ: Scalars.int->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+})
+input_Address.contents = GraphQLInputObjectType.make({
+  name: "Address",
+  description: ?None,
+  fields: () =>
+    {
+      "city": {
+        GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "postalCode": {
+        GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "streetAdddress": {
+        GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+})
+input_Coordinates.contents = GraphQLInputObjectType.make({
+  name: "Coordinates",
+  description: ?None,
+  fields: () =>
+    {
+      "lat": {
+        GraphQLInputObjectType.typ: Scalars.float->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "lon": {
+        GraphQLInputObjectType.typ: Scalars.float->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+})
 input_UserConfig.contents = GraphQLInputObjectType.make({
   name: "UserConfig",
   description: "Configuration for searching for a user.",
@@ -869,6 +1097,50 @@ input_UserConfigContext.contents = GraphQLInputObjectType.make({
       },
       "name": {
         GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+})
+inputUnion_Location.contents = GraphQLInputObjectType.make({
+  name: "Location",
+  description: ?None,
+  fields: () =>
+    {
+      "byAddress": {
+        GraphQLInputObjectType.typ: get_Address()->GraphQLInputObjectType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "byCoordinates": {
+        GraphQLInputObjectType.typ: get_Coordinates()->GraphQLInputObjectType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "byId": {
+        GraphQLInputObjectType.typ: Scalars.id->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "byMagicString": {
+        GraphQLInputObjectType.typ: get_LocationByMagicString()->GraphQLInputObjectType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+})
+inputUnion_PaginationArgs.contents = GraphQLInputObjectType.make({
+  name: "PaginationArgs",
+  description: ?None,
+  fields: () =>
+    {
+      "backwards": {
+        GraphQLInputObjectType.typ: get_PaginationArgsBackwards()->GraphQLInputObjectType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "forward": {
+        GraphQLInputObjectType.typ: get_PaginationArgsForward()->GraphQLInputObjectType.toGraphQLType,
         description: ?None,
         deprecationReason: ?None,
       },
