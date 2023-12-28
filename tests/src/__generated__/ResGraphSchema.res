@@ -579,7 +579,7 @@ t_Query.contents = GraphQLObjectType.make({
         args: {
           "location": {typ: get_Location()->GraphQLInputObjectType.toGraphQLType->nonNull},
         }->makeArgs,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.findThing(
             src,

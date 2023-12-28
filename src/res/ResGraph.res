@@ -15,4 +15,5 @@ module Connections = ResGraph__Connections
 
 module Utils = ResGraph__Utils
 
+// TODO: Proper bindings for this
 type info
