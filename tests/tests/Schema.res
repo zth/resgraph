@@ -95,7 +95,7 @@ type userConfig = {
 
 module QueryFields = {
   @gql.field
-  let me = async (_: query, ~ctx: ResGraphContext.context, ~info: ResGraph.info) => {
+  let me = async (_: query, ~ctx: ResGraphContext.context, ~info: ResGraph.resolveInfo) => {
     Console.log(info)
     switch ctx.currentUserId {
     | None => None
