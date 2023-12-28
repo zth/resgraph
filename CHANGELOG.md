@@ -6,6 +6,7 @@
 - Upgrade `@rescript/core`.
 - Bind `GraphQLError`.
 - Remove support for "type creators" since it's now natively supported in ReScript via type spreads.
+- First class support for input unions.
 
 ## 0.7.0
 
