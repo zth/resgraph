@@ -2,6 +2,8 @@
 
 ## main
 
+## 0.8.0
+
 - Update/improve `graphql-yoga` bindings.
 - Upgrade `@rescript/core`.
 - Bind `GraphQLError`.
