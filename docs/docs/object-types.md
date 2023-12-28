@@ -192,3 +192,19 @@ let fullName = (user: user, ~includeInitials=false, ~ctx: ResGraphContext.contex
 ```
 
 This is going to be where you use data loaders and other per-request contextual helpers from.
+
+## Accessing `GraphQLResolveInfo` for each resolver
+
+Similarly to accessing the context, you can get access to the `info` argument for each resolver (typed as `GraphQLResolveInfo`) by adding a labelled argument annotated with `ResGraph.info`:
+
+```rescript
+/** The full name of the user. */
+@gql.field
+let fullName = (user: user, ~info: ResGraph.info) => {
+  Console.log(info)
+
+  Some("Test User")
+}
+```
+
+> Note: The `info` argument is currently an abstract type. It'll be extended in the future to give you access to the information in `info` directly, but for now you can write your own bindings for the things in `GraphQLResolveInfo` that you need, and then just cast `info` to that.
