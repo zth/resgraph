@@ -292,11 +292,12 @@ let printInterfaceType (typ : gqlInterface) =
     (printFields ~context:CtxInterface typ.fields)
     (Printf.sprintf "interface_%s_resolveType" typ.displayName)
 
-let printInputObjectType (typ : gqlInputObjectType) =
-  Printf.sprintf "{name: \"%s\", description: %s, fields: () => %s}"
+let printInputObjectType ?(inputUnion = false) (typ : gqlInputObjectType) =
+  Printf.sprintf "{name: \"%s\", description: %s, fields: () => %s%s}"
     typ.displayName
     (descriptionAsString typ.description)
     (printInputObjectFields typ.fields)
+    (if inputUnion then Printf.sprintf ", extensions: {oneOf: true}" else "")
 
 let printUnionType (union : gqlUnion) =
   Printf.sprintf
@@ -613,7 +614,8 @@ let printSchemaJsFile schemaState processSchema =
            (Printf.sprintf
               "inputUnion_%s.contents = GraphQLInputObjectType.make(%s)"
               typ.displayName
-              (typ |> inputUnionToInputObj |> printInputObjectType)));
+              (typ |> inputUnionToInputObj
+              |> printInputObjectType ~inputUnion:true)));
 
   schemaState.unions
   |> iterHashtblAlphabetically (fun _name (union : gqlUnion) ->

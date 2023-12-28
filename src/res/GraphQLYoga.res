@@ -16,6 +16,24 @@ module GraphQLError = {
 
 module Envelope = {
   type plugin
+
+  module Plugin = {
+    type t
+
+    module ExtendedValidation = {
+      module Rule = {
+        type t
+
+        @module("@envelop/extended-validation")
+        external oneOfInputObjectsRule: t = "OneOfInputObjectsRule"
+      }
+
+      type config = {rules: array<Rule.t>}
+
+      @module("@envelop/extended-validation")
+      external use: config => t = "useExtendedValidation"
+    }
+  }
 }
 
 module Server = {
@@ -178,7 +196,7 @@ type createServerConfig<'appContext> = {
    * Envelop Plugins
    * @see https://envelop.dev/plugins
    */
-  plugins?: array<Envelope.plugin>,
+  plugins?: array<Envelope.Plugin.t>,
   parserCache?: bool,
   validationCache?: bool,
   /**

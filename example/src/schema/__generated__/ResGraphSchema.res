@@ -3,6 +3,38 @@
 open ResGraph__GraphQLJs
 
 let typeUnwrapper: 'src => 'return = %raw(`function typeUnwrapper(src) { if (src == null) return null; if (typeof src === 'object' && src.hasOwnProperty('_0')) return src['_0']; return src;}`)
+let inputUnionUnwrapper: (
+  'src,
+  array<string>,
+) => 'return = %raw(`function inputUnionUnwrapper(src, inlineRecordTypenames) {
+      if (src == null) return null;
+    
+      let targetKey = null;
+      let targetValue = null;
+    
+      Object.entries(src).forEach(([key, value]) => {
+        if (value != null) {
+          targetKey = key;
+          targetValue = value;
+        }
+      });
+    
+      if (targetKey != null && targetValue != null) {
+        let tagName = targetKey.slice(0, 1).toUpperCase() + targetKey.slice(1);
+    
+        if (inlineRecordTypenames.includes(tagName)) {
+          return Object.assign({ TAG: tagName }, targetValue);
+        }
+    
+        return {
+          TAG: tagName,
+          _0: targetValue,
+        };
+      }
+    
+      return null;
+    }
+    `)
 type inputObjectFieldConverterFn
 external makeInputObjectFieldConverterFn: ('a => 'b) => inputObjectFieldConverterFn = "%identity"
 
@@ -41,6 +73,39 @@ let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Query = () => t_Query.contents
 let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_User = () => t_User.contents
+let input_FindShopInputByAddress: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let get_FindShopInputByAddress = () => input_FindShopInputByAddress.contents
+let input_FindShopInputByAddress_conversionInstructions = []
+let input_Coordinates: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let get_Coordinates = () => input_Coordinates.contents
+let input_Coordinates_conversionInstructions = []
+input_FindShopInputByAddress_conversionInstructions->Array.pushMany([])
+input_Coordinates_conversionInstructions->Array.pushMany([])
+let inputUnion_FindShopInput: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let get_FindShopInput = () => inputUnion_FindShopInput.contents
+let inputUnion_FindShopInput_conversionInstructions = []
+inputUnion_FindShopInput_conversionInstructions->Array.pushMany([
+  ("byId", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  (
+    "byAddress",
+    makeInputObjectFieldConverterFn(v =>
+      switch v->Nullable.toOption {
+      | None => None
+      | Some(v) =>
+        v->applyConversionToInputObject(input_FindShopInputByAddress_conversionInstructions)->Some
+      }
+    ),
+  ),
+  (
+    "byCoordinates",
+    makeInputObjectFieldConverterFn(v =>
+      switch v->Nullable.toOption {
+      | None => None
+      | Some(v) => v->applyConversionToInputObject(input_Coordinates_conversionInstructions)->Some
+      }
+    ),
+  ),
+])
 
 let interface_HasName_resolveType = (v: Interface_hasName.Resolver.t) =>
   switch v {
@@ -71,7 +136,7 @@ t_PageInfo.contents = GraphQLObjectType.make({
         typ: Scalars.string->Scalars.toGraphQLType,
         description: "When paginating forwards, the cursor to continue.",
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["endCursor"]
         }),
@@ -80,7 +145,7 @@ t_PageInfo.contents = GraphQLObjectType.make({
         typ: Scalars.boolean->Scalars.toGraphQLType->nonNull,
         description: "When paginating forwards, are there more items?",
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["hasNextPage"]
         }),
@@ -89,7 +154,7 @@ t_PageInfo.contents = GraphQLObjectType.make({
         typ: Scalars.boolean->Scalars.toGraphQLType->nonNull,
         description: "When paginating backwards, are there more items?",
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["hasPreviousPage"]
         }),
@@ -98,7 +163,7 @@ t_PageInfo.contents = GraphQLObjectType.make({
         typ: Scalars.string->Scalars.toGraphQLType,
         description: "When paginating backwards, the cursor to continue.",
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["startCursor"]
         }),
@@ -115,7 +180,7 @@ t_Query.contents = GraphQLObjectType.make({
         typ: scalar_Timestamp2->GraphQLScalar.toGraphQLType,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           GraphQLSchema.currentTime(src)
         }),
@@ -125,7 +190,7 @@ t_Query.contents = GraphQLObjectType.make({
         description: ?None,
         deprecationReason: ?None,
         args: {"format": {typ: enum_TimestampFormat->GraphQLEnumType.toGraphQLType}}->makeArgs,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           GraphQLSchema.currentTimeFloat(src, ~format=?args["format"]->Nullable.toOption)
         }),
@@ -135,9 +200,26 @@ t_Query.contents = GraphQLObjectType.make({
         description: ?None,
         deprecationReason: ?None,
         args: {"onlyIfAvailable": {typ: Scalars.boolean->Scalars.toGraphQLType->nonNull}}->makeArgs,
-        resolve: makeResolveFn((src, args, ctx) => {
+        resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           GraphQLSchema.me(src, ~onlyIfAvailable=args["onlyIfAvailable"])
+        }),
+      },
+      "shop": {
+        typ: Scalars.string->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {
+          "input": {typ: get_FindShopInput()->GraphQLInputObjectType.toGraphQLType->nonNull},
+        }->makeArgs,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          GraphQLSchema.shop(
+            src,
+            ~input=args["input"]
+            ->applyConversionToInputObject(inputUnion_FindShopInput_conversionInstructions)
+            ->inputUnionUnwrapper(["ByAddress"]),
+          )
         }),
       },
     }->makeFields,
@@ -152,7 +234,7 @@ t_User.contents = GraphQLObjectType.make({
         typ: Scalars.int->Scalars.toGraphQLType->nonNull,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["age"]
         }),
@@ -161,12 +243,64 @@ t_User.contents = GraphQLObjectType.make({
         typ: Scalars.string->Scalars.toGraphQLType->nonNull,
         description: ?None,
         deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx) => {
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["name"]
         }),
       },
     }->makeFields,
+})
+input_FindShopInputByAddress.contents = GraphQLInputObjectType.make({
+  name: "FindShopInputByAddress",
+  description: ?None,
+  fields: () =>
+    {
+      "postalCode": {
+        GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+})
+input_Coordinates.contents = GraphQLInputObjectType.make({
+  name: "Coordinates",
+  description: ?None,
+  fields: () =>
+    {
+      "lat": {
+        GraphQLInputObjectType.typ: Scalars.float->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "lng": {
+        GraphQLInputObjectType.typ: Scalars.float->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+})
+inputUnion_FindShopInput.contents = GraphQLInputObjectType.make({
+  name: "FindShopInput",
+  description: ?None,
+  fields: () =>
+    {
+      "byAddress": {
+        GraphQLInputObjectType.typ: get_FindShopInputByAddress()->GraphQLInputObjectType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "byCoordinates": {
+        GraphQLInputObjectType.typ: get_Coordinates()->GraphQLInputObjectType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "byId": {
+        GraphQLInputObjectType.typ: Scalars.id->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+  extensions: {oneOf: true},
 })
 
 let schema = GraphQLSchemaType.make({"query": get_Query()})

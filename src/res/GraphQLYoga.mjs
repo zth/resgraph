@@ -9,7 +9,19 @@ var GraphQLError = {
   raise: raise
 };
 
-var Envelope = {};
+var Rule = {};
+
+var ExtendedValidation = {
+  Rule: Rule
+};
+
+var $$Plugin = {
+  ExtendedValidation: ExtendedValidation
+};
+
+var Envelope = {
+  $$Plugin: $$Plugin
+};
 
 var Server = {};
 

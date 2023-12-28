@@ -4,6 +4,11 @@ open GraphQLYoga
 
 let yoga = createYoga({
   schema: ResGraphSchema.schema,
+  plugins: [
+    Envelope.Plugin.ExtendedValidation.use({
+      rules: [Envelope.Plugin.ExtendedValidation.Rule.oneOfInputObjectsRule],
+    }),
+  ],
   context: async ({request}) => {
     open ResGraphContext
 

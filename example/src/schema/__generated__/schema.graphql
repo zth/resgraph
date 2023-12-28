@@ -7,6 +7,21 @@ enum TimestampFormat {
   HumanReadable
 }
 
+input FindShopInputByAddress {
+  postalCode: String!
+}
+
+input Coordinates {
+  lat: Float!
+  lng: Float!
+}
+
+input FindShopInput @oneOf {
+  byId: ID
+  byAddress: FindShopInputByAddress
+  byCoordinates: Coordinates
+}
+
 interface HasName {
   name: String!
 }
@@ -29,6 +44,7 @@ type PageInfo {
 }
 
 type Query {
+  shop(input: FindShopInput!): String
   currentTimeFloat(format: TimestampFormat): String
   currentTime: Timestamp2
   me(onlyIfAvailable: Boolean!): User

@@ -1070,6 +1070,7 @@ inputUnion_Location.contents = GraphQLInputObjectType.make({
         deprecationReason: ?None,
       },
     }->makeFields,
+  extensions: {oneOf: true},
 })
 inputUnion_PaginationArgs.contents = GraphQLInputObjectType.make({
   name: "PaginationArgs",
@@ -1087,6 +1088,7 @@ inputUnion_PaginationArgs.contents = GraphQLInputObjectType.make({
         deprecationReason: ?None,
       },
     }->makeFields,
+  extensions: {oneOf: true},
 })
 union_InlineUnion.contents = GraphQLUnionType.make({
   name: "InlineUnion",

@@ -122,11 +122,14 @@ module GraphQLInputObjectType = {
     deprecationReason?: string,
   }
 
+  type extensions = {oneOf?: bool}
+
   type config = {
     name: string,
     astNode?: AstNode.t,
     description?: string,
     fields: unit => fields,
+    extensions?: extensions,
   }
   @module("graphql") @new external make: config => t = "GraphQLInputObjectType"
 }

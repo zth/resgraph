@@ -44,3 +44,22 @@ let currentTimeFloat = (_: query, ~format=Timestamp) => {
     },
   )
 }
+
+@gql.inputObject
+type coordinates = {
+  lat: float,
+  lng: float,
+}
+
+@gql.inputUnion
+type findShopInput =
+  ById(ResGraph.id) | ByAddress({postalCode: string}) | ByCoordinates(coordinates)
+
+@gql.field
+let shop = (_: query, ~input: findShopInput) => {
+  switch input {
+  | ById(_id) => Some("Id")
+  | ByAddress(_) => Some("Address")
+  | ByCoordinates(_) => Some("Coordinates")
+  }
+}
