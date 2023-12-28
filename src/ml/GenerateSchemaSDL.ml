@@ -27,7 +27,7 @@ let rec graphqlTypeToString ?(nullable = false) (t : graphqlType) =
     Printf.sprintf "%s%s" displayName nullableSuffix
   | InjectInterfaceTypename intfId ->
     Printf.sprintf "%s%s" (capitalizeFirstChar intfId) nullableSuffix
-  | InjectContext -> "Unknown"
+  | InjectContext | InjectInfo -> "Unknown"
 
 let indent n =
   let buffer = Buffer.create n in

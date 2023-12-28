@@ -44,7 +44,7 @@ type arg = {@as("type") typ: graphqlType}
 
 type resolveFn
 
-external makeResolveFn: (('srcValue, 'args, 'ctx) => 'return) => resolveFn = "%identity"
+external makeResolveFn: (('srcValue, 'args, 'ctx, 'info) => 'return) => resolveFn = "%identity"
 
 type fields
 

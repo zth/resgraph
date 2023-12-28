@@ -6,6 +6,7 @@ type graphqlType =
   | RescriptNullable of graphqlType
   | Scalar of scalar
   | InjectContext
+  | InjectInfo
   | InjectInterfaceTypename of string  (** ID of interface *)
   | GraphQLObjectType of {id: string; displayName: string}
   | GraphQLInputObject of {id: string; displayName: string}
