@@ -85,10 +85,7 @@ let callPrivateCli = command => {
   }
 
   (binLocation->makeUrl(currentFileUrl)).pathname
-  ->ChildProcess.execFileSyncWith(
-    command->privateCliCallToArgs,
-    ChildProcess.execFileSyncOptions(~maxBuffer=infinity, ()),
-  )
+  ->ChildProcess.execFileSyncWith(command->privateCliCallToArgs, {maxBuffer: infinity})
   ->Buffer.toString
   ->toCallResult
 }

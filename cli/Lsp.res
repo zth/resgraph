@@ -550,11 +550,7 @@ let start = (~mode, ~configFilePath) => {
               | Some(code) =>
                 let filePath = params.textDocument.uri->fileURLToPath
                 let tmpname = Utils.createFileInTempDir()
-                Fs.writeFileSyncWith(
-                  tmpname,
-                  Buffer.fromString(code),
-                  Fs.writeFileOptions(~encoding="utf-8", ()),
-                )
+                Fs.writeFileSyncWith(tmpname, Buffer.fromString(code), {encoding: "utf-8"})
                 let result = switch Utils.callPrivateCli(
                   Completion({filePath, position: params.position, tmpname}),
                 ) {

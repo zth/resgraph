@@ -2,6 +2,8 @@
 
 ## main
 
+- Depend on ReScript v11.
+
 ## 0.8.0
 
 - Update/improve `graphql-yoga` bindings.
