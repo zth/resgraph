@@ -74,15 +74,23 @@ let hasDevBin = Lazy.from_fun(() =>
   (devBinLocation->makeUrl(currentFileUrl)).pathname->Fs.existsSync
 )
 
+@module("node:os")
+external arch: unit => string = "arch"
+
 let callPrivateCli = command => {
   let hasDevBin = hasDevBin->Lazy.force
 
-  // TODO: macos-arm
   let binLocation = if hasDevBin {
     devBinLocation
   } else {
-    "../bin/" ++ Os.platform() ++ "/resgraph.exe"
+    "../bin/" ++
+    switch (Os.platform(), arch()) {
+    | ("darwin", "arm64") => "darwinarm64"
+    | (platform, _) => platform
+    } ++ "/resgraph.exe"
   }
+
+  Console.log(binLocation)
 
   (binLocation->makeUrl(currentFileUrl)).pathname
   ->ChildProcess.execFileSyncWith(command->privateCliCallToArgs, {maxBuffer: infinity})
