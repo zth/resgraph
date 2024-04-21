@@ -2,6 +2,8 @@
 
 ## main
 
+## 0.9.1
+
 - Include `rescript.json` in package.
 
 ## 0.9.0

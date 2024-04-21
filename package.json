@@ -1,6 +1,6 @@
 {
   "name": "resgraph",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Build GraphQL servers in ReScript.",
   "main": "index.js",
   "scripts": {
@@ -22,7 +22,7 @@
   },
   "homepage": "https://github.com/zth/resgraph#readme",
   "peerDependencies": {
-    "@rescript/core": ">=1.2.0",
+    "@rescript/core": ">=1.3.0",
     "rescript": ">=11.1.0"
   },
   "dependencies": {
