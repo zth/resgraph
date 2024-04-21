@@ -2,6 +2,8 @@
 
 ## main
 
+## 0.10.0
+
 - Up `graphql-yoga` to `5.3.0` and `graphql` package to `16.8.1`.
 
 ## 0.9.1
