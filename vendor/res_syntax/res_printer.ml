@@ -216,7 +216,7 @@ let printLeadingComment ?nextComment comment =
     Doc.concat
       [
         (if singleLine then Doc.concat [Doc.hardLine; Doc.breakParent]
-        else Doc.nil);
+         else Doc.nil);
         (match nextComment with
         | Some next ->
           let nextLoc = Comment.loc next in
@@ -421,7 +421,7 @@ let printLongident = function
 
 type identifierStyle = ExoticIdent | NormalIdent
 
-let classifyIdentContent ?(allowUident = false) txt =
+let classifyIdentContent ?(allowUident = false) ?(allowHyphen = false) txt =
   if Token.isKeywordTxt txt then ExoticIdent
   else
     let len = String.length txt in
@@ -431,16 +431,18 @@ let classifyIdentContent ?(allowUident = false) txt =
         match String.unsafe_get txt i with
         | 'A' .. 'Z' when allowUident -> loop (i + 1)
         | 'a' .. 'z' | '_' -> loop (i + 1)
+        | '-' when allowHyphen -> loop (i + 1)
         | _ -> ExoticIdent
       else
         match String.unsafe_get txt i with
         | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '\'' | '_' -> loop (i + 1)
+        | '-' when allowHyphen -> loop (i + 1)
         | _ -> ExoticIdent
     in
     loop 0
 
-let printIdentLike ?allowUident txt =
-  match classifyIdentContent ?allowUident txt with
+let printIdentLike ?allowUident ?allowHyphen txt =
+  match classifyIdentContent ?allowUident ?allowHyphen txt with
   | ExoticIdent -> Doc.concat [Doc.text "\\\""; Doc.text txt; Doc.text "\""]
   | NormalIdent -> Doc.text txt
 
@@ -843,7 +845,7 @@ and printModType ~state modType cmtTbl =
                                        Doc.concat
                                          [
                                            (if lbl.txt = "_" then Doc.nil
-                                           else Doc.text ": ");
+                                            else Doc.text ": ");
                                            printModType ~state modType cmtTbl;
                                          ]);
                                    ]
@@ -896,7 +898,7 @@ and printModType ~state modType cmtTbl =
     Doc.concat
       [
         (if attrsAlreadyPrinted then Doc.nil
-        else printAttributes ~state modType.pmty_attributes cmtTbl);
+         else printAttributes ~state modType.pmty_attributes cmtTbl);
         modTypeDoc;
       ]
   in
@@ -1106,23 +1108,23 @@ and printValueDescription ~state valueDescription cmtTbl =
          Doc.text ": ";
          printTypExpr ~state valueDescription.pval_type cmtTbl;
          (if isExternal then
-          Doc.group
-            (Doc.concat
-               [
-                 Doc.text " =";
-                 Doc.indent
-                   (Doc.concat
-                      [
-                        Doc.line;
-                        Doc.join ~sep:Doc.line
-                          (List.map
-                             (fun s ->
-                               Doc.concat
-                                 [Doc.text "\""; Doc.text s; Doc.text "\""])
-                             valueDescription.pval_prim);
-                      ]);
-               ])
-         else Doc.nil);
+            Doc.group
+              (Doc.concat
+                 [
+                   Doc.text " =";
+                   Doc.indent
+                     (Doc.concat
+                        [
+                          Doc.line;
+                          Doc.join ~sep:Doc.line
+                            (List.map
+                               (fun s ->
+                                 Doc.concat
+                                   [Doc.text "\""; Doc.text s; Doc.text "\""])
+                               valueDescription.pval_prim);
+                        ]);
+                 ])
+          else Doc.nil);
        ])
 
 and printTypeDeclarations ~state ~recFlag typeDeclarations cmtTbl =
@@ -1604,16 +1606,16 @@ and printTypExpr ~(state : State.t) (typExpr : Parsetree.core_type) cmtTbl =
              Doc.group attrs;
              Doc.group
                (if hasAttrsBefore then
-                Doc.concat
-                  [
-                    Doc.lparen;
-                    Doc.indent
-                      (Doc.concat
-                         [Doc.softLine; typDoc; Doc.text " => "; returnDoc]);
-                    Doc.softLine;
-                    Doc.rparen;
-                  ]
-               else Doc.concat [typDoc; Doc.text " => "; returnDoc]);
+                  Doc.concat
+                    [
+                      Doc.lparen;
+                      Doc.indent
+                        (Doc.concat
+                           [Doc.softLine; typDoc; Doc.text " => "; returnDoc]);
+                      Doc.softLine;
+                      Doc.rparen;
+                    ]
+                else Doc.concat [typDoc; Doc.text " => "; returnDoc]);
            ])
     | args ->
       let attrs = printAttributes ~state ~inline:true attrsBefore cmtTbl in
@@ -1669,7 +1671,7 @@ and printTypExpr ~(state : State.t) (typExpr : Parsetree.core_type) cmtTbl =
       printObject ~state ~inline:false fields openFlag cmtTbl
     | Ptyp_arrow _ -> printArrow ~uncurried:false typExpr
     | Ptyp_constr _ when Ast_uncurried.coreTypeIsUncurriedFun typExpr ->
-      let arity, tArg = Ast_uncurried.typeExtractUncurriedFun typExpr in
+      let arity, tArg = Ast_uncurried.coreTypeExtractUncurriedFun typExpr in
       printArrow ~uncurried:true ~arity tArg
     | Ptyp_constr (longidentLoc, [{ptyp_desc = Ptyp_object (fields, openFlag)}])
       ->
@@ -2080,6 +2082,8 @@ and printValueBinding ~state ~recFlag (vb : Parsetree.value_binding) cmtTbl i =
             ParsetreeViewer.isBinaryExpression ifExpr
             || ParsetreeViewer.hasAttributes ifExpr.pexp_attributes
           | {pexp_desc = Pexp_newtype _} -> false
+          | {pexp_attributes = [({Location.txt = "res.taggedTemplate"}, _)]} ->
+            false
           | e ->
             ParsetreeViewer.hasAttributes e.pexp_attributes
             || ParsetreeViewer.isArrayAccess e)
@@ -2092,8 +2096,8 @@ and printValueBinding ~state ~recFlag (vb : Parsetree.value_binding) cmtTbl i =
              patternDoc;
              Doc.text " =";
              (if shouldIndent then
-              Doc.indent (Doc.concat [Doc.line; printedExpr])
-             else Doc.concat [Doc.space; printedExpr]);
+                Doc.indent (Doc.concat [Doc.line; printedExpr])
+              else Doc.concat [Doc.space; printedExpr]);
            ])
 
 and printPackageType ~state ~printModuleKeywordAndParens
@@ -2253,13 +2257,13 @@ and printPattern ~state (p : Parsetree.pattern) cmtTbl =
            [
              Doc.text "list{";
              (if shouldHug then children
-             else
-               Doc.concat
-                 [
-                   Doc.indent children;
-                   Doc.ifBreaks (Doc.text ",") Doc.nil;
-                   Doc.softLine;
-                 ]);
+              else
+                Doc.concat
+                  [
+                    Doc.indent children;
+                    Doc.ifBreaks (Doc.text ",") Doc.nil;
+                    Doc.softLine;
+                  ]);
              Doc.rbrace;
            ])
     | Ppat_construct (constrName, constructorArgs) ->
@@ -2304,13 +2308,13 @@ and printPattern ~state (p : Parsetree.pattern) cmtTbl =
             [
               Doc.lparen;
               (if shouldHug then argDoc
-              else
-                Doc.concat
-                  [
-                    Doc.indent (Doc.concat [Doc.softLine; argDoc]);
-                    Doc.trailingComma;
-                    Doc.softLine;
-                  ]);
+               else
+                 Doc.concat
+                   [
+                     Doc.indent (Doc.concat [Doc.softLine; argDoc]);
+                     Doc.trailingComma;
+                     Doc.softLine;
+                   ]);
               Doc.rparen;
             ]
       in
@@ -2355,13 +2359,13 @@ and printPattern ~state (p : Parsetree.pattern) cmtTbl =
             [
               Doc.lparen;
               (if shouldHug then argDoc
-              else
-                Doc.concat
-                  [
-                    Doc.indent (Doc.concat [Doc.softLine; argDoc]);
-                    Doc.trailingComma;
-                    Doc.softLine;
-                  ]);
+               else
+                 Doc.concat
+                   [
+                     Doc.indent (Doc.concat [Doc.softLine; argDoc]);
+                     Doc.trailingComma;
+                     Doc.softLine;
+                   ]);
               Doc.rparen;
             ]
       in
@@ -2410,8 +2414,7 @@ and printPattern ~state (p : Parsetree.pattern) cmtTbl =
             let patternDoc = printPattern ~state pat cmtTbl in
             Doc.concat
               [
-                (if i == 0 then Doc.nil
-                else Doc.concat [Doc.line; Doc.text "| "]);
+                (if i == 0 then Doc.nil else Doc.concat [Doc.line; Doc.text "| "]);
                 (match pat.ppat_desc with
                 (* (Blue | Red) | (Green | Black) | White *)
                 | Ppat_or _ -> addParens patternDoc
@@ -2526,8 +2529,8 @@ and printPatternRecordRow ~state row cmtTbl =
              printLidentPath longident cmtTbl;
              Doc.text ":";
              (if ParsetreeViewer.isHuggablePattern pattern then
-              Doc.concat [Doc.space; rhsDoc]
-             else Doc.indent (Doc.concat [Doc.line; rhsDoc]));
+                Doc.concat [Doc.space; rhsDoc]
+              else Doc.indent (Doc.concat [Doc.line; rhsDoc]));
            ])
     in
     printComments doc cmtTbl locForComments
@@ -2663,7 +2666,7 @@ and printExpression ~state (e : Parsetree.expression) cmtTbl =
       else
         Doc.group
           (if shouldIndent then Doc.indent (Doc.concat [Doc.line; returnDoc])
-          else Doc.concat [Doc.space; returnDoc])
+           else Doc.concat [Doc.space; returnDoc])
     in
     let typConstraintDoc =
       match typConstraint with
@@ -2817,13 +2820,13 @@ and printExpression ~state (e : Parsetree.expression) cmtTbl =
             [
               Doc.lparen;
               (if shouldHug then argDoc
-              else
-                Doc.concat
-                  [
-                    Doc.indent (Doc.concat [Doc.softLine; argDoc]);
-                    Doc.trailingComma;
-                    Doc.softLine;
-                  ]);
+               else
+                 Doc.concat
+                   [
+                     Doc.indent (Doc.concat [Doc.softLine; argDoc]);
+                     Doc.trailingComma;
+                     Doc.softLine;
+                   ]);
               Doc.rparen;
             ]
       in
@@ -2942,13 +2945,13 @@ and printExpression ~state (e : Parsetree.expression) cmtTbl =
             [
               Doc.lparen;
               (if shouldHug then argDoc
-              else
-                Doc.concat
-                  [
-                    Doc.indent (Doc.concat [Doc.softLine; argDoc]);
-                    Doc.trailingComma;
-                    Doc.softLine;
-                  ]);
+               else
+                 Doc.concat
+                   [
+                     Doc.indent (Doc.concat [Doc.softLine; argDoc]);
+                     Doc.trailingComma;
+                     Doc.softLine;
+                   ]);
               Doc.rparen;
             ]
       in
@@ -2961,15 +2964,25 @@ and printExpression ~state (e : Parsetree.expression) cmtTbl =
         let spread =
           match spreadExpr with
           | None -> Doc.nil
-          | Some expr ->
+          | Some ({pexp_desc} as expr) ->
+            let doc =
+              match pexp_desc with
+              | Pexp_ident {txt = expr} -> printLident expr
+              | _ -> printExpression ~state expr cmtTbl
+            in
+            let docWithSpread =
+              Doc.concat
+                [
+                  Doc.dotdotdot;
+                  (match Parens.expr expr with
+                  | Parens.Parenthesized -> addParens doc
+                  | Braced braces -> printBraces doc expr braces
+                  | Nothing -> doc);
+                ]
+            in
             Doc.concat
               [
-                Doc.dotdotdot;
-                (let doc = printExpressionWithComments ~state expr cmtTbl in
-                 match Parens.expr expr with
-                 | Parens.Parenthesized -> addParens doc
-                 | Braced braces -> printBraces doc expr braces
-                 | Nothing -> doc);
+                printComments docWithSpread cmtTbl expr.Parsetree.pexp_loc;
                 Doc.comma;
                 Doc.line;
               ]
@@ -3046,13 +3059,18 @@ and printExpression ~state (e : Parsetree.expression) cmtTbl =
              ])
       | extension -> printExtension ~state ~atModuleLvl:false extension cmtTbl)
     | Pexp_apply (e, [(Nolabel, {pexp_desc = Pexp_array subLists})])
+      when ParsetreeViewer.isSpreadBeltArrayConcat e ->
+      printBeltArrayConcatApply ~state subLists cmtTbl
+    | Pexp_apply (e, [(Nolabel, {pexp_desc = Pexp_array subLists})])
       when ParsetreeViewer.isSpreadBeltListConcat e ->
       printBeltListConcatApply ~state subLists cmtTbl
-    | Pexp_apply _ ->
+    | Pexp_apply (callExpr, args) ->
       if ParsetreeViewer.isUnaryExpression e then
         printUnaryExpression ~state e cmtTbl
       else if ParsetreeViewer.isTemplateLiteral e then
         printTemplateLiteral ~state e cmtTbl
+      else if ParsetreeViewer.isTaggedTemplateLiteral e then
+        printTaggedTemplateLiteral ~state callExpr args cmtTbl
       else if ParsetreeViewer.isBinaryExpression e then
         printBinaryExpression ~state e cmtTbl
       else printPexpApply ~state e cmtTbl
@@ -3136,7 +3154,7 @@ and printExpression ~state (e : Parsetree.expression) cmtTbl =
            [
              Doc.text "while ";
              (if ParsetreeViewer.isBlockExpr expr1 then condition
-             else Doc.group (Doc.ifBreaks (addParens condition) condition));
+              else Doc.group (Doc.ifBreaks (addParens condition) condition));
              Doc.space;
              printExpressionBlock ~state ~braces:true expr2 cmtTbl;
            ])
@@ -3376,14 +3394,14 @@ and printPexpFun ~state ~inCallback e cmtTbl =
     else
       Doc.group
         (if returnShouldIndent then
-         Doc.concat
-           [
-             Doc.indent (Doc.concat [Doc.line; returnDoc]);
-             (match inCallback with
-             | FitsOnOneLine | ArgumentsFitOnOneLine -> Doc.softLine
-             | _ -> Doc.nil);
-           ]
-        else Doc.concat [Doc.space; returnDoc])
+           Doc.concat
+             [
+               Doc.indent (Doc.concat [Doc.line; returnDoc]);
+               (match inCallback with
+               | FitsOnOneLine | ArgumentsFitOnOneLine -> Doc.softLine
+               | _ -> Doc.nil);
+             ]
+         else Doc.concat [Doc.space; returnDoc])
   in
   let typConstraintDoc =
     match typConstraint with
@@ -3431,8 +3449,8 @@ and printSetFieldExpr ~state attrs lhs longidentLoc rhs loc cmtTbl =
            printLidentPath longidentLoc cmtTbl;
            Doc.text " =";
            (if shouldIndent then
-            Doc.group (Doc.indent (Doc.concat [Doc.line; rhsDoc]))
-           else Doc.concat [Doc.space; rhsDoc]);
+              Doc.group (Doc.indent (Doc.concat [Doc.line; rhsDoc]))
+            else Doc.concat [Doc.space; rhsDoc]);
          ])
   in
   let doc =
@@ -3474,6 +3492,53 @@ and printTemplateLiteral ~state expr cmtTbl =
       content;
       Doc.text "`";
     ]
+
+and printTaggedTemplateLiteral ~state callExpr args cmtTbl =
+  let stringsList, valuesList =
+    match args with
+    | [
+     (_, {Parsetree.pexp_desc = Pexp_array strings});
+     (_, {Parsetree.pexp_desc = Pexp_array values});
+    ] ->
+      (strings, values)
+    | _ -> assert false
+  in
+
+  let strings =
+    List.map
+      (fun x ->
+        match x with
+        | {Parsetree.pexp_desc = Pexp_constant (Pconst_string (txt, _))} ->
+          printStringContents txt
+        | _ -> assert false)
+      stringsList
+  in
+
+  let values =
+    List.map
+      (fun x ->
+        Doc.concat
+          [
+            Doc.text "${";
+            printExpressionWithComments ~state x cmtTbl;
+            Doc.text "}";
+          ])
+      valuesList
+  in
+
+  let process strings values =
+    let rec aux acc = function
+      | [], [] -> acc
+      | a_head :: a_rest, b -> aux (Doc.concat [acc; a_head]) (b, a_rest)
+      | _ -> assert false
+    in
+    aux Doc.nil (strings, values)
+  in
+
+  let content : Doc.t = process strings values in
+
+  let tag = printExpressionWithComments ~state callExpr cmtTbl in
+  Doc.concat [tag; Doc.text "`"; content; Doc.text "`"]
 
 and printUnaryExpression ~state expr cmtTbl =
   let printUnaryOperator op =
@@ -3661,8 +3726,8 @@ and printBinaryExpression ~state (expr : Parsetree.expression) cmtTbl =
                    lhsDoc;
                    Doc.text " =";
                    (if shouldIndent then
-                    Doc.group (Doc.indent (Doc.concat [Doc.line; rhsDoc]))
-                   else Doc.concat [Doc.space; rhsDoc]);
+                      Doc.group (Doc.indent (Doc.concat [Doc.line; rhsDoc]))
+                    else Doc.concat [Doc.space; rhsDoc]);
                  ])
           in
           let doc =
@@ -3762,6 +3827,61 @@ and printBinaryExpression ~state (expr : Parsetree.expression) cmtTbl =
            | Nothing -> doc);
          ])
   | _ -> Doc.nil
+
+and printBeltArrayConcatApply ~state subLists cmtTbl =
+  let makeSpreadDoc commaBeforeSpread = function
+    | Some expr ->
+      Doc.concat
+        [
+          commaBeforeSpread;
+          Doc.dotdotdot;
+          (let doc = printExpressionWithComments ~state expr cmtTbl in
+           match Parens.expr expr with
+           | Parens.Parenthesized -> addParens doc
+           | Braced braces -> printBraces doc expr braces
+           | Nothing -> doc);
+        ]
+    | None -> Doc.nil
+  in
+  let makeSubListDoc (expressions, spread) =
+    let commaBeforeSpread =
+      match expressions with
+      | [] -> Doc.nil
+      | _ -> Doc.concat [Doc.text ","; Doc.line]
+    in
+    let spreadDoc = makeSpreadDoc commaBeforeSpread spread in
+    Doc.concat
+      [
+        Doc.join
+          ~sep:(Doc.concat [Doc.text ","; Doc.line])
+          (List.map
+             (fun expr ->
+               let doc = printExpressionWithComments ~state expr cmtTbl in
+               match Parens.expr expr with
+               | Parens.Parenthesized -> addParens doc
+               | Braced braces -> printBraces doc expr braces
+               | Nothing -> doc)
+             expressions);
+        spreadDoc;
+      ]
+  in
+  Doc.group
+    (Doc.concat
+       [
+         Doc.lbracket;
+         Doc.indent
+           (Doc.concat
+              [
+                Doc.softLine;
+                Doc.join
+                  ~sep:(Doc.concat [Doc.text ","; Doc.line])
+                  (List.map makeSubListDoc
+                     (List.map ParsetreeViewer.collectArrayExpressions subLists));
+              ]);
+         Doc.trailingComma;
+         Doc.softLine;
+         Doc.rbracket;
+       ])
 
 and printBeltListConcatApply ~state subLists cmtTbl =
   let makeSpreadDoc commaBeforeSpread = function
@@ -3871,8 +3991,8 @@ and printPexpApply ~state expr cmtTbl =
              printExpressionWithComments ~state lhs cmtTbl;
              Doc.text " =";
              (if shouldIndent then
-              Doc.group (Doc.indent (Doc.concat [Doc.line; rhsDoc]))
-             else Doc.concat [Doc.space; rhsDoc]);
+                Doc.group (Doc.indent (Doc.concat [Doc.line; rhsDoc]))
+              else Doc.concat [Doc.space; rhsDoc]);
            ])
     in
     match expr.pexp_attributes with
@@ -3981,8 +4101,8 @@ and printPexpApply ~state expr cmtTbl =
            Doc.rbracket;
            Doc.text " =";
            (if shouldIndentTargetExpr then
-            Doc.indent (Doc.concat [Doc.line; targetExpr])
-           else Doc.concat [Doc.space; targetExpr]);
+              Doc.indent (Doc.concat [Doc.line; targetExpr])
+            else Doc.concat [Doc.space; targetExpr]);
          ])
   (* TODO: cleanup, are those branches even remotely performant? *)
   | Pexp_apply ({pexp_desc = Pexp_ident lident}, args)
@@ -4127,24 +4247,24 @@ and printJsxExpression ~state lident args cmtTbl =
                   else Doc.greaterThan);
               ]);
          (if isSelfClosing then Doc.nil
-         else
-           Doc.concat
-             [
-               (if hasChildren then printChildren children
-               else
-                 match children with
-                 | Some
-                     {
-                       Parsetree.pexp_desc =
-                         Pexp_construct ({txt = Longident.Lident "[]"}, None);
-                       pexp_loc = loc;
-                     } ->
-                   printCommentsInside cmtTbl loc
-                 | _ -> Doc.nil);
-               Doc.text "</";
-               name;
-               Doc.greaterThan;
-             ]);
+          else
+            Doc.concat
+              [
+                (if hasChildren then printChildren children
+                 else
+                   match children with
+                   | Some
+                       {
+                         Parsetree.pexp_desc =
+                           Pexp_construct ({txt = Longident.Lident "[]"}, None);
+                         pexp_loc = loc;
+                       } ->
+                     printCommentsInside cmtTbl loc
+                   | _ -> Doc.nil);
+                Doc.text "</";
+                name;
+                Doc.greaterThan;
+              ]);
        ])
 
 and printJsxFragment ~state expr cmtTbl =
@@ -4354,19 +4474,19 @@ and printJsxProp ~state arg cmtTbl =
  * Navabar.createElement -> Navbar
  * Staff.Users.createElement -> Staff.Users *)
 and printJsxName {txt = lident} =
+  let printIdent = printIdentLike ~allowUident:true ~allowHyphen:true in
   let rec flatten acc lident =
     match lident with
-    | Longident.Lident txt -> txt :: acc
-    | Ldot (lident, txt) ->
-      let acc = if txt = "createElement" then acc else txt :: acc in
-      flatten acc lident
+    | Longident.Lident txt -> printIdent txt :: acc
+    | Ldot (lident, "createElement") -> flatten acc lident
+    | Ldot (lident, txt) -> flatten (printIdent txt :: acc) lident
     | _ -> acc
   in
   match lident with
-  | Longident.Lident txt -> Doc.text txt
+  | Longident.Lident txt -> printIdent txt
   | _ as lident ->
     let segments = flatten [] lident in
-    Doc.join ~sep:Doc.dot (List.map Doc.text segments)
+    Doc.join ~sep:Doc.dot segments
 
 and printArgumentsWithCallbackInFirstPosition ~dotted ~state args cmtTbl =
   (* Because the same subtree gets printed twice, we need to copy the cmtTbl.
@@ -4877,9 +4997,9 @@ and printExprFunParameters ~state ~inCallback ~async ~uncurried ~hasConstraint
          [
            maybeAsyncLparen;
            (if shouldHug || inCallback then printedParamaters
-           else
-             Doc.concat
-               [Doc.indent printedParamaters; Doc.trailingComma; Doc.softLine]);
+            else
+              Doc.concat
+                [Doc.indent printedParamaters; Doc.trailingComma; Doc.softLine]);
            Doc.rparen;
          ])
 
@@ -5100,14 +5220,14 @@ and printExpressionBlock ~state ~braces expr cmtTbl =
   in
   Doc.breakableGroup ~forceBreak:true
     (if braces then
-     Doc.concat
-       [
-         Doc.lbrace;
-         Doc.indent (Doc.concat [Doc.line; block]);
-         Doc.line;
-         Doc.rbrace;
-       ]
-    else block)
+       Doc.concat
+         [
+           Doc.lbrace;
+           Doc.indent (Doc.concat [Doc.line; block]);
+           Doc.line;
+           Doc.rbrace;
+         ]
+     else block)
 
 (*
  * // user types:
@@ -5422,12 +5542,12 @@ and printModExpr ~state modExpr cmtTbl =
            [
              Doc.text "unpack(";
              (if shouldHug then unpackDoc
-             else
-               Doc.concat
-                 [
-                   Doc.indent (Doc.concat [Doc.softLine; unpackDoc]);
-                   Doc.softLine;
-                 ]);
+              else
+                Doc.concat
+                  [
+                    Doc.indent (Doc.concat [Doc.softLine; unpackDoc]);
+                    Doc.softLine;
+                  ]);
              Doc.rparen;
            ])
     | Pmod_extension extension ->
@@ -5449,32 +5569,32 @@ and printModExpr ~state modExpr cmtTbl =
            [
              printModExpr ~state callExpr cmtTbl;
              (if isUnitSugar then
-              printModApplyArg ~state (List.hd args [@doesNotRaise]) cmtTbl
-             else
-               Doc.concat
-                 [
-                   Doc.lparen;
-                   (if shouldHug then
-                    printModApplyArg ~state
-                      (List.hd args [@doesNotRaise])
-                      cmtTbl
-                   else
-                     Doc.indent
-                       (Doc.concat
-                          [
-                            Doc.softLine;
-                            Doc.join
-                              ~sep:(Doc.concat [Doc.comma; Doc.line])
-                              (List.map
-                                 (fun modArg ->
-                                   printModApplyArg ~state modArg cmtTbl)
-                                 args);
-                          ]));
-                   (if not shouldHug then
-                    Doc.concat [Doc.trailingComma; Doc.softLine]
-                   else Doc.nil);
-                   Doc.rparen;
-                 ]);
+                printModApplyArg ~state (List.hd args [@doesNotRaise]) cmtTbl
+              else
+                Doc.concat
+                  [
+                    Doc.lparen;
+                    (if shouldHug then
+                       printModApplyArg ~state
+                         (List.hd args [@doesNotRaise])
+                         cmtTbl
+                     else
+                       Doc.indent
+                         (Doc.concat
+                            [
+                              Doc.softLine;
+                              Doc.join
+                                ~sep:(Doc.concat [Doc.comma; Doc.line])
+                                (List.map
+                                   (fun modArg ->
+                                     printModApplyArg ~state modArg cmtTbl)
+                                   args);
+                            ]));
+                    (if not shouldHug then
+                       Doc.concat [Doc.trailingComma; Doc.softLine]
+                     else Doc.nil);
+                    Doc.rparen;
+                  ]);
            ])
     | Pmod_constraint (modExpr, modType) ->
       Doc.concat

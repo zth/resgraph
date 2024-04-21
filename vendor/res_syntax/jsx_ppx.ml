@@ -48,15 +48,23 @@ let getString ~key fields = fields |> getJsxConfigByKey ~key ~type_:String
 
 let updateConfig config payload =
   let fields = getPayloadFields payload in
-  (match getInt ~key:"version" fields with
-  | None -> ()
-  | Some i -> config.React_jsx_common.version <- i);
-  (match getString ~key:"module" fields with
+  let moduleRaw = getString ~key:"module_" fields in
+  let isGeneric =
+    match moduleRaw |> Option.map (fun m -> String.lowercase_ascii m) with
+    | Some "react" | None -> false
+    | Some _ -> true
+  in
+  (match (isGeneric, getInt ~key:"version" fields) with
+  | true, _ -> config.Jsx_common.version <- 4
+  | false, Some i -> config.Jsx_common.version <- i
+  | _ -> ());
+  (match moduleRaw with
   | None -> ()
   | Some s -> config.module_ <- s);
-  match getString ~key:"mode" fields with
-  | None -> ()
-  | Some s -> config.mode <- s
+  match (isGeneric, getString ~key:"mode" fields) with
+  | true, _ -> config.mode <- "automatic"
+  | false, Some s -> config.mode <- s
+  | _ -> ()
 
 let isJsxConfigAttr ((loc, _) : attribute) = loc.txt = "jsxConfig"
 
@@ -68,7 +76,7 @@ let getMapper ~config =
     Reactjs_jsx_v3.jsxMapper ~config
   in
   let expr4, module_binding4, transformSignatureItem4, transformStructureItem4 =
-    Reactjs_jsx_v4.jsxMapper ~config
+    Jsx_v4.jsxMapper ~config
   in
 
   let expr mapper e =
@@ -89,18 +97,18 @@ let getMapper ~config =
       version = config.version;
       module_ = config.module_;
       mode = config.mode;
-      hasReactComponent = config.hasReactComponent;
+      hasComponent = config.hasComponent;
     }
   in
   let restoreConfig oldConfig =
-    config.version <- oldConfig.React_jsx_common.version;
+    config.version <- oldConfig.Jsx_common.version;
     config.module_ <- oldConfig.module_;
     config.mode <- oldConfig.mode;
-    config.hasReactComponent <- oldConfig.hasReactComponent
+    config.hasComponent <- oldConfig.hasComponent
   in
   let signature mapper items =
     let oldConfig = saveConfig () in
-    config.hasReactComponent <- false;
+    config.hasComponent <- false;
     let result =
       List.map
         (fun item ->
@@ -119,7 +127,7 @@ let getMapper ~config =
   in
   let structure mapper items =
     let oldConfig = saveConfig () in
-    config.hasReactComponent <- false;
+    config.hasComponent <- false;
     let result =
       List.map
         (fun item ->
@@ -143,11 +151,11 @@ let rewrite_implementation ~jsxVersion ~jsxModule ~jsxMode
     (code : Parsetree.structure) : Parsetree.structure =
   let config =
     {
-      React_jsx_common.version = jsxVersion;
+      Jsx_common.version = jsxVersion;
       module_ = jsxModule;
       mode = jsxMode;
       nestedModules = [];
-      hasReactComponent = false;
+      hasComponent = false;
     }
   in
   let mapper = getMapper ~config in
@@ -157,11 +165,11 @@ let rewrite_signature ~jsxVersion ~jsxModule ~jsxMode
     (code : Parsetree.signature) : Parsetree.signature =
   let config =
     {
-      React_jsx_common.version = jsxVersion;
+      Jsx_common.version = jsxVersion;
       module_ = jsxModule;
       mode = jsxMode;
       nestedModules = [];
-      hasReactComponent = false;
+      hasComponent = false;
     }
   in
   let mapper = getMapper ~config in

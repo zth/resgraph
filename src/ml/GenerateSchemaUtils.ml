@@ -119,8 +119,7 @@ let formatCode ~debug code =
       ~displayFilename:"Schema.res"
   in
   let printed =
-    Res_printer.printImplementation ~width:!Res_cli.ResClflags.width ~comments
-      structure
+    Res_printer.printImplementation ~width:100 ~comments structure
   in
   if List.length diagnostics > 0 then
     if debug then

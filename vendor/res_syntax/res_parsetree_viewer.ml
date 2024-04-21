@@ -104,6 +104,11 @@ let hasAwaitAttribute attrs =
       | _ -> false)
     attrs
 
+let collectArrayExpressions expr =
+  match expr.pexp_desc with
+  | Pexp_array exprs -> (exprs, None)
+  | _ -> ([], Some expr)
+
 let collectListExpressions expr =
   let rec collect acc expr =
     match expr.pexp_desc with
@@ -135,7 +140,7 @@ let rewriteUnderscoreApply expr =
           match arg with
           | ( lbl,
               ({pexp_desc = Pexp_ident ({txt = Longident.Lident "__x"} as lid)}
-              as argExpr) ) ->
+               as argExpr) ) ->
             ( lbl,
               {
                 argExpr with
@@ -219,7 +224,8 @@ let filterParsingAttrs attrs =
             Location.txt =
               ( "bs" | "res.uapp" | "res.arity" | "res.braces" | "ns.braces"
               | "res.iflet" | "res.namedArgLoc" | "res.optional" | "res.ternary"
-              | "res.async" | "res.await" | "res.template" );
+              | "res.async" | "res.await" | "res.template"
+              | "res.taggedTemplate" );
           },
           _ ) ->
         false
@@ -634,6 +640,14 @@ let hasTemplateLiteralAttr attrs =
       | _ -> false)
     attrs
 
+let hasTaggedTemplateLiteralAttr attrs =
+  List.exists
+    (fun attr ->
+      match attr with
+      | {Location.txt = "res.taggedTemplate"}, _ -> true
+      | _ -> false)
+    attrs
+
 let isTemplateLiteral expr =
   match expr.pexp_desc with
   | Pexp_apply
@@ -643,6 +657,12 @@ let isTemplateLiteral expr =
     true
   | Pexp_constant (Pconst_string (_, Some "")) -> true
   | Pexp_constant _ when hasTemplateLiteralAttr expr.pexp_attributes -> true
+  | _ -> false
+
+let isTaggedTemplateLiteral expr =
+  match expr with
+  | {pexp_desc = Pexp_apply _; pexp_attributes = attrs} ->
+    hasTaggedTemplateLiteralAttr attrs
   | _ -> false
 
 let hasSpreadAttr attrs =
@@ -660,6 +680,17 @@ let isSpreadBeltListConcat expr =
         txt =
           Longident.Ldot
             (Longident.Ldot (Longident.Lident "Belt", "List"), "concatMany");
+      } ->
+    hasSpreadAttr expr.pexp_attributes
+  | _ -> false
+
+let isSpreadBeltArrayConcat expr =
+  match expr.pexp_desc with
+  | Pexp_ident
+      {
+        txt =
+          Longident.Ldot
+            (Longident.Ldot (Longident.Lident "Belt", "Array"), "concatMany");
       } ->
     hasSpreadAttr expr.pexp_attributes
   | _ -> false

@@ -92,7 +92,7 @@ let _printDebug ~startPos ~endPos scanner token =
   print_char '-';
   print_int endPos.pos_cnum;
   print_endline ""
-  [@@live]
+[@@live]
 
 let next scanner =
   let nextOffset = scanner.offset + 1 in
@@ -182,8 +182,11 @@ let digitValue ch =
 let scanIdentifier scanner =
   let startOff = scanner.offset in
   let rec skipGoodChars scanner =
-    match scanner.ch with
-    | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' | '\'' ->
+    match (scanner.ch, inJsxMode scanner) with
+    | ('A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' | '\''), false ->
+      next scanner;
+      skipGoodChars scanner
+    | ('A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' | '\'' | '-'), true ->
       next scanner;
       skipGoodChars scanner
     | _ -> ()
@@ -271,14 +274,6 @@ let scanNumber scanner =
   (* suffix *)
   let suffix =
     match scanner.ch with
-    | 'n' ->
-      let msg =
-        "Unsupported number type (nativeint). Did you mean `" ^ literal ^ "`?"
-      in
-      let pos = position scanner in
-      scanner.err ~startPos:pos ~endPos:pos (Diagnostics.message msg);
-      next scanner;
-      Some 'n'
     | ('g' .. 'z' | 'G' .. 'Z') as ch ->
       next scanner;
       Some ch
