@@ -2,6 +2,8 @@
 
 ## main
 
+- Include `rescript.json` in package.
+
 ## 0.9.0
 
 - Depend on ReScript v11.

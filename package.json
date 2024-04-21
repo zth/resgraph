@@ -40,7 +40,7 @@
     "bin/*",
     "src/res",
     "cli/**/*.mjs",
-    "bsconfig.json",
+    "rescript.json",
     "package.json",
     "LICENSE",
     "README.md",
