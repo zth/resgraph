@@ -2,7 +2,10 @@
 
 ## main
 
+## 0.9.0
+
 - Depend on ReScript v11.
+- Ship `arm64` binary.
 
 ## 0.8.0
 
