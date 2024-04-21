@@ -98,12 +98,6 @@ type graphiQLOptions = {
    */
   defaultQuery?: string,
   /**
-   * Whether to open the variable editor by default. Defaults to `true`.
-   *
-   * @deprecated Obsolete option. Variable editor was opened by default
-   */
-  defaultVariableEditorOpen?: bool,
-  /**
    * The initial headers to render inside the header editor. Defaults to `"{}"`.
    * The value should be a JSON encoded string, for example:
    * `headers: JSON.stringify({Authorization: "Bearer your-auth-key"})`
@@ -113,12 +107,6 @@ type graphiQLOptions = {
    * More info there: https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials
    */
   credentials?: requestCredentials,
-  /**
-   * Whether the header editor is enabled. Defaults to `true`.
-   *
-   * @deprecated Obsolete option. Header editor was enabled by default
-   */
-  headerEditorEnabled?: bool,
   /**
    * The title to display at the top of the page. Defaults to `"Yoga GraphiQL"`.
    */
@@ -131,6 +119,14 @@ type graphiQLOptions = {
    * Extra headers you always want to pass with users' headers input
    */
   additionalHeaders?: Dict.t<string>,
+  /**
+   * HTTP method to use when querying the original schema.
+   */
+  method?: [#GET | #POST],
+  /**
+   * Whether to use the GET HTTP method for queries when querying the original schema
+   */
+  useGETForQueries?: bool,
 }
 
 @unboxed
@@ -197,8 +193,7 @@ type createServerConfig<'appContext> = {
    * @see https://envelop.dev/plugins
    */
   plugins?: array<Envelope.Plugin.t>,
-  parserCache?: bool,
-  validationCache?: bool,
+  parserAndValidationCache?: bool,
   /**
    * GraphQL Multipart Request spec support
    *
@@ -221,9 +216,10 @@ type createServerConfig<'appContext> = {
    * the GraphQL over SSE spec's distinct connection mode.
    *
    * @default true
-   *
-   * @deprecated Consider using GraphQL over SSE spec instead by setting this to `false`. Starting with the next major release, this flag will default to `false`.
    */
+  @deprecated(
+    "Consider using GraphQL over SSE spec instead by setting this to `false`. Starting with the next major release, this flag will default to `false`."
+  )
   legacySse?: bool,
 }
 
