@@ -7,10 +7,7 @@ let args = argv->Array.sliceToEnd(~start=2)->Array.keepSome
 let argsList = args->List.fromArray
 
 let printBuildTime = buildDuration => {
-  Console.log(
-    `Build succeeded in ${(buildDuration /. 1000.)
-        ->Float.toFixedWithPrecision(~digits=2)} seconds.`,
-  )
+  Console.log(`Build succeeded in ${(buildDuration /. 1000.)->Float.toFixed(~digits=2)} seconds.`)
 }
 
 let helpText = `
@@ -106,7 +103,7 @@ try {
   | list{"lsp", configFilePath} => Lsp.start(~configFilePath, ~mode=Lsp.Stdio)
   | list{"help"} => Console.log(helpText)
   | v =>
-    Console.log("Invalid command: " ++ v->List.toArray->Array.joinWith(" "))
+    Console.log("Invalid command: " ++ v->List.toArray->Array.join(" "))
     Console.log(helpText)
   }
 } catch {

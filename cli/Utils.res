@@ -178,10 +178,12 @@ let readConfigFromDir = dir => {
     ->JSON.parseExn
     ->parseConfig
 
-  switch readConfigResult {
-  | None => Result.Error("Could not parse config, something is wrong")
+  let res: result<config, string> = switch readConfigResult {
+  | None => Error("Could not parse config, something is wrong")
   | Some(config) => Ok(config)
   }
+
+  res
 }
 
 let readConfigFromCwd = () => readConfigFromDir(Process.process->Process.cwd)

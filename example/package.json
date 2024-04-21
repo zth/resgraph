@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "res:build": "rescript build -with-deps",
-    "res:watch": "rescript build -with-deps -w",
+    "res:build": "rescript",
+    "res:watch": "rescript -w",
     "resgraph:watch": "node ../cli/Cli.mjs watch",
     "resgraph:build": "node ../cli/Cli.mjs build",
     "resgraph": "node ../cli/Cli.mjs",
@@ -17,9 +17,9 @@
   "dependencies": {
     "@envelop/extended-validation": "^2.0.6",
     "@glennsl/rescript-fetch": "^0.2.0",
-    "@rescript/core": "0.6.0",
+    "@rescript/core": "1.2.0",
     "graphql-yoga": "^3.8.0",
-    "rescript": "^11.0.0-rc.8"
+    "rescript": "11.1.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"

@@ -55,7 +55,7 @@ type userStatus =
 module UserFields = {
   @gql.field
   let name = (user: user, ~includeFullName) => {
-    let includeFullName = includeFullName->Option.getWithDefault(false)
+    let includeFullName = includeFullName->Option.getOr(false)
 
     if includeFullName {
       user.name
@@ -118,7 +118,7 @@ module QueryFields = {
   let searchForUser = (_: query, ~input: userConfig): option<user> => {
     Some({
       id: "123",
-      name: input.name->Option.getWithDefault("Hello"),
+      name: input.name->Option.getOr("Hello"),
       age: 35,
       lastAge: None,
     })
@@ -153,10 +153,9 @@ module QueryFields = {
     ignore(list2)
     ignore(list3)
     let regularList = regularList->Array.keepSome
-    let optionalList = optionalList->Option.getWithDefault([])
-    let nullableList = nullableList->Nullable.toOption->Option.getWithDefault([])->Array.keepSome
-    let nullableInnerList =
-      nullableInnerList->Nullable.toOption->Option.getWithDefault([])->Array.keepSome
+    let optionalList = optionalList->Option.getOr([])
+    let nullableList = nullableList->Nullable.toOption->Option.getOr([])->Array.keepSome
+    let nullableInnerList = nullableInnerList->Nullable.toOption->Option.getOr([])->Array.keepSome
 
     let arr =
       Array.flat([regularList, optionalList, nullableList, nullableInnerList])->Array.map(str =>

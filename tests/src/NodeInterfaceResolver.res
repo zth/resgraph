@@ -5,7 +5,7 @@ let typeMap: typeMap<int> = {
   user: 2,
 }
 
-let nodeTypeMap = TypeMap.make(typeMap, ~valueToString=Int.toString)
+let nodeTypeMap = TypeMap.make(typeMap, ~valueToString={v => Int.toString(v)})
 
 let decodeNodeInterfaceId = id => {
   switch id->ResGraph.idToString->String.split(":")->List.fromArray {
@@ -25,7 +25,7 @@ let nodeInterfaceIdToString = (~typename: ImplementedBy.t, ~id, ~extra=[]) => {
   let nodeId = `${value}:${id}`
 
   let nodeId = if extra->Array.length > 0 {
-    `${nodeId}:${extra->Array.joinWith(":")}`
+    `${nodeId}:${extra->Array.join(":")}`
   } else {
     nodeId
   }

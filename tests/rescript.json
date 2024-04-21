@@ -7,7 +7,7 @@
 
   "package-specs": {
     "in-source": true,
-    "module": "es6",
+    "module": "esmodule",
     "suffix": ".mjs"
   },
   "sources": [
