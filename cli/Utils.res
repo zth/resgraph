@@ -90,8 +90,6 @@ let callPrivateCli = command => {
     } ++ "/resgraph.exe"
   }
 
-  Console.log(binLocation)
-
   (binLocation->makeUrl(currentFileUrl)).pathname
   ->ChildProcess.execFileSyncWith(command->privateCliCallToArgs, {maxBuffer: infinity})
   ->Buffer.toString
