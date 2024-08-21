@@ -111,7 +111,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
     | ["ResGraph"; "id"] -> Some (Scalar ID)
     | ["ResGraph"; "resolveInfo"] -> Some InjectInfo
     | ["ResGraphContext"; "context"] -> Some InjectContext
-    | ["Js"; "Nullable"; "t"] -> (
+    | ["Js"; "Nullable"; "t"] | ["Js"; "Null"; "t"] -> (
       match typeArgs with
       | [typeArg] -> (
         let inner =

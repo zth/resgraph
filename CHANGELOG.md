@@ -3,6 +3,7 @@
 ## main
 
 - Emit all types into the generated `GraphQLSchema` explicity.
+- Also allow `Null.t` to be used as is, in addition to `Nullable.t`.
 
 ## 0.10.0
 
