@@ -1103,4 +1103,34 @@ union_UserOrGroup.contents = GraphQLUnionType.make({
   resolveType: GraphQLUnionType.makeResolveUnionTypeFn(union_UserOrGroup_resolveType),
 })
 
-let schema = GraphQLSchemaType.make({"query": get_Query(), "mutation": get_Mutation()})
+let schema = GraphQLSchemaType.make({
+  "query": get_Query(),
+  "mutation": get_Mutation(),
+  "types": [
+    get_Query()->GraphQLObjectType.toGraphQLType,
+    get_Pet()->GraphQLObjectType.toGraphQLType,
+    get_InlineUnionOk()->GraphQLObjectType.toGraphQLType,
+    get_Group()->GraphQLObjectType.toGraphQLType,
+    get_SomeType()->GraphQLObjectType.toGraphQLType,
+    get_InlineUnionNotOk()->GraphQLObjectType.toGraphQLType,
+    get_PageInfo()->GraphQLObjectType.toGraphQLType,
+    get_UserConnection()->GraphQLObjectType.toGraphQLType,
+    get_UserEdge()->GraphQLObjectType.toGraphQLType,
+    get_User()->GraphQLObjectType.toGraphQLType,
+    get_Mutation()->GraphQLObjectType.toGraphQLType,
+    get_HasName()->GraphQLInterfaceType.toGraphQLType,
+    get_Node()->GraphQLInterfaceType.toGraphQLType,
+    get_InlineUnion()->GraphQLUnionType.toGraphQLType,
+    get_UserOrGroup()->GraphQLUnionType.toGraphQLType,
+    get_PaginationArgs()->GraphQLInputObjectType.toGraphQLType,
+    get_Location()->GraphQLInputObjectType.toGraphQLType,
+    get_PaginationArgsForward()->GraphQLInputObjectType.toGraphQLType,
+    get_Address()->GraphQLInputObjectType.toGraphQLType,
+    get_PaginationArgsBackwards()->GraphQLInputObjectType.toGraphQLType,
+    get_Coordinates()->GraphQLInputObjectType.toGraphQLType,
+    get_UserConfigContext()->GraphQLInputObjectType.toGraphQLType,
+    get_UserConfig()->GraphQLInputObjectType.toGraphQLType,
+    get_LocationByMagicString()->GraphQLInputObjectType.toGraphQLType,
+    enum_UserStatus->GraphQLEnumType.toGraphQLType,
+  ],
+})

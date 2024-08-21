@@ -627,11 +627,45 @@ let printSchemaJsFile schemaState processSchema =
   addWithNewLine "";
   addWithNewLine
     (Printf.sprintf
-       "let schema = GraphQLSchemaType.make({\"query\": get_Query()%s%s})"
+       "let schema = GraphQLSchemaType.make({\"query\": get_Query()%s%s, \
+        \"types\": [%s]})"
        (match schemaState.mutation with
        | None -> ""
        | Some _ -> ", \"mutation\": get_Mutation()")
        (match schemaState.subscription with
        | None -> ""
-       | Some _ -> ", \"subscription\": get_Subscription()"));
+       | Some _ -> ", \"subscription\": get_Subscription()")
+       (Hashtbl.fold
+          (fun _ (t : gqlObjectType) acc ->
+            ("get_" ^ t.displayName ^ "()->GraphQLObjectType.toGraphQLType")
+            :: acc)
+          schemaState.types []
+        @ Hashtbl.fold
+            (fun _ (t : gqlInterface) acc ->
+              ("get_" ^ t.displayName ^ "()->GraphQLInterfaceType.toGraphQLType")
+              :: acc)
+            schemaState.interfaces []
+        @ Hashtbl.fold
+            (fun _ (t : gqlUnion) acc ->
+              ("get_" ^ t.displayName ^ "()->GraphQLUnionType.toGraphQLType")
+              :: acc)
+            schemaState.unions []
+        @ Hashtbl.fold
+            (fun _ (t : gqlInputUnionType) acc ->
+              ("get_" ^ t.displayName
+             ^ "()->GraphQLInputObjectType.toGraphQLType")
+              :: acc)
+            schemaState.inputUnions []
+        @ Hashtbl.fold
+            (fun _ (t : gqlInputObjectType) acc ->
+              ("get_" ^ t.displayName
+             ^ "()->GraphQLInputObjectType.toGraphQLType")
+              :: acc)
+            schemaState.inputObjects []
+        @ Hashtbl.fold
+            (fun _ (t : gqlEnum) acc ->
+              ("enum_" ^ t.displayName ^ "->GraphQLEnumType.toGraphQLType")
+              :: acc)
+            schemaState.enums []
+       |> String.concat ", "));
   !code

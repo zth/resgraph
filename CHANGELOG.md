@@ -2,6 +2,8 @@
 
 ## main
 
+- Emit all types into the generated `GraphQLSchema` explicity.
+
 ## 0.10.0
 
 - Up `graphql-yoga` to `5.3.0` and `graphql` package to `16.8.1`.
