@@ -34,31 +34,14 @@ let validateName ~name ~(typeLocation : typeLocation)
                  name;
            }
 
-let validateFields ~(ownerTypeLocation : typeLocation) ~ownerName ~schemaState
-    (fields : gqlField list) =
-  if List.length fields = 0 then
-    schemaState
-    |> addDiagnostic
-         ~diagnostic:
-           {
-             loc = ownerTypeLocation.loc;
-             fileUri = ownerTypeLocation.fileUri;
-             message =
-               Printf.sprintf
-                 "Type \"%s\" must define at least one field exposed to \
-                  GraphQL. Either annotate a field with @gql.field to expose \
-                  it directly, or write a field function for the type to \
-                  expose a field."
-                 ownerName;
-           }
-  else
-    fields
-    |> List.iter (fun (f : gqlField) ->
-           validateName ~name:f.name
-             ~typeLocation:
-               (mkTypeLocation ~typeName:f.name ~loc:f.loc ~fileName:f.fileName
-                  ~fileUri:f.fileUri)
-             schemaState)
+let validateFields ~schemaState (fields : gqlField list) =
+  fields
+  |> List.iter (fun (f : gqlField) ->
+         validateName ~name:f.name
+           ~typeLocation:
+             (mkTypeLocation ~typeName:f.name ~loc:f.loc ~fileName:f.fileName
+                ~fileUri:f.fileUri)
+           schemaState)
 
 let validateRootTypes (schemaState : schemaState) =
   match schemaState.query with
@@ -84,18 +67,14 @@ let validateSchema (schemaState : schemaState) =
   schemaState.types
   |> Hashtbl.iter (fun _name (typ : gqlObjectType) ->
          match typ.typeLocation with
-         | Some typeLocation ->
-           validateFields ~ownerTypeLocation:typeLocation
-             ~ownerName:typ.displayName ~schemaState typ.fields
+         | Some _typeLocation -> validateFields ~schemaState typ.fields
          | None -> ());
 
   schemaState.inputObjects
   |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
          (* A lot has already been validated on adding the type itself. *)
          match typ.typeLocation with
-         | Some typeLocation ->
-           validateFields ~ownerTypeLocation:typeLocation
-             ~ownerName:typ.displayName ~schemaState typ.fields
+         | Some _typeLocation -> validateFields ~schemaState typ.fields
          | None -> ());
 
   schemaState.enums
@@ -114,5 +93,4 @@ let validateSchema (schemaState : schemaState) =
   |> Hashtbl.iter (fun _name (typ : gqlInterface) ->
          (* Subtype rules etc for interface fields are a bit complicated, so we
             let graphql-js do it at runtime instead. *)
-         validateFields ~ownerTypeLocation:typ.typeLocation
-           ~ownerName:typ.displayName ~schemaState typ.fields)
+         validateFields ~schemaState typ.fields)
