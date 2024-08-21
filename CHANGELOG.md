@@ -2,6 +2,8 @@
 
 ## main
 
+## 0.11.0
+
 - Emit all types into the generated `GraphQLSchema` explicity.
 - Also allow `Null.t` to be used as is, in addition to `Nullable.t`.
 - Don't validate the number of fields in types, let the GraphQL server do that instead.
