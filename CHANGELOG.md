@@ -2,6 +2,8 @@
 
 ## main
 
+## 0.12.0
+
 - **Experimental**. Allow inferring polyvariants and objects to unions, enums, input objects and object types in certain cases.
 
 ## 0.11.0

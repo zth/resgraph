@@ -1,6 +1,6 @@
 {
   "name": "resgraph",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "Build GraphQL servers in ReScript.",
   "main": "index.js",
   "scripts": {
