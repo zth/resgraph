@@ -564,10 +564,10 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                      fileUri = env.file.uri;
                      message =
                        Printf.sprintf
-                         "Tried to infer returned polyvariant as union but is \
-                          in an invalid position. Currently, polyvariants with \
-                          payloads can only be inferred as unions as retrun \
-                          types of resolvers.";
+                         "Tried to infer returned polyvariant as union but it \
+                          is in an invalid position. Currently, polyvariants \
+                          with payloads can only be inferred as unions as \
+                          retrun types of resolvers.";
                    };
             None)
         else None)
