@@ -289,3 +289,89 @@ let findThing = (_: query, ~location: location) => {
   | ById(id) => Some(id->ResGraph.idToString)
   }
 }
+
+@gql.field
+let inferredEnum = (_: query, ~rawStatus) => {
+  switch rawStatus {
+  | "ONLINE" => #Online
+  | "OFFLINE" => #Offline
+  | _ => #Other
+  }
+}
+
+@gql.field
+let inferredEnumAsArg = (_: query, ~status) => {
+  switch status {
+  | #Online => Some("Online")
+  | #Offline => Some("Offline")
+  | _ => None
+  }
+}
+
+@gql.type
+type someOtherType = {@gql.field message: string}
+
+@gql.field
+let inferredUnion = (_: query, ~rawStatus) => {
+  switch rawStatus {
+  | "ONLINE" => #SomeType({msg: "Online"})
+  | _ => #SomeOtherType({message: "Offline"})
+  }
+}
+
+@gql.field
+let inferredUnionWithInferredConstructor = (_: query, ~rawStatus) => {
+  switch rawStatus {
+  | "ONLINE" => #SomeType({msg: "Online"})->Some
+  | _ =>
+    #SomeInferredType({
+      "message": "Offline",
+      "someTypeStuff": Some({msg: "Online"}),
+    })->Some
+  }
+}
+
+let errorProducer = s =>
+  switch s {
+  | "Alice" => #Error({"reasons": [#ALICE_IS_INVALID]})
+  | _ => #Ok
+  }
+
+@gql.field
+let inferredInputObject = (_: query, ~input) => {
+  switch (input["name"], input["coordinates"]) {
+  | (Some("Alice" as name), Some({lat, lon})) =>
+    switch errorProducer(name) {
+    | #Error(_) as e => e
+    | #Ok => #Ok({"name": (name: string), "coordinates": {lat, lon}})
+    }
+  | (Some(name), Some({lat, lon})) => #Ok({"name": (name: string), "coordinates": {lat, lon}})
+
+  | (None, Some(_)) => #Error({"reasons": [#MISSING_NAME]})
+  | (Some(_), None) => #Error({"reasons": [#MISSING_NAME, #MISSING_COORDINATES]})
+  | (None, None) => #Error({"reasons": [#MISSING_NAME, #MISSING_COORDINATES]})
+  }
+}
+
+@gql.inputObject
+type someInputWithInferredStuff = {reason: [#VALID | #INVALID]}
+
+@gql.field
+let updateUserName = (_: mutation, ~userId, ~newName) => {
+  let updatedUser: user = {
+    id: userId->ResGraph.idToString,
+    name: newName,
+    age: 35,
+    lastAge: None,
+  }
+  let t = true
+  if t {
+    Some(
+      #UserUpdated({
+        "updatedUser": updatedUser,
+      }),
+    )
+  } else {
+    Some(#UserUpdateFailed({"message": "Failed to update user"}))
+  }
+}

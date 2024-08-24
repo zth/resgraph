@@ -80,8 +80,7 @@ let printSourceLocDirective (typeLocation : typeLocation option) =
   if printSourceLoc = false then ""
   else
     match typeLocation with
-    | None -> ""
-    | Some typeLocation ->
+    | Some (Concrete typeLocation) ->
       let start = typeLocation.loc |> Loc.start in
 
       let end_ = typeLocation.loc |> Loc.end_ in
@@ -90,12 +89,16 @@ let printSourceLocDirective (typeLocation : typeLocation option) =
          %i, endCol: %i)"
         (typeLocation.fileUri |> Uri.toPath)
         (start |> fst) (start |> snd) (end_ |> fst) (end_ |> snd)
+    | _ -> ""
 
 let printInputObject (input : gqlInputObjectType) =
   Printf.sprintf "%sinput %s%s {\n%s\n}"
     (printDescription input.description 0)
     input.displayName
-    (printSourceLocDirective input.typeLocation)
+    (printSourceLocDirective
+       (match input.typeLocation with
+       | Some typeLocation -> Some (Concrete typeLocation)
+       | None -> None))
     (printFields input.fields)
 
 let printInputUnion (input : gqlInputUnionType) =
@@ -103,7 +106,10 @@ let printInputUnion (input : gqlInputUnionType) =
   Printf.sprintf "%sinput %s%s @oneOf {\n%s\n}"
     (printDescription input.description 0)
     input.displayName
-    (printSourceLocDirective input.typeLocation)
+    (printSourceLocDirective
+       (match input.typeLocation with
+       | Some typeLocation -> Some (Concrete typeLocation)
+       | None -> None))
     (printFields input.fields)
 
 let printScalar (scalar : gqlScalar) =
@@ -143,7 +149,7 @@ let printInterface (intf : gqlInterface) =
     (printDescription intf.description 0)
     intf.displayName
     (printImplements intf.interfaces)
-    (printSourceLocDirective (Some intf.typeLocation))
+    (printSourceLocDirective (Some (Concrete intf.typeLocation)))
     (printFields intf.fields)
 
 let printObjectType (typ : gqlObjectType) =

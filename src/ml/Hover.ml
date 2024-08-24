@@ -182,7 +182,7 @@ let findGqlType typename ~schemaState =
                 | Some obj -> Some (ObjectType obj)
                 | None -> None)))))))
 
-let makeTypeHoverText ~typename ~(typeLocation : typeLocation) =
+let makeTypeHoverText ~typename ~(typeLocation : typeLocationLoc) =
   Printf.sprintf "%s type defined by ResGraph.\n" typename
   ^ Markdown.divider
   ^ Markdown.goToDefinitionText ~loc:typeLocation.loc
@@ -210,27 +210,27 @@ let hoverGraphQL ~path ~hoverHint =
             (Printf.sprintf "%s type defined by an inline record.\n" typename
             ^ Markdown.divider
             ^ Markdown.goToDefinitionText ~loc ~fileUri)
-        | Some (ObjectType {typeLocation = Some typeLocation}) ->
+        | Some (ObjectType {typeLocation = Some (Concrete typeLocation)}) ->
           Protocol.stringifyHover
             (makeTypeHoverText ~typeLocation ~typename:"Object")
         | Some (Interface typ) ->
           Protocol.stringifyHover
             (makeTypeHoverText ~typeLocation:typ.typeLocation
                ~typename:"Interface")
-        | Some (Enum typ) ->
+        | Some (Enum {typeLocation = Concrete typeLocation}) ->
           Protocol.stringifyHover
-            (makeTypeHoverText ~typeLocation:typ.typeLocation ~typename:"Enum")
+            (makeTypeHoverText ~typeLocation ~typename:"Enum")
         | Some (InputObject {typeLocation = Some typeLocation}) ->
           Protocol.stringifyHover
             (makeTypeHoverText ~typeLocation ~typename:"Input object")
-        | Some (Union typ) ->
+        | Some (Union {typeLocation = Concrete typeLocation}) ->
           Protocol.stringifyHover
-            (makeTypeHoverText ~typeLocation:typ.typeLocation ~typename:"Union")
+            (makeTypeHoverText ~typeLocation ~typename:"Union")
         | Some (InputUnion typ) ->
           Protocol.stringifyHover
             (makeTypeHoverText ~typeLocation:typ.typeLocation
                ~typename:"Input union")
-        | Some (ObjectType {typeLocation = None}) -> Protocol.null
+        | Some (ObjectType _) | Some (Union _) | Some (Enum _) -> Protocol.null
         | Some (InputObject {typeLocation = None}) -> Protocol.null)
       | [typename; fieldName] -> (
         match
@@ -277,13 +277,13 @@ let definitionGraphQL ~path ~definitionHint =
         with
         | Some (Scalar {typeLocation = {fileUri; loc}})
         | Some (ObjectType {syntheticTypeLocation = Some {fileUri; loc}})
-        | Some (ObjectType {typeLocation = Some {fileUri; loc}})
+        | Some (ObjectType {typeLocation = Some (Concrete {fileUri; loc})})
         | Some (Interface {typeLocation = {fileUri; loc}})
-        | Some (Enum {typeLocation = {fileUri; loc}})
+        | Some (Enum {typeLocation = Concrete {fileUri; loc}})
         | Some (InputObject {syntheticTypeLocation = Some {fileUri; loc}})
         | Some (InputObject {typeLocation = Some {fileUri; loc}})
         | Some
-            ( Union {typeLocation = {fileUri; loc}}
+            ( Union {typeLocation = Concrete {fileUri; loc}}
             | InputUnion {typeLocation = {fileUri; loc}} ) ->
           Some
             {

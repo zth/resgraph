@@ -105,9 +105,10 @@ let idFromImplementedBy (interfaceImplementedBy : interfaceImplementedBy) =
 let typeLocationFromImplementedBy
     (interfaceImplementedBy : interfaceImplementedBy) =
   match interfaceImplementedBy with
-  | ObjectType {typeLocation = Some typeLocation} | Interface {typeLocation} ->
+  | ObjectType {typeLocation = Some (Concrete typeLocation)}
+  | Interface {typeLocation} ->
     typeLocationToAccessor typeLocation
-  | ObjectType {typeLocation = None} -> raise (Failure "Error code: TLFIB_MTL")
+  | ObjectType _ -> raise (Failure "Error code: TLFIB_MTL")
 
 let sortImplementedBy (a1 : interfaceImplementedBy) a2 =
   String.compare
@@ -388,7 +389,8 @@ let printSchemaJsFile schemaState processSchema =
   addWithNewLine
     "let typeUnwrapper: ('src) => 'return = %raw(`function typeUnwrapper(src) \
      { if (src == null) return null; if (typeof src === 'object' && \
-     src.hasOwnProperty('_0')) return src['_0']; return src;}`)";
+     src.hasOwnProperty('_0')) return src['_0']; if (typeof src === 'object' \
+     && src.hasOwnProperty('VAL')) return src['VAL']; return src;}`)";
 
   (* Add the input union unwrapper. TODO: Explain more
   *)
@@ -551,14 +553,17 @@ let printSchemaJsFile schemaState processSchema =
   schemaState.unions
   |> iterHashtblAlphabetically (fun _name (union : gqlUnion) ->
          addWithNewLine
-           (Printf.sprintf
-              "let union_%s_resolveType = (v: %s) => switch v {%s}\n"
+           (Printf.sprintf "let union_%s_resolveType = (v%s) => switch v {%s}\n"
               union.displayName
-              (typeLocationToAccessor union.typeLocation)
+              (match union.typeLocation with
+              | Synthetic _ -> ""
+              | Concrete typeLocation ->
+                ": " ^ typeLocationToAccessor typeLocation)
               (union.types
               |> List.map (fun (member : gqlUnionMember) ->
-                     Printf.sprintf " | %s(_) => \"%s\"" member.constructorName
-                       member.displayName)
+                     Printf.sprintf " | %s%s(_) => \"%s\""
+                       (if union.typeSource = Polyvariant then "#" else "")
+                       member.constructorName member.displayName)
               |> String.concat "\n")));
 
   (* Print support functions for interface type resolution *)

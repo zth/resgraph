@@ -2,6 +2,8 @@
 
 ## main
 
+- **Experimental**. Allow inferring polyvariants and objects to unions, enums, input objects and object types in certain cases.
+
 ## 0.11.0
 
 - Emit all types into the generated `GraphQLSchema` explicity.

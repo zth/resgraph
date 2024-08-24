@@ -118,4 +118,56 @@ enum UserStatus {
 }
 ```
 
+## Advanced: Inferred enums
+
+The strategies outlined above are the most efficient and best ways of using enums in ResGraph. However, there are scenarios, like when prototyping or working on something isolated that won't be reused, where you might now want to have to write out your enum type definition by hand. In these cases, you can _infer your enums from polyvariants_.
+
+Remember [polymorphic variants](https://rescript-lang.org/docs/manual/latest/polymorphic-variant) in ReScript? A cousin of regular variants, with some drawbacks and some advantages compared to regular variants. One of the advantages is that polyvariants can be _inferred_ from your code usage. And ResGraph can leverage this inference to produce enums automatically for your GraphQL schema.
+
+Let's look at an example:
+
+```rescript
+let displayName = (user: user, ~format) => {
+  switch format {
+    | Some(#Long) => `${user.firstName} ${user.lastName}`
+    | Some(#Short) => user.firstName
+    | Some(#Initials) => getInitials(user)
+    | None => `${user.firstName} ${user.lastName}`
+  }
+}
+```
+
+This produces this schema:
+
+```graphql
+enum UserDisplayNameFormat {
+  Long
+  Short
+  Initials
+}
+
+type User {
+  displayName(format: UserDisplayNameFormat): String!
+}
+```
+
+Notice there's no type annotation for the `format` argument. It's all inferred by ReScript from your usage in the code. And from that, ResGraph can infer a enum for you. This works in the following places:
+
+- As arguments
+- As return types
+- Nested inside of other inferred objects (regular and input objects)
+
+This is really neat for rapidly prototyping things, and there certainly are "build-for-a-single-use" scenarios where this makes sense. Each inferred enum will be automatically named according to its context. For arguments, it'll be named `<parentTypeName><fieldName><argumentName>`. For return types `<parentTypeName><fieldName>`, and so on.
+
+You're advised to _use this to work quickly_, but then solidify your enum into an actual declared `@gql.enum` when you're done working, unless you really don't need the benefits of a "real" enum. Here are the downsides of using an inferred enum compared to an actual declared one:
+
+- Can't use doc strings
+- Can't control runtime representation with `@as`
+- Can't control the name of the generated type
+- Can't reuse the type unless you declare it (at which point you might as well just make a regular `@gql.enum`)
+
+Still, inferred enums are really cool! Use them to work quickly without type declarations needing to get into your way.
+
+## Next steps
+
 Let's look at how enum's close friend [unions are defined](unions) in ResGraph.
