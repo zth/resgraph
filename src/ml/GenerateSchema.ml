@@ -63,7 +63,14 @@ let rec extractFunctionType ~env ~package typ =
   in
   loop ~env [] typ
 
-type typeContext = Default | ReturnType
+type typeContext =
+  | Default
+  | ReturnType of {parentTypeName: string; fieldName: string}
+  | ArgumentType of {
+      fieldParentTypeName: string;
+      fieldName: string;
+      argumentName: string;
+    }
 
 let intfNameRegexp = Str.regexp "^Interface_\\(.*\\)$"
 let extractInterfaceName str =
@@ -93,7 +100,9 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
     | None -> None
     | Some inner -> Some (List inner))
   | Tconstr (Path.Pident {name = "promise"}, [unwrappedType], _)
-    when typeContext = ReturnType ->
+    when match typeContext with
+         | ReturnType _ -> true
+         | _ -> false ->
     findGraphQLType unwrappedType ?loc ~env ~debug ~schemaState ~full
       ~typeContext
   | Tconstr (Path.Pident {name = "string"}, [], _) -> Some (Scalar String)
@@ -240,6 +249,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
           let displayName = capitalizeFirstChar id in
           addUnion id ~schemaState ~debug ~makeUnion:(fun () ->
               {
+                typeSource = Variant;
                 id;
                 displayName;
                 types =
@@ -320,31 +330,9 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                      (Shared.typeToString typ);
                };
         None))
-  | Tvariant {row_fields} ->
-    (* We can infer valid polyvariants to either enums or variants depending on how they're configured. *)
-    let variantFields =
-      row_fields
-      |> List.map (fun (name, rfield) ->
-             match rfield with
-             | Types.Rpresent None -> Ok (name, None)
-             | Rpresent (Some typ) -> (
-               match
-                 findGraphQLType typ ~debug ~loc:Location.none ~full ~env
-                   ~schemaState
-               with
-               | None -> Error `Not_gql_type
-               | Some typ -> Ok (name, Some typ))
-             | _ -> Error `Invalid_variant)
-    in
-    let definedFieldsNum = List.length variantFields in
-    let errors =
-      variantFields
-      |> List.filter_map (fun v ->
-             match v with
-             | Error err -> Some err
-             | _ -> None)
-    in
-    if errors |> List.length > 0 then (
+  | Tvariant {row_fields} -> (
+    match typeContext with
+    | Default ->
       schemaState
       |> addDiagnostic
            ~diagnostic:
@@ -356,46 +344,36 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                fileUri = env.file.uri;
                message =
                  Printf.sprintf
-                   "Tried to infer returned polyvariant as either an enum or \
-                    variant, but the polyvariant contained one or more:\n\n\
-                    %s"
-                   (errors
-                   |> List.map (fun err ->
-                          match err with
-                          | `Not_gql_type ->
-                            "  - Payloads that were not valid GraphQL types"
-                          | `Invalid_variant ->
-                            "  - Constructors that were invalid"
-                          | _ -> "  - Unknown errors")
-                   |> String.concat "\n");
+                   "Found a polyvariant in a place where it cannot be inferred \
+                    as a GraphQL type. You can only use polyvariants in \
+                    resolver arguments and return types.";
              };
-      None)
-    else
-      let fields =
+      None
+    | ArgumentType _ -> None
+    | ReturnType _ ->
+      let variantFields =
+        row_fields
+        |> List.map (fun (name, rfield) ->
+               match rfield with
+               | Types.Rpresent None -> Ok (name, None)
+               | Rpresent (Some typ) -> (
+                 match
+                   findGraphQLType typ ~debug ~loc:Location.none ~full ~env
+                     ~schemaState
+                 with
+                 | None -> Error `Not_gql_type
+                 | Some typ -> Ok (name, Some typ))
+               | _ -> Error `Invalid_variant)
+      in
+      let definedFieldsNum = List.length variantFields in
+      let errors =
         variantFields
         |> List.filter_map (fun v ->
                match v with
-               | Ok v -> Some v
-               | Error _ -> None)
+               | Error err -> Some err
+               | _ -> None)
       in
-      let asEnum =
-        fields
-        |> List.filter_map (fun (name, typ) ->
-               if typ = None then Some name else None)
-      in
-      let asEnumLen = List.length asEnum in
-      let asUnion =
-        fields
-        |> List.filter_map (fun (name, typ) ->
-               match typ with
-               | None -> None
-               | Some typ -> Some (name, typ))
-      in
-      let asUnionLen = asUnion |> List.length in
-      (* Validate *)
-      if
-        asEnumLen > 0 && definedFieldsNum > asEnumLen && asEnumLen >= asUnionLen
-      then (
+      if errors |> List.length > 0 then (
         schemaState
         |> addDiagnostic
              ~diagnostic:
@@ -407,64 +385,166 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                  fileUri = env.file.uri;
                  message =
                    Printf.sprintf
-                     "Tried to infer returned polyvariant as enum but it \
-                      contains one or more constructors with payloads. \
-                      Polyvariants to be inferred as enums cannot contain \
-                      constructors with payloads.";
+                     "Tried to infer returned polyvariant as either an enum or \
+                      variant, but the polyvariant contained one or more:\n\n\
+                      %s"
+                     (errors
+                     |> List.map (fun err ->
+                            match err with
+                            | `Not_gql_type ->
+                              "  - Payloads that were not valid GraphQL types"
+                            | `Invalid_variant ->
+                              "  - Constructors that were invalid"
+                            | _ -> "  - Unknown errors")
+                     |> String.concat "\n");
                };
         None)
-      else if asUnionLen > 0 && definedFieldsNum > asUnionLen then (
-        schemaState
-        |> addDiagnostic
-             ~diagnostic:
-               {
-                 loc =
-                   (match loc with
-                   | None -> Location.in_file (env.file.moduleName ^ ".res")
-                   | Some loc -> loc);
-                 fileUri = env.file.uri;
-                 message =
-                   Printf.sprintf
-                     "Tried to infer returned polyvariant as union but it \
-                      contains one or more constructors without payloads. \
-                      Polyvariants to be inferred as unions can only contain \
-                      constructors with payloads that refer to valid GraphQL \
-                      types.";
-               };
-        None)
-      else if asEnumLen > 0 && asEnumLen = definedFieldsNum then (
-        let name = "INFERRED_ENUM" in
-        let id = name in
-        let displayName = capitalizeFirstChar id in
-        addEnum id ~schemaState ~debug ~makeEnum:(fun () ->
-            {
-              id;
-              displayName;
-              values =
-                asEnum
-                |> List.map (fun name ->
-                       {
-                         value = name;
-                         description = None;
-                         deprecationReason = None;
-                         loc = Location.none;
-                       });
-              description = None;
-              typeLocation =
-                Concrete
-                  {
-                    fileName = env.file.moduleName;
-                    fileUri = env.file.uri;
-                    modulePath = [];
-                    typeName = id;
-                    loc = Location.none;
-                  };
-            });
-        Some (GraphQLEnum {id; displayName = capitalizeFirstChar id}))
-      else if asUnionLen > 0 && asUnionLen = definedFieldsNum then (
-        print_endline "Valid union!";
-        None)
-      else None
+      else
+        let fields =
+          variantFields
+          |> List.filter_map (fun v ->
+                 match v with
+                 | Ok v -> Some v
+                 | Error _ -> None)
+        in
+        let asEnum =
+          fields
+          |> List.filter_map (fun (name, typ) ->
+                 if typ = None then Some name else None)
+        in
+        let asEnumLen = List.length asEnum in
+        let asUnion =
+          fields
+          |> List.filter_map (fun (name, typ) ->
+                 match typ with
+                 | None -> None
+                 | Some typ -> Some (name, typ))
+        in
+        let asUnionLen = asUnion |> List.length in
+        (* Validate *)
+        let syntheticTypeNameParts =
+          match typeContext with
+          | Default -> []
+          | ReturnType {parentTypeName; fieldName} ->
+            [parentTypeName; fieldName]
+          | ArgumentType {fieldParentTypeName; fieldName; argumentName} ->
+            [fieldParentTypeName; fieldName; argumentName]
+        in
+        let syntheticTypeNameParts =
+          match syntheticTypeNameParts with
+          | ("Query" | "Mutation" | "Subscription") :: rest -> rest
+          | v -> v
+        in
+        let syntheticTypeName =
+          syntheticTypeNameParts
+          |> List.map capitalizeFirstChar
+          |> String.concat ""
+        in
+        if
+          asEnumLen > 0
+          && definedFieldsNum > asEnumLen
+          && asEnumLen >= asUnionLen
+        then (
+          schemaState
+          |> addDiagnostic
+               ~diagnostic:
+                 {
+                   loc =
+                     (match loc with
+                     | None -> Location.in_file (env.file.moduleName ^ ".res")
+                     | Some loc -> loc);
+                   fileUri = env.file.uri;
+                   message =
+                     Printf.sprintf
+                       "Tried to infer returned polyvariant as enum but it \
+                        contains one or more constructors with payloads. \
+                        Polyvariants to be inferred as enums cannot contain \
+                        constructors with payloads.";
+                 };
+          None)
+        else if asUnionLen > 0 && definedFieldsNum > asUnionLen then (
+          schemaState
+          |> addDiagnostic
+               ~diagnostic:
+                 {
+                   loc =
+                     (match loc with
+                     | None -> Location.in_file (env.file.moduleName ^ ".res")
+                     | Some loc -> loc);
+                   fileUri = env.file.uri;
+                   message =
+                     Printf.sprintf
+                       "Tried to infer returned polyvariant as union but it \
+                        contains one or more constructors without payloads. \
+                        Polyvariants to be inferred as unions can only contain \
+                        constructors with payloads that refer to valid GraphQL \
+                        types.";
+                 };
+          None)
+        else if asEnumLen > 0 && asEnumLen = definedFieldsNum then (
+          let id = syntheticTypeName in
+          let displayName = id in
+          addEnum id ~schemaState ~debug ~makeEnum:(fun () ->
+              {
+                id;
+                displayName;
+                values =
+                  asEnum
+                  |> List.map (fun name ->
+                         {
+                           value = name;
+                           description = None;
+                           deprecationReason = None;
+                           loc = Location.none;
+                         });
+                description = None;
+                typeLocation =
+                  Concrete
+                    {
+                      fileName = env.file.moduleName;
+                      fileUri = env.file.uri;
+                      modulePath = [];
+                      typeName = id;
+                      loc = Location.none;
+                    };
+              });
+          Some (GraphQLEnum {id; displayName}))
+        else if asUnionLen > 0 && asUnionLen = definedFieldsNum then (
+          let id = syntheticTypeName in
+          let displayName = id in
+          addUnion id ~schemaState ~debug ~makeUnion:(fun () ->
+              {
+                typeSource = Polyvariant;
+                id;
+                displayName;
+                types =
+                  asUnion
+                  |> List.map (fun (name, (typ : graphqlType)) ->
+                         let objectTypeId, displayName =
+                           match typ with
+                           | GraphQLObjectType {id; displayName}
+                           | GraphQLInterface {id; displayName} ->
+                             (id, displayName)
+                           | _ -> (* TODO: Report error and fail *) ("", "")
+                         in
+                         {
+                           constructorName = name;
+                           objectTypeId;
+                           displayName;
+                           description = None;
+                           loc = Location.none;
+                         });
+                description = None;
+                typeLocation =
+                  Synthetic
+                    {
+                      fileName = env.file.moduleName;
+                      fileUri = env.file.uri;
+                      modulePath = [];
+                    };
+              });
+          Some (GraphQLUnion {id; displayName}))
+        else None)
   | _ ->
     schemaState
     |> addDiagnostic
@@ -779,22 +859,50 @@ and extractResolverFunctionInfo ~resolverName ~env ?loc
   | Some (Nolabel, typ) -> (
     if debug then
       Printf.printf "Checking for type to attach resolver %s to\n" resolverName;
-    match
-      ( findGraphQLType typ ~debug ?loc ~env ~full ~schemaState,
-        findGraphQLType returnType ~debug ~typeContext:ReturnType ?loc ~env
-          ~full ~schemaState )
-    with
-    | Some targetGraphQLType, Some returnType ->
-      Some (targetGraphQLType, args, returnType)
+    match findGraphQLType typ ~debug ?loc ~env ~full ~schemaState with
+    | Some targetGraphQLType -> (
+      (* Find the return type*)
+      match
+        findGraphQLType returnType ~debug
+          ~typeContext:
+            (ReturnType
+               {
+                 parentTypeName =
+                   (match targetGraphQLType with
+                   | GraphQLObjectType {displayName}
+                   | GraphQLInputObject {displayName}
+                   | GraphQLInputUnion {displayName}
+                   | GraphQLEnum {displayName}
+                   | GraphQLUnion {displayName}
+                   | GraphQLInterface {displayName} ->
+                     displayName
+                   | _ -> "");
+                 fieldName = resolverName;
+               })
+          ?loc ~env ~full ~schemaState
+      with
+      | Some returnType -> Some (targetGraphQLType, args, returnType)
+      | None -> None)
     | _ -> None)
   | _ -> None
 
-and mapFunctionArgs ~full ~env ~debug ~schemaState ~fnLoc
-    (args : SharedTypes.typedFnArg list) =
+and mapFunctionArgs ~full ~env ~debug ~schemaState ~fnLoc ~fieldParentTypeName
+    ~fieldName (args : SharedTypes.typedFnArg list) =
   args
   |> List.filter_map (fun (label, typExpr) ->
          match
-           findGraphQLType ~debug ~loc:fnLoc ~full ~env ~schemaState typExpr
+           findGraphQLType ~debug ~loc:fnLoc ~full ~env ~schemaState
+             ~typeContext:
+               (ArgumentType
+                  {
+                    fieldParentTypeName;
+                    fieldName;
+                    argumentName =
+                      (match label with
+                      | Asttypes.Nolabel -> "<unlabelled:error>"
+                      | Labelled name | Optional name -> name);
+                  })
+             typExpr
          with
          | None ->
            schemaState
@@ -943,6 +1051,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
              addUnion item.name
                ~makeUnion:(fun () ->
                  {
+                   typeSource = Variant;
                    id = item.name;
                    displayName;
                    description = item.attributes |> attributesToDocstring;
@@ -1096,11 +1205,11 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                extractResolverFunctionInfo ~resolverName:item.name ~loc:item.loc
                  ~env ~full ~schemaState ~debug typ
              with
-             | Some (GraphQLObjectType {id}, args, returnType) ->
+             | Some (GraphQLObjectType {id; displayName}, args, returnType) ->
                (* Resolver for object type. *)
                let args =
                  mapFunctionArgs ~full ~debug ~env ~schemaState ~fnLoc:item.loc
-                   args
+                   ~fieldParentTypeName:displayName ~fieldName:item.name args
                in
                (* Validate that inject intf typename arg is not present here, as
                   it's only valid in interface fns. *)
@@ -1149,12 +1258,13 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                  }
                in
                addFieldToObjectType ~env ~loc:item.loc ~field ~schemaState id
-             | Some (GraphQLInterface {id}, args, returnType) ->
+             | Some (GraphQLInterface {id; displayName}, args, returnType) ->
                (* Resolver for interface type. *)
                let args =
                  mapFunctionArgs ~full ~debug ~env ~schemaState ~fnLoc:item.loc
-                   args
+                   ~fieldParentTypeName:displayName ~fieldName:item.name args
                in
+
                (* Validate interface typename injection if present. *)
                (match
                   args

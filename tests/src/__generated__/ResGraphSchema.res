@@ -2,7 +2,7 @@
 
 open ResGraph__GraphQLJs
 
-let typeUnwrapper: 'src => 'return = %raw(`function typeUnwrapper(src) { if (src == null) return null; if (typeof src === 'object' && src.hasOwnProperty('_0')) return src['_0']; return src;}`)
+let typeUnwrapper: 'src => 'return = %raw(`function typeUnwrapper(src) { if (src == null) return null; if (typeof src === 'object' && src.hasOwnProperty('_0')) return src['_0']; if (typeof src === 'object' && src.hasOwnProperty('VAL')) return src['VAL']; return src;}`)
 let inputUnionUnwrapper: (
   'src,
   array<string>,
@@ -78,8 +78,8 @@ let scalar_Timestamp = GraphQLScalar.make({
   description: "A timestamp. \"Testing quotes here\".",
 })
 let scalar_TimestampList = GraphQLScalar.make({name: "TimestampList", description: ?None})
-let enum_INFERRED_ENUM = GraphQLEnumType.make({
-  name: "INFERRED_ENUM",
+let enum_InferredEnum = GraphQLEnumType.make({
+  name: "InferredEnum",
   description: ?None,
   values: {
     "Offline": {GraphQLEnumType.value: "Offline", description: ?None, deprecationReason: ?None},
@@ -126,6 +126,8 @@ let t_Pet: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Pet = () => t_Pet.contents
 let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Query = () => t_Query.contents
+let t_SomeOtherType: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let get_SomeOtherType = () => t_SomeOtherType.contents
 let t_SomeType: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_SomeType = () => t_SomeType.contents
 let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
@@ -182,6 +184,8 @@ input_UserConfig_conversionInstructions->Array.pushMany([
 input_UserConfigContext_conversionInstructions->Array.pushMany([
   ("name", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
 ])
+let union_InferredUnion: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
+let get_InferredUnion = () => union_InferredUnion.contents
 let union_InlineUnion: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
 let get_InlineUnion = () => union_InlineUnion.contents
 let union_UserOrGroup: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
@@ -245,6 +249,12 @@ inputUnion_PaginationArgs_conversionInstructions->Array.pushMany([
     ),
   ),
 ])
+
+let union_InferredUnion_resolveType = v =>
+  switch v {
+  | #SomeOtherType(_) => "SomeOtherType"
+  | #SomeType(_) => "SomeType"
+  }
 
 let union_InlineUnion_resolveType = (v: Schema.inlineUnion) =>
   switch v {
@@ -609,13 +619,23 @@ t_Query.contents = GraphQLObjectType.make({
         }),
       },
       "inferredEnum": {
-        typ: enum_INFERRED_ENUM->GraphQLEnumType.toGraphQLType->nonNull,
+        typ: enum_InferredEnum->GraphQLEnumType.toGraphQLType->nonNull,
         description: ?None,
         deprecationReason: ?None,
         args: {"rawStatus": {typ: Scalars.string->Scalars.toGraphQLType->nonNull}}->makeArgs,
         resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.inferredEnum(src, ~rawStatus=args["rawStatus"])
+        }),
+      },
+      "inferredUnion": {
+        typ: get_InferredUnion()->GraphQLUnionType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {"rawStatus": {typ: Scalars.string->Scalars.toGraphQLType->nonNull}}->makeArgs,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          Schema.inferredUnion(src, ~rawStatus=args["rawStatus"])
         }),
       },
       "inlineUnion": {
@@ -772,6 +792,23 @@ t_Query.contents = GraphQLObjectType.make({
               input_UserConfig_conversionInstructions,
             ),
           )
+        }),
+      },
+    }->makeFields,
+})
+t_SomeOtherType.contents = GraphQLObjectType.make({
+  name: "SomeOtherType",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "message": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["message"]
         }),
       },
     }->makeFields,
@@ -1109,6 +1146,12 @@ inputUnion_PaginationArgs.contents = GraphQLInputObjectType.make({
     }->makeFields,
   extensions: {oneOf: true},
 })
+union_InferredUnion.contents = GraphQLUnionType.make({
+  name: "InferredUnion",
+  description: ?None,
+  types: () => [get_SomeOtherType(), get_SomeType()],
+  resolveType: GraphQLUnionType.makeResolveUnionTypeFn(union_InferredUnion_resolveType),
+})
 union_InlineUnion.contents = GraphQLUnionType.make({
   name: "InlineUnion",
   description: ?None,
@@ -1134,6 +1177,7 @@ let schema = GraphQLSchemaType.make({
     get_InlineUnionNotOk()->GraphQLObjectType.toGraphQLType,
     get_PageInfo()->GraphQLObjectType.toGraphQLType,
     get_UserConnection()->GraphQLObjectType.toGraphQLType,
+    get_SomeOtherType()->GraphQLObjectType.toGraphQLType,
     get_UserEdge()->GraphQLObjectType.toGraphQLType,
     get_User()->GraphQLObjectType.toGraphQLType,
     get_Mutation()->GraphQLObjectType.toGraphQLType,
@@ -1141,6 +1185,7 @@ let schema = GraphQLSchemaType.make({
     get_Node()->GraphQLInterfaceType.toGraphQLType,
     get_InlineUnion()->GraphQLUnionType.toGraphQLType,
     get_UserOrGroup()->GraphQLUnionType.toGraphQLType,
+    get_InferredUnion()->GraphQLUnionType.toGraphQLType,
     get_PaginationArgs()->GraphQLInputObjectType.toGraphQLType,
     get_Location()->GraphQLInputObjectType.toGraphQLType,
     get_PaginationArgsForward()->GraphQLInputObjectType.toGraphQLType,
@@ -1150,7 +1195,7 @@ let schema = GraphQLSchemaType.make({
     get_UserConfigContext()->GraphQLInputObjectType.toGraphQLType,
     get_UserConfig()->GraphQLInputObjectType.toGraphQLType,
     get_LocationByMagicString()->GraphQLInputObjectType.toGraphQLType,
+    enum_InferredEnum->GraphQLEnumType.toGraphQLType,
     enum_UserStatus->GraphQLEnumType.toGraphQLType,
-    enum_INFERRED_ENUM->GraphQLEnumType.toGraphQLType,
   ],
 })

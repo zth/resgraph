@@ -299,7 +299,7 @@ let inferredEnum = (_: query, ~rawStatus) => {
   }
 }
 
-/* @gql.type
+@gql.type
 type someOtherType = {@gql.field message: string}
 
 @gql.field
@@ -308,4 +308,4 @@ let inferredUnion = (_: query, ~rawStatus) => {
   | "ONLINE" => #SomeType({msg: "Online"})
   | _ => #SomeOtherType({message: "Offline"})
   }
-}*/
+}

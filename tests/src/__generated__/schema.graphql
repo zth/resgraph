@@ -15,7 +15,7 @@ scalar Timestamp
 
 scalar TimestampList
 
-enum INFERRED_ENUM {
+enum InferredEnum {
   Offline
   Online
   Other
@@ -34,6 +34,11 @@ enum UserStatus {
   """User is idle."""
   Idle @deprecated(reason: "Use 'Offline' instead. This should be \"escaped\".")
 }
+
+union InferredUnion = 
+  | SomeOtherType
+  | SomeType
+
 
 union InlineUnion = 
   | InlineUnionOk
@@ -176,7 +181,8 @@ type Pet implements HasName {
 }
 
 type Query {
-  inferredEnum(rawStatus: String!): INFERRED_ENUM!
+  inferredUnion(rawStatus: String!): InferredUnion!
+  inferredEnum(rawStatus: String!): InferredEnum!
   findThing(location: Location!): String
   inlineUnion: InlineUnion
   allUsers(first: Int, last: Int, before: String, after: String): UserConnection
@@ -197,6 +203,10 @@ type Query {
   """Fetches an object given its ID."""
   node(id: ID!): Node
   hasName(id: ID!): HasName
+}
+
+type SomeOtherType {
+  message: String!
 }
 
 type SomeType {

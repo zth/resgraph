@@ -65,12 +65,16 @@ type gqlEnum = {
 type gqlUnionMember = {
   objectTypeId: string;
   displayName: string;
+      (** TODO: Rename this to something more descriptive... *)
   description: string option;
   constructorName: string;
   loc: Location.t;
 }
 
+type gqlUnionTypeSource = Variant | Polyvariant
+
 type gqlUnion = {
+  typeSource: gqlUnionTypeSource;
   id: string;
   displayName: string;
   description: string option;

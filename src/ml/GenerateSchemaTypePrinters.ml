@@ -389,7 +389,8 @@ let printSchemaJsFile schemaState processSchema =
   addWithNewLine
     "let typeUnwrapper: ('src) => 'return = %raw(`function typeUnwrapper(src) \
      { if (src == null) return null; if (typeof src === 'object' && \
-     src.hasOwnProperty('_0')) return src['_0']; return src;}`)";
+     src.hasOwnProperty('_0')) return src['_0']; if (typeof src === 'object' \
+     && src.hasOwnProperty('VAL')) return src['VAL']; return src;}`)";
 
   (* Add the input union unwrapper. TODO: Explain more
   *)
@@ -552,16 +553,17 @@ let printSchemaJsFile schemaState processSchema =
   schemaState.unions
   |> iterHashtblAlphabetically (fun _name (union : gqlUnion) ->
          addWithNewLine
-           (Printf.sprintf
-              "let union_%s_resolveType = (v: %s) => switch v {%s}\n"
+           (Printf.sprintf "let union_%s_resolveType = (v%s) => switch v {%s}\n"
               union.displayName
               (match union.typeLocation with
-              | Synthetic _ -> "TODO_TYPE_ACCESSOR_POLY"
-              | Concrete typeLocation -> typeLocationToAccessor typeLocation)
+              | Synthetic _ -> ""
+              | Concrete typeLocation ->
+                ": " ^ typeLocationToAccessor typeLocation)
               (union.types
               |> List.map (fun (member : gqlUnionMember) ->
-                     Printf.sprintf " | %s(_) => \"%s\"" member.constructorName
-                       member.displayName)
+                     Printf.sprintf " | %s%s(_) => \"%s\""
+                       (if union.typeSource = Polyvariant then "#" else "")
+                       member.constructorName member.displayName)
               |> String.concat "\n")));
 
   (* Print support functions for interface type resolution *)
