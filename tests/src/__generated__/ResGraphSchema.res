@@ -162,6 +162,10 @@ let t_InlineUnionNotOk: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.nul
 let get_InlineUnionNotOk = () => t_InlineUnionNotOk.contents
 let t_InlineUnionOk: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_InlineUnionOk = () => t_InlineUnionOk.contents
+let t_UpdateUserNameUserUpdateFailed: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let get_UpdateUserNameUserUpdateFailed = () => t_UpdateUserNameUserUpdateFailed.contents
+let t_UpdateUserNameUserUpdated: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let get_UpdateUserNameUserUpdated = () => t_UpdateUserNameUserUpdated.contents
 let t_Group: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Group = () => t_Group.contents
 let t_Mutation: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
@@ -249,6 +253,8 @@ let union_InferredUnionWithInferredConstructor: ref<GraphQLUnionType.t> = Obj.ma
 })
 let get_InferredUnionWithInferredConstructor = () =>
   union_InferredUnionWithInferredConstructor.contents
+let union_UpdateUserNameResult: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
+let get_UpdateUserNameResult = () => union_UpdateUserNameResult.contents
 let union_InlineUnion: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
 let get_InlineUnion = () => union_InlineUnion.contents
 let union_UserOrGroup: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
@@ -329,6 +335,12 @@ let union_InferredUnionWithInferredConstructor_resolveType = v =>
   switch v {
   | #SomeInferredType(_) => "InferredUnionWithInferredConstructorSomeInferredType"
   | #SomeType(_) => "SomeType"
+  }
+
+let union_UpdateUserNameResult_resolveType = v =>
+  switch v {
+  | #UserUpdateFailed(_) => "UpdateUserNameUserUpdateFailed"
+  | #UserUpdated(_) => "UpdateUserNameUserUpdated"
   }
 
 let union_InlineUnion_resolveType = (v: Schema.inlineUnion) =>
@@ -506,6 +518,40 @@ t_InlineUnionOk.contents = GraphQLObjectType.make({
       },
     }->makeFields,
 })
+t_UpdateUserNameUserUpdateFailed.contents = GraphQLObjectType.make({
+  name: "UpdateUserNameUserUpdateFailed",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "message": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["message"]
+        }),
+      },
+    }->makeFields,
+})
+t_UpdateUserNameUserUpdated.contents = GraphQLObjectType.make({
+  name: "UpdateUserNameUserUpdated",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "updatedUser": {
+        typ: get_User()->GraphQLObjectType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["updatedUser"]
+        }),
+      },
+    }->makeFields,
+})
 t_Group.contents = GraphQLObjectType.make({
   name: "Group",
   description: "A group in the system.",
@@ -573,6 +619,19 @@ t_Mutation.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.Mutations.addUser(src, ~name=args["name"])
+        }),
+      },
+      "updateUserName": {
+        typ: get_UpdateUserNameResult()->GraphQLUnionType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {
+          "newName": {typ: Scalars.string->Scalars.toGraphQLType->nonNull},
+          "userId": {typ: Scalars.id->Scalars.toGraphQLType->nonNull},
+        }->makeArgs,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          Schema.updateUserName(src, ~newName=args["newName"], ~userId=args["userId"])
         }),
       },
     }->makeFields,
@@ -1374,6 +1433,12 @@ union_InferredUnionWithInferredConstructor.contents = GraphQLUnionType.make({
     union_InferredUnionWithInferredConstructor_resolveType,
   ),
 })
+union_UpdateUserNameResult.contents = GraphQLUnionType.make({
+  name: "UpdateUserNameResult",
+  description: ?None,
+  types: () => [get_UpdateUserNameUserUpdateFailed(), get_UpdateUserNameUserUpdated()],
+  resolveType: GraphQLUnionType.makeResolveUnionTypeFn(union_UpdateUserNameResult_resolveType),
+})
 union_InlineUnion.contents = GraphQLUnionType.make({
   name: "InlineUnion",
   description: ?None,
@@ -1391,6 +1456,7 @@ let schema = GraphQLSchemaType.make({
   "query": get_Query(),
   "mutation": get_Mutation(),
   "types": [
+    get_UpdateUserNameUserUpdated()->GraphQLObjectType.toGraphQLType,
     get_Query()->GraphQLObjectType.toGraphQLType,
     get_Pet()->GraphQLObjectType.toGraphQLType,
     get_InferredInputObjectError()->GraphQLObjectType.toGraphQLType,
@@ -1398,6 +1464,7 @@ let schema = GraphQLSchemaType.make({
     get_Group()->GraphQLObjectType.toGraphQLType,
     get_SomeType()->GraphQLObjectType.toGraphQLType,
     get_InlineUnionNotOk()->GraphQLObjectType.toGraphQLType,
+    get_UpdateUserNameUserUpdateFailed()->GraphQLObjectType.toGraphQLType,
     get_PageInfo()->GraphQLObjectType.toGraphQLType,
     get_InferredUnionWithInferredConstructorSomeInferredType()->GraphQLObjectType.toGraphQLType,
     get_UserConnection()->GraphQLObjectType.toGraphQLType,
@@ -1413,6 +1480,7 @@ let schema = GraphQLSchemaType.make({
     get_InferredUnionWithInferredConstructor()->GraphQLUnionType.toGraphQLType,
     get_InferredInputObject()->GraphQLUnionType.toGraphQLType,
     get_InferredUnion()->GraphQLUnionType.toGraphQLType,
+    get_UpdateUserNameResult()->GraphQLUnionType.toGraphQLType,
     get_PaginationArgs()->GraphQLInputObjectType.toGraphQLType,
     get_Location()->GraphQLInputObjectType.toGraphQLType,
     get_SomeInputWithInferredStuff()->GraphQLInputObjectType.toGraphQLType,

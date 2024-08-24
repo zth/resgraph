@@ -486,6 +486,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
           [fieldParentTypeName; fieldName; argumentName]
         | ObjectField {objectTypeName; fieldName} -> [objectTypeName; fieldName]
       in
+      let fromMutation = List.hd syntheticTypeNameParts = "Mutation" in
       let syntheticTypeNameParts =
         match syntheticTypeNameParts with
         | ("Query" | "Mutation" | "Subscription") :: rest -> rest
@@ -655,6 +656,10 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
         else if asUnionLen > 0 && asUnionLen = definedFieldsNum then (
           match context with
           | `ReturnType ->
+            let syntheticTypeName =
+              if fromMutation then syntheticTypeName ^ "Result"
+              else syntheticTypeName
+            in
             let id = syntheticTypeName in
             let displayName = id in
             addUnion id ~schemaState ~debug ~makeUnion:(fun () ->

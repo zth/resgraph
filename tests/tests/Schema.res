@@ -355,3 +355,23 @@ let inferredInputObject = (_: query, ~input) => {
 
 @gql.inputObject
 type someInputWithInferredStuff = {reason: [#VALID | #INVALID]}
+
+@gql.field
+let updateUserName = (_: mutation, ~userId, ~newName) => {
+  let updatedUser: user = {
+    id: userId->ResGraph.idToString,
+    name: newName,
+    age: 35,
+    lastAge: None,
+  }
+  let t = true
+  if t {
+    Some(
+      #UserUpdated({
+        "updatedUser": updatedUser,
+      }),
+    )
+  } else {
+    Some(#UserUpdateFailed({"message": "Failed to update user"}))
+  }
+}
