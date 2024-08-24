@@ -361,8 +361,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                | None -> None
                | Some typ -> Some (name, typ))
       in
-      if List.length rawObjectFields <> List.length objectFields then
-        (* TODO: Report error *) None
+      if List.length rawObjectFields <> List.length objectFields then None
       else
         let id = syntheticTypeName in
         noticeObjectType id ~displayName:syntheticTypeName
@@ -408,8 +407,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                | None -> None
                | Some typ -> Some (name, typ))
       in
-      if List.length rawObjectFields <> List.length objectFields then
-        (* TODO: Report error *) None
+      if List.length rawObjectFields <> List.length objectFields then None
       else
         let id = syntheticTypeName in
         let displayName = syntheticTypeName in
@@ -672,7 +670,25 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                              | GraphQLObjectType {id; displayName}
                              | GraphQLInterface {id; displayName} ->
                                (id, displayName)
-                             | _ -> (* TODO: Report error and fail *) ("", "")
+                             | _ ->
+                               schemaState
+                               |> addDiagnostic
+                                    ~diagnostic:
+                                      {
+                                        loc =
+                                          (match loc with
+                                          | None ->
+                                            Location.in_file
+                                              (env.file.moduleName ^ ".res")
+                                          | Some loc -> loc);
+                                        fileUri = env.file.uri;
+                                        message =
+                                          Printf.sprintf
+                                            "Found an invalid union member. \
+                                             Unions can only contain objects \
+                                             or interfaces.";
+                                      };
+                               ("", "")
                            in
                            {
                              constructorName = name;
