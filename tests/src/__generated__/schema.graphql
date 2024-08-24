@@ -40,6 +40,11 @@ enum UserStatus {
   Idle @deprecated(reason: "Use 'Offline' instead. This should be \"escaped\".")
 }
 
+union InferredInputObject = 
+  | InferredInputObjectError
+  | InferredInputObjectOk
+
+
 union InferredUnion = 
   | SomeOtherType
   | SomeType
@@ -62,6 +67,10 @@ union UserOrGroup =
   | """ This is a user.""" User
   | """ And this is a group. """ Group
 
+
+input InferredInputObjectInput {
+
+}
 
 input LocationByMagicString {
   text: String!
@@ -134,6 +143,15 @@ interface Node {
   id: ID!
 }
 
+type InferredInputObjectError {
+  message: String!
+}
+
+type InferredInputObjectOk {
+  name: String!
+  coordinates: Coordinates!
+}
+
 type InferredUnionWithInferredConstructorSomeInferredType {
   someTypeStuff: SomeType
   message: String!
@@ -196,6 +214,7 @@ type Pet implements HasName {
 }
 
 type Query {
+  inferredInputObject(input: InferredInputObjectInput!): InferredInputObject!
   inferredUnionWithInferredConstructor(rawStatus: String!): InferredUnionWithInferredConstructor
   inferredUnion(rawStatus: String!): InferredUnion!
   inferredEnumAsArg(status: InferredEnumAsArgStatus!): String

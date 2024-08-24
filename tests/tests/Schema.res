@@ -330,3 +330,13 @@ let inferredUnionWithInferredConstructor = (_: query, ~rawStatus) => {
     })->Some
   }
 }
+
+@gql.field
+let inferredInputObject = (_: query, ~input) => {
+  switch (input["name"], input["coordinates"]) {
+  | (Some(name), Some({lat, lon})) => #Ok({"name": (name: string), "coordinates": {lat, lon}})
+  | (None, Some(_)) => #Error({"message": "Missing name"})
+  | (Some(_), None) => #Error({"message": "Missing coordinates"})
+  | (None, None) => #Error({"message": "Missing name and coordinates"})
+  }
+}

@@ -332,20 +332,20 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                };
         None))
   | Tobject (t, _) -> (
+    let rec extractObjectFields ?(items = []) typ =
+      match typ with
+      | {Types.desc = Tfield (name, _kind, typ, next)} ->
+        extractObjectFields
+          ~items:
+            (( name,
+               findGraphQLType typ ~debug ~loc:Location.none ~full ~env
+                 ~schemaState ~typeContext )
+            :: items)
+          next
+      | _ -> items
+    in
     match typeContext with
     | UnionMember {parentUnionName; constructorName} ->
-      let rec extractObjectFields ?(items = []) typ =
-        match typ with
-        | {Types.desc = Tfield (name, _kind, typ, next)} ->
-          extractObjectFields
-            ~items:
-              (( name,
-                 findGraphQLType typ ~debug ~loc:Location.none ~full ~env
-                   ~schemaState ~typeContext )
-              :: items)
-            next
-        | _ -> items
-      in
       let rawObjectFields = extractObjectFields t in
       let objectFields =
         rawObjectFields
@@ -378,6 +378,57 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                    }))
           ~loc:Location.none;
         Some (GraphQLObjectType {id; displayName = syntheticTypeName})
+    | ArgumentType {fieldName; fieldParentTypeName; argumentName} ->
+      let rawObjectFields = extractObjectFields t in
+      let objectFields =
+        rawObjectFields
+        |> List.filter_map (fun (name, typ) ->
+               match typ with
+               | None -> None
+               | Some typ -> Some (name, typ))
+      in
+      if List.length rawObjectFields <> List.length objectFields then
+        (* TODO: Report error *) None
+      else
+        let syntheticTypeNameParts =
+          [fieldParentTypeName; fieldName; argumentName]
+        in
+        let syntheticTypeNameParts =
+          match syntheticTypeNameParts with
+          | ("Query" | "Mutation" | "Subscription") :: rest -> rest
+          | v -> v
+        in
+        let syntheticTypeName =
+          syntheticTypeNameParts
+          |> List.map capitalizeFirstChar
+          |> String.concat ""
+        in
+        let id = syntheticTypeName in
+        let displayName = syntheticTypeName in
+        addInputObject id ~schemaState ~debug ~makeInputObject:(fun () ->
+            {
+              id;
+              displayName;
+              fields =
+                objectFields
+                |> List.map (fun (name, typ) ->
+                       {
+                         name;
+                         resolverStyle = Property name;
+                         typ;
+                         fileName = env.file.moduleName;
+                         fileUri = env.file.uri;
+                         args = [];
+                         description = None;
+                         deprecationReason = None;
+                         loc = Location.none;
+                         onType = None;
+                       });
+              description = None;
+              typeLocation = None;
+              syntheticTypeLocation = None;
+            });
+        Some (GraphQLInputObject {id; displayName})
     | _ ->
       schemaState
       |> addDiagnostic
@@ -454,7 +505,11 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                           })
                  with
                  | None -> Error (`Not_gql_type name)
-                 | Some typ -> Ok (name, Some typ))
+                 | Some typ -> (
+                   match typ with
+                   | GraphQLObjectType _ | GraphQLInterface _ ->
+                     Ok (name, Some typ)
+                   | _ -> Error (`Illegal_union_member_type name)))
                | _ -> Error `Invalid_variant)
       in
       let definedFieldsNum = List.length variantFields in
@@ -486,6 +541,11 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                             | `Not_gql_type name ->
                               "  - Payload on constructor '" ^ name
                               ^ "' is not a valid GraphQL type"
+                            | `Illegal_union_member_type name ->
+                              "  - Payload on constructor '" ^ name
+                              ^ "' is not a valid GraphQL type for a union. \
+                                 Payloads for unions must be objects or \
+                                 interfaces."
                             | `Invalid_variant ->
                               "  - Constructors that were invalid"
                             | _ -> "  - Unknown errors")
@@ -1001,7 +1061,6 @@ and mapFunctionArgs ~full ~env ~debug ~schemaState ~fnLoc ~fieldParentTypeName
              typExpr
          with
          | None ->
-           Printtyp.raw_type_expr Format.std_formatter typExpr;
            schemaState
            |> addDiagnostic
                 ~diagnostic:
