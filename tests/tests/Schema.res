@@ -299,6 +299,15 @@ let inferredEnum = (_: query, ~rawStatus) => {
   }
 }
 
+@gql.field
+let inferredEnumAsArg = (_: query, ~status) => {
+  switch status {
+  | #Online => Some("Online")
+  | #Offline => Some("Offline")
+  | _ => None
+  }
+}
+
 @gql.type
 type someOtherType = {@gql.field message: string}
 

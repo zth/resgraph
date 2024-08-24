@@ -349,8 +349,13 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                     resolver arguments and return types.";
              };
       None
-    | ArgumentType _ -> None
-    | ReturnType _ ->
+    | ArgumentType _ | ReturnType _ ->
+      let context =
+        match typeContext with
+        | ArgumentType _ -> `Argument
+        | ReturnType _ -> `ReturnType
+        | _ -> raise (Invalid_argument "Invalid type context")
+      in
       let variantFields =
         row_fields
         |> List.map (fun (name, rfield) ->
@@ -510,40 +515,61 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
               });
           Some (GraphQLEnum {id; displayName}))
         else if asUnionLen > 0 && asUnionLen = definedFieldsNum then (
-          let id = syntheticTypeName in
-          let displayName = id in
-          addUnion id ~schemaState ~debug ~makeUnion:(fun () ->
-              {
-                typeSource = Polyvariant;
-                id;
-                displayName;
-                types =
-                  asUnion
-                  |> List.map (fun (name, (typ : graphqlType)) ->
-                         let objectTypeId, displayName =
-                           match typ with
-                           | GraphQLObjectType {id; displayName}
-                           | GraphQLInterface {id; displayName} ->
-                             (id, displayName)
-                           | _ -> (* TODO: Report error and fail *) ("", "")
-                         in
-                         {
-                           constructorName = name;
-                           objectTypeId;
-                           displayName;
-                           description = None;
-                           loc = Location.none;
-                         });
-                description = None;
-                typeLocation =
-                  Synthetic
-                    {
-                      fileName = env.file.moduleName;
-                      fileUri = env.file.uri;
-                      modulePath = [];
-                    };
-              });
-          Some (GraphQLUnion {id; displayName}))
+          match context with
+          | `ReturnType ->
+            let id = syntheticTypeName in
+            let displayName = id in
+            addUnion id ~schemaState ~debug ~makeUnion:(fun () ->
+                {
+                  typeSource = Polyvariant;
+                  id;
+                  displayName;
+                  types =
+                    asUnion
+                    |> List.map (fun (name, (typ : graphqlType)) ->
+                           let objectTypeId, displayName =
+                             match typ with
+                             | GraphQLObjectType {id; displayName}
+                             | GraphQLInterface {id; displayName} ->
+                               (id, displayName)
+                             | _ -> (* TODO: Report error and fail *) ("", "")
+                           in
+                           {
+                             constructorName = name;
+                             objectTypeId;
+                             displayName;
+                             description = None;
+                             loc = Location.none;
+                           });
+                  description = None;
+                  typeLocation =
+                    Synthetic
+                      {
+                        fileName = env.file.moduleName;
+                        fileUri = env.file.uri;
+                        modulePath = [];
+                      };
+                });
+            Some (GraphQLUnion {id; displayName})
+          | `Argument ->
+            (* TODO: Input union *)
+            schemaState
+            |> addDiagnostic
+                 ~diagnostic:
+                   {
+                     loc =
+                       (match loc with
+                       | None -> Location.in_file (env.file.moduleName ^ ".res")
+                       | Some loc -> loc);
+                     fileUri = env.file.uri;
+                     message =
+                       Printf.sprintf
+                         "Tried to infer returned polyvariant as union but is \
+                          in an invalid position. Currently, polyvariants with \
+                          payloads can only be inferred as unions as retrun \
+                          types of resolvers.";
+                   };
+            None)
         else None)
   | _ ->
     schemaState
@@ -905,6 +931,7 @@ and mapFunctionArgs ~full ~env ~debug ~schemaState ~fnLoc ~fieldParentTypeName
              typExpr
          with
          | None ->
+           Printtyp.raw_type_expr Format.std_formatter typExpr;
            schemaState
            |> addDiagnostic
                 ~diagnostic:

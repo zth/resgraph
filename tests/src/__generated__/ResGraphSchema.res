@@ -87,6 +87,14 @@ let enum_InferredEnum = GraphQLEnumType.make({
     "Other": {GraphQLEnumType.value: "Other", description: ?None, deprecationReason: ?None},
   }->makeEnumValues,
 })
+let enum_InferredEnumAsArgStatus = GraphQLEnumType.make({
+  name: "InferredEnumAsArgStatus",
+  description: ?None,
+  values: {
+    "Offline": {GraphQLEnumType.value: "Offline", description: ?None, deprecationReason: ?None},
+    "Online": {GraphQLEnumType.value: "Online", description: ?None, deprecationReason: ?None},
+  }->makeEnumValues,
+})
 let enum_UserStatus = GraphQLEnumType.make({
   name: "UserStatus",
   description: "Indicates what status a user currently has.",
@@ -626,6 +634,18 @@ t_Query.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.inferredEnum(src, ~rawStatus=args["rawStatus"])
+        }),
+      },
+      "inferredEnumAsArg": {
+        typ: Scalars.string->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {
+          "status": {typ: enum_InferredEnumAsArgStatus->GraphQLEnumType.toGraphQLType->nonNull},
+        }->makeArgs,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          Schema.inferredEnumAsArg(src, ~status=args["status"])
         }),
       },
       "inferredUnion": {
@@ -1197,5 +1217,6 @@ let schema = GraphQLSchemaType.make({
     get_LocationByMagicString()->GraphQLInputObjectType.toGraphQLType,
     enum_InferredEnum->GraphQLEnumType.toGraphQLType,
     enum_UserStatus->GraphQLEnumType.toGraphQLType,
+    enum_InferredEnumAsArgStatus->GraphQLEnumType.toGraphQLType,
   ],
 })

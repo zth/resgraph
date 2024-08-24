@@ -21,6 +21,11 @@ enum InferredEnum {
   Other
 }
 
+enum InferredEnumAsArgStatus {
+  Offline
+  Online
+}
+
 
 """Indicates what status a user currently has."""
 enum UserStatus {
@@ -182,6 +187,7 @@ type Pet implements HasName {
 
 type Query {
   inferredUnion(rawStatus: String!): InferredUnion!
+  inferredEnumAsArg(status: InferredEnumAsArgStatus!): String
   inferredEnum(rawStatus: String!): InferredEnum!
   findThing(location: Location!): String
   inlineUnion: InlineUnion
