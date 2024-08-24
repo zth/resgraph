@@ -78,6 +78,15 @@ let scalar_Timestamp = GraphQLScalar.make({
   description: "A timestamp. \"Testing quotes here\".",
 })
 let scalar_TimestampList = GraphQLScalar.make({name: "TimestampList", description: ?None})
+let enum_INFERRED_ENUM = GraphQLEnumType.make({
+  name: "INFERRED_ENUM",
+  description: ?None,
+  values: {
+    "Offline": {GraphQLEnumType.value: "Offline", description: ?None, deprecationReason: ?None},
+    "Online": {GraphQLEnumType.value: "Online", description: ?None, deprecationReason: ?None},
+    "Other": {GraphQLEnumType.value: "Other", description: ?None, deprecationReason: ?None},
+  }->makeEnumValues,
+})
 let enum_UserStatus = GraphQLEnumType.make({
   name: "UserStatus",
   description: "Indicates what status a user currently has.",
@@ -597,6 +606,16 @@ t_Query.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           HasNameInterfaceResolvers.hasName(src, ~id=args["id"])
+        }),
+      },
+      "inferredEnum": {
+        typ: enum_INFERRED_ENUM->GraphQLEnumType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {"rawStatus": {typ: Scalars.string->Scalars.toGraphQLType->nonNull}}->makeArgs,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          Schema.inferredEnum(src, ~rawStatus=args["rawStatus"])
         }),
       },
       "inlineUnion": {
@@ -1132,5 +1151,6 @@ let schema = GraphQLSchemaType.make({
     get_UserConfig()->GraphQLInputObjectType.toGraphQLType,
     get_LocationByMagicString()->GraphQLInputObjectType.toGraphQLType,
     enum_UserStatus->GraphQLEnumType.toGraphQLType,
+    enum_INFERRED_ENUM->GraphQLEnumType.toGraphQLType,
   ],
 })

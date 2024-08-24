@@ -318,6 +318,151 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                      (Shared.typeToString typ);
                };
         None))
+  | Tvariant {row_fields} ->
+    (* We can infer valid polyvariants to either enums or variants depending on how they're configured. *)
+    let variantFields =
+      row_fields
+      |> List.map (fun (name, rfield) ->
+             match rfield with
+             | Types.Rpresent None -> Ok (name, None)
+             | Rpresent (Some typ) -> (
+               match
+                 findGraphQLType typ ~debug ~loc:Location.none ~full ~env
+                   ~schemaState
+               with
+               | None -> Error `Not_gql_type
+               | Some typ -> Ok (name, Some typ))
+             | _ -> Error `Invalid_variant)
+    in
+    let definedFieldsNum = List.length variantFields in
+    let errors =
+      variantFields
+      |> List.filter_map (fun v ->
+             match v with
+             | Error err -> Some err
+             | _ -> None)
+    in
+    if errors |> List.length > 0 then (
+      schemaState
+      |> addDiagnostic
+           ~diagnostic:
+             {
+               loc =
+                 (match loc with
+                 | None -> Location.in_file (env.file.moduleName ^ ".res")
+                 | Some loc -> loc);
+               fileUri = env.file.uri;
+               message =
+                 Printf.sprintf
+                   "Tried to infer returned polyvariant as either an enum or \
+                    variant, but the polyvariant contained one or more:\n\n\
+                    %s"
+                   (errors
+                   |> List.map (fun err ->
+                          match err with
+                          | `Not_gql_type ->
+                            "  - Payloads that were not valid GraphQL types"
+                          | `Invalid_variant ->
+                            "  - Constructors that were invalid"
+                          | _ -> "  - Unknown errors")
+                   |> String.concat "\n");
+             };
+      None)
+    else
+      let fields =
+        variantFields
+        |> List.filter_map (fun v ->
+               match v with
+               | Ok v -> Some v
+               | Error _ -> None)
+      in
+      let asEnum =
+        fields
+        |> List.filter_map (fun (name, typ) ->
+               if typ = None then Some name else None)
+      in
+      let asEnumLen = List.length asEnum in
+      let asUnion =
+        fields
+        |> List.filter_map (fun (name, typ) ->
+               match typ with
+               | None -> None
+               | Some typ -> Some (name, typ))
+      in
+      let asUnionLen = asUnion |> List.length in
+      (* Validate *)
+      if
+        asEnumLen > 0 && definedFieldsNum > asEnumLen && asEnumLen >= asUnionLen
+      then (
+        schemaState
+        |> addDiagnostic
+             ~diagnostic:
+               {
+                 loc =
+                   (match loc with
+                   | None -> Location.in_file (env.file.moduleName ^ ".res")
+                   | Some loc -> loc);
+                 fileUri = env.file.uri;
+                 message =
+                   Printf.sprintf
+                     "Tried to infer returned polyvariant as enum but it \
+                      contains one or more constructors with payloads. \
+                      Polyvariants to be inferred as enums cannot contain \
+                      constructors with payloads.";
+               };
+        None)
+      else if asUnionLen > 0 && definedFieldsNum > asUnionLen then (
+        schemaState
+        |> addDiagnostic
+             ~diagnostic:
+               {
+                 loc =
+                   (match loc with
+                   | None -> Location.in_file (env.file.moduleName ^ ".res")
+                   | Some loc -> loc);
+                 fileUri = env.file.uri;
+                 message =
+                   Printf.sprintf
+                     "Tried to infer returned polyvariant as union but it \
+                      contains one or more constructors without payloads. \
+                      Polyvariants to be inferred as unions can only contain \
+                      constructors with payloads that refer to valid GraphQL \
+                      types.";
+               };
+        None)
+      else if asEnumLen > 0 && asEnumLen = definedFieldsNum then (
+        print_endline "Valid enum!";
+        let name = "INFERRED_ENUM" in
+        let id = name in
+        let displayName = capitalizeFirstChar id in
+        addEnum id ~schemaState ~debug ~makeEnum:(fun () ->
+            {
+              id;
+              displayName;
+              values =
+                asEnum
+                |> List.map (fun name ->
+                       {
+                         value = name;
+                         description = None;
+                         deprecationReason = None;
+                         loc = Location.none;
+                       });
+              description = None;
+              typeLocation =
+                {
+                  fileName = env.file.moduleName;
+                  fileUri = env.file.uri;
+                  modulePath = [];
+                  typeName = id;
+                  loc = Location.none;
+                };
+            });
+        Some (GraphQLEnum {id; displayName = capitalizeFirstChar id}))
+      else if asUnionLen > 0 && asUnionLen = definedFieldsNum then (
+        print_endline "Valid union!";
+        None)
+      else None
   | _ ->
     schemaState
     |> addDiagnostic

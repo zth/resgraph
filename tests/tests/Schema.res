@@ -289,3 +289,23 @@ let findThing = (_: query, ~location: location) => {
   | ById(id) => Some(id->ResGraph.idToString)
   }
 }
+
+@gql.field
+let inferredEnum = (_: query, ~rawStatus) => {
+  switch rawStatus {
+  | "ONLINE" => #Online
+  | "OFFLINE" => #Offline
+  | _ => #Other
+  }
+}
+
+/* @gql.type
+type someOtherType = {@gql.field message: string}
+
+@gql.field
+let inferredUnion = (_: query, ~rawStatus) => {
+  switch rawStatus {
+  | "ONLINE" => #SomeType({msg: "Online"})
+  | _ => #SomeOtherType({message: "Offline"})
+  }
+}*/
