@@ -318,3 +318,15 @@ let inferredUnion = (_: query, ~rawStatus) => {
   | _ => #SomeOtherType({message: "Offline"})
   }
 }
+
+@gql.field
+let inferredUnionWithInferredConstructor = (_: query, ~rawStatus) => {
+  switch rawStatus {
+  | "ONLINE" => #SomeType({msg: "Online"})->Some
+  | _ =>
+    #SomeInferredType({
+      "message": "Offline",
+      "someTypeStuff": Some({msg: "Online"}),
+    })->Some
+  }
+}

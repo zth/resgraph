@@ -45,6 +45,11 @@ union InferredUnion =
   | SomeType
 
 
+union InferredUnionWithInferredConstructor = 
+  | InferredUnionWithInferredConstructorSomeInferredType
+  | SomeType
+
+
 union InlineUnion = 
   | InlineUnionOk
   | InlineUnionNotOk
@@ -129,6 +134,11 @@ interface Node {
   id: ID!
 }
 
+type InferredUnionWithInferredConstructorSomeInferredType {
+  someTypeStuff: SomeType
+  message: String!
+}
+
 type InlineUnionNotOk {
 
   """Stuff"""
@@ -186,6 +196,7 @@ type Pet implements HasName {
 }
 
 type Query {
+  inferredUnionWithInferredConstructor(rawStatus: String!): InferredUnionWithInferredConstructor
   inferredUnion(rawStatus: String!): InferredUnion!
   inferredEnumAsArg(status: InferredEnumAsArgStatus!): String
   inferredEnum(rawStatus: String!): InferredEnum!

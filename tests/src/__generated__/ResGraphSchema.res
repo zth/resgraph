@@ -120,6 +120,11 @@ let i_HasName: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
 let get_HasName = () => i_HasName.contents
 let i_Node: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
 let get_Node = () => i_Node.contents
+let t_InferredUnionWithInferredConstructorSomeInferredType: ref<GraphQLObjectType.t> = Obj.magic({
+  "contents": Js.null,
+})
+let get_InferredUnionWithInferredConstructorSomeInferredType = () =>
+  t_InferredUnionWithInferredConstructorSomeInferredType.contents
 let t_InlineUnionNotOk: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_InlineUnionNotOk = () => t_InlineUnionNotOk.contents
 let t_InlineUnionOk: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
@@ -194,6 +199,11 @@ input_UserConfigContext_conversionInstructions->Array.pushMany([
 ])
 let union_InferredUnion: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
 let get_InferredUnion = () => union_InferredUnion.contents
+let union_InferredUnionWithInferredConstructor: ref<GraphQLUnionType.t> = Obj.magic({
+  "contents": Js.null,
+})
+let get_InferredUnionWithInferredConstructor = () =>
+  union_InferredUnionWithInferredConstructor.contents
 let union_InlineUnion: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
 let get_InlineUnion = () => union_InlineUnion.contents
 let union_UserOrGroup: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
@@ -264,6 +274,12 @@ let union_InferredUnion_resolveType = v =>
   | #SomeType(_) => "SomeType"
   }
 
+let union_InferredUnionWithInferredConstructor_resolveType = v =>
+  switch v {
+  | #SomeInferredType(_) => "InferredUnionWithInferredConstructorSomeInferredType"
+  | #SomeType(_) => "SomeType"
+  }
+
 let union_InlineUnion_resolveType = (v: Schema.inlineUnion) =>
   switch v {
   | Ok(_) => "InlineUnionOk"
@@ -322,6 +338,32 @@ i_Node.contents = GraphQLInterfaceType.make({
       },
     }->makeFields,
   resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Node_resolveType),
+})
+t_InferredUnionWithInferredConstructorSomeInferredType.contents = GraphQLObjectType.make({
+  name: "InferredUnionWithInferredConstructorSomeInferredType",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "message": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["message"]
+        }),
+      },
+      "someTypeStuff": {
+        typ: get_SomeType()->GraphQLObjectType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["someTypeStuff"]
+        }),
+      },
+    }->makeFields,
 })
 t_InlineUnionNotOk.contents = GraphQLObjectType.make({
   name: "InlineUnionNotOk",
@@ -656,6 +698,16 @@ t_Query.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.inferredUnion(src, ~rawStatus=args["rawStatus"])
+        }),
+      },
+      "inferredUnionWithInferredConstructor": {
+        typ: get_InferredUnionWithInferredConstructor()->GraphQLUnionType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {"rawStatus": {typ: Scalars.string->Scalars.toGraphQLType->nonNull}}->makeArgs,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          Schema.inferredUnionWithInferredConstructor(src, ~rawStatus=args["rawStatus"])
         }),
       },
       "inlineUnion": {
@@ -1172,6 +1224,14 @@ union_InferredUnion.contents = GraphQLUnionType.make({
   types: () => [get_SomeOtherType(), get_SomeType()],
   resolveType: GraphQLUnionType.makeResolveUnionTypeFn(union_InferredUnion_resolveType),
 })
+union_InferredUnionWithInferredConstructor.contents = GraphQLUnionType.make({
+  name: "InferredUnionWithInferredConstructor",
+  description: ?None,
+  types: () => [get_InferredUnionWithInferredConstructorSomeInferredType(), get_SomeType()],
+  resolveType: GraphQLUnionType.makeResolveUnionTypeFn(
+    union_InferredUnionWithInferredConstructor_resolveType,
+  ),
+})
 union_InlineUnion.contents = GraphQLUnionType.make({
   name: "InlineUnion",
   description: ?None,
@@ -1196,6 +1256,7 @@ let schema = GraphQLSchemaType.make({
     get_SomeType()->GraphQLObjectType.toGraphQLType,
     get_InlineUnionNotOk()->GraphQLObjectType.toGraphQLType,
     get_PageInfo()->GraphQLObjectType.toGraphQLType,
+    get_InferredUnionWithInferredConstructorSomeInferredType()->GraphQLObjectType.toGraphQLType,
     get_UserConnection()->GraphQLObjectType.toGraphQLType,
     get_SomeOtherType()->GraphQLObjectType.toGraphQLType,
     get_UserEdge()->GraphQLObjectType.toGraphQLType,
@@ -1205,6 +1266,7 @@ let schema = GraphQLSchemaType.make({
     get_Node()->GraphQLInterfaceType.toGraphQLType,
     get_InlineUnion()->GraphQLUnionType.toGraphQLType,
     get_UserOrGroup()->GraphQLUnionType.toGraphQLType,
+    get_InferredUnionWithInferredConstructor()->GraphQLUnionType.toGraphQLType,
     get_InferredUnion()->GraphQLUnionType.toGraphQLType,
     get_PaginationArgs()->GraphQLInputObjectType.toGraphQLType,
     get_Location()->GraphQLInputObjectType.toGraphQLType,

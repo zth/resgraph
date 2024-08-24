@@ -71,6 +71,7 @@ type typeContext =
       fieldName: string;
       argumentName: string;
     }
+  | UnionMember of {parentUnionName: string; constructorName: string}
 
 let intfNameRegexp = Str.regexp "^Interface_\\(.*\\)$"
 let extractInterfaceName str =
@@ -330,9 +331,72 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                      (Shared.typeToString typ);
                };
         None))
+  | Tobject (t, _) -> (
+    match typeContext with
+    | UnionMember {parentUnionName; constructorName} ->
+      let rec extractObjectFields ?(items = []) typ =
+        match typ with
+        | {Types.desc = Tfield (name, _kind, typ, next)} ->
+          extractObjectFields
+            ~items:
+              (( name,
+                 findGraphQLType typ ~debug ~loc:Location.none ~full ~env
+                   ~schemaState ~typeContext )
+              :: items)
+            next
+        | _ -> items
+      in
+      let rawObjectFields = extractObjectFields t in
+      let objectFields =
+        rawObjectFields
+        |> List.filter_map (fun (name, typ) ->
+               match typ with
+               | None -> None
+               | Some typ -> Some (name, typ))
+      in
+      if List.length rawObjectFields <> List.length objectFields then
+        (* TODO: Report error *) None
+      else
+        let syntheticTypeName = parentUnionName ^ constructorName in
+        let id = syntheticTypeName in
+        noticeObjectType id ~displayName:syntheticTypeName
+          ~ignoreTypeLocation:true ~schemaState ~env
+          ~makeFields:(fun () ->
+            objectFields
+            |> List.map (fun (name, typ) ->
+                   {
+                     name;
+                     resolverStyle = Property name;
+                     typ;
+                     fileName = env.file.moduleName;
+                     fileUri = env.file.uri;
+                     args = [];
+                     description = None;
+                     deprecationReason = None;
+                     loc = Location.none;
+                     onType = None;
+                   }))
+          ~loc:Location.none;
+        Some (GraphQLObjectType {id; displayName = syntheticTypeName})
+    | _ ->
+      schemaState
+      |> addDiagnostic
+           ~diagnostic:
+             {
+               loc =
+                 (match loc with
+                 | None -> Location.in_file (env.file.moduleName ^ ".res")
+                 | Some loc -> loc);
+               fileUri = env.file.uri;
+               message =
+                 Printf.sprintf
+                   "Found an object in a place where it cannot be inferred as \
+                    a GraphQL type. You can only use objects in union members.";
+             };
+      None)
   | Tvariant {row_fields} -> (
     match typeContext with
-    | Default ->
+    | UnionMember _ | Default ->
       schemaState
       |> addDiagnostic
            ~diagnostic:
@@ -356,6 +420,23 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
         | ReturnType _ -> `ReturnType
         | _ -> raise (Invalid_argument "Invalid type context")
       in
+      let syntheticTypeNameParts =
+        match typeContext with
+        | Default | UnionMember _ -> []
+        | ReturnType {parentTypeName; fieldName} -> [parentTypeName; fieldName]
+        | ArgumentType {fieldParentTypeName; fieldName; argumentName} ->
+          [fieldParentTypeName; fieldName; argumentName]
+      in
+      let syntheticTypeNameParts =
+        match syntheticTypeNameParts with
+        | ("Query" | "Mutation" | "Subscription") :: rest -> rest
+        | v -> v
+      in
+      let syntheticTypeName =
+        syntheticTypeNameParts
+        |> List.map capitalizeFirstChar
+        |> String.concat ""
+      in
       let variantFields =
         row_fields
         |> List.map (fun (name, rfield) ->
@@ -365,8 +446,14 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                  match
                    findGraphQLType typ ~debug ~loc:Location.none ~full ~env
                      ~schemaState
+                     ~typeContext:
+                       (UnionMember
+                          {
+                            parentUnionName = syntheticTypeName;
+                            constructorName = name;
+                          })
                  with
-                 | None -> Error `Not_gql_type
+                 | None -> Error (`Not_gql_type name)
                  | Some typ -> Ok (name, Some typ))
                | _ -> Error `Invalid_variant)
       in
@@ -396,8 +483,9 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                      (errors
                      |> List.map (fun err ->
                             match err with
-                            | `Not_gql_type ->
-                              "  - Payloads that were not valid GraphQL types"
+                            | `Not_gql_type name ->
+                              "  - Payload on constructor '" ^ name
+                              ^ "' is not a valid GraphQL type"
                             | `Invalid_variant ->
                               "  - Constructors that were invalid"
                             | _ -> "  - Unknown errors")
@@ -427,24 +515,6 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
         in
         let asUnionLen = asUnion |> List.length in
         (* Validate *)
-        let syntheticTypeNameParts =
-          match typeContext with
-          | Default -> []
-          | ReturnType {parentTypeName; fieldName} ->
-            [parentTypeName; fieldName]
-          | ArgumentType {fieldParentTypeName; fieldName; argumentName} ->
-            [fieldParentTypeName; fieldName; argumentName]
-        in
-        let syntheticTypeNameParts =
-          match syntheticTypeNameParts with
-          | ("Query" | "Mutation" | "Subscription") :: rest -> rest
-          | v -> v
-        in
-        let syntheticTypeName =
-          syntheticTypeNameParts
-          |> List.map capitalizeFirstChar
-          |> String.concat ""
-        in
         if
           asEnumLen > 0
           && definedFieldsNum > asEnumLen
