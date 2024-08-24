@@ -331,12 +331,27 @@ let inferredUnionWithInferredConstructor = (_: query, ~rawStatus) => {
   }
 }
 
+let errorProducer = s =>
+  switch s {
+  | "Alice" => #Error({"reasons": [#ALICE_IS_INVALID]})
+  | _ => #Ok
+  }
+
 @gql.field
 let inferredInputObject = (_: query, ~input) => {
   switch (input["name"], input["coordinates"]) {
+  | (Some("Alice" as name), Some({lat, lon})) =>
+    switch errorProducer(name) {
+    | #Error(_) as e => e
+    | #Ok => #Ok({"name": (name: string), "coordinates": {lat, lon}})
+    }
   | (Some(name), Some({lat, lon})) => #Ok({"name": (name: string), "coordinates": {lat, lon}})
-  | (None, Some(_)) => #Error({"message": "Missing name"})
-  | (Some(_), None) => #Error({"message": "Missing coordinates"})
-  | (None, None) => #Error({"message": "Missing name and coordinates"})
+
+  | (None, Some(_)) => #Error({"reasons": [#MISSING_NAME]})
+  | (Some(_), None) => #Error({"reasons": [#MISSING_NAME, #MISSING_COORDINATES]})
+  | (None, None) => #Error({"reasons": [#MISSING_NAME, #MISSING_COORDINATES]})
   }
 }
+
+@gql.inputObject
+type someInputWithInferredStuff = {reason: [#VALID | #INVALID]}

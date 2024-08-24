@@ -26,6 +26,17 @@ enum InferredEnumAsArgStatus {
   Online
 }
 
+enum InferredInputObjectErrorReasons {
+  ALICE_IS_INVALID
+  MISSING_COORDINATES
+  MISSING_NAME
+}
+
+enum SomeInputWithInferredStuffReason {
+  INVALID
+  VALID
+}
+
 
 """Indicates what status a user currently has."""
 enum UserStatus {
@@ -97,6 +108,10 @@ input Coordinates {
   lon: Float!
 }
 
+input SomeInputWithInferredStuff {
+  reason: SomeInputWithInferredStuffReason!
+}
+
 
 """Configuration for searching for a user."""
 input UserConfig {
@@ -144,7 +159,7 @@ interface Node {
 }
 
 type InferredInputObjectError {
-  message: String!
+  reasons: [InferredInputObjectErrorReasons!]!
 }
 
 type InferredInputObjectOk {

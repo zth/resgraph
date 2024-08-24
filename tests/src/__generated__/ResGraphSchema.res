@@ -95,6 +95,35 @@ let enum_InferredEnumAsArgStatus = GraphQLEnumType.make({
     "Online": {GraphQLEnumType.value: "Online", description: ?None, deprecationReason: ?None},
   }->makeEnumValues,
 })
+let enum_InferredInputObjectErrorReasons = GraphQLEnumType.make({
+  name: "InferredInputObjectErrorReasons",
+  description: ?None,
+  values: {
+    "ALICE_IS_INVALID": {
+      GraphQLEnumType.value: "ALICE_IS_INVALID",
+      description: ?None,
+      deprecationReason: ?None,
+    },
+    "MISSING_COORDINATES": {
+      GraphQLEnumType.value: "MISSING_COORDINATES",
+      description: ?None,
+      deprecationReason: ?None,
+    },
+    "MISSING_NAME": {
+      GraphQLEnumType.value: "MISSING_NAME",
+      description: ?None,
+      deprecationReason: ?None,
+    },
+  }->makeEnumValues,
+})
+let enum_SomeInputWithInferredStuffReason = GraphQLEnumType.make({
+  name: "SomeInputWithInferredStuffReason",
+  description: ?None,
+  values: {
+    "INVALID": {GraphQLEnumType.value: "INVALID", description: ?None, deprecationReason: ?None},
+    "VALID": {GraphQLEnumType.value: "VALID", description: ?None, deprecationReason: ?None},
+  }->makeEnumValues,
+})
 let enum_UserStatus = GraphQLEnumType.make({
   name: "UserStatus",
   description: "Indicates what status a user currently has.",
@@ -171,6 +200,11 @@ let input_Address_conversionInstructions = []
 let input_Coordinates: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Coordinates = () => input_Coordinates.contents
 let input_Coordinates_conversionInstructions = []
+let input_SomeInputWithInferredStuff: ref<GraphQLInputObjectType.t> = Obj.magic({
+  "contents": Js.null,
+})
+let get_SomeInputWithInferredStuff = () => input_SomeInputWithInferredStuff.contents
+let input_SomeInputWithInferredStuff_conversionInstructions = []
 let input_UserConfig: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
 let get_UserConfig = () => input_UserConfig.contents
 let input_UserConfig_conversionInstructions = []
@@ -189,6 +223,7 @@ input_PaginationArgsForward_conversionInstructions->Array.pushMany([
 ])
 input_Address_conversionInstructions->Array.pushMany([])
 input_Coordinates_conversionInstructions->Array.pushMany([])
+input_SomeInputWithInferredStuff_conversionInstructions->Array.pushMany([])
 input_UserConfig_conversionInstructions->Array.pushMany([
   ("name", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
   (
@@ -361,13 +396,17 @@ t_InferredInputObjectError.contents = GraphQLObjectType.make({
   interfaces: [],
   fields: () =>
     {
-      "message": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      "reasons": {
+        typ: GraphQLListType.make(
+          enum_InferredInputObjectErrorReasons->GraphQLEnumType.toGraphQLType->nonNull,
+        )
+        ->GraphQLListType.toGraphQLType
+        ->nonNull,
         description: ?None,
         deprecationReason: ?None,
         resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
-          src["message"]
+          src["reasons"]
         }),
       },
     }->makeFields,
@@ -1216,6 +1255,20 @@ input_Coordinates.contents = GraphQLInputObjectType.make({
       },
     }->makeFields,
 })
+input_SomeInputWithInferredStuff.contents = GraphQLInputObjectType.make({
+  name: "SomeInputWithInferredStuff",
+  description: ?None,
+  fields: () =>
+    {
+      "reason": {
+        GraphQLInputObjectType.typ: enum_SomeInputWithInferredStuffReason
+        ->GraphQLEnumType.toGraphQLType
+        ->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+})
 input_UserConfig.contents = GraphQLInputObjectType.make({
   name: "UserConfig",
   description: "Configuration for searching for a user.",
@@ -1362,6 +1415,7 @@ let schema = GraphQLSchemaType.make({
     get_InferredUnion()->GraphQLUnionType.toGraphQLType,
     get_PaginationArgs()->GraphQLInputObjectType.toGraphQLType,
     get_Location()->GraphQLInputObjectType.toGraphQLType,
+    get_SomeInputWithInferredStuff()->GraphQLInputObjectType.toGraphQLType,
     get_PaginationArgsForward()->GraphQLInputObjectType.toGraphQLType,
     get_Address()->GraphQLInputObjectType.toGraphQLType,
     get_InferredInputObjectInput()->GraphQLInputObjectType.toGraphQLType,
@@ -1373,5 +1427,7 @@ let schema = GraphQLSchemaType.make({
     enum_InferredEnum->GraphQLEnumType.toGraphQLType,
     enum_UserStatus->GraphQLEnumType.toGraphQLType,
     enum_InferredEnumAsArgStatus->GraphQLEnumType.toGraphQLType,
+    enum_InferredInputObjectErrorReasons->GraphQLEnumType.toGraphQLType,
+    enum_SomeInputWithInferredStuffReason->GraphQLEnumType.toGraphQLType,
   ],
 })

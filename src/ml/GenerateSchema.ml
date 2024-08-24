@@ -71,6 +71,7 @@ type typeContext =
       fieldName: string;
       argumentName: string;
     }
+  | ObjectField of {objectTypeName: string; fieldName: string}
   | UnionMember of {parentUnionName: string; constructorName: string}
 
 let intfNameRegexp = Str.regexp "^Interface_\\(.*\\)$"
@@ -182,7 +183,8 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
             ?description:(GenerateSchemaUtils.attributesToDocstring attributes)
             ~makeFields:(fun () ->
               fields
-              |> objectTypeFieldsOfRecordFields ~env ~debug ~full ~schemaState)
+              |> objectTypeFieldsOfRecordFields ~objectTypeName:displayName ~env
+                   ~debug ~full ~schemaState)
             ~loc:item.decl.type_loc;
           Some (GraphQLObjectType {id; displayName})
         | ( Some ObjectType,
@@ -203,8 +205,8 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                 id;
                 displayName;
                 fields =
-                  inputObjectFieldsOfRecordFields fields ~env ~debug ~full
-                    ~schemaState;
+                  inputObjectFieldsOfRecordFields fields
+                    ~objectTypeName:displayName ~env ~debug ~full ~schemaState;
                 description = attributesToDocstring attributes;
                 syntheticTypeLocation = None;
                 typeLocation =
@@ -222,8 +224,8 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                 displayName;
                 interfaces = [];
                 fields =
-                  objectTypeFieldsOfRecordFields fields ~env ~full ~schemaState
-                    ~debug;
+                  objectTypeFieldsOfRecordFields fields
+                    ~objectTypeName:displayName ~env ~full ~schemaState ~debug;
                 description = attributesToDocstring attributes;
                 typeLocation =
                   findTypeLocation item.name ~env ~schemaState
@@ -332,21 +334,26 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                };
         None))
   | Tobject (t, _) -> (
-    let rec extractObjectFields ?(items = []) typ =
+    let rec extractObjectFields ?(items = []) ~objectTypeName typ =
       match typ with
       | {Types.desc = Tfield (name, _kind, typ, next)} ->
-        extractObjectFields
+        extractObjectFields ~objectTypeName
           ~items:
             (( name,
                findGraphQLType typ ~debug ~loc:Location.none ~full ~env
-                 ~schemaState ~typeContext )
+                 ~schemaState
+                 ~typeContext:(ObjectField {objectTypeName; fieldName = name})
+             )
             :: items)
           next
       | _ -> items
     in
     match typeContext with
     | UnionMember {parentUnionName; constructorName} ->
-      let rawObjectFields = extractObjectFields t in
+      let syntheticTypeName = parentUnionName ^ constructorName in
+      let rawObjectFields =
+        extractObjectFields ~objectTypeName:syntheticTypeName t
+      in
       let objectFields =
         rawObjectFields
         |> List.filter_map (fun (name, typ) ->
@@ -357,7 +364,6 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
       if List.length rawObjectFields <> List.length objectFields then
         (* TODO: Report error *) None
       else
-        let syntheticTypeName = parentUnionName ^ constructorName in
         let id = syntheticTypeName in
         noticeObjectType id ~displayName:syntheticTypeName
           ~ignoreTypeLocation:true ~schemaState ~env
@@ -379,7 +385,22 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
           ~loc:Location.none;
         Some (GraphQLObjectType {id; displayName = syntheticTypeName})
     | ArgumentType {fieldName; fieldParentTypeName; argumentName} ->
-      let rawObjectFields = extractObjectFields t in
+      let syntheticTypeNameParts =
+        [fieldParentTypeName; fieldName; argumentName]
+      in
+      let syntheticTypeNameParts =
+        match syntheticTypeNameParts with
+        | ("Query" | "Mutation" | "Subscription") :: rest -> rest
+        | v -> v
+      in
+      let syntheticTypeName =
+        syntheticTypeNameParts
+        |> List.map capitalizeFirstChar
+        |> String.concat ""
+      in
+      let rawObjectFields =
+        extractObjectFields ~objectTypeName:syntheticTypeName t
+      in
       let objectFields =
         rawObjectFields
         |> List.filter_map (fun (name, typ) ->
@@ -390,19 +411,6 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
       if List.length rawObjectFields <> List.length objectFields then
         (* TODO: Report error *) None
       else
-        let syntheticTypeNameParts =
-          [fieldParentTypeName; fieldName; argumentName]
-        in
-        let syntheticTypeNameParts =
-          match syntheticTypeNameParts with
-          | ("Query" | "Mutation" | "Subscription") :: rest -> rest
-          | v -> v
-        in
-        let syntheticTypeName =
-          syntheticTypeNameParts
-          |> List.map capitalizeFirstChar
-          |> String.concat ""
-        in
         let id = syntheticTypeName in
         let displayName = syntheticTypeName in
         addInputObject id ~schemaState ~debug ~makeInputObject:(fun () ->
@@ -464,11 +472,12 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                     resolver arguments and return types.";
              };
       None
-    | ArgumentType _ | ReturnType _ ->
+    | ArgumentType _ | ReturnType _ | ObjectField _ ->
       let context =
         match typeContext with
         | ArgumentType _ -> `Argument
         | ReturnType _ -> `ReturnType
+        | ObjectField _ -> `ObjectField
         | _ -> raise (Invalid_argument "Invalid type context")
       in
       let syntheticTypeNameParts =
@@ -477,6 +486,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
         | ReturnType {parentTypeName; fieldName} -> [parentTypeName; fieldName]
         | ArgumentType {fieldParentTypeName; fieldName; argumentName} ->
           [fieldParentTypeName; fieldName; argumentName]
+        | ObjectField {objectTypeName; fieldName} -> [objectTypeName; fieldName]
       in
       let syntheticTypeNameParts =
         match syntheticTypeNameParts with
@@ -681,7 +691,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                       };
                 });
             Some (GraphQLUnion {id; displayName})
-          | `Argument ->
+          | `Argument | `ObjectField ->
             (* TODO: Input union *)
             schemaState
             |> addDiagnostic
@@ -717,7 +727,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
            };
     None
 
-and inputObjectFieldsOfRecordFields ~env ~debug ~schemaState
+and inputObjectFieldsOfRecordFields ~objectTypeName ~env ~debug ~schemaState
     ~(full : SharedTypes.full) (fields : SharedTypes.field list) =
   fields
   |> List.filter_map (fun (field : SharedTypes.field) ->
@@ -725,6 +735,7 @@ and inputObjectFieldsOfRecordFields ~env ~debug ~schemaState
          match
            findGraphQLType field.typ ~debug ~loc:field.fname.loc ~full ~env
              ~schemaState
+             ~typeContext:(ObjectField {objectTypeName; fieldName = name})
          with
          | None ->
            schemaState
@@ -770,7 +781,8 @@ and variantCasesToUnionValues ~env ~debug ~schemaState ~full ~ownerName
              ~schemaState ~env
              ~makeFields:(fun () ->
                fields
-               |> objectTypeFieldsOfInlineRecordFields ~env ~full ~schemaState
+               |> objectTypeFieldsOfInlineRecordFields
+                    ~objectTypeName:syntheticTypeName ~env ~full ~schemaState
                     ~debug)
              ~loc:case.cname.loc;
            let member : gqlUnionMember =
@@ -845,7 +857,8 @@ and variantCasesToInputUnionValues ~env ~debug ~schemaState ~full ~ownerName
                  displayName = capitalizeFirstChar id;
                  fields =
                    fields
-                   |> objectTypeFieldsOfInlineRecordFields ~env ~full
+                   |> objectTypeFieldsOfInlineRecordFields
+                        ~objectTypeName:syntheticTypeName ~env ~full
                         ~schemaState ~debug;
                  description = None;
                  typeLocation = None;
@@ -913,7 +926,7 @@ and variantCasesToInputUnionValues ~env ~debug ~schemaState ~full ~ownerName
                };
            None)
 
-and objectTypeFieldsOfRecordFields ~env ~schemaState ~debug
+and objectTypeFieldsOfRecordFields ~objectTypeName ~env ~schemaState ~debug
     ~(full : SharedTypes.full) (fields : SharedTypes.field list) =
   fields
   |> List.filter_map (fun (field : SharedTypes.field) ->
@@ -928,6 +941,8 @@ and objectTypeFieldsOfRecordFields ~env ~schemaState ~debug
          let typ =
            findGraphQLType fieldType ~debug ~loc:field.fname.loc ~full ~env
              ~schemaState
+             ~typeContext:
+               (ObjectField {objectTypeName; fieldName = field.fname.txt})
          in
          match typ with
          | None ->
@@ -963,14 +978,16 @@ and objectTypeFieldsOfRecordFields ~env ~schemaState ~debug
                onType = None;
              })
 
-and objectTypeFieldsOfInlineRecordFields ~env ~schemaState ~debug
-    ~(full : SharedTypes.full) (fields : SharedTypes.field list) =
+and objectTypeFieldsOfInlineRecordFields ~objectTypeName ~env ~schemaState
+    ~debug ~(full : SharedTypes.full) (fields : SharedTypes.field list) =
   fields
   |> List.filter_map (fun (field : SharedTypes.field) ->
          let fieldType = field.typ in
          let typ =
            findGraphQLType fieldType ~debug ~loc:field.fname.loc ~full ~env
              ~schemaState
+             ~typeContext:
+               (ObjectField {objectTypeName; fieldName = field.fname.txt})
          in
          match typ with
          | None ->
@@ -1149,20 +1166,21 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                ?description:(attributesToDocstring attributes)
                ~displayName
                ~makeFields:(fun () ->
-                 objectTypeFieldsOfRecordFields fields ~env ~full ~schemaState
-                   ~debug)
+                 objectTypeFieldsOfRecordFields fields
+                   ~objectTypeName:displayName ~env ~full ~schemaState ~debug)
                id
            | ( Type ({kind = Record fields; attributes; decl}, _),
                Some InputObject ) ->
              (* @gql.inputObject type someInputObject = {...} *)
              let id = item.name in
+             let displayName = capitalizeFirstChar item.name in
              addInputObject id ~schemaState ~debug ~makeInputObject:(fun () ->
                  {
                    id;
-                   displayName = capitalizeFirstChar item.name;
+                   displayName;
                    fields =
-                     inputObjectFieldsOfRecordFields fields ~env ~full
-                       ~schemaState ~debug;
+                     inputObjectFieldsOfRecordFields ~objectTypeName:displayName
+                       fields ~env ~full ~schemaState ~debug;
                    description = attributesToDocstring attributes;
                    syntheticTypeLocation = None;
                    typeLocation =
@@ -1174,13 +1192,15 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
              ->
              (* @gql.interface type hasName = {...} *)
              let id = item.name in
+             let displayName = capitalizeFirstChar item.name in
              addInterface id ~schemaState ~debug ~makeInterface:(fun () ->
                  {
                    id;
-                   displayName = capitalizeFirstChar item.name;
+                   displayName;
                    fields =
-                     objectTypeFieldsOfRecordFields fields ~env ~full
-                       ~schemaState ~debug;
+                     objectTypeFieldsOfRecordFields fields
+                       ~objectTypeName:displayName ~env ~full ~schemaState
+                       ~debug;
                    description = attributesToDocstring attributes;
                    interfaces = [];
                    typeLocation =
