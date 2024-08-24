@@ -192,7 +192,7 @@ let rec findModulePathOfType ~schemaState ~(env : SharedTypes.QueryEnv.t)
 
 let findTypeLocation ~(env : SharedTypes.QueryEnv.t)
     ~(expectedType : expectedType) ~schemaState ~loc name =
-  let typeLocation : typeLocation =
+  let typeLocation : typeLocationLoc =
     {
       fileName = env.file.moduleName;
       modulePath = [];
@@ -227,11 +227,11 @@ let findTypeLocation ~(env : SharedTypes.QueryEnv.t)
     typeLocation
   | Some modulePath -> {typeLocation with modulePath}
 
-let typeLocationToAccessor (typeLocation : typeLocation) =
+let typeLocationToAccessor (typeLocation : typeLocationLoc) =
   [typeLocation.fileName] @ typeLocation.modulePath @ [typeLocation.typeName]
   |> String.concat "."
 
-let typeLocationModuleToAccesor (typeLocation : typeLocation) endingPath =
+let typeLocationModuleToAccesor (typeLocation : typeLocationLoc) endingPath =
   [typeLocation.fileName] @ typeLocation.modulePath @ endingPath
   |> String.concat "."
 
@@ -261,8 +261,9 @@ let noticeObjectType ?(force = false) ?typeCreatorLocation ~env ~loc
           (if ignoreTypeLocation then None
            else
              Some
-               (findTypeLocation ~schemaState typeName ~env ~loc
-                  ~expectedType:ObjectType));
+               (Concrete
+                  (findTypeLocation ~schemaState typeName ~env ~loc
+                     ~expectedType:ObjectType)));
         typeCreatorLocation;
       }
     in
@@ -334,8 +335,9 @@ let addFieldToObjectType ~env ~loc ~field ~schemaState typeName =
         description = field.description;
         typeLocation =
           Some
-            (findTypeLocation ~schemaState typeName ~env ~loc
-               ~expectedType:ObjectType);
+            (Concrete
+               (findTypeLocation ~schemaState typeName ~env ~loc
+                  ~expectedType:ObjectType));
         typeCreatorLocation = None;
       }
     | Some typ -> {typ with fields = field :: typ.fields}
@@ -589,7 +591,10 @@ let processSchema (schemaState : schemaState) =
          | Some typeLocation -> (
            let fileUri =
              match t.typeCreatorLocation with
-             | None -> typeLocation.fileUri |> Uri.toPath
+             | None ->
+               (match typeLocation with
+               | Synthetic {fileUri} | Concrete {fileUri} -> fileUri)
+               |> Uri.toPath
              | Some {env} -> env.file.uri |> Uri.toPath
            in
            match Hashtbl.find_opt positionsToRead fileUri with
@@ -599,8 +604,10 @@ let processSchema (schemaState : schemaState) =
                  {
                    id = t.id;
                    position =
-                     ( typeLocation.loc |> Loc.start,
-                       typeLocation.loc |> Loc.end_ );
+                     (match typeLocation with
+                     | Synthetic _ ->
+                       (Location.none |> Loc.start, Location.none |> Loc.end_)
+                     | Concrete {loc} -> (loc |> Loc.start, loc |> Loc.end_));
                    typ = ObjectType;
                  };
                ]
@@ -609,7 +616,10 @@ let processSchema (schemaState : schemaState) =
                ({
                   id = t.id;
                   position =
-                    (typeLocation.loc |> Loc.start, typeLocation.loc |> Loc.end_);
+                    (match typeLocation with
+                    | Synthetic _ ->
+                      (Location.none |> Loc.start, Location.none |> Loc.end_)
+                    | Concrete {loc} -> (loc |> Loc.start, loc |> Loc.end_));
                   typ = ObjectType;
                 }
                :: existingEntries)));
@@ -978,7 +988,7 @@ let ${1:fieldName} = async (${2:entity}: ${2:entity}) => {
       let schemaState, _ = readStateFile ~package in
       let snippets = ref [] in
       (match schemaState.query with
-      | Some {typeLocation = Some typeLocation} ->
+      | Some {typeLocation = Some (Concrete typeLocation)} ->
         snippets :=
           !snippets
           @ [
@@ -994,7 +1004,7 @@ let ${1:fieldName} = async (_: %s, ~ctx: ResGraphContext.context) => {
             ]
       | _ -> ());
       (match schemaState.mutation with
-      | Some {typeLocation = Some typeLocation} ->
+      | Some {typeLocation = Some (Concrete typeLocation)} ->
         snippets :=
           !snippets
           @ [

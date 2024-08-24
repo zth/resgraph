@@ -15,6 +15,12 @@ scalar Timestamp
 
 scalar TimestampList
 
+enum INFERRED_ENUM {
+  Offline
+  Online
+  Other
+}
+
 
 """Indicates what status a user currently has."""
 enum UserStatus {
@@ -170,6 +176,7 @@ type Pet implements HasName {
 }
 
 type Query {
+  inferredEnum(rawStatus: String!): INFERRED_ENUM!
   findThing(location: Location!): String
   inlineUnion: InlineUnion
   allUsers(first: Int, last: Int, before: String, after: String): UserConnection

@@ -24,13 +24,17 @@ type fieldResolverStyle =
   | Resolver of {moduleName: string; fnName: string; pathToFn: string list}
   | Property of string
 
-type typeLocation = {
+type typeLocationLoc = {
   fileName: string;
   fileUri: Uri.t;
   modulePath: string list;
   typeName: string;
   loc: Location.t;
 }
+
+type typeLocation =
+  | Synthetic of {fileName: string; fileUri: Uri.t; modulePath: string list}
+  | Concrete of typeLocationLoc
 
 type diagnostic = {loc: Location.t; fileUri: Uri.t; message: string}
 
@@ -78,9 +82,9 @@ type gqlScalar = {
   id: string;
   displayName: string;
   description: string option;
-  typeLocation: typeLocation;
+  typeLocation: typeLocationLoc;
   specifiedByUrl: string option;
-  encoderDecoderLoc: typeLocation option;
+  encoderDecoderLoc: typeLocationLoc option;
 }
 
 (* TODO: Can this be thinned out for some cases? Should be split up. *)
@@ -121,7 +125,7 @@ type gqlInterface = {
   displayName: string;
   fields: gqlField list;
   description: string option;
-  typeLocation: typeLocation;
+  typeLocation: typeLocationLoc;
   interfaces: string list;
 }
 
@@ -130,7 +134,7 @@ type gqlInputObjectType = {
   displayName: string;
   fields: gqlField list;
   description: string option;
-  typeLocation: typeLocation option;
+  typeLocation: typeLocationLoc option;
   syntheticTypeLocation: syntheticTypeLocation option;
 }
 
@@ -147,7 +151,7 @@ type gqlInputUnionType = {
   displayName: string;
   members: gqlInputUnionMember list;
   description: string option;
-  typeLocation: typeLocation;
+  typeLocation: typeLocationLoc;
 }
 
 type schemaState = {

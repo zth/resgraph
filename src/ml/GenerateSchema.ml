@@ -230,8 +230,9 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                 values = variantCasesToEnumValues ~schemaState ~env cases;
                 description = item.attributes |> attributesToDocstring;
                 typeLocation =
-                  findTypeLocation ~loc:item.decl.type_loc ~schemaState ~env
-                    ~expectedType:Enum id;
+                  Concrete
+                    (findTypeLocation ~loc:item.decl.type_loc ~schemaState ~env
+                       ~expectedType:Enum id);
               });
           Some (GraphQLEnum {id; displayName = capitalizeFirstChar id})
         | Some Union, {name; kind = Variant cases} ->
@@ -246,8 +247,9 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                     ~ownerName:displayName;
                 description = item.attributes |> attributesToDocstring;
                 typeLocation =
-                  findTypeLocation ~loc:item.decl.type_loc ~schemaState ~env
-                    ~expectedType:Union id;
+                  Concrete
+                    (findTypeLocation ~loc:item.decl.type_loc ~schemaState ~env
+                       ~expectedType:Union id);
               });
           Some (GraphQLUnion {id; displayName})
         | Some InputUnion, {name; kind = Variant cases} ->
@@ -431,7 +433,6 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                };
         None)
       else if asEnumLen > 0 && asEnumLen = definedFieldsNum then (
-        print_endline "Valid enum!";
         let name = "INFERRED_ENUM" in
         let id = name in
         let displayName = capitalizeFirstChar id in
@@ -450,13 +451,14 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                        });
               description = None;
               typeLocation =
-                {
-                  fileName = env.file.moduleName;
-                  fileUri = env.file.uri;
-                  modulePath = [];
-                  typeName = id;
-                  loc = Location.none;
-                };
+                Concrete
+                  {
+                    fileName = env.file.moduleName;
+                    fileUri = env.file.uri;
+                    modulePath = [];
+                    typeName = id;
+                    loc = Location.none;
+                  };
             });
         Some (GraphQLEnum {id; displayName = capitalizeFirstChar id}))
       else if asUnionLen > 0 && asUnionLen = definedFieldsNum then (
@@ -931,8 +933,9 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                    values = variantCasesToEnumValues ~schemaState ~env cases;
                    description = item.attributes |> attributesToDocstring;
                    typeLocation =
-                     findTypeLocation ~loc:item.decl.type_loc ~schemaState ~env
-                       ~expectedType:Enum item.name;
+                     Concrete
+                       (findTypeLocation ~loc:item.decl.type_loc ~schemaState
+                          ~env ~expectedType:Enum item.name);
                  })
            | Type (({kind = Variant cases} as item), _), Some Union ->
              (* @gql.union type userOrGroup = User(user) | Group(group) *)
@@ -947,8 +950,9 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                      variantCasesToUnionValues cases ~env ~full ~schemaState
                        ~debug ~ownerName:displayName;
                    typeLocation =
-                     findTypeLocation ~loc:item.decl.type_loc ~env ~schemaState
-                       ~expectedType:Union item.name;
+                     Concrete
+                       (findTypeLocation ~loc:item.decl.type_loc ~env
+                          ~schemaState ~expectedType:Union item.name);
                  })
                ~schemaState ~debug
            | Type (({kind = Variant cases} as item), _), Some InputUnion ->

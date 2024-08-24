@@ -105,9 +105,10 @@ let idFromImplementedBy (interfaceImplementedBy : interfaceImplementedBy) =
 let typeLocationFromImplementedBy
     (interfaceImplementedBy : interfaceImplementedBy) =
   match interfaceImplementedBy with
-  | ObjectType {typeLocation = Some typeLocation} | Interface {typeLocation} ->
+  | ObjectType {typeLocation = Some (Concrete typeLocation)}
+  | Interface {typeLocation} ->
     typeLocationToAccessor typeLocation
-  | ObjectType {typeLocation = None} -> raise (Failure "Error code: TLFIB_MTL")
+  | ObjectType _ -> raise (Failure "Error code: TLFIB_MTL")
 
 let sortImplementedBy (a1 : interfaceImplementedBy) a2 =
   String.compare
@@ -554,7 +555,9 @@ let printSchemaJsFile schemaState processSchema =
            (Printf.sprintf
               "let union_%s_resolveType = (v: %s) => switch v {%s}\n"
               union.displayName
-              (typeLocationToAccessor union.typeLocation)
+              (match union.typeLocation with
+              | Synthetic _ -> "TODO_TYPE_ACCESSOR_POLY"
+              | Concrete typeLocation -> typeLocationToAccessor typeLocation)
               (union.types
               |> List.map (fun (member : gqlUnionMember) ->
                      Printf.sprintf " | %s(_) => \"%s\"" member.constructorName

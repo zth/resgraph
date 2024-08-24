@@ -16,23 +16,26 @@ let emptyLoc =
   }
 
 let mkTypeLocation ~typeName ~fileName ~fileUri ~loc =
-  {fileName; fileUri; modulePath = []; typeName; loc}
+  Concrete {fileName; fileUri; modulePath = []; typeName; loc}
 
 let validateName ~name ~(typeLocation : typeLocation)
     (schemaState : schemaState) =
-  if Utils.startsWith name "__" then
-    schemaState
-    |> addDiagnostic
-         ~diagnostic:
-           {
-             loc = typeLocation.loc;
-             fileUri = typeLocation.fileUri;
-             message =
-               Printf.sprintf
-                 "Name \"%s\" must not begin with \"__\", which is reserved by \
-                  GraphQL introspection."
-                 name;
-           }
+  match typeLocation with
+  | Synthetic _ -> ()
+  | Concrete typeLocation ->
+    if Utils.startsWith name "__" then
+      schemaState
+      |> addDiagnostic
+           ~diagnostic:
+             {
+               loc = typeLocation.loc;
+               fileUri = typeLocation.fileUri;
+               message =
+                 Printf.sprintf
+                   "Name \"%s\" must not begin with \"__\", which is reserved \
+                    by GraphQL introspection."
+                   name;
+             }
 
 let validateFields ~schemaState (fields : gqlField list) =
   fields
@@ -61,8 +64,8 @@ let validateSchema (schemaState : schemaState) =
 
   schemaState.scalars
   |> Hashtbl.iter (fun _name (typ : gqlScalar) ->
-         validateName ~name:typ.displayName ~typeLocation:typ.typeLocation
-           schemaState);
+         validateName ~name:typ.displayName
+           ~typeLocation:(Concrete typ.typeLocation) schemaState);
 
   schemaState.types
   |> Hashtbl.iter (fun _name (typ : gqlObjectType) ->
