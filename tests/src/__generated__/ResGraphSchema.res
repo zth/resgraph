@@ -95,8 +95,8 @@ let enum_InferredEnumAsArgStatus = GraphQLEnumType.make({
     "Online": {GraphQLEnumType.value: "Online", description: ?None, deprecationReason: ?None},
   }->makeEnumValues,
 })
-let enum_InferredInputObjectErrorReasons = GraphQLEnumType.make({
-  name: "InferredInputObjectErrorReasons",
+let enum_MoreInferredUnionReturnErrorReasons = GraphQLEnumType.make({
+  name: "MoreInferredUnionReturnErrorReasons",
   description: ?None,
   values: {
     "ALICE_IS_INVALID": {
@@ -149,10 +149,6 @@ let i_HasName: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
 let get_HasName = () => i_HasName.contents
 let i_Node: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
 let get_Node = () => i_Node.contents
-let t_InferredInputObjectError: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
-let get_InferredInputObjectError = () => t_InferredInputObjectError.contents
-let t_InferredInputObjectOk: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
-let get_InferredInputObjectOk = () => t_InferredInputObjectOk.contents
 let t_InferredUnionWithInferredConstructorSomeInferredType: ref<GraphQLObjectType.t> = Obj.magic({
   "contents": Js.null,
 })
@@ -162,6 +158,10 @@ let t_InlineUnionNotOk: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.nul
 let get_InlineUnionNotOk = () => t_InlineUnionNotOk.contents
 let t_InlineUnionOk: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_InlineUnionOk = () => t_InlineUnionOk.contents
+let t_MoreInferredUnionReturnError: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let get_MoreInferredUnionReturnError = () => t_MoreInferredUnionReturnError.contents
+let t_MoreInferredUnionReturnOk: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let get_MoreInferredUnionReturnOk = () => t_MoreInferredUnionReturnOk.contents
 let t_UpdateUserNameUserUpdateFailed: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_UpdateUserNameUserUpdateFailed = () => t_UpdateUserNameUserUpdateFailed.contents
 let t_UpdateUserNameUserUpdated: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
@@ -186,9 +186,6 @@ let t_UserConnection: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null}
 let get_UserConnection = () => t_UserConnection.contents
 let t_UserEdge: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_UserEdge = () => t_UserEdge.contents
-let input_InferredInputObjectInput: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
-let get_InferredInputObjectInput = () => input_InferredInputObjectInput.contents
-let input_InferredInputObjectInput_conversionInstructions = []
 let input_LocationByMagicString: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
 let get_LocationByMagicString = () => input_LocationByMagicString.contents
 let input_LocationByMagicString_conversionInstructions = []
@@ -215,7 +212,6 @@ let input_UserConfig_conversionInstructions = []
 let input_UserConfigContext: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
 let get_UserConfigContext = () => input_UserConfigContext.contents
 let input_UserConfigContext_conversionInstructions = []
-input_InferredInputObjectInput_conversionInstructions->Array.pushMany([])
 input_LocationByMagicString_conversionInstructions->Array.pushMany([])
 input_PaginationArgsBackwards_conversionInstructions->Array.pushMany([
   ("last", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
@@ -244,8 +240,6 @@ input_UserConfig_conversionInstructions->Array.pushMany([
 input_UserConfigContext_conversionInstructions->Array.pushMany([
   ("name", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
 ])
-let union_InferredInputObject: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
-let get_InferredInputObject = () => union_InferredInputObject.contents
 let union_InferredUnion: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
 let get_InferredUnion = () => union_InferredUnion.contents
 let union_InferredUnionWithInferredConstructor: ref<GraphQLUnionType.t> = Obj.magic({
@@ -253,6 +247,8 @@ let union_InferredUnionWithInferredConstructor: ref<GraphQLUnionType.t> = Obj.ma
 })
 let get_InferredUnionWithInferredConstructor = () =>
   union_InferredUnionWithInferredConstructor.contents
+let union_MoreInferredUnionReturn: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
+let get_MoreInferredUnionReturn = () => union_MoreInferredUnionReturn.contents
 let union_UpdateUserNameResult: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
 let get_UpdateUserNameResult = () => union_UpdateUserNameResult.contents
 let union_InlineUnion: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
@@ -319,12 +315,6 @@ inputUnion_PaginationArgs_conversionInstructions->Array.pushMany([
   ),
 ])
 
-let union_InferredInputObject_resolveType = v =>
-  switch v {
-  | #Error(_) => "InferredInputObjectError"
-  | #Ok(_) => "InferredInputObjectOk"
-  }
-
 let union_InferredUnion_resolveType = v =>
   switch v {
   | #SomeOtherType(_) => "SomeOtherType"
@@ -335,6 +325,12 @@ let union_InferredUnionWithInferredConstructor_resolveType = v =>
   switch v {
   | #SomeInferredType(_) => "InferredUnionWithInferredConstructorSomeInferredType"
   | #SomeType(_) => "SomeType"
+  }
+
+let union_MoreInferredUnionReturn_resolveType = v =>
+  switch v {
+  | #Error(_) => "MoreInferredUnionReturnError"
+  | #Ok(_) => "MoreInferredUnionReturnOk"
   }
 
 let union_UpdateUserNameResult_resolveType = v =>
@@ -402,53 +398,6 @@ i_Node.contents = GraphQLInterfaceType.make({
     }->makeFields,
   resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Node_resolveType),
 })
-t_InferredInputObjectError.contents = GraphQLObjectType.make({
-  name: "InferredInputObjectError",
-  description: ?None,
-  interfaces: [],
-  fields: () =>
-    {
-      "reasons": {
-        typ: GraphQLListType.make(
-          enum_InferredInputObjectErrorReasons->GraphQLEnumType.toGraphQLType->nonNull,
-        )
-        ->GraphQLListType.toGraphQLType
-        ->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["reasons"]
-        }),
-      },
-    }->makeFields,
-})
-t_InferredInputObjectOk.contents = GraphQLObjectType.make({
-  name: "InferredInputObjectOk",
-  description: ?None,
-  interfaces: [],
-  fields: () =>
-    {
-      "coordinates": {
-        typ: get_Coordinates()->GraphQLInputObjectType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["coordinates"]
-        }),
-      },
-      "name": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["name"]
-        }),
-      },
-    }->makeFields,
-})
 t_InferredUnionWithInferredConstructorSomeInferredType.contents = GraphQLObjectType.make({
   name: "InferredUnionWithInferredConstructorSomeInferredType",
   description: ?None,
@@ -514,6 +463,53 @@ t_InlineUnionOk.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["message"]
+        }),
+      },
+    }->makeFields,
+})
+t_MoreInferredUnionReturnError.contents = GraphQLObjectType.make({
+  name: "MoreInferredUnionReturnError",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "reasons": {
+        typ: GraphQLListType.make(
+          enum_MoreInferredUnionReturnErrorReasons->GraphQLEnumType.toGraphQLType->nonNull,
+        )
+        ->GraphQLListType.toGraphQLType
+        ->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["reasons"]
+        }),
+      },
+    }->makeFields,
+})
+t_MoreInferredUnionReturnOk.contents = GraphQLObjectType.make({
+  name: "MoreInferredUnionReturnOk",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "coordinates": {
+        typ: get_Coordinates()->GraphQLInputObjectType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["coordinates"]
+        }),
+      },
+      "name": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["name"]
         }),
       },
     }->makeFields,
@@ -847,25 +843,6 @@ t_Query.contents = GraphQLObjectType.make({
           Schema.inferredEnumAsArg(src, ~status=args["status"])
         }),
       },
-      "inferredInputObject": {
-        typ: get_InferredInputObject()->GraphQLUnionType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        args: {
-          "input": {
-            typ: get_InferredInputObjectInput()->GraphQLInputObjectType.toGraphQLType->nonNull,
-          },
-        }->makeArgs,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          Schema.inferredInputObject(
-            src,
-            ~input=args["input"]->applyConversionToInputObject(
-              input_InferredInputObjectInput_conversionInstructions,
-            ),
-          )
-        }),
-      },
       "inferredUnion": {
         typ: get_InferredUnion()->GraphQLUnionType.toGraphQLType->nonNull,
         description: ?None,
@@ -986,6 +963,27 @@ t_Query.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.QueryFields.me(src, ~ctx, ~info)
+        }),
+      },
+      "moreInferredUnionReturn": {
+        typ: get_MoreInferredUnionReturn()->GraphQLUnionType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {
+          "coordinates": {typ: get_Coordinates()->GraphQLInputObjectType.toGraphQLType},
+          "name": {typ: Scalars.string->Scalars.toGraphQLType},
+        }->makeArgs,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          Schema.moreInferredUnionReturn(
+            src,
+            ~coordinates=?switch args["coordinates"]->Nullable.toOption {
+            | None => None
+            | Some(v) =>
+              v->applyConversionToInputObject(input_Coordinates_conversionInstructions)->Some
+            },
+            ~name=?args["name"]->Nullable.toOption,
+          )
         }),
       },
       "node": {
@@ -1224,11 +1222,6 @@ t_UserEdge.contents = GraphQLObjectType.make({
       },
     }->makeFields,
 })
-input_InferredInputObjectInput.contents = GraphQLInputObjectType.make({
-  name: "InferredInputObjectInput",
-  description: ?None,
-  fields: () => {%raw(`{}`)}->makeFields,
-})
 input_LocationByMagicString.contents = GraphQLInputObjectType.make({
   name: "LocationByMagicString",
   description: ?None,
@@ -1413,12 +1406,6 @@ inputUnion_PaginationArgs.contents = GraphQLInputObjectType.make({
     }->makeFields,
   extensions: {oneOf: true},
 })
-union_InferredInputObject.contents = GraphQLUnionType.make({
-  name: "InferredInputObject",
-  description: ?None,
-  types: () => [get_InferredInputObjectError(), get_InferredInputObjectOk()],
-  resolveType: GraphQLUnionType.makeResolveUnionTypeFn(union_InferredInputObject_resolveType),
-})
 union_InferredUnion.contents = GraphQLUnionType.make({
   name: "InferredUnion",
   description: ?None,
@@ -1432,6 +1419,12 @@ union_InferredUnionWithInferredConstructor.contents = GraphQLUnionType.make({
   resolveType: GraphQLUnionType.makeResolveUnionTypeFn(
     union_InferredUnionWithInferredConstructor_resolveType,
   ),
+})
+union_MoreInferredUnionReturn.contents = GraphQLUnionType.make({
+  name: "MoreInferredUnionReturn",
+  description: ?None,
+  types: () => [get_MoreInferredUnionReturnError(), get_MoreInferredUnionReturnOk()],
+  resolveType: GraphQLUnionType.makeResolveUnionTypeFn(union_MoreInferredUnionReturn_resolveType),
 })
 union_UpdateUserNameResult.contents = GraphQLUnionType.make({
   name: "UpdateUserNameResult",
@@ -1459,7 +1452,6 @@ let schema = GraphQLSchemaType.make({
     get_UpdateUserNameUserUpdated()->GraphQLObjectType.toGraphQLType,
     get_Query()->GraphQLObjectType.toGraphQLType,
     get_Pet()->GraphQLObjectType.toGraphQLType,
-    get_InferredInputObjectError()->GraphQLObjectType.toGraphQLType,
     get_InlineUnionOk()->GraphQLObjectType.toGraphQLType,
     get_Group()->GraphQLObjectType.toGraphQLType,
     get_SomeType()->GraphQLObjectType.toGraphQLType,
@@ -1470,15 +1462,16 @@ let schema = GraphQLSchemaType.make({
     get_UserConnection()->GraphQLObjectType.toGraphQLType,
     get_SomeOtherType()->GraphQLObjectType.toGraphQLType,
     get_UserEdge()->GraphQLObjectType.toGraphQLType,
-    get_InferredInputObjectOk()->GraphQLObjectType.toGraphQLType,
+    get_MoreInferredUnionReturnError()->GraphQLObjectType.toGraphQLType,
     get_User()->GraphQLObjectType.toGraphQLType,
     get_Mutation()->GraphQLObjectType.toGraphQLType,
+    get_MoreInferredUnionReturnOk()->GraphQLObjectType.toGraphQLType,
     get_HasName()->GraphQLInterfaceType.toGraphQLType,
     get_Node()->GraphQLInterfaceType.toGraphQLType,
     get_InlineUnion()->GraphQLUnionType.toGraphQLType,
     get_UserOrGroup()->GraphQLUnionType.toGraphQLType,
     get_InferredUnionWithInferredConstructor()->GraphQLUnionType.toGraphQLType,
-    get_InferredInputObject()->GraphQLUnionType.toGraphQLType,
+    get_MoreInferredUnionReturn()->GraphQLUnionType.toGraphQLType,
     get_InferredUnion()->GraphQLUnionType.toGraphQLType,
     get_UpdateUserNameResult()->GraphQLUnionType.toGraphQLType,
     get_PaginationArgs()->GraphQLInputObjectType.toGraphQLType,
@@ -1486,7 +1479,6 @@ let schema = GraphQLSchemaType.make({
     get_SomeInputWithInferredStuff()->GraphQLInputObjectType.toGraphQLType,
     get_PaginationArgsForward()->GraphQLInputObjectType.toGraphQLType,
     get_Address()->GraphQLInputObjectType.toGraphQLType,
-    get_InferredInputObjectInput()->GraphQLInputObjectType.toGraphQLType,
     get_PaginationArgsBackwards()->GraphQLInputObjectType.toGraphQLType,
     get_Coordinates()->GraphQLInputObjectType.toGraphQLType,
     get_UserConfigContext()->GraphQLInputObjectType.toGraphQLType,
@@ -1495,7 +1487,7 @@ let schema = GraphQLSchemaType.make({
     enum_InferredEnum->GraphQLEnumType.toGraphQLType,
     enum_UserStatus->GraphQLEnumType.toGraphQLType,
     enum_InferredEnumAsArgStatus->GraphQLEnumType.toGraphQLType,
-    enum_InferredInputObjectErrorReasons->GraphQLEnumType.toGraphQLType,
+    enum_MoreInferredUnionReturnErrorReasons->GraphQLEnumType.toGraphQLType,
     enum_SomeInputWithInferredStuffReason->GraphQLEnumType.toGraphQLType,
   ],
 })

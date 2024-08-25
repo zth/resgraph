@@ -2,6 +2,8 @@
 
 ## main
 
+- Disallow inferring input objects. It's not worth the complexity right now.
+
 ## 0.12.0
 
 - **Experimental**. Allow inferring polyvariants and objects to unions, enums, input objects and object types in certain cases.

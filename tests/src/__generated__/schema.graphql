@@ -26,7 +26,7 @@ enum InferredEnumAsArgStatus {
   Online
 }
 
-enum InferredInputObjectErrorReasons {
+enum MoreInferredUnionReturnErrorReasons {
   ALICE_IS_INVALID
   MISSING_COORDINATES
   MISSING_NAME
@@ -51,11 +51,6 @@ enum UserStatus {
   Idle @deprecated(reason: "Use 'Offline' instead. This should be \"escaped\".")
 }
 
-union InferredInputObject = 
-  | InferredInputObjectError
-  | InferredInputObjectOk
-
-
 union InferredUnion = 
   | SomeOtherType
   | SomeType
@@ -64,6 +59,11 @@ union InferredUnion =
 union InferredUnionWithInferredConstructor = 
   | InferredUnionWithInferredConstructorSomeInferredType
   | SomeType
+
+
+union MoreInferredUnionReturn = 
+  | MoreInferredUnionReturnError
+  | MoreInferredUnionReturnOk
 
 
 union UpdateUserNameResult = 
@@ -83,10 +83,6 @@ union UserOrGroup =
   | """ This is a user.""" User
   | """ And this is a group. """ Group
 
-
-input InferredInputObjectInput {
-
-}
 
 input LocationByMagicString {
   text: String!
@@ -163,15 +159,6 @@ interface Node {
   id: ID!
 }
 
-type InferredInputObjectError {
-  reasons: [InferredInputObjectErrorReasons!]!
-}
-
-type InferredInputObjectOk {
-  name: String!
-  coordinates: Coordinates!
-}
-
 type InferredUnionWithInferredConstructorSomeInferredType {
   someTypeStuff: SomeType
   message: String!
@@ -188,6 +175,15 @@ type InlineUnionNotOk {
 
 type InlineUnionOk {
   message: String!
+}
+
+type MoreInferredUnionReturnError {
+  reasons: [MoreInferredUnionReturnErrorReasons!]!
+}
+
+type MoreInferredUnionReturnOk {
+  name: String!
+  coordinates: Coordinates!
 }
 
 type UpdateUserNameUserUpdateFailed {
@@ -243,7 +239,7 @@ type Pet implements HasName {
 }
 
 type Query {
-  inferredInputObject(input: InferredInputObjectInput!): InferredInputObject!
+  moreInferredUnionReturn(name: String, coordinates: Coordinates): MoreInferredUnionReturn!
   inferredUnionWithInferredConstructor(rawStatus: String!): InferredUnionWithInferredConstructor
   inferredUnion(rawStatus: String!): InferredUnion!
   inferredEnumAsArg(status: InferredEnumAsArgStatus!): String

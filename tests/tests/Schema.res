@@ -338,8 +338,8 @@ let errorProducer = s =>
   }
 
 @gql.field
-let inferredInputObject = (_: query, ~input) => {
-  switch (input["name"], input["coordinates"]) {
+let moreInferredUnionReturn = (_: query, ~name=?, ~coordinates=?) => {
+  switch (name, coordinates) {
   | (Some("Alice" as name), Some({lat, lon})) =>
     switch errorProducer(name) {
     | #Error(_) as e => e

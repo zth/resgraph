@@ -62,48 +62,6 @@ and groupConfig = {
 }
 ```
 
-### Inferred input objects
-
-ResGraph can infer input objects if you use a [ReScript object](https://rescript-lang.org/docs/manual/latest/object) as an argument. Remember that ReScript objects can be fully inferred from usage. This creates a great way to create an input object fully inferred from usage. Let's look at an example:
-
-```rescript
-let userUpdateName = (_: mutation, ~input, ~ctx: ResGraphContext.context) => {
-  switch await ctx.db.user.updateStatus(
-    ~userId=input["userId"]->ResGraph.idToString,
-    ~newName=input["newName"],
-  ) {
-  | Ok(updatedUser) => Some(updatedUser)
-  | Error(_) => None
-  }
-}
-
-```
-
-This would produce this schema:
-
-```graphql
-input UserUpdateNameInput {
-  userId: ID!
-  newName: String!
-}
-
-type Mutation {
-  userUpdateName(input: UserUpdateNameInput!): User
-}
-```
-
-Notice everything is inferred from usage, because ReScript infers `input` as an object. And ResGraph leverages that to create an input object. Inferred input objects are named `<parentTypeName><fieldName><argumentName>`, and can only appear in the argument position of a resolver.
-
-#### When to use and not to use inferred input objects
-
-Inferred input objects can be great for moving quickly, but they have the following downsides:
-
-- Can't use doc strings
-- Can't be reused
-- Can't be pattern matched like a record can
-
-So, prefer regular declared `@gql.inputObject`, and use inferred input objects when you're protoyping or otherwise want to move as quickly as possible, or when you're doing something that's truly ad hoc and doesn't require documentation.
-
 ### Input unions
 
 Often you'll find yourself in a scenario where you want to your input to be _one of_ several different values. For this, ResGraph has first class support for [input unions](input-unions).

@@ -383,58 +383,6 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t) ?(typeContext = Default)
                    }))
           ~loc:Location.none;
         Some (GraphQLObjectType {id; displayName = syntheticTypeName})
-    | ArgumentType {fieldName; fieldParentTypeName; argumentName} ->
-      let syntheticTypeNameParts =
-        [fieldParentTypeName; fieldName; argumentName]
-      in
-      let syntheticTypeNameParts =
-        match syntheticTypeNameParts with
-        | ("Query" | "Mutation" | "Subscription") :: rest -> rest
-        | v -> v
-      in
-      let syntheticTypeName =
-        syntheticTypeNameParts
-        |> List.map capitalizeFirstChar
-        |> String.concat ""
-      in
-      let rawObjectFields =
-        extractObjectFields ~objectTypeName:syntheticTypeName t
-      in
-      let objectFields =
-        rawObjectFields
-        |> List.filter_map (fun (name, typ) ->
-               match typ with
-               | None -> None
-               | Some typ -> Some (name, typ))
-      in
-      if List.length rawObjectFields <> List.length objectFields then None
-      else
-        let id = syntheticTypeName in
-        let displayName = syntheticTypeName in
-        addInputObject id ~schemaState ~debug ~makeInputObject:(fun () ->
-            {
-              id;
-              displayName;
-              fields =
-                objectFields
-                |> List.map (fun (name, typ) ->
-                       {
-                         name;
-                         resolverStyle = Property name;
-                         typ;
-                         fileName = env.file.moduleName;
-                         fileUri = env.file.uri;
-                         args = [];
-                         description = None;
-                         deprecationReason = None;
-                         loc = Location.none;
-                         onType = None;
-                       });
-              description = None;
-              typeLocation = None;
-              syntheticTypeLocation = None;
-            });
-        Some (GraphQLInputObject {id; displayName})
     | _ ->
       schemaState
       |> addDiagnostic
