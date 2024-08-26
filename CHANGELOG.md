@@ -2,6 +2,8 @@
 
 ## main
 
+## 0.13.0
+
 - Disallow inferring input objects. It's not worth the complexity right now.
 - Add support for subscriptions.
 
