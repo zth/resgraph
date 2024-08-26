@@ -121,7 +121,7 @@ ResGraph lets you build _implementation first_ GraphQL servers, where your types
 
 - [x] Query
 - [x] Mutations
-- [ ] Subscriptions
+- [x] Subscriptions
 - [x] Context
 - [x] Object types
 - [x] Input types
@@ -130,7 +130,7 @@ ResGraph lets you build _implementation first_ GraphQL servers, where your types
 - [x] Unions
 - [x] Custom scalars (including custom serializers/parsers)
 - [ ] Directives
-- [ ] Relay helpers (coming very soon)
+- [x] Relay helpers (coming very soon)
 
 ## Development notes
 

@@ -2,7 +2,7 @@
 
 open ResGraph__GraphQLJs
 
-let typeUnwrapper: 'src => 'return = %raw(`function typeUnwrapper(src) { if (src == null) return null; if (typeof src === 'object' && src.hasOwnProperty('_0')) return src['_0']; return src;}`)
+let typeUnwrapper: 'src => 'return = %raw(`function typeUnwrapper(src) { if (src == null) return null; if (typeof src === 'object' && src.hasOwnProperty('_0')) return src['_0']; if (typeof src === 'object' && src.hasOwnProperty('VAL')) return src['VAL']; return src;}`)
 let inputUnionUnwrapper: (
   'src,
   array<string>,
@@ -71,6 +71,8 @@ let t_PageInfo: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_PageInfo = () => t_PageInfo.contents
 let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Query = () => t_Query.contents
+let t_Subscription: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let get_Subscription = () => t_Subscription.contents
 let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_User = () => t_User.contents
 let input_FindShopInputByAddress: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
@@ -224,6 +226,24 @@ t_Query.contents = GraphQLObjectType.make({
       },
     }->makeFields,
 })
+t_Subscription.contents = GraphQLObjectType.make({
+  name: "Subscription",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "countdown": {
+        typ: Scalars.int->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((v, _, _, _) => v),
+        subscribe: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          GraphQLSchema.countdown(src)
+        }),
+      },
+    }->makeFields,
+})
 t_User.contents = GraphQLObjectType.make({
   name: "User",
   description: ?None,
@@ -303,4 +323,18 @@ inputUnion_FindShopInput.contents = GraphQLInputObjectType.make({
   extensions: {oneOf: true},
 })
 
-let schema = GraphQLSchemaType.make({"query": get_Query()})
+let schema = GraphQLSchemaType.make({
+  "query": get_Query(),
+  "subscription": get_Subscription(),
+  "types": [
+    get_Query()->GraphQLObjectType.toGraphQLType,
+    get_PageInfo()->GraphQLObjectType.toGraphQLType,
+    get_Subscription()->GraphQLObjectType.toGraphQLType,
+    get_User()->GraphQLObjectType.toGraphQLType,
+    get_HasName()->GraphQLInterfaceType.toGraphQLType,
+    get_FindShopInput()->GraphQLInputObjectType.toGraphQLType,
+    get_FindShopInputByAddress()->GraphQLInputObjectType.toGraphQLType,
+    get_Coordinates()->GraphQLInputObjectType.toGraphQLType,
+    enum_TimestampFormat->GraphQLEnumType.toGraphQLType,
+  ],
+})

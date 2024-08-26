@@ -63,3 +63,47 @@ let shop = (_: query, ~input: findShopInput) => {
   | ByCoordinates(_) => Some("Coordinates")
   }
 }
+
+@gql.type
+type subscription
+
+let wait = ms => {
+  Promise.make((resolve, _) => {
+    let _ = setTimeout(() => resolve(), ms)
+  })
+}
+
+let makeAsyncIterator: (unit => promise<AsyncIterator.value<'value>>) => AsyncIterator.t<
+  'value,
+> = %raw(`function makeAsyncIterator(next) {
+  return {
+    next,
+    [Symbol.asyncIterator]() {
+      return this;
+    }
+  }
+}`)
+
+@gql.field
+let countdown = (_: subscription) => {
+  let countdown = ref(10)
+  let iterator = makeAsyncIterator(async () => {
+    await wait(500)
+    let current = countdown.contents
+    countdown := current - 1
+
+    if current > 0 {
+      {
+        AsyncIterator.done: false,
+        value: Some(current),
+      }
+    } else {
+      {
+        AsyncIterator.done: true,
+        value: Some(current),
+      }
+    }
+  })
+
+  iterator
+}

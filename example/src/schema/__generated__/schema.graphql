@@ -50,6 +50,10 @@ type Query {
   me(onlyIfAvailable: Boolean!): User
 }
 
+type Subscription {
+  countdown: Int!
+}
+
 type User implements HasName {
   name: String!
   age: Int!

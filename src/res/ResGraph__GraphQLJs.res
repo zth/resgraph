@@ -60,6 +60,7 @@ type typeField = {
   resolve?: resolveFn,
   description?: string,
   deprecationReason?: string,
+  subscribe?: resolveFn,
 }
 
 module GraphQLInterfaceType = {
