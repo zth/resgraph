@@ -1,7 +1,7 @@
 open GenerateSchemaTypes
 open GenerateSchemaUtils
 
-type context = CtxDefault | CtxInterface
+type context = CtxDefault | CtxInterface | CtxSubscription
 
 let printResolverForField (field : gqlField) =
   match field.resolverStyle with
@@ -224,7 +224,12 @@ let printField ?(context = CtxDefault) (field : gqlField) =
     (match context with
     | CtxDefault ->
       Printf.sprintf "resolve: makeResolveFn(%s)" (printResolverForField field)
-    | CtxInterface -> "")
+    | CtxInterface -> ""
+    | CtxSubscription ->
+      Printf.sprintf
+        "resolve: makeResolveFn((v, _, _, _) => v), subscribe: \
+         makeResolveFn(%s)"
+        (printResolverForField field))
 
 let printInputObjectField (field : gqlField) =
   Printf.sprintf
@@ -262,7 +267,9 @@ let printObjectType (typ : gqlObjectType) =
            Printf.sprintf "get_%s()"
              (GenerateSchemaUtils.capitalizeFirstChar id))
     |> String.concat ", ")
-    (printFields typ.fields)
+    (printFields
+       ?context:(if typ.id = "subscription" then Some CtxSubscription else None)
+       typ.fields)
 
 let printScalar (typ : gqlScalar) =
   match typ.encoderDecoderLoc with

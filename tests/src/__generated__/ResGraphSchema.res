@@ -180,6 +180,8 @@ let t_SomeOtherType: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_SomeOtherType = () => t_SomeOtherType.contents
 let t_SomeType: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_SomeType = () => t_SomeType.contents
+let t_Subscription: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let get_Subscription = () => t_Subscription.contents
 let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_User = () => t_User.contents
 let t_UserConnection: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
@@ -1076,6 +1078,24 @@ t_SomeType.contents = GraphQLObjectType.make({
       },
     }->makeFields,
 })
+t_Subscription.contents = GraphQLObjectType.make({
+  name: "Subscription",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "countdown": {
+        typ: Scalars.int->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((v, _, _, _) => v),
+        subscribe: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          Schema.countdown(src)
+        }),
+      },
+    }->makeFields,
+})
 t_User.contents = GraphQLObjectType.make({
   name: "User",
   description: "A user in the system.",
@@ -1448,6 +1468,7 @@ union_UserOrGroup.contents = GraphQLUnionType.make({
 let schema = GraphQLSchemaType.make({
   "query": get_Query(),
   "mutation": get_Mutation(),
+  "subscription": get_Subscription(),
   "types": [
     get_UpdateUserNameUserUpdated()->GraphQLObjectType.toGraphQLType,
     get_Query()->GraphQLObjectType.toGraphQLType,
@@ -1461,6 +1482,7 @@ let schema = GraphQLSchemaType.make({
     get_InferredUnionWithInferredConstructorSomeInferredType()->GraphQLObjectType.toGraphQLType,
     get_UserConnection()->GraphQLObjectType.toGraphQLType,
     get_SomeOtherType()->GraphQLObjectType.toGraphQLType,
+    get_Subscription()->GraphQLObjectType.toGraphQLType,
     get_UserEdge()->GraphQLObjectType.toGraphQLType,
     get_MoreInferredUnionReturnError()->GraphQLObjectType.toGraphQLType,
     get_User()->GraphQLObjectType.toGraphQLType,

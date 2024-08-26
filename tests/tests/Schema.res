@@ -375,3 +375,48 @@ let updateUserName = (_: mutation, ~userId, ~newName) => {
     Some(#UserUpdateFailed({"message": "Failed to update user"}))
   }
 }
+
+@gql.type
+type subscription
+
+let wait = ms => {
+  Promise.make((resolve, _) => {
+    let _ = setTimeout(() => resolve(), ms)
+  })
+}
+
+// TODO: Remove when next Core ships
+let makeAsyncIterator: (unit => promise<AsyncIterator.value<'value>>) => AsyncIterator.t<
+  'value,
+> = %raw(`function makeAsyncIterator(next) {
+  return {
+    next,
+    [Symbol.asyncIterator]() {
+      return this;
+    }
+  }
+}`)
+
+@gql.field
+let countdown = (_: subscription) => {
+  let countdown = ref(10)
+  let iterator = makeAsyncIterator(async () => {
+    await wait(500)
+    let current = countdown.contents
+    countdown := current - 1
+
+    if current > 0 {
+      {
+        AsyncIterator.done: false,
+        value: Some(current),
+      }
+    } else {
+      {
+        AsyncIterator.done: true,
+        value: Some(current),
+      }
+    }
+  })
+
+  iterator
+}

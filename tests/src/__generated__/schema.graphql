@@ -274,6 +274,10 @@ type SomeType {
   msg: String!
 }
 
+type Subscription {
+  countdown: Int!
+}
+
 
 """A user in the system."""
 type User implements Node & HasName {
