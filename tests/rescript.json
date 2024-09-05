@@ -25,7 +25,11 @@
     }
   ],
   "bsc-flags": ["-w -33-44", "-open RescriptCore"],
-  "bs-dependencies": ["@rescript/react", "@glennsl/rescript-fetch"],
-  "bs-dev-dependencies": ["@rescript/core", "rescript-nodejs"],
+  "bs-dependencies": [
+    "@rescript/react",
+    "@glennsl/rescript-fetch",
+    "@rescript/core",
+    "rescript-nodejs"
+  ],
   "jsx": { "version": 4 }
 }
