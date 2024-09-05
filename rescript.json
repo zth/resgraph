@@ -5,7 +5,8 @@
   "sources": [
     {
       "dir": "cli",
-      "subdirs": true
+      "subdirs": true,
+      "dev": true
     },
     {
       "dir": "src/res",
@@ -20,8 +21,8 @@
   ],
   "suffix": ".mjs",
   "bs-dependencies": [
-    "@rescript/core",
     "rescript-nodejs",
+    "@rescript/core",
     "@glennsl/rescript-fetch"
   ],
   "bsc-flags": ["-open NodeJs", "-open RescriptCore"]

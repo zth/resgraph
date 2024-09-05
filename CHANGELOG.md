@@ -2,6 +2,10 @@
 
 ## main
 
+## 0.13.1
+
+- Bundle `cli` so it doesn't interfere unecessarily with other ReScript things.
+
 ## 0.13.0
 
 - Disallow inferring input objects. It's not worth the complexity right now.
