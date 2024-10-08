@@ -166,6 +166,8 @@ let t_UpdateUserNameUserUpdateFailed: ref<GraphQLObjectType.t> = Obj.magic({"con
 let get_UpdateUserNameUserUpdateFailed = () => t_UpdateUserNameUserUpdateFailed.contents
 let t_UpdateUserNameUserUpdated: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_UpdateUserNameUserUpdated = () => t_UpdateUserNameUserUpdated.contents
+let t_Coordinates: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let get_Coordinates = () => t_Coordinates.contents
 let t_Group: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Group = () => t_Group.contents
 let t_Mutation: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
@@ -182,12 +184,52 @@ let t_SomeType: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_SomeType = () => t_SomeType.contents
 let t_Subscription: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Subscription = () => t_Subscription.contents
+let t_Thing: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let get_Thing = () => t_Thing.contents
 let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_User = () => t_User.contents
 let t_UserConnection: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_UserConnection = () => t_UserConnection.contents
 let t_UserEdge: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
 let get_UserEdge = () => t_UserEdge.contents
+let inputUnion_Location: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let get_Location = () => inputUnion_Location.contents
+let inputUnion_Location_conversionInstructions = []
+let inputUnion_PaginationArgs: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let get_PaginationArgs = () => inputUnion_PaginationArgs.contents
+let inputUnion_PaginationArgs_conversionInstructions = []
+let inputUnion_UpdatableBool: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let get_UpdatableBool = () => inputUnion_UpdatableBool.contents
+let inputUnion_UpdatableBool_conversionInstructions = []
+let inputUnion_UpdatableFloat: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let get_UpdatableFloat = () => inputUnion_UpdatableFloat.contents
+let inputUnion_UpdatableFloat_conversionInstructions = []
+let inputUnion_UpdatableInt: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let get_UpdatableInt = () => inputUnion_UpdatableInt.contents
+let inputUnion_UpdatableInt_conversionInstructions = []
+let inputUnion_UpdatableNullableBool: ref<GraphQLInputObjectType.t> = Obj.magic({
+  "contents": Js.null,
+})
+let get_UpdatableNullableBool = () => inputUnion_UpdatableNullableBool.contents
+let inputUnion_UpdatableNullableBool_conversionInstructions = []
+let inputUnion_UpdatableNullableFloat: ref<GraphQLInputObjectType.t> = Obj.magic({
+  "contents": Js.null,
+})
+let get_UpdatableNullableFloat = () => inputUnion_UpdatableNullableFloat.contents
+let inputUnion_UpdatableNullableFloat_conversionInstructions = []
+let inputUnion_UpdatableNullableInt: ref<GraphQLInputObjectType.t> = Obj.magic({
+  "contents": Js.null,
+})
+let get_UpdatableNullableInt = () => inputUnion_UpdatableNullableInt.contents
+let inputUnion_UpdatableNullableInt_conversionInstructions = []
+let inputUnion_UpdatableNullableString: ref<GraphQLInputObjectType.t> = Obj.magic({
+  "contents": Js.null,
+})
+let get_UpdatableNullableString = () => inputUnion_UpdatableNullableString.contents
+let inputUnion_UpdatableNullableString_conversionInstructions = []
+let inputUnion_UpdatableString: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let get_UpdatableString = () => inputUnion_UpdatableString.contents
+let inputUnion_UpdatableString_conversionInstructions = []
 let input_LocationByMagicString: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
 let get_LocationByMagicString = () => input_LocationByMagicString.contents
 let input_LocationByMagicString_conversionInstructions = []
@@ -200,14 +242,17 @@ let input_PaginationArgsForward_conversionInstructions = []
 let input_Address: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
 let get_Address = () => input_Address.contents
 let input_Address_conversionInstructions = []
-let input_Coordinates: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
-let get_Coordinates = () => input_Coordinates.contents
-let input_Coordinates_conversionInstructions = []
+let input_CoordinatesInput: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let get_CoordinatesInput = () => input_CoordinatesInput.contents
+let input_CoordinatesInput_conversionInstructions = []
 let input_SomeInputWithInferredStuff: ref<GraphQLInputObjectType.t> = Obj.magic({
   "contents": Js.null,
 })
 let get_SomeInputWithInferredStuff = () => input_SomeInputWithInferredStuff.contents
 let input_SomeInputWithInferredStuff_conversionInstructions = []
+let input_UpdateThingInput: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let get_UpdateThingInput = () => input_UpdateThingInput.contents
+let input_UpdateThingInput_conversionInstructions = []
 let input_UserConfig: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
 let get_UserConfig = () => input_UserConfig.contents
 let input_UserConfig_conversionInstructions = []
@@ -224,8 +269,50 @@ input_PaginationArgsForward_conversionInstructions->Array.pushMany([
   ("after", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
 ])
 input_Address_conversionInstructions->Array.pushMany([])
-input_Coordinates_conversionInstructions->Array.pushMany([])
+input_CoordinatesInput_conversionInstructions->Array.pushMany([])
 input_SomeInputWithInferredStuff_conversionInstructions->Array.pushMany([])
+input_UpdateThingInput_conversionInstructions->Array.pushMany([
+  (
+    "name",
+    makeInputObjectFieldConverterFn(v =>
+      v
+      ->applyConversionToInputObject(inputUnion_UpdatableString_conversionInstructions)
+      ->inputUnionUnwrapper([])
+    ),
+  ),
+  (
+    "age",
+    makeInputObjectFieldConverterFn(v =>
+      v
+      ->applyConversionToInputObject(inputUnion_UpdatableInt_conversionInstructions)
+      ->inputUnionUnwrapper([])
+    ),
+  ),
+  (
+    "favoriteColor",
+    makeInputObjectFieldConverterFn(v =>
+      v
+      ->applyConversionToInputObject(inputUnion_UpdatableNullableString_conversionInstructions)
+      ->inputUnionUnwrapper([])
+    ),
+  ),
+  (
+    "isAdmin",
+    makeInputObjectFieldConverterFn(v =>
+      v
+      ->applyConversionToInputObject(inputUnion_UpdatableNullableBool_conversionInstructions)
+      ->inputUnionUnwrapper([])
+    ),
+  ),
+  (
+    "height",
+    makeInputObjectFieldConverterFn(v =>
+      v
+      ->applyConversionToInputObject(inputUnion_UpdatableNullableFloat_conversionInstructions)
+      ->inputUnionUnwrapper([])
+    ),
+  ),
+])
 input_UserConfig_conversionInstructions->Array.pushMany([
   ("name", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
   (
@@ -242,34 +329,14 @@ input_UserConfig_conversionInstructions->Array.pushMany([
 input_UserConfigContext_conversionInstructions->Array.pushMany([
   ("name", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
 ])
-let union_InferredUnion: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
-let get_InferredUnion = () => union_InferredUnion.contents
-let union_InferredUnionWithInferredConstructor: ref<GraphQLUnionType.t> = Obj.magic({
-  "contents": Js.null,
-})
-let get_InferredUnionWithInferredConstructor = () =>
-  union_InferredUnionWithInferredConstructor.contents
-let union_MoreInferredUnionReturn: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
-let get_MoreInferredUnionReturn = () => union_MoreInferredUnionReturn.contents
-let union_UpdateUserNameResult: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
-let get_UpdateUserNameResult = () => union_UpdateUserNameResult.contents
-let union_InlineUnion: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
-let get_InlineUnion = () => union_InlineUnion.contents
-let union_UserOrGroup: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
-let get_UserOrGroup = () => union_UserOrGroup.contents
-let inputUnion_Location: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
-let get_Location = () => inputUnion_Location.contents
-let inputUnion_Location_conversionInstructions = []
-let inputUnion_PaginationArgs: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
-let get_PaginationArgs = () => inputUnion_PaginationArgs.contents
-let inputUnion_PaginationArgs_conversionInstructions = []
 inputUnion_Location_conversionInstructions->Array.pushMany([
   (
     "byCoordinates",
     makeInputObjectFieldConverterFn(v =>
       switch v->Nullable.toOption {
       | None => None
-      | Some(v) => v->applyConversionToInputObject(input_Coordinates_conversionInstructions)->Some
+      | Some(v) =>
+        v->applyConversionToInputObject(input_CoordinatesInput_conversionInstructions)->Some
       }
     ),
   ),
@@ -316,6 +383,57 @@ inputUnion_PaginationArgs_conversionInstructions->Array.pushMany([
     ),
   ),
 ])
+inputUnion_UpdatableBool_conversionInstructions->Array.pushMany([
+  ("updateValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  ("leaveUnchanged", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+])
+inputUnion_UpdatableFloat_conversionInstructions->Array.pushMany([
+  ("updateValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  ("leaveUnchanged", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+])
+inputUnion_UpdatableInt_conversionInstructions->Array.pushMany([
+  ("updateValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  ("leaveUnchanged", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+])
+inputUnion_UpdatableNullableBool_conversionInstructions->Array.pushMany([
+  ("updateValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  ("unsetValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  ("leaveUnchanged", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+])
+inputUnion_UpdatableNullableFloat_conversionInstructions->Array.pushMany([
+  ("updateValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  ("unsetValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  ("leaveUnchanged", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+])
+inputUnion_UpdatableNullableInt_conversionInstructions->Array.pushMany([
+  ("updateValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  ("unsetValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  ("leaveUnchanged", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+])
+inputUnion_UpdatableNullableString_conversionInstructions->Array.pushMany([
+  ("updateValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  ("unsetValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  ("leaveUnchanged", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+])
+inputUnion_UpdatableString_conversionInstructions->Array.pushMany([
+  ("updateValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  ("leaveUnchanged", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+])
+let union_InferredUnion: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
+let get_InferredUnion = () => union_InferredUnion.contents
+let union_InferredUnionWithInferredConstructor: ref<GraphQLUnionType.t> = Obj.magic({
+  "contents": Js.null,
+})
+let get_InferredUnionWithInferredConstructor = () =>
+  union_InferredUnionWithInferredConstructor.contents
+let union_MoreInferredUnionReturn: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
+let get_MoreInferredUnionReturn = () => union_MoreInferredUnionReturn.contents
+let union_UpdateUserNameResult: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
+let get_UpdateUserNameResult = () => union_UpdateUserNameResult.contents
+let union_InlineUnion: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
+let get_InlineUnion = () => union_InlineUnion.contents
+let union_UserOrGroup: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
+let get_UserOrGroup = () => union_UserOrGroup.contents
 
 let union_InferredUnion_resolveType = v =>
   switch v {
@@ -497,7 +615,7 @@ t_MoreInferredUnionReturnOk.contents = GraphQLObjectType.make({
   fields: () =>
     {
       "coordinates": {
-        typ: get_Coordinates()->GraphQLInputObjectType.toGraphQLType->nonNull,
+        typ: get_Coordinates()->GraphQLObjectType.toGraphQLType->nonNull,
         description: ?None,
         deprecationReason: ?None,
         resolve: makeResolveFn((src, _args, _ctx, _info) => {
@@ -546,6 +664,32 @@ t_UpdateUserNameUserUpdated.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["updatedUser"]
+        }),
+      },
+    }->makeFields,
+})
+t_Coordinates.contents = GraphQLObjectType.make({
+  name: "Coordinates",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "lat": {
+        typ: Scalars.float->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["lat"]
+        }),
+      },
+      "lon": {
+        typ: Scalars.float->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["lon"]
         }),
       },
     }->makeFields,
@@ -617,6 +761,44 @@ t_Mutation.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.Mutations.addUser(src, ~name=args["name"])
+        }),
+      },
+      "updateThing": {
+        typ: get_Thing()->GraphQLObjectType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {
+          "input": {typ: get_UpdateThingInput()->GraphQLInputObjectType.toGraphQLType->nonNull},
+          "thingId": {typ: Scalars.id->Scalars.toGraphQLType->nonNull},
+        }->makeArgs,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          Thing.updateThing(
+            src,
+            ~input=args["input"]->applyConversionToInputObject(
+              input_UpdateThingInput_conversionInstructions,
+            ),
+            ~thingId=args["thingId"],
+          )
+        }),
+      },
+      "updateThing": {
+        typ: get_Thing()->GraphQLObjectType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {
+          "input": {typ: get_UpdateThingInput()->GraphQLInputObjectType.toGraphQLType->nonNull},
+          "thingId": {typ: Scalars.id->Scalars.toGraphQLType->nonNull},
+        }->makeArgs,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          Schema.updateThing(
+            src,
+            ~input=args["input"]->applyConversionToInputObject(
+              input_UpdateThingInput_conversionInstructions,
+            ),
+            ~thingId=args["thingId"],
+          )
         }),
       },
       "updateUserName": {
@@ -972,7 +1154,7 @@ t_Query.contents = GraphQLObjectType.make({
         description: ?None,
         deprecationReason: ?None,
         args: {
-          "coordinates": {typ: get_Coordinates()->GraphQLInputObjectType.toGraphQLType},
+          "coordinates": {typ: get_CoordinatesInput()->GraphQLInputObjectType.toGraphQLType},
           "name": {typ: Scalars.string->Scalars.toGraphQLType},
         }->makeArgs,
         resolve: makeResolveFn((src, args, ctx, info) => {
@@ -982,7 +1164,7 @@ t_Query.contents = GraphQLObjectType.make({
             ~coordinates=?switch args["coordinates"]->Nullable.toOption {
             | None => None
             | Some(v) =>
-              v->applyConversionToInputObject(input_Coordinates_conversionInstructions)->Some
+              v->applyConversionToInputObject(input_CoordinatesInput_conversionInstructions)->Some
             },
             ~name=?args["name"]->Nullable.toOption,
           )
@@ -1092,6 +1274,68 @@ t_Subscription.contents = GraphQLObjectType.make({
         subscribe: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           Schema.countdown(src)
+        }),
+      },
+    }->makeFields,
+})
+t_Thing.contents = GraphQLObjectType.make({
+  name: "Thing",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "age": {
+        typ: Scalars.int->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["age"]
+        }),
+      },
+      "favoriteColor": {
+        typ: Scalars.string->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["favoriteColor"]
+        }),
+      },
+      "height": {
+        typ: Scalars.float->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["height"]
+        }),
+      },
+      "id": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["id"]
+        }),
+      },
+      "isAdmin": {
+        typ: Scalars.boolean->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["isAdmin"]
+        }),
+      },
+      "name": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["name"]
         }),
       },
     }->makeFields,
@@ -1310,8 +1554,8 @@ input_Address.contents = GraphQLInputObjectType.make({
       },
     }->makeFields,
 })
-input_Coordinates.contents = GraphQLInputObjectType.make({
-  name: "Coordinates",
+input_CoordinatesInput.contents = GraphQLInputObjectType.make({
+  name: "CoordinatesInput",
   description: ?None,
   fields: () =>
     {
@@ -1335,6 +1579,48 @@ input_SomeInputWithInferredStuff.contents = GraphQLInputObjectType.make({
       "reason": {
         GraphQLInputObjectType.typ: enum_SomeInputWithInferredStuffReason
         ->GraphQLEnumType.toGraphQLType
+        ->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+})
+input_UpdateThingInput.contents = GraphQLInputObjectType.make({
+  name: "UpdateThingInput",
+  description: ?None,
+  fields: () =>
+    {
+      "age": {
+        GraphQLInputObjectType.typ: get_UpdatableInt()
+        ->GraphQLInputObjectType.toGraphQLType
+        ->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "favoriteColor": {
+        GraphQLInputObjectType.typ: get_UpdatableNullableString()
+        ->GraphQLInputObjectType.toGraphQLType
+        ->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "height": {
+        GraphQLInputObjectType.typ: get_UpdatableNullableFloat()
+        ->GraphQLInputObjectType.toGraphQLType
+        ->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "isAdmin": {
+        GraphQLInputObjectType.typ: get_UpdatableNullableBool()
+        ->GraphQLInputObjectType.toGraphQLType
+        ->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "name": {
+        GraphQLInputObjectType.typ: get_UpdatableString()
+        ->GraphQLInputObjectType.toGraphQLType
         ->nonNull,
         description: ?None,
         deprecationReason: ?None,
@@ -1391,7 +1677,7 @@ inputUnion_Location.contents = GraphQLInputObjectType.make({
         deprecationReason: ?None,
       },
       "byCoordinates": {
-        GraphQLInputObjectType.typ: get_Coordinates()->GraphQLInputObjectType.toGraphQLType,
+        GraphQLInputObjectType.typ: get_CoordinatesInput()->GraphQLInputObjectType.toGraphQLType,
         description: ?None,
         deprecationReason: ?None,
       },
@@ -1420,6 +1706,170 @@ inputUnion_PaginationArgs.contents = GraphQLInputObjectType.make({
       },
       "forward": {
         GraphQLInputObjectType.typ: get_PaginationArgsForward()->GraphQLInputObjectType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+  extensions: {oneOf: true},
+})
+inputUnion_UpdatableBool.contents = GraphQLInputObjectType.make({
+  name: "UpdatableBool",
+  description: ?None,
+  fields: () =>
+    {
+      "leaveUnchanged": {
+        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "updateValue": {
+        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+  extensions: {oneOf: true},
+})
+inputUnion_UpdatableFloat.contents = GraphQLInputObjectType.make({
+  name: "UpdatableFloat",
+  description: ?None,
+  fields: () =>
+    {
+      "leaveUnchanged": {
+        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "updateValue": {
+        GraphQLInputObjectType.typ: Scalars.float->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+  extensions: {oneOf: true},
+})
+inputUnion_UpdatableInt.contents = GraphQLInputObjectType.make({
+  name: "UpdatableInt",
+  description: ?None,
+  fields: () =>
+    {
+      "leaveUnchanged": {
+        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "updateValue": {
+        GraphQLInputObjectType.typ: Scalars.int->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+  extensions: {oneOf: true},
+})
+inputUnion_UpdatableNullableBool.contents = GraphQLInputObjectType.make({
+  name: "UpdatableNullableBool",
+  description: ?None,
+  fields: () =>
+    {
+      "leaveUnchanged": {
+        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "unsetValue": {
+        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "updateValue": {
+        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+  extensions: {oneOf: true},
+})
+inputUnion_UpdatableNullableFloat.contents = GraphQLInputObjectType.make({
+  name: "UpdatableNullableFloat",
+  description: ?None,
+  fields: () =>
+    {
+      "leaveUnchanged": {
+        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "unsetValue": {
+        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "updateValue": {
+        GraphQLInputObjectType.typ: Scalars.float->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+  extensions: {oneOf: true},
+})
+inputUnion_UpdatableNullableInt.contents = GraphQLInputObjectType.make({
+  name: "UpdatableNullableInt",
+  description: ?None,
+  fields: () =>
+    {
+      "leaveUnchanged": {
+        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "unsetValue": {
+        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "updateValue": {
+        GraphQLInputObjectType.typ: Scalars.int->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+  extensions: {oneOf: true},
+})
+inputUnion_UpdatableNullableString.contents = GraphQLInputObjectType.make({
+  name: "UpdatableNullableString",
+  description: ?None,
+  fields: () =>
+    {
+      "leaveUnchanged": {
+        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "unsetValue": {
+        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "updateValue": {
+        GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+  extensions: {oneOf: true},
+})
+inputUnion_UpdatableString.contents = GraphQLInputObjectType.make({
+  name: "UpdatableString",
+  description: ?None,
+  fields: () =>
+    {
+      "leaveUnchanged": {
+        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "updateValue": {
+        GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType,
         description: ?None,
         deprecationReason: ?None,
       },
@@ -1483,11 +1933,13 @@ let schema = GraphQLSchemaType.make({
     get_UserConnection()->GraphQLObjectType.toGraphQLType,
     get_SomeOtherType()->GraphQLObjectType.toGraphQLType,
     get_Subscription()->GraphQLObjectType.toGraphQLType,
+    get_Coordinates()->GraphQLObjectType.toGraphQLType,
     get_UserEdge()->GraphQLObjectType.toGraphQLType,
     get_MoreInferredUnionReturnError()->GraphQLObjectType.toGraphQLType,
     get_User()->GraphQLObjectType.toGraphQLType,
     get_Mutation()->GraphQLObjectType.toGraphQLType,
     get_MoreInferredUnionReturnOk()->GraphQLObjectType.toGraphQLType,
+    get_Thing()->GraphQLObjectType.toGraphQLType,
     get_HasName()->GraphQLInterfaceType.toGraphQLType,
     get_Node()->GraphQLInterfaceType.toGraphQLType,
     get_InlineUnion()->GraphQLUnionType.toGraphQLType,
@@ -1496,13 +1948,22 @@ let schema = GraphQLSchemaType.make({
     get_MoreInferredUnionReturn()->GraphQLUnionType.toGraphQLType,
     get_InferredUnion()->GraphQLUnionType.toGraphQLType,
     get_UpdateUserNameResult()->GraphQLUnionType.toGraphQLType,
+    get_UpdatableNullableFloat()->GraphQLInputObjectType.toGraphQLType,
+    get_UpdatableString()->GraphQLInputObjectType.toGraphQLType,
+    get_UpdatableNullableBool()->GraphQLInputObjectType.toGraphQLType,
+    get_UpdatableBool()->GraphQLInputObjectType.toGraphQLType,
+    get_UpdatableFloat()->GraphQLInputObjectType.toGraphQLType,
+    get_UpdatableNullableInt()->GraphQLInputObjectType.toGraphQLType,
+    get_UpdatableInt()->GraphQLInputObjectType.toGraphQLType,
     get_PaginationArgs()->GraphQLInputObjectType.toGraphQLType,
     get_Location()->GraphQLInputObjectType.toGraphQLType,
+    get_UpdatableNullableString()->GraphQLInputObjectType.toGraphQLType,
     get_SomeInputWithInferredStuff()->GraphQLInputObjectType.toGraphQLType,
     get_PaginationArgsForward()->GraphQLInputObjectType.toGraphQLType,
     get_Address()->GraphQLInputObjectType.toGraphQLType,
+    get_CoordinatesInput()->GraphQLInputObjectType.toGraphQLType,
+    get_UpdateThingInput()->GraphQLInputObjectType.toGraphQLType,
     get_PaginationArgsBackwards()->GraphQLInputObjectType.toGraphQLType,
-    get_Coordinates()->GraphQLInputObjectType.toGraphQLType,
     get_UserConfigContext()->GraphQLInputObjectType.toGraphQLType,
     get_UserConfig()->GraphQLInputObjectType.toGraphQLType,
     get_LocationByMagicString()->GraphQLInputObjectType.toGraphQLType,

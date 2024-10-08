@@ -1,3 +1,7 @@
+type UpdateUserNameUserUpdated {
+  updatedUser: User!
+}
+
 type Query {
   allUsers(after: String, before: String, first: Int, last: Int): UserConnection
   allowExplicitNull(someNullable: String): String!
@@ -8,9 +12,14 @@ type Query {
   entity(id: ID!): UserOrGroup!
   findThing(location: Location!): String
   hasName(id: ID!): HasName
+  inferredEnum(rawStatus: String!): InferredEnum!
+  inferredEnumAsArg(status: InferredEnumAsArgStatus!): String
+  inferredUnion(rawStatus: String!): InferredUnion!
+  inferredUnionWithInferredConstructor(rawStatus: String!): InferredUnionWithInferredConstructor
   inlineUnion: InlineUnion
   listAsArgs(list1: [String], list2: [[String]], list3: [[[String!]!]], nullableInnerList: [String], nullableList: [String], optionalList: [String!], regularList: [String]!): [String!]!
   me: User
+  moreInferredUnionReturn(coordinates: CoordinatesInput, name: String): MoreInferredUnionReturn!
 
   """Fetches an object given its ID."""
   node(id: ID!): Node
@@ -19,6 +28,81 @@ type Query {
   nodes(ids: [ID!]!): [Node]!
   pet: Pet
   searchForUser(input: UserConfig!): User
+}
+
+"""A timestamp, but with the implementation hidden in the server."""
+scalar TimestampHidden
+
+"""A timestamp. "Testing quotes here"."""
+scalar Timestamp
+
+scalar TimestampZ
+
+"""
+A timestamp, but with the implementation hidden in the server. Under the
+    hood, it's serializable.
+"""
+scalar TimestampHiddenSerializable
+
+type Pet implements HasName {
+  abbreviatedName: String
+  age: Int!
+  name: String!
+}
+
+type InlineUnionOk {
+  message: String!
+}
+
+"""A group in the system."""
+type Group implements HasName & Node {
+  abbreviatedName: String
+
+  """The timestamp when this group was created."""
+  createdAt: Timestamp
+
+  """The id of the object."""
+  id: ID!
+
+  """When this group was last modified."""
+  modifiedAt: TimestampHidden
+  name: String!
+}
+
+type SomeType {
+  msg: String!
+}
+
+type InlineUnionNotOk {
+  """Whether this is liked or not."""
+  liked: Boolean @deprecated(reason: "Use something else.")
+
+  """Stuff"""
+  reason: String!
+}
+
+type UpdateUserNameUserUpdateFailed {
+  message: String!
+}
+
+"""Information about pagination in a connection."""
+type PageInfo {
+  """When paginating forwards, the cursor to continue."""
+  endCursor: String
+
+  """When paginating forwards, are there more items?"""
+  hasNextPage: Boolean!
+
+  """When paginating backwards, are there more items?"""
+  hasPreviousPage: Boolean!
+
+  """When paginating backwards, the cursor to continue."""
+  startCursor: String
+}
+
+type InferredUnionWithInferredConstructorSomeInferredType {
+  message: String!
+  someTypeStuff: SomeType
 }
 
 type UserConnection {
@@ -32,12 +116,29 @@ type UserConnection {
   totalCount: Int
 }
 
+type SomeOtherType {
+  message: String!
+}
+
+type Subscription {
+  countdown: Int!
+}
+
+type Coordinates {
+  lat: Float!
+  lon: Float!
+}
+
 type UserEdge {
   """A cursor for use in pagination."""
   cursor: String!
 
   """The item at the end of the edge."""
   node: User
+}
+
+type MoreInferredUnionReturnError {
+  reasons: [MoreInferredUnionReturnErrorReasons!]!
 }
 
 """A user in the system."""
@@ -57,6 +158,26 @@ type User implements HasName & Node {
   name: String!
 }
 
+type Mutation {
+  addUser(name: String!): User
+  updateThing(input: UpdateThingInput!, thingId: ID!): Thing
+  updateUserName(newName: String!, userId: ID!): UpdateUserNameResult
+}
+
+type MoreInferredUnionReturnOk {
+  coordinates: Coordinates!
+  name: String!
+}
+
+type Thing {
+  age: Int!
+  favoriteColor: String
+  height: Float
+  id: String!
+  isAdmin: Boolean
+  name: String!
+}
+
 """An entity with a name."""
 interface HasName {
   abbreviatedName: String
@@ -67,6 +188,135 @@ interface HasName {
 interface Node {
   """The id of the object."""
   id: ID!
+}
+
+union InlineUnion = InlineUnionNotOk | InlineUnionOk | User
+
+"""A user or a group."""
+union UserOrGroup = Group | User
+
+union InferredUnionWithInferredConstructor = InferredUnionWithInferredConstructorSomeInferredType | SomeType
+
+union MoreInferredUnionReturn = MoreInferredUnionReturnError | MoreInferredUnionReturnOk
+
+union InferredUnion = SomeOtherType | SomeType
+
+union UpdateUserNameResult = UpdateUserNameUserUpdateFailed | UpdateUserNameUserUpdated
+
+input UpdatableNullableFloat {
+  leaveUnchanged: Boolean
+  unsetValue: Boolean
+  updateValue: Float
+}
+
+input UpdatableString {
+  leaveUnchanged: Boolean
+  updateValue: String
+}
+
+input UpdatableNullableBool {
+  leaveUnchanged: Boolean
+  unsetValue: Boolean
+  updateValue: Boolean
+}
+
+input UpdatableBool {
+  leaveUnchanged: Boolean
+  updateValue: Boolean
+}
+
+input UpdatableFloat {
+  leaveUnchanged: Boolean
+  updateValue: Float
+}
+
+input UpdatableNullableInt {
+  leaveUnchanged: Boolean
+  unsetValue: Boolean
+  updateValue: Int
+}
+
+input UpdatableInt {
+  leaveUnchanged: Boolean
+  updateValue: Int
+}
+
+input PaginationArgs {
+  backwards: PaginationArgsBackwards
+  forward: PaginationArgsForward
+}
+
+input Location {
+  byAddress: Address
+  byCoordinates: CoordinatesInput
+  byId: ID
+  byMagicString: LocationByMagicString
+}
+
+input UpdatableNullableString {
+  leaveUnchanged: Boolean
+  unsetValue: Boolean
+  updateValue: String
+}
+
+input SomeInputWithInferredStuff {
+  reason: SomeInputWithInferredStuffReason!
+}
+
+input PaginationArgsForward {
+  after: String
+  first: Int
+}
+
+input Address {
+  city: String!
+  postalCode: String!
+  streetAdddress: String!
+}
+
+input CoordinatesInput {
+  lat: Float!
+  lon: Float!
+}
+
+input UpdateThingInput {
+  age: UpdatableInt!
+  favoriteColor: UpdatableNullableString!
+  height: UpdatableNullableFloat!
+  isAdmin: UpdatableNullableBool!
+  name: UpdatableString!
+}
+
+input PaginationArgsBackwards {
+  before: String
+  last: Int
+}
+
+"""Additional for searching for a user."""
+input UserConfigContext {
+  groupId: String
+  name: String
+}
+
+"""Configuration for searching for a user."""
+input UserConfig {
+  context: UserConfigContext
+
+  """The ID of a user to search for."""
+  id: String!
+
+  """The name of the user to search for."""
+  name: String @deprecated(reason: "This is going away")
+}
+
+input LocationByMagicString {
+  text: String!
+}
+
+enum InferredEnum {
+  Offline
+  Online
+  Other
 }
 
 """Indicates what status a user currently has."""
@@ -81,111 +331,18 @@ enum UserStatus {
   Idle @deprecated(reason: "Use 'Offline' instead. This should be \"escaped\".")
 }
 
-"""Information about pagination in a connection."""
-type PageInfo {
-  """When paginating forwards, the cursor to continue."""
-  endCursor: String
-
-  """When paginating forwards, are there more items?"""
-  hasNextPage: Boolean!
-
-  """When paginating backwards, are there more items?"""
-  hasPreviousPage: Boolean!
-
-  """When paginating backwards, the cursor to continue."""
-  startCursor: String
+enum InferredEnumAsArgStatus {
+  Offline
+  Online
 }
 
-"""A timestamp, but with the implementation hidden in the server."""
-scalar TimestampHidden
-
-"""A timestamp. "Testing quotes here"."""
-scalar Timestamp
-
-scalar TimestampZ
-
-"""
-A timestamp, but with the implementation hidden in the server. Under the
-    hood, it's serializable.
-"""
-scalar TimestampHiddenSerializable
-
-"""A user or a group."""
-union UserOrGroup = Group | User
-
-"""A group in the system."""
-type Group implements HasName & Node {
-  abbreviatedName: String
-
-  """The timestamp when this group was created."""
-  createdAt: Timestamp
-
-  """The id of the object."""
-  id: ID!
-
-  """When this group was last modified."""
-  modifiedAt: TimestampHidden
-  name: String!
+enum MoreInferredUnionReturnErrorReasons {
+  ALICE_IS_INVALID
+  MISSING_COORDINATES
+  MISSING_NAME
 }
 
-input Location {
-  byAddress: Address
-  byCoordinates: Coordinates
-  byMagicString: LocationByMagicString
-}
-
-input Address {
-  city: String!
-  postalCode: String!
-  streetAdddress: String!
-}
-
-input Coordinates {
-  lat: Float!
-  lon: Float!
-}
-
-input LocationByMagicString {
-  text: String!
-}
-
-union InlineUnion = InlineUnionNotOk | InlineUnionOk | User
-
-type InlineUnionNotOk {
-  """Whether this is liked or not."""
-  liked: Boolean @deprecated(reason: "Use something else.")
-
-  """Stuff"""
-  reason: String!
-}
-
-type InlineUnionOk {
-  message: String!
-}
-
-type Pet implements HasName {
-  abbreviatedName: String
-  age: Int!
-  name: String!
-}
-
-"""Configuration for searching for a user."""
-input UserConfig {
-  context: UserConfigContext
-
-  """The ID of a user to search for."""
-  id: String!
-
-  """The name of the user to search for."""
-  name: String @deprecated(reason: "This is going away")
-}
-
-"""Additional for searching for a user."""
-input UserConfigContext {
-  groupId: String
-  name: String
-}
-
-type Mutation {
-  addUser(name: String!): User
+enum SomeInputWithInferredStuffReason {
+  INVALID
+  VALID
 }

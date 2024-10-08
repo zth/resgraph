@@ -503,6 +503,21 @@ let printSchemaJsFile schemaState processSchema =
            (Printf.sprintf "let get_%s = () => t_%s.contents" typ.displayName
               typ.displayName));
 
+  (* Print the input union type holders and getters *)
+  schemaState.inputUnions
+  |> iterHashtblAlphabetically (fun _name (inputUnion : gqlInputUnionType) ->
+         addWithNewLine
+           (Printf.sprintf
+              "let inputUnion_%s: ref<GraphQLInputObjectType.t> = \
+               Obj.magic({\"contents\": Js.null})"
+              inputUnion.displayName);
+         addWithNewLine
+           (Printf.sprintf "let get_%s = () => inputUnion_%s.contents"
+              inputUnion.displayName inputUnion.displayName);
+         addWithNewLine
+           (Printf.sprintf "let inputUnion_%s_conversionInstructions = [];"
+              inputUnion.displayName));
+
   (* Print the input object type holders and getters *)
   schemaState.inputObjects
   |> iterHashtblAlphabetically (fun _name (typ : gqlInputObjectType) ->
@@ -523,6 +538,10 @@ let printSchemaJsFile schemaState processSchema =
   |> iterHashtblAlphabetically (fun _name (typ : gqlInputObjectType) ->
          addWithNewLine (printInputObjectAssets typ));
 
+  schemaState.inputUnions
+  |> iterHashtblAlphabetically (fun _name (typ : gqlInputUnionType) ->
+         addWithNewLine (typ |> printInputUnionAssets));
+
   (* Print the union type holders and getters *)
   schemaState.unions
   |> iterHashtblAlphabetically (fun _name (union : gqlUnion) ->
@@ -534,25 +553,6 @@ let printSchemaJsFile schemaState processSchema =
          addWithNewLine
            (Printf.sprintf "let get_%s = () => union_%s.contents"
               union.displayName union.displayName));
-
-  (* Print the input union type holders and getters *)
-  schemaState.inputUnions
-  |> iterHashtblAlphabetically (fun _name (inputUnion : gqlInputUnionType) ->
-         addWithNewLine
-           (Printf.sprintf
-              "let inputUnion_%s: ref<GraphQLInputObjectType.t> = \
-               Obj.magic({\"contents\": Js.null})"
-              inputUnion.displayName);
-         addWithNewLine
-           (Printf.sprintf "let get_%s = () => inputUnion_%s.contents"
-              inputUnion.displayName inputUnion.displayName);
-         addWithNewLine
-           (Printf.sprintf "let inputUnion_%s_conversionInstructions = [];"
-              inputUnion.displayName));
-
-  schemaState.inputUnions
-  |> iterHashtblAlphabetically (fun _name (typ : gqlInputUnionType) ->
-         addWithNewLine (typ |> printInputUnionAssets));
 
   addWithNewLine "";
 

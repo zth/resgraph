@@ -2,6 +2,8 @@
 
 ## main
 
+- Fix bug when input objects and input unions were mixed.
+
 ## 0.13.1
 
 - Bundle `cli` so it doesn't interfere unecessarily with other ReScript things.
