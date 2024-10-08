@@ -2,6 +2,8 @@
 
 ## main
 
+## 0.13.2
+
 - Fix bug when input objects and input unions were mixed.
 
 ## 0.13.1
