@@ -13,6 +13,7 @@ let rec graphqlTypeToString ?(nullable = false) (t : graphqlType) =
   let nullableSuffix = if nullable = false then "!" else "" in
   match t with
   | Scalar scalar -> scalarToString scalar ^ nullableSuffix
+  | EmptyPayload -> graphqlTypeToString ~nullable:true (Scalar Boolean)
   | Nullable inner | RescriptNullable inner ->
     graphqlTypeToString ~nullable:true inner
   | List inner ->

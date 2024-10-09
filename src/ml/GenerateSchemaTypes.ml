@@ -5,6 +5,8 @@ type graphqlType =
   | Nullable of graphqlType
   | RescriptNullable of graphqlType
   | Scalar of scalar
+  | EmptyPayload
+      (** Used to represent empty payloads, like constructor-less unions. *)
   | InjectContext
   | InjectInfo
   | InjectInterfaceTypename of string  (** ID of interface *)
@@ -14,6 +16,7 @@ type graphqlType =
       id: string;
       displayName: string;
       inlineRecords: string list;
+      emptyPayloads: string list;
     }
   | GraphQLEnum of {id: string; displayName: string}
   | GraphQLUnion of {id: string; displayName: string}

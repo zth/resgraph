@@ -6,7 +6,8 @@ let typeUnwrapper: 'src => 'return = %raw(`function typeUnwrapper(src) { if (src
 let inputUnionUnwrapper: (
   'src,
   array<string>,
-) => 'return = %raw(`function inputUnionUnwrapper(src, inlineRecordTypenames) {
+  array<string>,
+) => 'return = %raw(`function inputUnionUnwrapper(src, inlineRecordTypenames, emptyPayloadTypenames) {
       if (src == null) return null;
     
       let targetKey = null;
@@ -24,6 +25,10 @@ let inputUnionUnwrapper: (
     
         if (inlineRecordTypenames.includes(tagName)) {
           return Object.assign({ TAG: tagName }, targetValue);
+        }
+
+        if (emptyPayloadTypenames.includes(tagName)) {
+          return tagName;
         }
     
         return {
@@ -198,6 +203,11 @@ let inputUnion_Location_conversionInstructions = []
 let inputUnion_PaginationArgs: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
 let get_PaginationArgs = () => inputUnion_PaginationArgs.contents
 let inputUnion_PaginationArgs_conversionInstructions = []
+let inputUnion_UnionWithEmptyMember: ref<GraphQLInputObjectType.t> = Obj.magic({
+  "contents": Js.null,
+})
+let get_UnionWithEmptyMember = () => inputUnion_UnionWithEmptyMember.contents
+let inputUnion_UnionWithEmptyMember_conversionInstructions = []
 let inputUnion_UpdatableBool: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
 let get_UpdatableBool = () => inputUnion_UpdatableBool.contents
 let inputUnion_UpdatableBool_conversionInstructions = []
@@ -277,7 +287,7 @@ input_UpdateThingInput_conversionInstructions->Array.pushMany([
     makeInputObjectFieldConverterFn(v =>
       v
       ->applyConversionToInputObject(inputUnion_UpdatableString_conversionInstructions)
-      ->inputUnionUnwrapper([])
+      ->inputUnionUnwrapper([], ["LeaveUnchanged"])
     ),
   ),
   (
@@ -285,7 +295,7 @@ input_UpdateThingInput_conversionInstructions->Array.pushMany([
     makeInputObjectFieldConverterFn(v =>
       v
       ->applyConversionToInputObject(inputUnion_UpdatableInt_conversionInstructions)
-      ->inputUnionUnwrapper([])
+      ->inputUnionUnwrapper([], ["LeaveUnchanged"])
     ),
   ),
   (
@@ -293,7 +303,7 @@ input_UpdateThingInput_conversionInstructions->Array.pushMany([
     makeInputObjectFieldConverterFn(v =>
       v
       ->applyConversionToInputObject(inputUnion_UpdatableNullableString_conversionInstructions)
-      ->inputUnionUnwrapper([])
+      ->inputUnionUnwrapper([], ["UnsetValue", "LeaveUnchanged"])
     ),
   ),
   (
@@ -301,7 +311,7 @@ input_UpdateThingInput_conversionInstructions->Array.pushMany([
     makeInputObjectFieldConverterFn(v =>
       v
       ->applyConversionToInputObject(inputUnion_UpdatableNullableBool_conversionInstructions)
-      ->inputUnionUnwrapper([])
+      ->inputUnionUnwrapper([], ["UnsetValue", "LeaveUnchanged"])
     ),
   ),
   (
@@ -309,7 +319,7 @@ input_UpdateThingInput_conversionInstructions->Array.pushMany([
     makeInputObjectFieldConverterFn(v =>
       v
       ->applyConversionToInputObject(inputUnion_UpdatableNullableFloat_conversionInstructions)
-      ->inputUnionUnwrapper([])
+      ->inputUnionUnwrapper([], ["UnsetValue", "LeaveUnchanged"])
     ),
   ),
 ])
@@ -382,6 +392,10 @@ inputUnion_PaginationArgs_conversionInstructions->Array.pushMany([
       }
     ),
   ),
+])
+inputUnion_UnionWithEmptyMember_conversionInstructions->Array.pushMany([
+  ("string", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  ("empty", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
 ])
 inputUnion_UpdatableBool_conversionInstructions->Array.pushMany([
   ("updateValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
@@ -991,7 +1005,7 @@ t_Query.contents = GraphQLObjectType.make({
             src,
             ~location=args["location"]
             ->applyConversionToInputObject(inputUnion_Location_conversionInstructions)
-            ->inputUnionUnwrapper(["ByMagicString"]),
+            ->inputUnionUnwrapper(["ByMagicString"], []),
           )
         }),
       },
@@ -1712,6 +1726,24 @@ inputUnion_PaginationArgs.contents = GraphQLInputObjectType.make({
     }->makeFields,
   extensions: {oneOf: true},
 })
+inputUnion_UnionWithEmptyMember.contents = GraphQLInputObjectType.make({
+  name: "UnionWithEmptyMember",
+  description: ?None,
+  fields: () =>
+    {
+      "empty": {
+        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "string": {
+        GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+  extensions: {oneOf: true},
+})
 inputUnion_UpdatableBool.contents = GraphQLInputObjectType.make({
   name: "UpdatableBool",
   description: ?None,
@@ -1954,6 +1986,7 @@ let schema = GraphQLSchemaType.make({
     get_UpdatableBool()->GraphQLInputObjectType.toGraphQLType,
     get_UpdatableFloat()->GraphQLInputObjectType.toGraphQLType,
     get_UpdatableNullableInt()->GraphQLInputObjectType.toGraphQLType,
+    get_UnionWithEmptyMember()->GraphQLInputObjectType.toGraphQLType,
     get_UpdatableInt()->GraphQLInputObjectType.toGraphQLType,
     get_PaginationArgs()->GraphQLInputObjectType.toGraphQLType,
     get_Location()->GraphQLInputObjectType.toGraphQLType,

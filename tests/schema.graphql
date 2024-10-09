@@ -236,6 +236,11 @@ input UpdatableNullableInt {
   updateValue: Int
 }
 
+input UnionWithEmptyMember {
+  empty: Boolean
+  string: String
+}
+
 input UpdatableInt {
   leaveUnchanged: Boolean
   updateValue: Int

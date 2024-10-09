@@ -152,6 +152,11 @@ input PaginationArgs @oneOf {
   backwards: PaginationArgsBackwards
 }
 
+input UnionWithEmptyMember @oneOf {
+  string: String
+  empty: Boolean
+}
+
 input UpdatableBool @oneOf {
   updateValue: Boolean
   leaveUnchanged: Boolean

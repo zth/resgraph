@@ -2,6 +2,8 @@
 
 ## main
 
+- _experimental_ Allow payloadless variant cases in input unions.
+
 ## 0.13.2
 
 - Fix bug when input objects and input unions were mixed.

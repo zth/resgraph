@@ -1,6 +1,6 @@
-type updatableOptions = LeaveUnchanged(bool)
+type updatableOptions = LeaveUnchanged
 
-type updatableOptionsNullable = UnsetValue(bool) | ...updatableOptions
+type updatableOptionsNullable = UnsetValue | ...updatableOptions
 
 @gql.inputUnion
 type updatableNullableString = UpdateValue(string) | ...updatableOptionsNullable
@@ -66,26 +66,26 @@ let updateThing = (_: Mutation.mutation, ~thingId: ResGraph.id, ~input: updateTh
     ...currentThing,
     name: switch input.name {
     | UpdateValue(name) => name
-    | LeaveUnchanged(_) => currentThing.name
+    | LeaveUnchanged => currentThing.name
     },
     age: switch input.age {
     | UpdateValue(age) => age
-    | LeaveUnchanged(_) => currentThing.age
+    | LeaveUnchanged => currentThing.age
     },
     favoriteColor: switch input.favoriteColor {
     | UpdateValue(favoriteColor) => Some(favoriteColor)
-    | LeaveUnchanged(_) => currentThing.favoriteColor
-    | UnsetValue(_) => None
+    | LeaveUnchanged => currentThing.favoriteColor
+    | UnsetValue => None
     },
     isAdmin: switch input.isAdmin {
     | UpdateValue(isAdmin) => Some(isAdmin)
-    | LeaveUnchanged(_) => currentThing.isAdmin
-    | UnsetValue(_) => None
+    | LeaveUnchanged => currentThing.isAdmin
+    | UnsetValue => None
     },
     height: switch input.height {
     | UpdateValue(height) => Some(height)
-    | LeaveUnchanged(_) => currentThing.height
-    | UnsetValue(_) => None
+    | LeaveUnchanged => currentThing.height
+    | UnsetValue => None
     },
   }
 

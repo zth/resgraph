@@ -333,6 +333,12 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
                             match c.args with
                             | InlineRecord _ -> Some c.cname.txt
                             | _ -> None);
+                   emptyPayloads =
+                     cases
+                     |> List.filter_map (fun (c : SharedTypes.Constructor.t) ->
+                            match c.args with
+                            | Args [] -> Some c.cname.txt
+                            | _ -> None);
                  })
           | Some (InterfaceResolver {interfaceId}), {kind = Variant _} ->
             Some
@@ -896,6 +902,16 @@ and variantCasesToInputUnionValues ~env ~debug ~schemaState ~full ~ownerName
              }
            in
            Some member
+         | Args [] ->
+           Some
+             {
+               typ = EmptyPayload;
+               fieldName = uncapitalizeFirstChar case.cname.txt;
+               loc = case.cname.loc;
+               description =
+                 case.attributes |> ProcessAttributes.findDocAttribute;
+               constructorName = case.cname.txt;
+             }
          | Args [(typ, _)] -> (
            (* TODO: Validate more that only input types are present. *)
            match

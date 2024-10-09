@@ -501,12 +501,16 @@ let rec generateConverter lastValue (graphqlType : graphqlType) =
     Printf.sprintf
       "%s->applyConversionToInputObject(input_%s_conversionInstructions)"
       lastValue displayName
-  | GraphQLInputUnion {displayName; inlineRecords} ->
+  | GraphQLInputUnion {displayName; inlineRecords; emptyPayloads} ->
     (* TODO: Precompute/persist? *)
     Printf.sprintf
-      "%s->applyConversionToInputObject(inputUnion_%s_conversionInstructions)->inputUnionUnwrapper([%s])"
+      "%s->applyConversionToInputObject(inputUnion_%s_conversionInstructions)->inputUnionUnwrapper([%s], \
+       [%s])"
       lastValue displayName
       (inlineRecords
+      |> List.map (fun s -> "\"" ^ s ^ "\"")
+      |> String.concat ", ")
+      (emptyPayloads
       |> List.map (fun s -> "\"" ^ s ^ "\"")
       |> String.concat ", ")
   | _ -> lastValue

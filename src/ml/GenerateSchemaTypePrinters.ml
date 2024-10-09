@@ -57,6 +57,7 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
       (printGraphQLType inner) nullablePostfix
   | RescriptNullable inner | Nullable inner ->
     printGraphQLType ~nullable:true inner
+  | EmptyPayload -> printGraphQLType ~nullable:true (Scalar Boolean)
   | Scalar scalar ->
     let scalarStr =
       match scalar with
@@ -402,7 +403,7 @@ let printSchemaJsFile schemaState processSchema =
   (* Add the input union unwrapper. TODO: Explain more
   *)
   addWithNewLine
-    {|let inputUnionUnwrapper: ('src, array<string>) => 'return = %raw(`function inputUnionUnwrapper(src, inlineRecordTypenames) {
+    {|let inputUnionUnwrapper: ('src, array<string>, array<string>) => 'return = %raw(`function inputUnionUnwrapper(src, inlineRecordTypenames, emptyPayloadTypenames) {
       if (src == null) return null;
     
       let targetKey = null;
@@ -420,6 +421,10 @@ let printSchemaJsFile schemaState processSchema =
     
         if (inlineRecordTypenames.includes(tagName)) {
           return Object.assign({ TAG: tagName }, targetValue);
+        }
+
+        if (emptyPayloadTypenames.includes(tagName)) {
+          return tagName;
         }
     
         return {
