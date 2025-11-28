@@ -150,123 +150,123 @@ let enum_UserStatus = GraphQLEnumType.make({
     },
   }->makeEnumValues,
 })
-let i_HasName: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
+let i_HasName: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
 let get_HasName = () => i_HasName.contents
-let i_Node: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": Js.null})
+let i_Node: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
 let get_Node = () => i_Node.contents
 let t_InferredUnionWithInferredConstructorSomeInferredType: ref<GraphQLObjectType.t> = Obj.magic({
-  "contents": Js.null,
+  "contents": null,
 })
 let get_InferredUnionWithInferredConstructorSomeInferredType = () =>
   t_InferredUnionWithInferredConstructorSomeInferredType.contents
-let t_InlineUnionNotOk: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let t_InlineUnionNotOk: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_InlineUnionNotOk = () => t_InlineUnionNotOk.contents
-let t_InlineUnionOk: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let t_InlineUnionOk: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_InlineUnionOk = () => t_InlineUnionOk.contents
-let t_MoreInferredUnionReturnError: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let t_MoreInferredUnionReturnError: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_MoreInferredUnionReturnError = () => t_MoreInferredUnionReturnError.contents
-let t_MoreInferredUnionReturnOk: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let t_MoreInferredUnionReturnOk: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_MoreInferredUnionReturnOk = () => t_MoreInferredUnionReturnOk.contents
-let t_UpdateUserNameUserUpdateFailed: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let t_UpdateUserNameUserUpdateFailed: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_UpdateUserNameUserUpdateFailed = () => t_UpdateUserNameUserUpdateFailed.contents
-let t_UpdateUserNameUserUpdated: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let t_UpdateUserNameUserUpdated: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_UpdateUserNameUserUpdated = () => t_UpdateUserNameUserUpdated.contents
-let t_Coordinates: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let t_Coordinates: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_Coordinates = () => t_Coordinates.contents
-let t_Group: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let t_Group: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_Group = () => t_Group.contents
-let t_Mutation: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let t_Mutation: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_Mutation = () => t_Mutation.contents
-let t_PageInfo: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let t_PageInfo: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_PageInfo = () => t_PageInfo.contents
-let t_Pet: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let t_Pet: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_Pet = () => t_Pet.contents
-let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_Query = () => t_Query.contents
-let t_SomeOtherType: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let t_SomeOtherType: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_SomeOtherType = () => t_SomeOtherType.contents
-let t_SomeType: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let t_SomeType: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_SomeType = () => t_SomeType.contents
-let t_Subscription: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let t_Subscription: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_Subscription = () => t_Subscription.contents
-let t_Thing: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let t_Thing: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_Thing = () => t_Thing.contents
-let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_User = () => t_User.contents
-let t_UserConnection: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let t_UserConnection: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_UserConnection = () => t_UserConnection.contents
-let t_UserEdge: ref<GraphQLObjectType.t> = Obj.magic({"contents": Js.null})
+let t_UserEdge: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_UserEdge = () => t_UserEdge.contents
-let inputUnion_Location: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let inputUnion_Location: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_Location = () => inputUnion_Location.contents
 let inputUnion_Location_conversionInstructions = []
-let inputUnion_PaginationArgs: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let inputUnion_PaginationArgs: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_PaginationArgs = () => inputUnion_PaginationArgs.contents
 let inputUnion_PaginationArgs_conversionInstructions = []
 let inputUnion_UnionWithEmptyMember: ref<GraphQLInputObjectType.t> = Obj.magic({
-  "contents": Js.null,
+  "contents": null,
 })
 let get_UnionWithEmptyMember = () => inputUnion_UnionWithEmptyMember.contents
 let inputUnion_UnionWithEmptyMember_conversionInstructions = []
-let inputUnion_UpdatableBool: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let inputUnion_UpdatableBool: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_UpdatableBool = () => inputUnion_UpdatableBool.contents
 let inputUnion_UpdatableBool_conversionInstructions = []
-let inputUnion_UpdatableFloat: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let inputUnion_UpdatableFloat: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_UpdatableFloat = () => inputUnion_UpdatableFloat.contents
 let inputUnion_UpdatableFloat_conversionInstructions = []
-let inputUnion_UpdatableInt: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let inputUnion_UpdatableInt: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_UpdatableInt = () => inputUnion_UpdatableInt.contents
 let inputUnion_UpdatableInt_conversionInstructions = []
 let inputUnion_UpdatableNullableBool: ref<GraphQLInputObjectType.t> = Obj.magic({
-  "contents": Js.null,
+  "contents": null,
 })
 let get_UpdatableNullableBool = () => inputUnion_UpdatableNullableBool.contents
 let inputUnion_UpdatableNullableBool_conversionInstructions = []
 let inputUnion_UpdatableNullableFloat: ref<GraphQLInputObjectType.t> = Obj.magic({
-  "contents": Js.null,
+  "contents": null,
 })
 let get_UpdatableNullableFloat = () => inputUnion_UpdatableNullableFloat.contents
 let inputUnion_UpdatableNullableFloat_conversionInstructions = []
 let inputUnion_UpdatableNullableInt: ref<GraphQLInputObjectType.t> = Obj.magic({
-  "contents": Js.null,
+  "contents": null,
 })
 let get_UpdatableNullableInt = () => inputUnion_UpdatableNullableInt.contents
 let inputUnion_UpdatableNullableInt_conversionInstructions = []
 let inputUnion_UpdatableNullableString: ref<GraphQLInputObjectType.t> = Obj.magic({
-  "contents": Js.null,
+  "contents": null,
 })
 let get_UpdatableNullableString = () => inputUnion_UpdatableNullableString.contents
 let inputUnion_UpdatableNullableString_conversionInstructions = []
-let inputUnion_UpdatableString: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let inputUnion_UpdatableString: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_UpdatableString = () => inputUnion_UpdatableString.contents
 let inputUnion_UpdatableString_conversionInstructions = []
-let input_LocationByMagicString: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let input_LocationByMagicString: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_LocationByMagicString = () => input_LocationByMagicString.contents
 let input_LocationByMagicString_conversionInstructions = []
-let input_PaginationArgsBackwards: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let input_PaginationArgsBackwards: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_PaginationArgsBackwards = () => input_PaginationArgsBackwards.contents
 let input_PaginationArgsBackwards_conversionInstructions = []
-let input_PaginationArgsForward: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let input_PaginationArgsForward: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_PaginationArgsForward = () => input_PaginationArgsForward.contents
 let input_PaginationArgsForward_conversionInstructions = []
-let input_Address: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let input_Address: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_Address = () => input_Address.contents
 let input_Address_conversionInstructions = []
-let input_CoordinatesInput: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let input_CoordinatesInput: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_CoordinatesInput = () => input_CoordinatesInput.contents
 let input_CoordinatesInput_conversionInstructions = []
 let input_SomeInputWithInferredStuff: ref<GraphQLInputObjectType.t> = Obj.magic({
-  "contents": Js.null,
+  "contents": null,
 })
 let get_SomeInputWithInferredStuff = () => input_SomeInputWithInferredStuff.contents
 let input_SomeInputWithInferredStuff_conversionInstructions = []
-let input_UpdateThingInput: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let input_UpdateThingInput: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_UpdateThingInput = () => input_UpdateThingInput.contents
 let input_UpdateThingInput_conversionInstructions = []
-let input_UserConfig: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let input_UserConfig: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_UserConfig = () => input_UserConfig.contents
 let input_UserConfig_conversionInstructions = []
-let input_UserConfigContext: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": Js.null})
+let input_UserConfigContext: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_UserConfigContext = () => input_UserConfigContext.contents
 let input_UserConfigContext_conversionInstructions = []
 input_LocationByMagicString_conversionInstructions->Array.pushMany([])
@@ -433,20 +433,20 @@ inputUnion_UpdatableString_conversionInstructions->Array.pushMany([
   ("updateValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
   ("leaveUnchanged", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
 ])
-let union_InferredUnion: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
+let union_InferredUnion: ref<GraphQLUnionType.t> = Obj.magic({"contents": null})
 let get_InferredUnion = () => union_InferredUnion.contents
 let union_InferredUnionWithInferredConstructor: ref<GraphQLUnionType.t> = Obj.magic({
-  "contents": Js.null,
+  "contents": null,
 })
 let get_InferredUnionWithInferredConstructor = () =>
   union_InferredUnionWithInferredConstructor.contents
-let union_MoreInferredUnionReturn: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
+let union_MoreInferredUnionReturn: ref<GraphQLUnionType.t> = Obj.magic({"contents": null})
 let get_MoreInferredUnionReturn = () => union_MoreInferredUnionReturn.contents
-let union_UpdateUserNameResult: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
+let union_UpdateUserNameResult: ref<GraphQLUnionType.t> = Obj.magic({"contents": null})
 let get_UpdateUserNameResult = () => union_UpdateUserNameResult.contents
-let union_InlineUnion: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
+let union_InlineUnion: ref<GraphQLUnionType.t> = Obj.magic({"contents": null})
 let get_InlineUnion = () => union_InlineUnion.contents
-let union_UserOrGroup: ref<GraphQLUnionType.t> = Obj.magic({"contents": Js.null})
+let union_UserOrGroup: ref<GraphQLUnionType.t> = Obj.magic({"contents": null})
 let get_UserOrGroup = () => union_UserOrGroup.contents
 
 let union_InferredUnion_resolveType = v =>

@@ -16,7 +16,7 @@
 (** Auxiliary AST types used by parsetree and typedtree. *)
 
 type constant =
-    Const_int of int
+  | Const_int of int
   | Const_char of int
   | Const_string of string * string option
   | Const_float of string
@@ -41,33 +41,47 @@ type closed_flag = Closed | Open
 
 type label = string
 
+type arity = int option
+
+type 'a loc = 'a Location.loc = {txt: 'a; loc: Location.t}
+
+type variance = Covariant | Contravariant | Invariant
+
 type arg_label =
-    Nolabel
-  | Labelled of string (*  label:T -> ... *)
-  | Optional of string (* ?label:T -> ... *)
+  | Nolabel (* x => ...*)
+  | Labelled of string loc (*  ~label => ... *)
+  | Optional of string loc (* ~(label=e) => ... *)
 
-type 'a loc = 'a Location.loc = {
-  txt : 'a;
-  loc : Location.t;
-}
+module Noloc = struct
+  type arg_label =
+    | Nolabel (* x => ...*)
+    | Labelled of string (*  ~label => ... *)
+    | Optional of string (* ~(label=e) => ... *)
+end
 
+let to_arg_label ?(loc = Location.none) lbl =
+  match lbl with
+  | Noloc.Nolabel -> Nolabel
+  | Labelled s -> Labelled {loc; txt = s}
+  | Optional s -> Optional {loc; txt = s}
 
-type variance =
-  | Covariant
-  | Contravariant
-  | Invariant
+let to_noloc = function
+  | Nolabel -> Noloc.Nolabel
+  | Labelled {txt} -> Labelled txt
+  | Optional {txt} -> Optional txt
 
-
-let same_arg_label (x : arg_label) y = 
-  match x with 
+let same_arg_label (x : arg_label) y =
+  match x with
   | Nolabel -> y = Nolabel
-  | Labelled s ->
-    begin match y with 
-    | Labelled s0 -> s = s0 
-    | _ -> false 
-    end 
-  | Optional s ->
-      begin match y with 
-      | Optional s0 -> s = s0
-      | _ -> false  
-      end  
+  | Labelled {txt = s} -> (
+    match y with
+    | Labelled {txt = s0} -> s = s0
+    | _ -> false)
+  | Optional {txt = s} -> (
+    match y with
+    | Optional {txt = s0} -> s = s0
+    | _ -> false)
+
+let get_lbl_loc = function
+  | Nolabel -> Location.none
+  | Labelled {loc} | Optional {loc} -> loc

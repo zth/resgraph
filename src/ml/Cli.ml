@@ -1,5 +1,9 @@
 let help = {|
 **Private CLI For ResGraph**
+
+Commands:
+  generate-schema <sourceFolder> <outputFolder> [printSdl:boolean]
+  test <file.res>
 |}
 
 let main () =
@@ -10,16 +14,6 @@ let main () =
   | [_; "generate-schema"; sourceFolder; outputFolder] ->
     GenerateSchema.generateSchema ~writeStateFile:true ~sourceFolder
       ~debug:false ~outputFolder ~writeSdlFile:false ~printToStdOut:true
-  | [_; "completion"; path; line; col; currentFile] ->
-    Completion.completion ~debug:false ~path
-      ~pos:(int_of_string line, int_of_string col)
-      ~currentFile
-  | [_; "hover"; path; line; col] ->
-    Hover.hover ~path ~pos:(int_of_string line, int_of_string col) ~debug:false
-  | [_; "hover-graphql"; path; hoverHint] ->
-    Hover.hoverGraphQL ~path ~hoverHint |> print_endline
-  | [_; "definition-graphql"; path; definitionHint] ->
-    Hover.definitionGraphQL ~path ~definitionHint |> print_endline
   | [_; "test"; path] -> Commands.test ~path
   | args when List.mem "-h" args || List.mem "--help" args -> prerr_endline help
   | _ ->

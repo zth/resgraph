@@ -5,47 +5,47 @@ function raise(err) {
   throw err;
 }
 
-var GraphQLError = {
+let GraphQLError = {
   raise: raise
 };
 
-var Rule = {};
+let Rule = {};
 
-var ExtendedValidation = {
+let ExtendedValidation = {
   Rule: Rule
 };
 
-var $$Plugin = {
+let Plugin = {
   ExtendedValidation: ExtendedValidation
 };
 
-var Envelope = {
-  $$Plugin: $$Plugin
+let Envelope = {
+  Plugin: Plugin
 };
 
-var Server = {};
+let Server = {};
 
-var NodeHttpServer = {};
+let NodeHttpServer = {};
 
-var $$Request;
+let Request;
 
-var $$Headers;
+let Headers;
 
-var Body;
+let Body;
 
-var $$FormData;
+let FormData;
 
-var $$Blob;
+let Blob;
 
 export {
-  $$Request ,
-  $$Headers ,
-  Body ,
-  $$FormData ,
-  $$Blob ,
-  GraphQLError ,
-  Envelope ,
-  Server ,
-  NodeHttpServer ,
+  Request,
+  Headers,
+  Body,
+  FormData,
+  Blob,
+  GraphQLError,
+  Envelope,
+  Server,
+  NodeHttpServer,
 }
 /* No side effect */

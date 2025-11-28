@@ -1,125 +1,109 @@
 (* Restructures a nested tree of arrow types into its args & returnType
-   * The parsetree contains: a => b => c => d, for printing purposes
-   * we restructure the tree into (a, b, c) and its returnType d *)
-val arrowType :
-  ?arity:int ->
+ * The parsetree contains: a => b => c => d, for printing purposes
+ * we restructure the tree into (a, b, c) and its returnType d *)
+val arrow_type :
+  ?max_arity:int ->
   Parsetree.core_type ->
-  Parsetree.attributes
-  * (Parsetree.attributes * Asttypes.arg_label * Parsetree.core_type) list
-  * Parsetree.core_type
+  Parsetree.attributes * Parsetree.arg list * Parsetree.core_type
 
-val functorType :
+val functor_type :
   Parsetree.module_type ->
   (Parsetree.attributes * string Asttypes.loc * Parsetree.module_type option)
   list
   * Parsetree.module_type
 
-(* filters @bs out of the provided attributes *)
-val processBsAttribute : Parsetree.attributes -> bool * Parsetree.attributes
+val expr_is_await : Parsetree.expression -> bool
+val has_await_attribute : Parsetree.attributes -> bool
+val has_inline_record_definition_attribute : Parsetree.attributes -> bool
+val has_res_pat_variant_spread_attribute : Parsetree.attributes -> bool
+val has_dict_pattern_attribute : Parsetree.attributes -> bool
 
-val processUncurriedAppAttribute :
-  Parsetree.attributes -> bool * Parsetree.attributes
-
-val processPartialAppAttribute :
-  Parsetree.attributes -> bool * Parsetree.attributes
-
-type functionAttributesInfo = {
-  async: bool;
-  bs: bool;
-  attributes: Parsetree.attributes;
-}
-
-(* determines whether a function is async and/or uncurried based on the given attributes *)
-val processFunctionAttributes : Parsetree.attributes -> functionAttributesInfo
-
-val hasAwaitAttribute : Parsetree.attributes -> bool
-
-type ifConditionKind =
+type if_condition_kind =
   | If of Parsetree.expression
   | IfLet of Parsetree.pattern * Parsetree.expression
 
 (* if ... else if ... else ... is represented as nested expressions: if ... else { if ... }
-   * The purpose of this function is to flatten nested ifs into one sequence.
-   * Basically compute: ([if, else if, else if, else if], else) *)
-val collectIfExpressions :
+ * The purpose of this function is to flatten nested ifs into one sequence.
+ * Basically compute: ([if, else if, else if, else if], else) *)
+val collect_if_expressions :
   Parsetree.expression ->
-  (Location.t * ifConditionKind * Parsetree.expression) list
+  (Location.t * if_condition_kind * Parsetree.expression) list
   * Parsetree.expression option
 
-val collectArrayExpressions :
+val collect_array_expressions :
   Parsetree.expression ->
   Parsetree.expression list * Parsetree.expression option
 
-val collectListExpressions :
+val collect_list_expressions :
   Parsetree.expression ->
   Parsetree.expression list * Parsetree.expression option
 
-type funParamKind =
+type fun_param_kind =
   | Parameter of {
       attrs: Parsetree.attributes;
       lbl: Asttypes.arg_label;
-      defaultExpr: Parsetree.expression option;
+      default_expr: Parsetree.expression option;
       pat: Parsetree.pattern;
     }
   | NewTypes of {attrs: Parsetree.attributes; locs: string Asttypes.loc list}
 
-val funExpr :
-  Parsetree.expression ->
-  bool * Parsetree.attributes * funParamKind list * Parsetree.expression
+val fun_expr :
+  Parsetree.expression -> bool * fun_param_kind list * Parsetree.expression
 
 (* example:
-   *  `makeCoordinate({
-   *    x: 1,
-   *    y: 2,
-   *  })`
-   *  Notice howe `({` and `})` "hug" or stick to each other *)
-val isHuggableExpression : Parsetree.expression -> bool
+ *  `makeCoordinate({
+ *    x: 1,
+ *    y: 2,
+ *  })`
+ *  Notice howe `({` and `})` "hug" or stick to each other *)
+val is_huggable_expression : Parsetree.expression -> bool
 
-val isHuggablePattern : Parsetree.pattern -> bool
+val is_huggable_pattern : Parsetree.pattern -> bool
 
-val isHuggableRhs : Parsetree.expression -> bool
+val is_huggable_rhs : Parsetree.expression -> bool
 
-val operatorPrecedence : string -> int
+val operator_precedence : string -> int
 
-val isUnaryExpression : Parsetree.expression -> bool
-val isBinaryOperator : string -> bool
-val isBinaryExpression : Parsetree.expression -> bool
-val isRhsBinaryOperator : string -> bool
+val not_ghost_operator : string -> Location.t -> bool
+val is_unary_expression : Parsetree.expression -> bool
+val is_binary_operator : string -> bool
+val is_binary_expression : Parsetree.expression -> bool
+val is_rhs_binary_operator : string -> bool
+val is_equality_operator : string -> bool
 
-val flattenableOperators : string -> string -> bool
+val flattenable_operators : string -> string -> bool
 
-val hasAttributes : Parsetree.attributes -> bool
+val has_attributes : Parsetree.attributes -> bool
 
-val isArrayAccess : Parsetree.expression -> bool
-val isTernaryExpr : Parsetree.expression -> bool
-val isIfLetExpr : Parsetree.expression -> bool
+val is_array_access : Parsetree.expression -> bool
+val is_ternary_expr : Parsetree.expression -> bool
+val is_if_let_expr : Parsetree.expression -> bool
 
-val collectTernaryParts :
+val collect_ternary_parts :
   Parsetree.expression ->
   (Parsetree.expression * Parsetree.expression) list * Parsetree.expression
 
-val parametersShouldHug : funParamKind list -> bool
+val parameters_should_hug : fun_param_kind list -> bool
 
-val filterTernaryAttributes : Parsetree.attributes -> Parsetree.attributes
-val filterFragileMatchAttributes : Parsetree.attributes -> Parsetree.attributes
+val filter_ternary_attributes : Parsetree.attributes -> Parsetree.attributes
+val filter_fragile_match_attributes :
+  Parsetree.attributes -> Parsetree.attributes
 
-val isJsxExpression : Parsetree.expression -> bool
-val hasJsxAttribute : Parsetree.attributes -> bool
-val hasOptionalAttribute : Parsetree.attributes -> bool
-
-val shouldIndentBinaryExpr : Parsetree.expression -> bool
-val shouldInlineRhsBinaryExpr : Parsetree.expression -> bool
-val hasPrintableAttributes : Parsetree.attributes -> bool
-val filterPrintableAttributes : Parsetree.attributes -> Parsetree.attributes
-val partitionPrintableAttributes :
+val should_indent_binary_expr : Parsetree.expression -> bool
+val should_inline_rhs_binary_expr : Parsetree.expression -> bool
+val has_printable_attributes : Parsetree.attributes -> bool
+val filter_printable_attributes : Parsetree.attributes -> Parsetree.attributes
+val partition_printable_attributes :
+  Parsetree.attributes -> Parsetree.attributes * Parsetree.attributes
+val partition_doc_comment_attributes :
   Parsetree.attributes -> Parsetree.attributes * Parsetree.attributes
 
-val requiresSpecialCallbackPrintingLastArg :
+val requires_special_callback_printing_last_arg :
   (Asttypes.arg_label * Parsetree.expression) list -> bool
-val requiresSpecialCallbackPrintingFirstArg :
+val requires_special_callback_printing_first_arg :
   (Asttypes.arg_label * Parsetree.expression) list -> bool
 
-val modExprApply :
+val mod_expr_apply :
   Parsetree.module_expr -> Parsetree.module_expr list * Parsetree.module_expr
 
 (* Collection of utilities to view the ast in a more a convenient form,
@@ -127,46 +111,55 @@ val modExprApply :
  * Example: given a ptyp_arrow type, what are its arguments and what is the
  * returnType? *)
 
-val modExprFunctor :
+val mod_expr_functor :
   Parsetree.module_expr ->
   (Parsetree.attributes * string Asttypes.loc * Parsetree.module_type option)
   list
   * Parsetree.module_expr
 
-val collectPatternsFromListConstruct :
+val collect_patterns_from_list_construct :
   Parsetree.pattern list ->
   Parsetree.pattern ->
   Parsetree.pattern list * Parsetree.pattern
 
-val isBlockExpr : Parsetree.expression -> bool
+val is_block_expr : Parsetree.expression -> bool
 
-val isTemplateLiteral : Parsetree.expression -> bool
-val isTaggedTemplateLiteral : Parsetree.expression -> bool
-val hasTemplateLiteralAttr : Parsetree.attributes -> bool
+val is_template_literal : Parsetree.expression -> bool
+val is_tagged_template_literal : Parsetree.expression -> bool
+val has_template_literal_attr : Parsetree.attributes -> bool
 
-val isSpreadBeltListConcat : Parsetree.expression -> bool
+val is_spread_belt_list_concat : Parsetree.expression -> bool
 
-val isSpreadBeltArrayConcat : Parsetree.expression -> bool
+val is_spread_belt_array_concat : Parsetree.expression -> bool
 
-val collectOrPatternChain : Parsetree.pattern -> Parsetree.pattern list
+val collect_or_pattern_chain : Parsetree.pattern -> Parsetree.pattern list
 
-val processBracesAttr :
+val process_braces_attr :
   Parsetree.expression -> Parsetree.attribute option * Parsetree.expression
 
-val filterParsingAttrs : Parsetree.attributes -> Parsetree.attributes
+val filter_parsing_attrs : Parsetree.attributes -> Parsetree.attributes
 
-val isBracedExpr : Parsetree.expression -> bool
+val is_braced_expr : Parsetree.expression -> bool
 
-val isSinglePipeExpr : Parsetree.expression -> bool
-
-(* (__x) => f(a, __x, c) -----> f(a, _, c)  *)
-val rewriteUnderscoreApply : Parsetree.expression -> Parsetree.expression
+val is_single_pipe_expr : Parsetree.expression -> bool
 
 (* (__x) => f(a, __x, c) -----> f(a, _, c)  *)
-val isUnderscoreApplySugar : Parsetree.expression -> bool
+val rewrite_underscore_apply : Parsetree.expression -> Parsetree.expression
 
-val hasIfLetAttribute : Parsetree.attributes -> bool
+(* (__x) => f(a, __x, c) -----> f(a, _, c)  *)
+val is_underscore_apply_sugar : Parsetree.expression -> bool
 
-val isRewrittenUnderscoreApplySugar : Parsetree.expression -> bool
+val has_if_let_attribute : Parsetree.attributes -> bool
 
-val isFunNewtype : Parsetree.expression -> bool
+val is_rewritten_underscore_apply_sugar : Parsetree.expression -> bool
+
+val is_fun_newtype : Parsetree.expression -> bool
+
+val is_tuple_array : Parsetree.expression -> bool
+
+val get_jsx_prop_loc : Parsetree.jsx_prop -> Warnings.loc
+
+val container_element_closing_tag_loc :
+  Parsetree.jsx_closing_container_tag -> Warnings.loc
+
+val unary_element_closing_token : Warnings.loc -> Warnings.loc

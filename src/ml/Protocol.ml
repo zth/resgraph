@@ -40,6 +40,8 @@ let insertTextFormatToInt f =
   match f with
   | Snippet -> 2
 
+type textEdit = {range: range; newText: string}
+
 type completionItem = {
   label: string;
   kind: int;
@@ -50,6 +52,8 @@ type completionItem = {
   insertTextFormat: insertTextFormat option;
   insertText: string option;
   documentation: markupContent option;
+  data: (string * string) list option;
+  additionalTextEdits: textEdit list option;
 }
 
 type location = {uri: string; range: range}
@@ -60,8 +64,6 @@ type documentSymbolItem = {
   children: documentSymbolItem list;
 }
 type renameFile = {oldUri: string; newUri: string}
-type textEdit = {range: range; newText: string}
-
 type diagnostic = {range: range; message: string; severity: int}
 
 type optionalVersionedTextDocumentIdentifier = {
@@ -74,7 +76,14 @@ type textDocumentEdit = {
   edits: textEdit list;
 }
 
-type codeActionEdit = {documentChanges: textDocumentEdit list}
+type createFileOptions = {overwrite: bool option; ignoreIfExists: bool option}
+type createFile = {uri: string; options: createFileOptions option}
+
+type documentChange =
+  | TextDocumentEdit of textDocumentEdit
+  | CreateFile of createFile
+
+type codeActionEdit = {documentChanges: documentChange list}
 type codeActionKind = RefactorRewrite
 
 type codeAction = {
@@ -82,6 +91,8 @@ type codeAction = {
   codeActionKind: codeActionKind;
   edit: codeActionEdit;
 }
+
+let wrapInQuotes s = "\"" ^ Json.escape s ^ "\""
 
 let null = "null"
 let array l = "[" ^ String.concat ", " l ^ "]"
@@ -94,27 +105,42 @@ let stringifyRange r =
     (stringifyPosition r.start)
     (stringifyPosition r.end_)
 
+let stringifyTextEdit (te : textEdit) =
+  Printf.sprintf
+    {|{
+      "range": %s,
+      "newText": %s
+      }|}
+    (stringifyRange te.range) (wrapInQuotes te.newText)
+
 let stringifyMarkupContent (m : markupContent) =
-  Printf.sprintf {|{"kind": "%s", "value": "%s"}|} m.kind (Json.escape m.value)
+  Printf.sprintf {|{"kind": %s, "value": %s}|} (wrapInQuotes m.kind)
+    (wrapInQuotes m.value)
 
 (** None values are not emitted in the output. *)
-let stringifyObject properties =
-  {|{
+let stringifyObject ?(startOnNewline = false) ?(indentation = 1) properties =
+  let indentationStr = String.make (indentation * 2) ' ' in
+  (if startOnNewline then "\n" ^ indentationStr else "")
+  ^ {|{
 |}
   ^ (properties
     |> List.filter_map (fun (key, value) ->
            match value with
            | None -> None
-           | Some v -> Some (Printf.sprintf {|    "%s": %s|} key v))
+           | Some v ->
+             Some (Printf.sprintf {|%s  "%s": %s|} indentationStr key v))
     |> String.concat ",\n")
-  ^ "\n  }"
-
-let wrapInQuotes s = "\"" ^ Json.escape s ^ "\""
+  ^ "\n" ^ indentationStr ^ "}"
 
 let optWrapInQuotes s =
   match s with
   | None -> None
   | Some s -> Some (wrapInQuotes s)
+
+let stringifyResult = function
+  | Ok r -> stringifyObject [("TAG", Some (wrapInQuotes "Ok")); ("_0", Some r)]
+  | Error e ->
+    stringifyObject [("TAG", Some (wrapInQuotes "Error")); ("_0", Some e)]
 
 let stringifyCompletionItem c =
   stringifyObject
@@ -136,6 +162,19 @@ let stringifyCompletionItem c =
         | None -> None
         | Some insertTextFormat ->
           Some (Printf.sprintf "%i" (insertTextFormatToInt insertTextFormat)) );
+      ( "data",
+        match c.data with
+        | None -> None
+        | Some fields ->
+          Some
+            (fields
+            |> List.map (fun (key, value) -> (key, Some (wrapInQuotes value)))
+            |> stringifyObject ~indentation:2) );
+      ( "additionalTextEdits",
+        match c.additionalTextEdits with
+        | Some additionalTextEdits ->
+          Some (additionalTextEdits |> List.map stringifyTextEdit |> array)
+        | None -> None );
     ]
 
 let stringifyHover value =
@@ -143,7 +182,7 @@ let stringifyHover value =
     (stringifyMarkupContent {kind = "markdown"; value})
 
 let stringifyLocation (h : location) =
-  Printf.sprintf {|{"uri": "%s", "range": %s}|} (Json.escape h.uri)
+  Printf.sprintf {|{"uri": %s, "range": %s}|} (wrapInQuotes h.uri)
     (stringifyRange h.range)
 
 let stringifyDocumentSymbolItems items =
@@ -190,27 +229,20 @@ let stringifyDocumentSymbolItems items =
 let stringifyRenameFile {oldUri; newUri} =
   Printf.sprintf {|{
   "kind": "rename",
-  "oldUri": "%s",
-  "newUri": "%s"
+  "oldUri": %s,
+  "newUri": %s
 }|}
-    (Json.escape oldUri) (Json.escape newUri)
-
-let stringifyTextEdit (te : textEdit) =
-  Printf.sprintf {|{
-  "range": %s,
-  "newText": "%s"
-  }|}
-    (stringifyRange te.range) (Json.escape te.newText)
+    (wrapInQuotes oldUri) (wrapInQuotes newUri)
 
 let stringifyoptionalVersionedTextDocumentIdentifier td =
   Printf.sprintf {|{
   "version": %s,
-  "uri": "%s"
+  "uri": %s
   }|}
     (match td.version with
     | None -> null
     | Some v -> string_of_int v)
-    (Json.escape td.uri)
+    (wrapInQuotes td.uri)
 
 let stringifyTextDocumentEdit tde =
   Printf.sprintf {|{
@@ -220,35 +252,64 @@ let stringifyTextDocumentEdit tde =
     (stringifyoptionalVersionedTextDocumentIdentifier tde.textDocument)
     (tde.edits |> List.map stringifyTextEdit |> array)
 
+let stringifyCreateFile cf =
+  stringifyObject
+    [
+      ("kind", Some (wrapInQuotes "create"));
+      ("uri", Some (wrapInQuotes cf.uri));
+      ( "options",
+        match cf.options with
+        | None -> None
+        | Some options ->
+          Some
+            (stringifyObject
+               [
+                 ( "overwrite",
+                   match options.overwrite with
+                   | None -> None
+                   | Some ov -> Some (string_of_bool ov) );
+                 ( "ignoreIfExists",
+                   match options.ignoreIfExists with
+                   | None -> None
+                   | Some i -> Some (string_of_bool i) );
+               ]) );
+    ]
+
+let stringifyDocumentChange dc =
+  match dc with
+  | TextDocumentEdit tde -> stringifyTextDocumentEdit tde
+  | CreateFile cf -> stringifyCreateFile cf
+
 let codeActionKindToString kind =
   match kind with
   | RefactorRewrite -> "refactor.rewrite"
 
 let stringifyCodeActionEdit cae =
   Printf.sprintf {|{"documentChanges": %s}|}
-    (cae.documentChanges |> List.map stringifyTextDocumentEdit |> array)
+    (cae.documentChanges |> List.map stringifyDocumentChange |> array)
 
 let stringifyCodeAction ca =
-  Printf.sprintf {|{"title": "%s", "kind": "%s", "edit": %s}|} ca.title
-    (codeActionKindToString ca.codeActionKind)
+  Printf.sprintf {|{"title": %s, "kind": %s, "edit": %s}|}
+    (wrapInQuotes ca.title)
+    (wrapInQuotes (codeActionKindToString ca.codeActionKind))
     (ca.edit |> stringifyCodeActionEdit)
 
-let stringifyHint hint =
+let stringifyHint (hint : inlayHint) =
   Printf.sprintf
     {|{
     "position": %s,
-    "label": "%s",
+    "label": %s,
     "kind": %i,
     "paddingLeft": %b,
     "paddingRight": %b
 }|}
     (stringifyPosition hint.position)
-    (Json.escape hint.label) hint.kind hint.paddingLeft hint.paddingRight
+    (wrapInQuotes hint.label) hint.kind hint.paddingLeft hint.paddingRight
 
 let stringifyCommand (command : command) =
-  Printf.sprintf {|{"title": "%s", "command": "%s"}|}
-    (Json.escape command.title)
-    (Json.escape command.command)
+  Printf.sprintf {|{"title": %s, "command": %s}|}
+    (wrapInQuotes command.title)
+    (wrapInQuotes command.command)
 
 let stringifyCodeLens (codeLens : codeLens) =
   Printf.sprintf
@@ -272,10 +333,10 @@ let stringifySignatureInformation (signatureInformation : signatureInformation)
     =
   Printf.sprintf
     {|{
-    "label": "%s",
+    "label": %s,
     "parameters": %s%s
   }|}
-    (Json.escape signatureInformation.label)
+    (wrapInQuotes signatureInformation.label)
     (signatureInformation.parameters
     |> List.map stringifyParameterInformation
     |> array)
@@ -305,8 +366,8 @@ let stringifyDiagnostic d =
   Printf.sprintf
     {|{
   "range": %s,
-  "message": "%s",
+  "message": %s,
   "severity": %d,
   "source": "ReScript"
 }|}
-    (stringifyRange d.range) (Json.escape d.message) d.severity
+    (stringifyRange d.range) (wrapInQuotes d.message) d.severity

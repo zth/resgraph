@@ -1,9 +1,15 @@
 type projectIssues =
-  | /** Misses `resgraph.json`*/ MissingConfigFile
-  | /** Config file has issues*/ ConfigFileIssue
+  /** Misses `resgraph.json`*/
+  | MissingConfigFile
+  /** Config file has issues*/
+  | ConfigFileIssue
   | OutputFolderDoesNotExist({path: string})
   | SrcFolderDoesNotExist({path: string})
-  | /** Misses `ResGraphContext.res` */ MissingContextFile
+  /** Misses `ResGraphContext.res` */
+  | MissingContextFile
+
+module Console = Stdlib.Console
+module JsExn = Js.Exn
 
 type readFileError = FileDoesNotExist | FileCouldNotBeRead(option<string>)
 let readFile = (relativePath, ~dir) => {
@@ -13,7 +19,7 @@ let readFile = (relativePath, ~dir) => {
     try {
       path->Fs.readFileSync->Buffer.toStringWithEncoding(StringEncoding.utf8)->Ok
     } catch {
-    | Exn.Error(err) => Error(FileCouldNotBeRead(err->Exn.message))
+    | Exn.Error(_) => Error(FileCouldNotBeRead(None))
     }
   } else {
     Error(FileDoesNotExist)
@@ -36,7 +42,7 @@ let validateProject = dir => {
   switch readFile("./resgraph.json") {
   | Error(_) => issues->Array.push(MissingConfigFile)
   | Ok(configFileContents) =>
-    let config = try configFileContents->JSON.parseExn->Utils.parseConfig catch {
+    let config = try configFileContents->JSON.parseOrThrow->Utils.parseConfig catch {
     | _ => None
     }
 

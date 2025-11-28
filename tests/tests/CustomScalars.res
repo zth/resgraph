@@ -36,7 +36,7 @@ module Inner = {
       | _ => None
       }
 
-    let serialize = d => d->Date.toJSON->Option.getExn->String
+    let serialize = d => d->Date.toJSON->Option.getOrThrow->String
   }
 }
 

@@ -17,7 +17,7 @@ type t =
   | DotDotDot
   | Bang
   | Semicolon
-  | Let
+  | Let of {unwrap: bool}
   | And
   | Rec
   | Underscore
@@ -25,6 +25,7 @@ type t =
   | Equal
   | EqualEqual
   | EqualEqualEqual
+  | Ampersand
   | Bar
   | Lparen
   | Rparen
@@ -39,6 +40,7 @@ type t =
   | Backslash [@live]
   | Forwardslash
   | ForwardslashDot
+  | Regex of string * string
   | Asterisk
   | AsteriskDot
   | Exponentiation
@@ -51,11 +53,9 @@ type t =
   | ColonGreaterThan
   | GreaterThan
   | LessThan
-  | LessThanSlash
   | Hash
   | HashEqual
   | Assert
-  | Lazy
   | Tilde
   | Question
   | If
@@ -77,7 +77,11 @@ type t =
   | Of
   | Land
   | Lor
-  | Band (* Bitwise and: & *)
+  | Bnot (* Bitwise not: ~~~ *)
+  | Bor (* Bitwise or: ||| *)
+  | Bxor (* Bitwise xor: ^^^ *)
+  | Band (* Bitwise and: &&& *)
+  | Caret
   | BangEqual
   | BangEqualEqual
   | LessEqual
@@ -89,29 +93,36 @@ type t =
   | PercentPercent
   | Comment of Comment.t
   | List
+  | Dict
   | TemplateTail of string * Lexing.position
   | TemplatePart of string * Lexing.position
   | Backtick
-  | BarGreater
   | Try
   | DocComment of Location.t * string
   | ModuleComment of Location.t * string
+  | LeftShift
+  | RightShift
+  | RightShiftUnsigned
 
 let precedence = function
   | HashEqual | ColonEqual -> 1
   | Lor -> 2
   | Land -> 3
+  | Bor -> 4
+  | Bxor -> 5
+  | Band -> 6
   | Equal | EqualEqual | EqualEqualEqual | LessThan | GreaterThan | BangEqual
-  | BangEqualEqual | LessEqual | GreaterEqual | BarGreater ->
-    4
-  | Plus | PlusDot | Minus | MinusDot | PlusPlus -> 5
-  | Asterisk | AsteriskDot | Forwardslash | ForwardslashDot -> 6
-  | Exponentiation -> 7
-  | MinusGreater -> 8
-  | Dot -> 9
+  | BangEqualEqual | LessEqual | GreaterEqual ->
+    7
+  | LeftShift | RightShift | RightShiftUnsigned -> 8
+  | Plus | PlusDot | Minus | MinusDot | PlusPlus -> 9
+  | Asterisk | AsteriskDot | Forwardslash | ForwardslashDot | Percent -> 10
+  | Exponentiation -> 11
+  | MinusGreater -> 12
+  | Dot -> 13
   | _ -> 0
 
-let toString = function
+let to_string = function
   | Await -> "await"
   | Open -> "open"
   | True -> "true"
@@ -127,7 +138,8 @@ let toString = function
   | Float {f} -> "Float: " ^ f
   | Bang -> "!"
   | Semicolon -> ";"
-  | Let -> "let"
+  | Let {unwrap = true} -> "let?"
+  | Let {unwrap = false} -> "let"
   | And -> "and"
   | Rec -> "rec"
   | Underscore -> "_"
@@ -136,6 +148,7 @@ let toString = function
   | EqualEqual -> "=="
   | EqualEqualEqual -> "==="
   | Eof -> "eof"
+  | Ampersand -> "&"
   | Bar -> "|"
   | As -> "as"
   | Lparen -> "("
@@ -154,6 +167,7 @@ let toString = function
   | PlusPlus -> "++"
   | PlusEqual -> "+="
   | Backslash -> "\\"
+  | Regex (pattern, flags) -> "regex: /" ^ pattern ^ "/" ^ flags
   | Forwardslash -> "/"
   | ForwardslashDot -> "/."
   | Exception -> "exception"
@@ -161,13 +175,11 @@ let toString = function
   | HashEqual -> "#="
   | GreaterThan -> ">"
   | LessThan -> "<"
-  | LessThanSlash -> "</"
   | Asterisk -> "*"
   | AsteriskDot -> "*."
   | Exponentiation -> "**"
   | Assert -> "assert"
-  | Lazy -> "lazy"
-  | Tilde -> "tilde"
+  | Tilde -> "~"
   | Question -> "?"
   | If -> "if"
   | Else -> "else"
@@ -187,7 +199,11 @@ let toString = function
   | Module -> "module"
   | Of -> "of"
   | Lor -> "||"
-  | Band -> "&"
+  | Bnot -> "~~~"
+  | Bor -> "|||"
+  | Bxor -> "^^^"
+  | Band -> "&&&"
+  | Caret -> "^"
   | Land -> "&&"
   | BangEqual -> "!="
   | BangEqualEqual -> "!=="
@@ -198,17 +214,20 @@ let toString = function
   | AtAt -> "@@"
   | Percent -> "%"
   | PercentPercent -> "%%"
-  | Comment c -> "Comment" ^ Comment.toString c
+  | Comment c -> "Comment" ^ Comment.to_string c
   | List -> "list{"
+  | Dict -> "dict{"
   | TemplatePart (text, _) -> text ^ "${"
   | TemplateTail (text, _) -> "TemplateTail(" ^ text ^ ")"
   | Backtick -> "`"
-  | BarGreater -> "|>"
   | Try -> "try"
   | DocComment (_loc, s) -> "DocComment " ^ s
   | ModuleComment (_loc, s) -> "ModuleComment " ^ s
+  | LeftShift -> "<<"
+  | RightShift -> ">>"
+  | RightShiftUnsigned -> ">>>"
 
-let keywordTable = function
+let keyword_table = function
   | "and" -> And
   | "as" -> As
   | "assert" -> Assert
@@ -222,9 +241,10 @@ let keywordTable = function
   | "if" -> If
   | "in" -> In
   | "include" -> Include
-  | "lazy" -> Lazy
-  | "let" -> Let
+  | "let?" -> Let {unwrap = true}
+  | "let" -> Let {unwrap = false}
   | "list{" -> List
+  | "dict{" -> Dict
   | "module" -> Module
   | "mutable" -> Mutable
   | "of" -> Of
@@ -240,23 +260,23 @@ let keywordTable = function
   | _ -> raise Not_found
 [@@raises Not_found]
 
-let isKeyword = function
+let is_keyword = function
   | Await | And | As | Assert | Constraint | Else | Exception | External | False
-  | For | If | In | Include | Land | Lazy | Let | List | Lor | Module | Mutable
-  | Of | Open | Private | Rec | Switch | True | Try | Typ | When | While ->
+  | For | If | In | Include | Land | Let _ | List | Lor | Module | Mutable | Of
+  | Open | Private | Rec | Switch | True | Try | Typ | When | While | Dict ->
     true
   | _ -> false
 
-let lookupKeyword str =
-  try keywordTable str
+let lookup_keyword str =
+  try keyword_table str
   with Not_found -> (
     match str.[0] [@doesNotRaise] with
     | 'A' .. 'Z' -> Uident str
     | _ -> Lident str)
 
-let isKeywordTxt str =
+let is_keyword_txt str =
   try
-    let _ = keywordTable str in
+    let _ = keyword_table str in
     true
   with Not_found -> false
 

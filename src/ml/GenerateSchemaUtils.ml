@@ -3,8 +3,8 @@ open GenerateSchemaDiagnostics
 
 let findInterfacesOfType code ~schemaState =
   let {Res_driver.parsetree = structure} =
-    Res_driver.parseImplementationFromSource ~forPrinter:true ~source:code
-      ~displayFilename:"-"
+    Res_driver.parse_implementation_from_source ~for_printer:true
+      ~source:code ~display_filename:"-"
   in
   match structure with
   | [{pstr_desc = Pstr_type (_, [{ptype_kind = Ptype_record fields}])}] -> (
@@ -115,11 +115,11 @@ let getFieldAttributeFromRawAttributes ~env ~schemaState attributes =
 
 let formatCode ~debug code =
   let {Res_driver.parsetree = structure; comments; diagnostics} =
-    Res_driver.parseImplementationFromSource ~forPrinter:true ~source:code
-      ~displayFilename:"Schema.res"
+    Res_driver.parse_implementation_from_source ~for_printer:true
+      ~source:code ~display_filename:"Schema.res"
   in
   let printed =
-    Res_printer.printImplementation ~width:100 ~comments structure
+    Res_printer.print_implementation ~width:100 ~comments structure
   in
   if List.length diagnostics > 0 then
     if debug then
@@ -147,10 +147,15 @@ let rec findModulePathOfType ~schemaState ~(env : SharedTypes.QueryEnv.t)
   let open SharedTypes.Module in
   structure.items
   |> List.find_map (fun (item : item) ->
+         let attributes =
+           match item.kind with
+           | Type (t, _) -> t.attributes
+           | _ -> []
+         in
          match
            ( item.kind,
              expectedType,
-             item.attributes |> extractGqlAttribute ~env ~schemaState )
+             attributes |> extractGqlAttribute ~env ~schemaState )
          with
          | Type ({kind = Variant _}, _), Enum, Some Enum when item.name = name
            ->
@@ -188,7 +193,7 @@ let rec findModulePathOfType ~schemaState ~(env : SharedTypes.QueryEnv.t)
          | Type ({kind = Abstract (Some _)}, _), Scalar, Some Scalar
            when item.name = name ->
            Some modulePath
-         | Module (Structure structure), _, _ ->
+        | Module {type_ = Structure structure; _}, _, _ ->
            name
            |> findModulePathOfType ~env ~expectedType
                 ~modulePath:(structure.name :: modulePath)

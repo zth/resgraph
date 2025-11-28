@@ -65,11 +65,11 @@ val assert_strings : Location.t -> t -> string list
 (** as a record or empty 
     it will accept 
 
-    {[ [@@@bs.config ]]}
+    {[ [@@@config ]]}
     or 
-    {[ [@@@bs.config no_export ] ]}
+    {[ [@@@config no_export ] ]}
     or 
-    {[ [@@@bs.config { property  .. } ]]}    
+    {[ [@@@config { property  .. } ]]}    
     Note that we only 
     {[
       { flat_property}
@@ -89,6 +89,6 @@ val empty : t
 val table_dispatch :
   (Parsetree.expression option -> 'a) Map_string.t -> action -> 'a
 
-val unrecognizedConfigRecord : Location.t -> string -> unit
+val unrecognized_config_record : Location.t -> string -> unit
 (** Report to the user, as a warning, that the bs-attribute parser is bailing out. (This is to allow
     external ppx, like ppx_deriving, to pick up where the builtin ppx leave off.) *)

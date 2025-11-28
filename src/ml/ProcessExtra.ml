@@ -9,8 +9,8 @@ let addReference ~extra stamp loc =
     (loc
     ::
     (if Hashtbl.mem extra.internalReferences stamp then
-     Hashtbl.find extra.internalReferences stamp
-    else []))
+       Hashtbl.find extra.internalReferences stamp
+     else []))
 
 let extraForFile ~(file : File.t) =
   let extra = initExtra () in
@@ -66,8 +66,8 @@ let addExternalReference ~extra moduleName path tip loc =
     ((path, tip, loc)
     ::
     (if Hashtbl.mem extra.externalReferences moduleName then
-     Hashtbl.find extra.externalReferences moduleName
-    else []))
+       Hashtbl.find extra.externalReferences moduleName
+     else []))
 
 let addFileReference ~extra moduleName loc =
   let newLocs =
@@ -237,7 +237,7 @@ let addForRecord ~env ~extra ~recordType items =
   | Tconstr (path, _args, _memo) ->
     let t = getTypeAtPath ~env path in
     items
-    |> List.iter (fun ({Asttypes.txt; loc}, _, _) ->
+    |> List.iter (fun ({Asttypes.txt; loc}, _, _, _) ->
            (* let name = Longident.last(txt); *)
            let name = handleConstructor txt in
            let nameLoc = Utils.endOfLocation loc (String.length name) in
@@ -358,6 +358,25 @@ let typ ~env ~extra (iter : Tast_iterator.iterator) (item : Typedtree.core_type)
 
 let pat ~(file : File.t) ~env ~extra (iter : Tast_iterator.iterator)
     (pattern : Typedtree.pattern) =
+  (* Detect first-class module unpack in a pattern and return the module path
+     if present. Used to register a synthetic module declaration *)
+  let unpacked_module_path_opt () =
+    let has_unpack =
+      match
+        pattern.pat_extra
+        |> List.filter_map (function
+             | Typedtree.Tpat_unpack, _, _ -> Some ()
+             | _ -> None)
+      with
+      | _ :: _ -> true
+      | [] -> false
+    in
+    if not has_unpack then None
+    else
+      match (Shared.dig pattern.pat_type).desc with
+      | Tpackage (path, _, _) -> Some path
+      | _ -> None
+  in
   let addForPattern stamp name =
     if Stamps.findValue file.stamps stamp = None then (
       let declared =
@@ -376,13 +395,27 @@ let pat ~(file : File.t) ~env ~extra (iter : Tast_iterator.iterator)
     addForRecord ~env ~extra ~recordType:pattern.pat_type items
   | Tpat_construct (lident, constructor, _) ->
     addForConstructor ~env ~extra pattern.pat_type lident constructor
-  | Tpat_alias (_inner, ident, name) ->
+  | Tpat_alias (_inner, ident, name) -> (
     let stamp = Ident.binding_time ident in
-    addForPattern stamp name
-  | Tpat_var (ident, name) ->
+    match unpacked_module_path_opt () with
+    | Some path ->
+      let declared =
+        ProcessAttributes.newDeclared ~item:(Module.Ident path) ~extent:name.loc
+          ~name ~stamp ~modulePath:NotVisible false pattern.pat_attributes
+      in
+      Stamps.addModule file.stamps stamp declared
+    | None -> addForPattern stamp name)
+  | Tpat_var (ident, name) -> (
     (* Log.log("Pattern " ++ name.txt); *)
     let stamp = Ident.binding_time ident in
-    addForPattern stamp name
+    match unpacked_module_path_opt () with
+    | Some path ->
+      let declared =
+        ProcessAttributes.newDeclared ~item:(Module.Ident path) ~extent:name.loc
+          ~name ~stamp ~modulePath:NotVisible false pattern.pat_attributes
+      in
+      Stamps.addModule file.stamps stamp declared
+    | None -> addForPattern stamp name)
   | _ -> ());
   Tast_iterator.default_iterator.pat iter pattern
 
@@ -394,9 +427,9 @@ let expr ~env ~(extra : extra) (iter : Tast_iterator.iterator)
   | Texp_record {fields} ->
     addForRecord ~env ~extra ~recordType:expression.exp_type
       (fields |> Array.to_list
-      |> Utils.filterMap (fun (desc, item) ->
+      |> Utils.filterMap (fun (desc, item, opt) ->
              match item with
-             | Typedtree.Overridden (loc, _) -> Some (loc, desc, ())
+             | Typedtree.Overridden (loc, _) -> Some (loc, desc, (), opt)
              | _ -> None))
   | Texp_constant constant ->
     addLocItem extra expression.exp_loc (Constant constant)

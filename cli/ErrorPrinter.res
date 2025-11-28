@@ -18,6 +18,8 @@ module Chalk = {
   external modifiers: modifiers = "default"
 }
 
+module Console = Stdlib.Console
+
 let prettyPrintDiagnostic = (~lines, ~diagnostic: Utils.generateError) => {
   open Chalk
 
@@ -56,7 +58,7 @@ let prettyPrintDiagnostic = (~lines, ~diagnostic: Utils.generateError) => {
           modifiers.bold.red(
             line->String.slice(~start=highlightStartOffset, ~end=highlightEndOffset),
           ) ++
-          line->String.sliceToEnd(~start=highlightEndOffset)
+          line->String.slice(~start=highlightEndOffset)
 
         Console.log(
           `  ${modifiers.bold.red(

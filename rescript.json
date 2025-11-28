@@ -20,10 +20,6 @@
     }
   ],
   "suffix": ".mjs",
-  "bs-dependencies": [
-    "rescript-nodejs",
-    "@rescript/core",
-    "@glennsl/rescript-fetch"
-  ],
-  "bsc-flags": ["-open NodeJs", "-open RescriptCore"]
+  "dependencies": ["rescript-nodejs", "@glennsl/rescript-fetch"],
+  "compiler-flags": ["-open NodeJs"]
 }

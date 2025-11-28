@@ -2,7 +2,7 @@
 @gql.type type someAbstractType
 
 // Only valid fields can be exposed as GraphQL fields directly
-@gql.type type user = {@gql.field someDict: Js.Dict.t<string>}
+@gql.type type user = {@gql.field someDict: dict<string>}
 
 // Enums must be variants
 @gql.enum type wrongEnum

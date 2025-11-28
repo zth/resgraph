@@ -34,7 +34,8 @@ let rec extractFunctionType ~env ~package typ =
   let rec loop ~env acc (t : Types.type_expr) =
     match t.desc with
     | Tlink t1 | Tsubst t1 | Tpoly (t1, []) -> loop ~env acc t1
-    | Tarrow (label, tArg, tRet, _) -> loop ~env ((label, tArg) :: acc) tRet
+    | Tarrow ({lbl; typ = tArg}, tRet, _, _) ->
+      loop ~env ((lbl, tArg) :: acc) tRet
     | Tconstr (Pident {name = "function$"}, [t; _], _) ->
       extractFunctionType ~env ~package t
     | Tconstr (path, typeArgs, _) -> (
@@ -199,7 +200,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
             ~typeContext
         | Some (env, {item}) -> (
           let gqlAttribute =
-            extractGqlAttribute ~env ~schemaState item.attributes
+            item.attributes |> extractGqlAttribute ~env ~schemaState
           in
           match (gqlAttribute, item) with
           | ( Some ObjectType,
@@ -1107,7 +1108,7 @@ and mapFunctionArgs ~full ~env ~debug ~schemaState ~fnLoc ~fieldParentTypeName
                     argumentName =
                       (match label with
                       | Asttypes.Nolabel -> "<unlabelled:error>"
-                      | Labelled name | Optional name -> name);
+                      | Labelled {txt = name} | Optional {txt = name} -> name);
                   })
              typExpr
          with
@@ -1124,13 +1125,14 @@ and mapFunctionArgs ~full ~env ~debug ~schemaState ~fnLoc ~fieldParentTypeName
                          arguments of resolvers must be valid GraphQL types."
                         (match label with
                         | Asttypes.Nolabel -> "<unlabelled>"
-                        | Labelled name | Optional name -> name);
+                        | Labelled {txt = name} | Optional {txt = name} ->
+                          name);
                   };
            None
          | Some typ -> (
            match label with
            | Asttypes.Nolabel -> None
-           | Labelled name | Optional name ->
+           | Labelled {txt = name} | Optional {txt = name} ->
              Some
                {
                  name;
@@ -1155,20 +1157,25 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
         true;
     structure.items
     |> List.iter (fun (item : SharedTypes.Module.item) ->
+           let attributes =
+             match item.kind with
+             | Type (t, _) -> t.attributes
+             | _ -> []
+           in
            let gqlAttribute =
-             item.attributes |> extractGqlAttribute ~schemaState ~env
+             attributes |> extractGqlAttribute ~schemaState ~env
            in
            match (item.kind, gqlAttribute) with
-           | Module (Structure structure), _ ->
+           | Module {type_ = Structure structure; _}, _ ->
              (* Continue into modules (ignore module aliases etc) *)
              (* Might need to support modules with constraints too. But will
                 ignore aliases. *)
              traverseStructure
                ~modulePath:(structure.name :: modulePath)
                ~schemaState ~env ~full ~debug structure
-           | ( Module
-                 (Constraint (Structure implStructure, Structure intfStructure)),
-               _ ) ->
+          | ( Module
+                {type_ = Constraint (Structure implStructure, Structure intfStructure); _},
+              _ ) ->
              (* Look inside constraints rather than structure when present. *)
              traverseStructure ~implStructure
                ~modulePath:(intfStructure.name :: modulePath)
@@ -1250,7 +1257,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                    id = item.name;
                    displayName = capitalizeFirstChar item.name;
                    values = variantCasesToEnumValues ~schemaState ~env cases;
-                   description = item.attributes |> attributesToDocstring;
+                   description = attributes |> attributesToDocstring;
                    typeLocation =
                      Concrete
                        (findTypeLocation ~loc:item.decl.type_loc ~schemaState
@@ -1265,7 +1272,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                    typeSource = Variant;
                    id = item.name;
                    displayName;
-                   description = item.attributes |> attributesToDocstring;
+                   description = attributes |> attributesToDocstring;
                    types =
                      variantCasesToUnionValues cases ~env ~full ~schemaState
                        ~debug ~ownerName:displayName;
@@ -1283,7 +1290,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                  {
                    id = item.name;
                    displayName;
-                   description = item.attributes |> attributesToDocstring;
+                   description = attributes |> attributesToDocstring;
                    members =
                      variantCasesToInputUnionValues cases ~env ~full
                        ~schemaState ~debug ~ownerName:displayName;
@@ -1350,7 +1357,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
              | (true | false), true, true ->
                (* Has parsers, always add them *)
                addScalar typeName
-                 ?description:(item.attributes |> attributesToDocstring)
+                 ?description:(attributes |> attributesToDocstring)
                  ~encoderDecoderLoc:typeLoc ~typeLocation:typeLoc ~schemaState
                  ~debug
              | true, false, true | true, true, false | true, false, false ->
@@ -1376,7 +1383,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
              | false, _, _ ->
                (* Does not need parsing, and don't have assets *)
                addScalar typeName
-                 ?description:(item.attributes |> attributesToDocstring)
+                 ?description:(attributes |> attributesToDocstring)
                  ~typeLocation:typeLoc ~schemaState ~debug)
            | ( Type (({kind = Abstract (Some (path, typs))} as item), _),
                Some Scalar ) -> (
@@ -1387,7 +1394,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
              with
              | DoesNotNeedParsing ->
                addScalar item.name
-                 ?description:(item.attributes |> attributesToDocstring)
+                 ?description:(attributes |> attributesToDocstring)
                  ~typeLocation:
                    (findTypeLocation ~loc:item.decl.type_loc ~env ~schemaState
                       ~expectedType:Scalar item.name)
@@ -1452,9 +1459,9 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                    name = item.name;
                    fileName = env.file.moduleName;
                    fileUri = env.file.uri;
-                   description = item.attributes |> attributesToDocstring;
+                   description = attributes |> attributesToDocstring;
                    deprecationReason =
-                     item.attributes
+                     attributes
                      |> ProcessAttributes.findDeprecatedAttribute;
                    resolverStyle =
                      Resolver
@@ -1508,9 +1515,9 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                    name = item.name;
                    fileName = env.file.moduleName;
                    fileUri = env.file.uri;
-                   description = item.attributes |> attributesToDocstring;
+                   description = attributes |> attributesToDocstring;
                    deprecationReason =
-                     item.attributes
+                     attributes
                      |> ProcessAttributes.findDeprecatedAttribute;
                    resolverStyle =
                      Resolver

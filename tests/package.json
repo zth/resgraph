@@ -1,20 +1,21 @@
 {
+  "name": "resgraph-tests",
+  "version": "0.0.0",
   "scripts": {
     "build": "rescript",
-    "clean": "rescript clean -with-deps",
+    "clean": "rescript clean",
     "watch-testapp": "export DUMP_SCHEMA=true && nodemon ./src/TestApp.mjs --watch ./src --watch ./src/*.mjs"
   },
   "private": true,
   "devDependencies": {
-    "@rescript/react": "0.12.1",
+    "@rescript/react": "^0.14.0",
     "nodemon": "^2.0.22"
   },
   "dependencies": {
     "@glennsl/rescript-fetch": "^0.2.0",
-    "@rescript/core": "1.3.0",
     "graphql": "16.8.1",
     "graphql-yoga": "5.3.0",
-    "rescript": "11.1.0",
+    "rescript": "12.0.0",
     "rescript-nodejs": "^16.1.0"
   },
   "resolutions": {

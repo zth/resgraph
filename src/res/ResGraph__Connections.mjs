@@ -7,6 +7,6 @@ function connectionFromArray(prim0, prim1) {
 }
 
 export {
-  connectionFromArray ,
+  connectionFromArray,
 }
 /* ./graphqlRelayConnections.mjs Not a pure module */

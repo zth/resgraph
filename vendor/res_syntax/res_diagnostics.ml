@@ -17,45 +17,45 @@ type category =
   | UnknownUchar of Char.t
 
 type t = {
-  startPos: Lexing.position;
-  endPos: Lexing.position;
+  start_pos: Lexing.position;
+  end_pos: Lexing.position;
   category: category;
 }
 
 type report = t list
 
-let getStartPos t = t.startPos
-let getEndPos t = t.endPos
+let get_start_pos t = t.start_pos
+let get_end_pos t = t.end_pos
 
-let defaultUnexpected token =
-  "I'm not sure what to parse here when looking at \"" ^ Token.toString token
+let default_unexpected token =
+  "I'm not sure what to parse here when looking at \"" ^ Token.to_string token
   ^ "\"."
 
-let reservedKeyword token =
-  let tokenTxt = Token.toString token in
-  "`" ^ tokenTxt ^ "` is a reserved keyword. Keywords need to be escaped: \\\""
-  ^ tokenTxt ^ "\""
+let reserved_keyword token =
+  let token_txt = Token.to_string token in
+  "`" ^ token_txt ^ "` is a reserved keyword. Keywords need to be escaped: \\\""
+  ^ token_txt ^ "\""
 
 let explain t =
   match t.category with
-  | Uident currentToken -> (
-    match currentToken with
+  | Uident current_token -> (
+    match current_token with
     | Lident lident ->
       let guess = String.capitalize_ascii lident in
       "Did you mean `" ^ guess ^ "` instead of `" ^ lident ^ "`?"
-    | t when Token.isKeyword t ->
-      let token = Token.toString t in
+    | t when Token.is_keyword t ->
+      let token = Token.to_string t in
       "`" ^ token ^ "` is a reserved keyword."
     | _ ->
       "At this point, I'm looking for an uppercased name like `Belt` or `Array`"
     )
-  | Lident currentToken -> (
-    match currentToken with
+  | Lident current_token -> (
+    match current_token with
     | Uident uident ->
       let guess = String.uncapitalize_ascii uident in
       "Did you mean `" ^ guess ^ "` instead of `" ^ uident ^ "`?"
-    | t when Token.isKeyword t ->
-      let token = Token.toString t in
+    | t when Token.is_keyword t ->
+      let token = Token.to_string t in
       "`" ^ token ^ "` is a reserved keyword. Keywords need to be escaped: \\\""
       ^ token ^ "\""
     | Underscore -> "`_` isn't a valid name."
@@ -65,32 +65,26 @@ let explain t =
   | UnclosedTemplate ->
     "Did you forget to close this template expression with a backtick?"
   | UnclosedComment -> "This comment seems to be missing a closing `*/`"
-  | UnknownUchar uchar -> (
-    match uchar with
-    | '^' ->
-      "Not sure what to do with this character.\n"
-      ^ "  If you're trying to dereference a mutable value, use \
-         `myValue.contents` instead.\n"
-      ^ "  To concatenate strings, use `\"a\" ++ \"b\"` instead."
-    | _ -> "Not sure what to do with this character.")
+  | UnknownUchar uchar ->
+    "Not sure what to do with this character: \"" ^ Char.escaped uchar ^ "\"."
   | Expected {context; token = t} ->
     let hint =
       match context with
-      | Some grammar -> " It signals the start of " ^ Grammar.toString grammar
+      | Some grammar -> " It signals the start of " ^ Grammar.to_string grammar
       | None -> ""
     in
-    "Did you forget a `" ^ Token.toString t ^ "` here?" ^ hint
+    "Did you forget a `" ^ Token.to_string t ^ "` here?" ^ hint
   | Unexpected {token = t; context = breadcrumbs} -> (
-    let name = Token.toString t in
+    let name = Token.to_string t in
     match breadcrumbs with
     | (AtomicTypExpr, _) :: breadcrumbs -> (
       match (breadcrumbs, t) with
       | ( ((StringFieldDeclarations | FieldDeclarations), _) :: _,
           (String _ | At | Rbrace | Comma | Eof) ) ->
         "I'm missing a type here"
-      | _, t when Grammar.isStructureItemStart t || t = Eof ->
+      | _, t when Grammar.is_structure_item_start t || t = Eof ->
         "Missing a type here"
-      | _ -> defaultUnexpected t)
+      | _ -> default_unexpected t)
     | (ExprOperand, _) :: breadcrumbs -> (
       match (breadcrumbs, t) with
       | (ExprBlock, _) :: _, Rbrace ->
@@ -125,48 +119,81 @@ let explain t =
          to supply a name before `in`?"
       | EqualGreater, (PatternMatchCase, _) :: _ ->
         "I was expecting a pattern to match on before the `=>`"
-      | token, _ when Token.isKeyword t -> reservedKeyword token
-      | token, _ -> defaultUnexpected token)
+      | token, _ when Token.is_keyword t -> reserved_keyword token
+      | token, _ -> default_unexpected token)
     | _ ->
       (* TODO: match on circumstance to verify Lident needed ? *)
-      if Token.isKeyword t then
+      if Token.is_keyword t then
         "`" ^ name
         ^ "` is a reserved keyword. Keywords need to be escaped: \\\""
-        ^ Token.toString t ^ "\""
+        ^ Token.to_string t ^ "\""
       else "I'm not sure what to parse here when looking at \"" ^ name ^ "\".")
 
-let make ~startPos ~endPos category = {startPos; endPos; category}
+let make ~start_pos ~end_pos category = {start_pos; end_pos; category}
 
-let printReport diagnostics src =
+let print_report ?(custom_intro = None) ?(formatter = Format.err_formatter)
+    diagnostics src =
   let rec print diagnostics src =
     match diagnostics with
     | [] -> ()
     | d :: rest ->
-      Location.report_error ~src:(Some src) Format.err_formatter
+      (* A few specializations for best-effort error messages for old syntax etc. *)
+      let msg =
+        match d.category with
+        | Unexpected {token = Token.Bar; _} ->
+          let idx_prev = d.start_pos.pos_cnum - 1 in
+          let idx_next = d.end_pos.pos_cnum in
+          if
+            idx_prev >= 0
+            && idx_prev < String.length src
+            && String.get src idx_prev = '['
+          then
+            let base = explain d in
+            base
+            ^ "\n\n\
+              \  Did you mean to write an array literal? Arrays are written \
+               with `[ ... ]` (not `[| ... |]`)."
+            ^ "\n  Quick fix: replace `[|` with `[` and `|]` with `]`."
+            ^ "\n  Example: `[|1, 2, 3|]` -> `[1, 2, 3]`"
+          else if
+            idx_next >= 0
+            && idx_next < String.length src
+            && String.get src idx_next = '>'
+          then
+            let base = explain d in
+            base
+            ^ "\n\n\
+              \  The old data-last pipe `|>` has been removed from the language.\n\
+              \  Refactor to use a data-first `->` pipe instead."
+          else explain d
+        | _ -> explain d
+      in
+      Location.report_error ~custom_intro ~src:(Some src) formatter
         Location.
           {
-            loc = {loc_start = d.startPos; loc_end = d.endPos; loc_ghost = false};
-            msg = explain d;
+            loc =
+              {loc_start = d.start_pos; loc_end = d.end_pos; loc_ghost = false};
+            msg;
             sub = [];
             if_highlight = "";
           };
       (match rest with
       | [] -> ()
-      | _ -> Format.fprintf Format.err_formatter "@.");
+      | _ -> Format.fprintf formatter "@.");
       print rest src
   in
-  Format.fprintf Format.err_formatter "@[<v>";
+  Format.fprintf formatter "@[<v>";
   print (List.rev diagnostics) src;
-  Format.fprintf Format.err_formatter "@]@."
+  Format.fprintf formatter "@]@."
 
 let unexpected token context = Unexpected {token; context}
 
 let expected ?grammar pos token = Expected {context = grammar; pos; token}
 
-let uident currentToken = Uident currentToken
-let lident currentToken = Lident currentToken
-let unclosedString = UnclosedString
-let unclosedComment = UnclosedComment
-let unclosedTemplate = UnclosedTemplate
-let unknownUchar code = UnknownUchar code
+let uident current_token = Uident current_token
+let lident current_token = Lident current_token
+let unclosed_string = UnclosedString
+let unclosed_comment = UnclosedComment
+let unclosed_template = UnclosedTemplate
+let unknown_uchar code = UnknownUchar code
 let message txt = Message txt

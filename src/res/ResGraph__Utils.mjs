@@ -10,12 +10,12 @@ function decode(prim) {
   return GraphqlRelayConnectionsMjs.decodeBase64(prim);
 }
 
-var Base64 = {
+let Base64 = {
   encode: encode,
   decode: decode
 };
 
 export {
-  Base64 ,
+  Base64,
 }
 /* ./graphqlRelayConnections.mjs Not a pure module */

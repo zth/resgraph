@@ -15,51 +15,26 @@
 
 (* Description of primitive functions *)
 
-type boxed_integer = Pbigint | Pint32 | Pint64
+type description = private {
+  prim_name: string; (* Name of primitive  or C function *)
+  prim_arity: int; (* Number of arguments *)
+  prim_alloc: bool; (* Does it allocates or raise? *)
+  prim_native_name: string; (* Name of C function for the nat. code gen. *)
+  prim_from_constructor: bool;
+      (* Is it from a type constructor instead of a concrete function type? *)
+  transformed_jsx: bool;
+}
 
-(* Representation of arguments/result for the native code version
-   of a primitive *)
-type native_repr =
-  | Same_as_ocaml_repr
-
-type description = private
-  { prim_name: string;         (* Name of primitive  or C function *)
-    prim_arity: int;           (* Number of arguments *)
-    prim_alloc: bool;          (* Does it allocates or raise? *)
-    prim_native_name: string;  (* Name of C function for the nat. code gen. *)
-    prim_native_repr_args: native_repr list;
-    prim_native_repr_res: native_repr }
+val set_transformed_jsx : description -> transformed_jsx:bool -> description
 
 (* Invariant [List.length d.prim_native_repr_args = d.prim_arity] *)
 
-val simple
-  :  name:string
-  -> arity:int
-  -> alloc:bool
-  -> description
+val parse_declaration :
+  Parsetree.value_description ->
+  arity:int ->
+  from_constructor:bool ->
+  description
 
-val make
-  :  name:string
-  -> alloc:bool
-  -> native_name:string
-  -> native_repr_args: native_repr list
-  -> native_repr_res: native_repr
-  -> description
+val print : description -> Outcometree.out_val_decl -> Outcometree.out_val_decl
 
-val parse_declaration
-  :  Parsetree.value_description
-  -> native_repr_args:native_repr list
-  -> native_repr_res:native_repr
-  -> description
-
-val print
-  :  description
-  -> Outcometree.out_val_decl
-  -> Outcometree.out_val_decl
-
-val native_name: description -> string
-val byte_name: description -> string
-
-
-val coerce : 
-  (description -> description -> bool ) ref
+val coerce : (description -> description -> bool) ref

@@ -22,16 +22,16 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. *)
 
-external reraise : exn -> 'a = "%reraise"
+external reraise : exn -> 'a = "%raise"
 
 let finally v ~clean:action f =
   match f v with
   | exception e ->
-      action v;
-      reraise e
+    action v;
+    reraise e
   | e ->
-      action v;
-      e
+    action v;
+    e
 
 (* let try_it f  =
    try ignore (f ()) with _ -> () *)

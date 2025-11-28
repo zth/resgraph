@@ -24,6 +24,16 @@ module ModulePath = struct
       | NotVisible -> current
     in
     loop modulePath [tipName]
+
+  let toPathWithPrefix modulePath prefix : path =
+    let rec loop modulePath current =
+      match modulePath with
+      | File _ -> current
+      | IncludedModule (_, inner) -> loop inner current
+      | ExportedModule {name; modulePath = inner} -> loop inner (name :: current)
+      | NotVisible -> current
+    in
+    prefix :: loop modulePath []
 end
 
 type field = {
@@ -122,13 +132,14 @@ module Module = struct
   type kind =
     | Value of Types.type_expr
     | Type of Type.t * Types.rec_status
-    | Module of t
+    | Module of {type_: t; isModuleType: bool}
 
   and item = {
     kind: kind;
     name: string;
-    attributes: Parsetree.attribute list;
     loc: Location.t;
+    docstring: string list;
+    deprecated: string option;
   }
 
   and structure = {
@@ -136,6 +147,7 @@ module Module = struct
     docstring: string list;
     exported: Exported.t;
     items: item list;
+    deprecated: string option;
   }
 
   and t = Ident of Path.t | Structure of structure | Constraint of t * t
@@ -155,6 +167,14 @@ module Declared = struct
 end
 
 module Stamps : sig
+  type kind =
+    | KType of Type.t Declared.t
+    | KValue of Types.type_expr Declared.t
+    | KModule of Module.t Declared.t
+    | KConstructor of Constructor.t Declared.t
+
+  val locOfKind : kind -> Warnings.loc
+
   type t
 
   val addConstructor : t -> int -> Constructor.t Declared.t -> unit
@@ -169,6 +189,7 @@ module Stamps : sig
   val iterModules : (int -> Module.t Declared.t -> unit) -> t -> unit
   val iterTypes : (int -> Type.t Declared.t -> unit) -> t -> unit
   val iterValues : (int -> Types.type_expr Declared.t -> unit) -> t -> unit
+  val getEntries : t -> (int * kind) list
 end = struct
   type 't stampMap = (int, 't Declared.t) Hashtbl.t
 
@@ -177,6 +198,12 @@ end = struct
     | KValue of Types.type_expr Declared.t
     | KModule of Module.t Declared.t
     | KConstructor of Constructor.t Declared.t
+
+  let locOfKind = function
+    | KType declared -> declared.extentLoc
+    | KValue declared -> declared.extentLoc
+    | KModule declared -> declared.extentLoc
+    | KConstructor declared -> declared.extentLoc
 
   type t = (int, kind) Hashtbl.t
 
@@ -239,6 +266,8 @@ end = struct
         | KConstructor d -> f stamp d
         | _ -> ())
       stamps
+
+  let getEntries t = t |> Hashtbl.to_seq |> List.of_seq
 end
 
 module File = struct
@@ -260,6 +289,7 @@ module File = struct
           docstring = [];
           exported = Exported.init ();
           items = [];
+          deprecated = None;
         };
     }
 end
@@ -311,16 +341,34 @@ end = struct
     {env with exported = structure.exported; pathRev; parent = Some env}
 end
 
-type polyVariantConstructor = {name: string; args: Types.type_expr list}
+type typeArgContext = {
+  env: QueryEnv.t;
+  typeArgs: Types.type_expr list;
+  typeParams: Types.type_expr list;
+}
 
+type polyVariantConstructor = {
+  name: string;
+  displayName: string;
+  args: Types.type_expr list;
+}
+
+(* TODO(env-stuff) All envs for bool string etc can be removed. *)
 type innerType = TypeExpr of Types.type_expr | ExtractedType of completionType
 and completionType =
   | Tuple of QueryEnv.t * Types.type_expr list * Types.type_expr
   | Texn of QueryEnv.t
+  | Tpromise of QueryEnv.t * Types.type_expr
   | Toption of QueryEnv.t * innerType
+  | Tresult of {
+      env: QueryEnv.t;
+      okType: Types.type_expr;
+      errorType: Types.type_expr;
+    }
   | Tbool of QueryEnv.t
   | Tarray of QueryEnv.t * innerType
   | Tstring of QueryEnv.t
+  | TtypeT of {env: QueryEnv.t; path: Path.t}
   | Tvariant of {
       env: QueryEnv.t;
       constructors: Constructor.t list;
@@ -342,7 +390,13 @@ and completionType =
           (** When we have the full type expr from the compiler. *) ];
     }
   | TinlineRecord of {env: QueryEnv.t; fields: field list}
-  | Tfunction of {env: QueryEnv.t; args: typedFnArg list; typ: Types.type_expr}
+  | Tfunction of {
+      env: QueryEnv.t;
+      args: typedFnArg list;
+      typ: Types.type_expr;
+      uncurried: bool;
+      returnType: Types.type_expr;
+    }
 
 module Env = struct
   type t = {stamps: Stamps.t; modulePath: ModulePath.t}
@@ -458,26 +512,18 @@ type file = string
 
 module FileSet = Set.Make (String)
 
-type builtInCompletionModules = {
-  arrayModulePath: string list;
-  optionModulePath: string list;
-  stringModulePath: string list;
-  intModulePath: string list;
-  floatModulePath: string list;
-  promiseModulePath: string list;
-  listModulePath: string list;
-  resultModulePath: string list;
-  exnModulePath: string list;
-}
-
 type package = {
+  genericJsxModule: string option;
+  suffix: string;
   rootPath: filePath;
   projectFiles: FileSet.t;
   dependenciesFiles: FileSet.t;
   pathsForModule: (file, paths) Hashtbl.t;
   namespace: string option;
-  builtInCompletionModules: builtInCompletionModules;
   opens: path list;
+  uncurried: bool;
+  rescriptVersion: int * int;
+  autocomplete: file list Misc.StringMap.t;
 }
 
 let allFilesInPackage package =
@@ -533,7 +579,7 @@ let _ = locItemToString
 
 module Completable = struct
   (* Completion context *)
-  type completionContext = Type | Value | Module | Field
+  type completionContext = Type | Value | Module | Field | ValueOrField
 
   type argumentLabel =
     | Unlabelled of {argumentPosition: int}
@@ -541,7 +587,12 @@ module Completable = struct
     | Optional of string
 
   (** Additional context for nested completion where needed. *)
-  type nestedContext = RecordField of {seenFields: string list}
+  type nestedContext =
+    | RecordField of {seenFields: string list}
+        (** Completing for a record field, and we already saw the following fields... *)
+    | CameFromRecordField of string
+        (** We just came from this field (we leverage use this for better
+            completion names etc) *)
 
   type nestedPath =
     | NTupleItem of {itemNum: int}
@@ -571,10 +622,23 @@ module Completable = struct
     | CPBool
     | CPOption of contextPath
     | CPApply of contextPath * Asttypes.arg_label list
-    | CPId of string list * completionContext
-    | CPField of contextPath * string
+    | CPId of {
+        path: string list;
+        completionContext: completionContext;
+        loc: Location.t;
+      }
+    | CPField of {
+        contextPath: contextPath;
+        fieldName: string;
+        posOfDot: (int * int) option;
+        exprLoc: Location.t;
+        inJsx: bool;
+            (** Whether this field access was found in a JSX context. *)
+      }
     | CPObj of contextPath * string
+    | CPAwait of contextPath
     | CPPipe of {
+        synthetic: bool;  (** Whether this pipe completion is synthetic. *)
         contextPath: contextPath;
         id: string;
         inJsx: bool;  (** Whether this pipe was found in a JSX context. *)
@@ -586,13 +650,27 @@ module Completable = struct
         functionContextPath: contextPath;
         argumentLabel: argumentLabel;
       }
-    | CJsxPropValue of {pathToComponent: string list; propName: string}
+    | CJsxPropValue of {
+        pathToComponent: string list;
+        propName: string;
+        emptyJsxPropNameHint: string option;
+            (* This helps handle a special case in JSX prop completion. More info where this is used. *)
+      }
     | CPatternPath of {rootCtxPath: contextPath; nested: nestedPath list}
+    | CTypeAtPos of Location.t
+        (** A position holding something that might have a *compiled* type. *)
 
   type patternMode = Default | Destructuring
 
+  type decoratorPayload =
+    | Module of string
+    | ModuleWithImportAttributes of {nested: nestedPath list; prefix: string}
+    | JsxConfig of {nested: nestedPath list; prefix: string}
+
   type t =
     | Cdecorator of string  (** e.g. @module *)
+    | CdecoratorPayload of decoratorPayload
+    | CextensionNode of string  (** e.g. %todo *)
     | CnamedArg of contextPath * string * string list
         (** e.g. (..., "label", ["l1", "l2"]) for ...(...~l1...~l2...~label...) *)
     | Cnone  (** e.g. don't complete inside strings *)
@@ -619,27 +697,30 @@ module Completable = struct
     | Type -> "Type"
     | Module -> "Module"
     | Field -> "Field"
+    | ValueOrField -> "ValueOrField"
 
   let rec contextPathToString = function
     | CPString -> "string"
     | CPInt -> "int"
     | CPFloat -> "float"
     | CPBool -> "bool"
+    | CPAwait ctxPath -> "await " ^ contextPathToString ctxPath
     | CPOption ctxPath -> "option<" ^ contextPathToString ctxPath ^ ">"
     | CPApply (cp, labels) ->
       contextPathToString cp ^ "("
       ^ (labels
         |> List.map (function
              | Asttypes.Nolabel -> "Nolabel"
-             | Labelled s -> "~" ^ s
-             | Optional s -> "?" ^ s)
+             | Labelled {txt} -> "~" ^ txt
+             | Optional {txt} -> "?" ^ txt)
         |> String.concat ", ")
       ^ ")"
     | CPArray (Some ctxPath) -> "array<" ^ contextPathToString ctxPath ^ ">"
     | CPArray None -> "array"
-    | CPId (sl, completionContext) ->
-      completionContextToString completionContext ^ list sl
-    | CPField (cp, s) -> contextPathToString cp ^ "." ^ str s
+    | CPId {path; completionContext} ->
+      completionContextToString completionContext ^ list path
+    | CPField {contextPath = cp; fieldName = s} ->
+      contextPathToString cp ^ "." ^ str s
     | CPObj (cp, s) -> contextPathToString cp ^ "[\"" ^ s ^ "\"]"
     | CPPipe {contextPath; id; inJsx} ->
       contextPathToString contextPath
@@ -667,10 +748,16 @@ module Completable = struct
       ^ (nested
         |> List.map (fun nestedPath -> nestedPathToString nestedPath)
         |> String.concat "->")
+    | CTypeAtPos _loc -> "CTypeAtPos()"
 
   let toString = function
     | Cpath cp -> "Cpath " ^ contextPathToString cp
     | Cdecorator s -> "Cdecorator(" ^ str s ^ ")"
+    | CextensionNode s -> "CextensionNode(" ^ str s ^ ")"
+    | CdecoratorPayload (Module s) -> "CdecoratorPayload(module=" ^ s ^ ")"
+    | CdecoratorPayload (ModuleWithImportAttributes _) ->
+      "CdecoratorPayload(moduleWithImportAttributes)"
+    | CdecoratorPayload (JsxConfig _) -> "JsxConfig"
     | CnamedArg (cp, s, sl2) ->
       "CnamedArg("
       ^ (cp |> contextPathToString)
@@ -707,9 +794,32 @@ module Completable = struct
     | ChtmlElement {prefix} -> "ChtmlElement <" ^ prefix
 end
 
+module ScopeTypes = struct
+  type item =
+    | Constructor of string * Location.t
+    | Field of string * Location.t
+    | Module of string * Location.t
+    | Open of string list
+    | Type of string * Location.t
+    | Value of string * Location.t * Completable.contextPath option * item list
+    | Include of string * Location.t
+
+  let item_to_string = function
+    | Constructor (name, loc) ->
+      "Constructor " ^ name ^ " " ^ Warnings.loc_to_string loc
+    | Field (name, loc) -> "Field " ^ name ^ " " ^ Warnings.loc_to_string loc
+    | Module (name, loc) -> "Module " ^ name ^ " " ^ Warnings.loc_to_string loc
+    | Open path -> "Open " ^ (path |> String.concat ".")
+    | Type (name, loc) -> "Type " ^ name ^ " " ^ Warnings.loc_to_string loc
+    | Value (name, loc, _, _) ->
+      "Value " ^ name ^ " " ^ Warnings.loc_to_string loc
+    | Include (name, loc) ->
+      "Include " ^ name ^ " " ^ Warnings.loc_to_string loc
+end
+
 module Completion = struct
   type kind =
-    | Module of Module.t
+    | Module of {docstring: string list; module_: Module.t}
     | Value of Types.type_expr
     | ObjLabel of Types.type_expr
     | Label of string
@@ -720,7 +830,7 @@ module Completion = struct
     | FileModule of string
     | Snippet of string
     | ExtractedType of completionType * [`Value | `Type]
-    | FollowContextPath of Completable.contextPath
+    | FollowContextPath of Completable.contextPath * ScopeTypes.item list
 
   type t = {
     name: string;
@@ -733,25 +843,16 @@ module Completion = struct
     docstring: string list;
     kind: kind;
     detail: string option;
+    typeArgContext: typeArgContext option;
+    data: (string * string) list option;
+    additionalTextEdits: Protocol.textEdit list option;
+    synthetic: bool;
+        (** Whether this item is an made up, synthetic item or not. *)
   }
 
-  let create ~kind ~env ?(docstring = []) ?filterText ?detail ?deprecated
-      ?insertText name =
-    {
-      name;
-      env;
-      deprecated;
-      docstring;
-      kind;
-      sortText = None;
-      insertText;
-      insertTextFormat = None;
-      filterText;
-      detail;
-    }
-
-  let createWithSnippet ~name ?insertText ~kind ~env ?sortText ?deprecated
-      ?filterText ?detail ?(docstring = []) () =
+  let create ?(synthetic = false) ?additionalTextEdits ?data ?typeArgContext
+      ?(includesSnippets = false) ?insertText ~kind ~env ?sortText ?deprecated
+      ?filterText ?detail ?(docstring = []) name =
     {
       name;
       env;
@@ -760,9 +861,14 @@ module Completion = struct
       kind;
       sortText;
       insertText;
-      insertTextFormat = Some Protocol.Snippet;
+      insertTextFormat =
+        (if includesSnippets then Some Protocol.Snippet else None);
       filterText;
       detail;
+      typeArgContext;
+      data;
+      additionalTextEdits;
+      synthetic;
     }
 
   (* https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_completion *)
@@ -823,14 +929,12 @@ type arg = {label: label; exp: Parsetree.expression}
 let extractExpApplyArgs ~args =
   let rec processArgs ~acc args =
     match args with
-    | (((Asttypes.Labelled s | Optional s) as label), (e : Parsetree.expression))
+    | ( ((Asttypes.Labelled {txt = s; loc} | Optional {txt = s; loc}) as label),
+        (e : Parsetree.expression) )
       :: rest -> (
-      let namedArgLoc =
-        e.pexp_attributes
-        |> List.find_opt (fun ({Asttypes.txt}, _) -> txt = "res.namedArgLoc")
-      in
+      let namedArgLoc = if loc = Location.none then None else Some loc in
       match namedArgLoc with
-      | Some ({loc}, _) ->
+      | Some loc ->
         let labelled =
           {
             name = s;
@@ -844,7 +948,7 @@ let extractExpApplyArgs ~args =
         in
         processArgs ~acc:({label = Some labelled; exp = e} :: acc) rest
       | None -> processArgs ~acc rest)
-    | (Asttypes.Nolabel, (e : Parsetree.expression)) :: rest ->
+    | (Nolabel, (e : Parsetree.expression)) :: rest ->
       if e.pexp_loc.loc_ghost then processArgs ~acc rest
       else processArgs ~acc:({label = None; exp = e} :: acc) rest
     | [] -> List.rev acc

@@ -78,6 +78,8 @@ type rec state = {
   name: nullable<string>,
   kind: nullable<kind>,
 }
+
+module Console = Stdlib.Console
 type contextToken = {
   start: int,
   end: int,

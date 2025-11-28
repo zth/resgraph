@@ -37,20 +37,23 @@ type pet = {
 
 /** A user or a group. */
 @gql.union
-type userOrGroup = | /** This is a user.*/ Usr(user) | /** And this is a group. */ Group(group)
+type userOrGroup =
+  /** This is a user.*/
+  | Usr(user)
+  /** And this is a group. */
+  | Group(group)
 //           ^hov
 
 /** Indicates what status a user currently has. */
 @gql.enum
 type userStatus =
   //        ^hov
-  | /** User is online. */
-  @as("ONLINE")
-  Online
-  | /** User is offline. */ Offline
-  | /** User is idle. */
-  @deprecated(`Use 'Offline' instead. This should be "escaped".`)
-  Idle
+  /** User is online. */
+  | @as("ONLINE") Online
+  /** User is offline. */
+  | Offline
+  /** User is idle. */
+  | @deprecated(`Use 'Offline' instead. This should be "escaped".`) Idle
 
 module UserFields = {
   @gql.field
@@ -77,16 +80,19 @@ module UserFields = {
 
 type query = Query.query
 
-@gql.inputObject /** Additional for searching for a user.*/
+/** Additional for searching for a user.*/
+@gql.inputObject
 type userConfigContext = {
   //  ^hov
-  groupId: Js.Nullable.t<string>,
+  groupId: Nullable.t<string>,
   name?: string,
 }
 
-@gql.inputObject /** Configuration for searching for a user.*/
+/** Configuration for searching for a user.*/
+@gql.inputObject
 type userConfig = {
-  /** The ID of a user to search for. */ id: string,
+  /** The ID of a user to search for. */
+  id: string,
   /** The name of the user to search for. */
   @deprecated("This is going away")
   name?: string,
@@ -134,7 +140,7 @@ module QueryFields = {
     } else if wasUndefined {
       "Was undefined"
     } else {
-      someNullable->Nullable.toOption->Option.getExn
+      someNullable->Nullable.toOption->Option.getOrThrow
     }
   }
 

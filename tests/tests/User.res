@@ -3,9 +3,11 @@
 type user = {
   ...NodeInterface.node,
   ...HasNameInterface.hasName,
-  @gql.field /** The age of the user. */
+  /** The age of the user. */
+  @gql.field
   age: int,
-  @gql.field @deprecated("Use 'age' instead.") /** The last age of the user. */
+  /** The last age of the user. */
+  @gql.field @deprecated("Use 'age' instead.")
   lastAge: option<int>,
 }
 
