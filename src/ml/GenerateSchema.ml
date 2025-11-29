@@ -1669,6 +1669,7 @@ let printErrorState diagnostics =
 let generateSchema ~printToStdOut ~writeStateFile ~sourceFolder ~debug
     ~outputFolder ~writeSdlFile =
   if debug then Printf.printf "generating schema from %s\n\n" sourceFolder;
+  let sourceFolderAbs = Ext_path.normalize_absolute_path sourceFolder in
   (* Holds cmt cache so we don't do heavy cmt processing multiple times. *)
   let cmtCache = Hashtbl.create 100 in
   let fileHasGqlAttributeCache = Hashtbl.create 100 in
@@ -1749,9 +1750,13 @@ let generateSchema ~printToStdOut ~writeStateFile ~sourceFolder ~debug
          | "ResGraph__GraphQLJs" ->
            ()
          | _ -> (
-           match Hashtbl.find package.pathsForModule file with
-           | IntfAndImpl {res} | Impl {res} -> processFileAtPath res |> ignore
-           | _ -> ()));
+          match Hashtbl.find package.pathsForModule file with
+          | IntfAndImpl {res} | Impl {res} ->
+            let pathAbs = Ext_path.normalize_absolute_path res in
+            if Utils.startsWith pathAbs sourceFolderAbs then
+              processFileAtPath res |> ignore
+            else ()
+          | _ -> ()));
 
   let processedSchema = processSchema schemaState in
   let schemaOutputPath = outputFolder ^ "/ResGraphSchema.res" in

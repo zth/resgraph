@@ -3,26 +3,22 @@
 @@warning("-27-34-37")
 
 module Resolver = {
-  @gql.interfaceResolver("node") type t = Group(Schema.group) | User(User.user)
+  @gql.interfaceResolver("node") type t = Thing(Thing.thing)
 }
 
 module ImplementedBy = {
-  type t = Group | User
+  type t = Thing
 
   let decode = (str: string) =>
     switch str {
-    | "Group" => Some(Group)
-    | "User" => Some(User)
+    | "Thing" => Some(Thing)
     | _ => None
     }
 
   external toString: t => string = "%identity"
 }
 
-type typeMap<'a> = {
-  @as("Group") group: 'a,
-  @as("User") user: 'a,
-}
+type typeMap<'a> = {@as("Thing") thing: 'a}
 
 module TypeMap: {
   type t<'value>
@@ -52,7 +48,10 @@ module TypeMap: {
   }
 
   let getStringifiedValueByType = (t, typ) =>
-    t.typeToValue->Dict.get(typ->ImplementedBy.toString)->Option.getOrThrow->t.valueToString
+    t.typeToValue
+    ->Dict.get(typ->ImplementedBy.toString)
+    ->Option.getOrThrow
+    ->t.valueToString
   let getTypeByStringifiedValue = (t, str) =>
     t.valueToTypeAsString->Dict.get(str)->Option.map(unsafe_toType)
 }

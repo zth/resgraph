@@ -1,0 +1,10 @@
+Hover tests/Connections.res 2:3
+Nothing at that position. Now trying to use completion.
+XXX Not found!
+null
+
+Hover tests/Connections.res 5:3
+Nothing at that position. Now trying to use completion.
+XXX Not found!
+null
+

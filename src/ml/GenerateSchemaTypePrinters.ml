@@ -162,25 +162,28 @@ let printNodeInterfaceAssets (implementedBy : interfaceImplementedBy list) =
   /** Takes a type and returns what value it represents, as string. */
   let getStringifiedValueByType: (t<'value>, ImplementedBy.t) => string
 } = {
-  external unsafe_toDict: typeMap<'value> => Js.Dict.t<'value> = "%%identity"
+  external unsafe_toDict: typeMap<'value> => dict<'value> = "%%identity"
   external unsafe_toType: string => ImplementedBy.t = "%%identity"
   type t<'value> = {
-    typeToValue: Js.Dict.t<'value>,
-    valueToTypeAsString: Js.Dict.t<string>,
+    typeToValue: dict<'value>,
+    valueToTypeAsString: dict<string>,
     valueToString: 'value => string,
   }
   let make = (typeMap, ~valueToString) => {
     typeToValue: typeMap->unsafe_toDict,
     valueToTypeAsString: typeMap
     ->unsafe_toDict
-    ->Js.Dict.entries
+    ->Dict.toArray
     ->Array.map(((key, value)) => (valueToString(value), key))
-    ->Js.Dict.fromArray,
+    ->Dict.fromArray,
     valueToString,
   }
 
   let getStringifiedValueByType = (t, typ) =>
-    t.typeToValue->Dict.get(typ->ImplementedBy.toString)->Option.getExn->t.valueToString
+    t.typeToValue
+    ->Dict.get(typ->ImplementedBy.toString)
+    ->Option.getOrThrow
+    ->t.valueToString
   let getTypeByStringifiedValue = (t, str) =>
     t.valueToTypeAsString->Dict.get(str)->Option.map(unsafe_toType)
 }|}
@@ -490,7 +493,7 @@ let printSchemaJsFile schemaState processSchema =
          addWithNewLine
            (Printf.sprintf
               "let i_%s: ref<GraphQLInterfaceType.t> = \
-               Obj.magic({\"contents\": Js.null})"
+               Obj.magic({\"contents\": null})"
               typ.displayName);
          addWithNewLine
            (Printf.sprintf "let get_%s = () => i_%s.contents" typ.displayName
@@ -502,7 +505,7 @@ let printSchemaJsFile schemaState processSchema =
          addWithNewLine
            (Printf.sprintf
               "let t_%s: ref<GraphQLObjectType.t> = Obj.magic({\"contents\": \
-               Js.null})"
+               null})"
               typ.displayName);
          addWithNewLine
            (Printf.sprintf "let get_%s = () => t_%s.contents" typ.displayName
@@ -514,7 +517,7 @@ let printSchemaJsFile schemaState processSchema =
          addWithNewLine
            (Printf.sprintf
               "let inputUnion_%s: ref<GraphQLInputObjectType.t> = \
-               Obj.magic({\"contents\": Js.null})"
+               Obj.magic({\"contents\": null})"
               inputUnion.displayName);
          addWithNewLine
            (Printf.sprintf "let get_%s = () => inputUnion_%s.contents"
@@ -529,7 +532,7 @@ let printSchemaJsFile schemaState processSchema =
          addWithNewLine
            (Printf.sprintf
               "let input_%s: ref<GraphQLInputObjectType.t> = \
-               Obj.magic({\"contents\": Js.null})"
+               Obj.magic({\"contents\": null})"
               typ.displayName);
          addWithNewLine
            (Printf.sprintf "let get_%s = () => input_%s.contents"
@@ -553,7 +556,7 @@ let printSchemaJsFile schemaState processSchema =
          addWithNewLine
            (Printf.sprintf
               "let union_%s: ref<GraphQLUnionType.t> = \
-               Obj.magic({\"contents\": Js.null})"
+               Obj.magic({\"contents\": null})"
               union.displayName);
          addWithNewLine
            (Printf.sprintf "let get_%s = () => union_%s.contents"

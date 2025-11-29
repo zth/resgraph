@@ -37,8 +37,7 @@ type updateThingInput = {
 
 @gql.type
 type thing = {
-  @gql.field
-  id: string,
+  ...NodeInterface.node,
   @gql.field
   name: string,
   @gql.field
