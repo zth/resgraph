@@ -137,3 +137,7 @@ type Thing implements Node {
   height: Float
 }
 
+type User {
+
+}
+

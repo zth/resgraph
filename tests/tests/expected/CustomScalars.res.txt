@@ -1,3 +1,0 @@
-Hover tests/CustomScalars.res 2:7
-{"contents": {"kind": "markdown", "value": "```rescript\ntype t = string\n```"}}
-

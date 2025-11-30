@@ -1,6 +1,0 @@
-Hover tests/AppFeatures.res 5:3
-{"contents": {"kind": "markdown", "value": "```rescript\nmodule AppCustomScalars: {\n  type uuid = string\n  type scalarHolder = {id: uuid}\n  let getScalarHolder: Query.query => scalarHolder\n}\n```"}}
-
-Hover tests/AppFeatures.res 9:3
-{"contents": {"kind": "markdown", "value": "```rescript\nmodule AppInterfaceExtras: {\n  let typenameEcho: (\n  AppLabelledTypes.labelled,\n  ~typeName: Interface_labelled.ImplementedBy.t,\n) => string\n}\n```"}}
-

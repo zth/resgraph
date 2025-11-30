@@ -18,10 +18,6 @@
     {
       "dir": "src",
       "subdirs": true
-    },
-    {
-      "dir": "tests",
-      "subdirs": true
     }
   ],
   "compiler-flags": ["-w -33-44"],

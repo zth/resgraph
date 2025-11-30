@@ -1,3 +1,0 @@
-Hover tests/HasNameInterface.res 2:6
-{"contents": {"kind": "markdown", "value": "```rescript\ntype hasName = {name: string}\n```"}}
-

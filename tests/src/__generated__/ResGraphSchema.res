@@ -82,6 +82,8 @@ let t_Subscription: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_Subscription = () => t_Subscription.contents
 let t_Thing: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_Thing = () => t_Thing.contents
+let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
+let get_User = () => t_User.contents
 let inputUnion_Res12Input: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_Res12Input = () => inputUnion_Res12Input.contents
 let inputUnion_Res12Input_conversionInstructions = []
@@ -427,6 +429,12 @@ t_Thing.contents = GraphQLObjectType.make({
       },
     }->makeFields,
 })
+t_User.contents = GraphQLObjectType.make({
+  name: "User",
+  description: ?None,
+  interfaces: [],
+  fields: () => {%raw(`{}`)}->makeFields,
+})
 input_Res12InputInline.contents = GraphQLInputObjectType.make({
   name: "Res12InputInline",
   description: ?None,
@@ -675,6 +683,7 @@ let schema = GraphQLSchemaType.make({
     get_PageInfo()->GraphQLObjectType.toGraphQLType,
     get_Subscription()->GraphQLObjectType.toGraphQLType,
     get_LabelledAlpha()->GraphQLObjectType.toGraphQLType,
+    get_User()->GraphQLObjectType.toGraphQLType,
     get_Mutation()->GraphQLObjectType.toGraphQLType,
     get_Res12Record()->GraphQLObjectType.toGraphQLType,
     get_Thing()->GraphQLObjectType.toGraphQLType,
