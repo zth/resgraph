@@ -80,58 +80,7 @@ let flattenLongIdent ?(jsx = false) ?(cutAtOffset = None) lid =
   let path, _ = loop lid in
   List.rev path
 
-let identifyPexp pexp =
-  match pexp with
-  | Parsetree.Pexp_ident _ -> "Pexp_ident"
-  | Pexp_constant _ -> "Pexp_constant"
-  | Pexp_let _ -> "Pexp_let"
-  | Pexp_fun _ -> "Pexp_fun"
-  | Pexp_apply _ -> "Pexp_apply"
-  | Pexp_match _ -> "Pexp_match"
-  | Pexp_try _ -> "Pexp_try"
-  | Pexp_tuple _ -> "Pexp_tuple"
-  | Pexp_construct _ -> "Pexp_construct"
-  | Pexp_variant _ -> "Pexp_variant"
-  | Pexp_record _ -> "Pexp_record"
-  | Pexp_field _ -> "Pexp_field"
-  | Pexp_setfield _ -> "Pexp_setfield"
-  | Pexp_array _ -> "Pexp_array"
-  | Pexp_ifthenelse _ -> "Pexp_ifthenelse"
-  | Pexp_sequence _ -> "Pexp_sequence"
-  | Pexp_while _ -> "Pexp_while"
-  | Pexp_for _ -> "Pexp_for"
-  | Pexp_constraint _ -> "Pexp_constraint"
-  | Pexp_coerce _ -> "Pexp_coerce"
-  | Pexp_send _ -> "Pexp_send"
-  | Pexp_letmodule _ -> "Pexp_letmodule"
-  | Pexp_letexception _ -> "Pexp_letexception"
-  | Pexp_assert _ -> "Pexp_assert"
-  | Pexp_newtype _ -> "Pexp_newtype"
-  | Pexp_pack _ -> "Pexp_pack"
-  | Pexp_extension _ -> "Pexp_extension"
-  | Pexp_open _ -> "Pexp_open"
-  | Pexp_await _ -> "Pexp_await"
-  | Pexp_jsx_element _ -> "Pexp_jsx_element"
-
-let identifyPpat pat =
-  match pat with
-  | Parsetree.Ppat_any -> "Ppat_any"
-  | Ppat_var _ -> "Ppat_var"
-  | Ppat_alias _ -> "Ppat_alias"
-  | Ppat_constant _ -> "Ppat_constant"
-  | Ppat_interval _ -> "Ppat_interval"
-  | Ppat_tuple _ -> "Ppat_tuple"
-  | Ppat_construct _ -> "Ppat_construct"
-  | Ppat_variant _ -> "Ppat_variant"
-  | Ppat_record _ -> "Ppat_record"
-  | Ppat_array _ -> "Ppat_array"
-  | Ppat_or _ -> "Ppat_or"
-  | Ppat_constraint _ -> "Ppat_constraint"
-  | Ppat_type _ -> "Ppat_type"
-  | Ppat_unpack _ -> "Ppat_unpack"
-  | Ppat_exception _ -> "Ppat_exception"
-  | Ppat_extension _ -> "Ppat_extension"
-  | Ppat_open _ -> "Ppat_open"
+(* unused helpers removed *)
 
 let rec skipWhite text i =
   if i < 0 then 0
@@ -163,21 +112,6 @@ let rec getUnqualifiedName txt =
   | Longident.Lident fieldName -> fieldName
   | Ldot (t, _) -> getUnqualifiedName t
   | _ -> ""
-
-let indent n text =
-  let spaces = String.make n ' ' in
-  let len = String.length text in
-  let text =
-    if len != 0 && text.[len - 1] = '\n' then String.sub text 0 (len - 1)
-    else text
-  in
-  let lines = String.split_on_char '\n' text in
-  match lines with
-  | [] -> ""
-  | [line] -> line
-  | line :: lines ->
-    line ^ "\n"
-    ^ (lines |> List.map (fun line -> spaces ^ line) |> String.concat "\n")
 
 let mkPosition (pos : Pos.t) =
   let line, character = pos in

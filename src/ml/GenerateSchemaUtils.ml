@@ -124,7 +124,7 @@ let formatCode ~debug code =
   if List.length diagnostics > 0 then
     if debug then
       "\n\n== SYNTAX ERRORS ==\n"
-      ^ (Diagnostics.get_diagnostics diagnostics |> String.concat "\n\n")
+      ^ "Schema generation failed due to syntax errors (Diagnostics printing removed)."
       ^ "\n\n== RAW CODE ==\n" ^ code ^ "\n\n === END ==\n" ^ printed
     else "/* Code had syntax errors. This is an internal ResGraph error. */"
   else printed

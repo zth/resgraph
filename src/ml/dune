@@ -8,6 +8,7 @@
  (modules
   Cli
   GenerateSchema
+  GenerateSchemaDirect
   GenerateSchemaTypes
   GenerateSchemaUtils
   GenerateSchemaDiagnostics
@@ -16,7 +17,6 @@
   GenerateSchemaTypePrinters
   ProcessAttributes
   ProcessCmt
-  ProcessExtra
   TypeUtils
   Shared
   SharedTypes
@@ -27,14 +27,16 @@
   Uri
   Files
   Packages
-  ResolvePath
   ModuleResolution
   BuildSystem
   Cache
   Cfg
   Cmt
+  CmtDirect
+  CmtSummarize
+  DirectResolve
+  DirectReferences
   Debug
-  Diagnostics
   Log
   PrintType
   Protocol

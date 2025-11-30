@@ -5,7 +5,7 @@ let fullForCmt ~moduleName ~package ~uri cmt =
   | None -> None
   | Some infos ->
     let file = ProcessCmt.fileForCmtInfos ~moduleName ~uri infos in
-    let extra = ProcessExtra.getExtra ~file ~infos in
+    let extra = SharedTypes.initExtra () in
     Some {file; extra; package}
 
 let fullFromUri ~uri =

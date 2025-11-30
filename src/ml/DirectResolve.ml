@@ -1,5 +1,7 @@
 open SharedTypes
 
+type loader = moduleName:string -> File.t option
+
 type resolution =
   | Exported of QueryEnv.t * filePath
   | Global of filePath * filePath list
@@ -57,21 +59,17 @@ and findInModule ~(env : QueryEnv.t) module_ path =
       | None -> None
       | Some {item} -> findInModule ~env item fullPath)
 
-let rec resolvePath ~env ~path ~package =
-  Log.log ("resolvePath path:" ^ pathToString path);
+let rec resolvePath ~env ~path ~loader =
   match resolvePathInner ~env ~path with
   | None -> None
   | Some result -> (
     match result with
     | `Local (env, name) -> Some (env, name)
     | `Global (moduleName, fullPath) -> (
-      Log.log
-        ("resolvePath Global path:" ^ pathToString fullPath ^ " module:"
-       ^ moduleName);
-      match ProcessCmt.fileForModule ~package moduleName with
+      match loader ~moduleName with
       | None -> None
       | Some file ->
-        resolvePath ~env:(QueryEnv.fromFile file) ~path:fullPath ~package))
+        resolvePath ~env:(QueryEnv.fromFile file) ~path:fullPath ~loader))
 
 let fromCompilerPath ~(env : QueryEnv.t) path : resolution =
   match makePath ~env path with
@@ -81,14 +79,14 @@ let fromCompilerPath ~(env : QueryEnv.t) path : resolution =
   | Exported (env, name) -> Exported (env, name)
   | Global (moduleName, fullPath) -> Global (moduleName, fullPath)
 
-let resolveModuleFromCompilerPath ~env ~package path =
+let resolveModuleFromCompilerPath ~env ~loader path =
   match fromCompilerPath ~env path with
   | Global (moduleName, path) -> (
-    match ProcessCmt.fileForModule ~package moduleName with
+    match loader ~moduleName with
     | None -> None
     | Some file -> (
       let env = QueryEnv.fromFile file in
-      match resolvePath ~env ~package ~path with
+      match resolvePath ~env ~loader ~path with
       | None -> None
       | Some (env, name) -> (
         match Exported.find env.exported Exported.Module name with
@@ -102,7 +100,7 @@ let resolveModuleFromCompilerPath ~env ~package path =
     | None -> None
     | Some declared -> Some (env, Some declared))
   | GlobalMod moduleName -> (
-    match ProcessCmt.fileForModule ~package moduleName with
+    match loader ~moduleName with
     | None -> None
     | Some file ->
       let env = QueryEnv.fromFile file in
@@ -116,15 +114,15 @@ let resolveModuleFromCompilerPath ~env ~package path =
       | None -> None
       | Some declared -> Some (env, Some declared)))
 
-let resolveFromCompilerPath ~env ~package path =
+let resolveFromCompilerPath ~env ~loader path =
   match fromCompilerPath ~env path with
   | Global (moduleName, path) -> (
     let res =
-      match ProcessCmt.fileForModule ~package moduleName with
+      match loader ~moduleName with
       | None -> None
       | Some file ->
         let env = QueryEnv.fromFile file in
-        resolvePath ~env ~package ~path
+        resolvePath ~env ~loader ~path
     in
     match res with
     | None -> NotFound
@@ -133,16 +131,3 @@ let resolveFromCompilerPath ~env ~package path =
   | GlobalMod _ -> NotFound
   | NotFound -> NotFound
   | Exported (env, name) -> Exported (env, name)
-
-let rec getSourceUri ~(env : QueryEnv.t) ~package (path : ModulePath.t) =
-  match path with
-  | File (uri, _moduleName) -> uri
-  | NotVisible -> env.file.uri
-  | IncludedModule (path, inner) -> (
-    Log.log "INCLUDED MODULE";
-    match resolveModuleFromCompilerPath ~env ~package path with
-    | None ->
-      Log.log "NOT FOUND";
-      getSourceUri ~env ~package inner
-    | Some (env, _declared) -> env.file.uri)
-  | ExportedModule {modulePath = inner} -> getSourceUri ~env ~package inner

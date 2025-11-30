@@ -1,13 +1,5 @@
 open SharedTypes
 
-(* Optional override for resolving modules; used by the direct CMT pipeline. *)
-let fileForModuleHook :
-    (moduleName:string -> package:package -> File.t option) option ref =
-  ref None
-
-let setFileForModuleHook hook = fileForModuleHook := hook
-let clearFileForModuleHook () = fileForModuleHook := None
-
 let isModuleType (declared : Module.t Declared.t) =
   match declared.modulePath with
   | ExportedModule {isType} -> isType
@@ -244,16 +236,16 @@ let forTypeDeclaration ~env ~(exported : Exported.t)
                        let stamp = Ident.binding_time cd_id in
                        let item =
                          {
-                          Constructor.stamp;
-                          cname;
-                          deprecated =
-                            ProcessAttributes.findDeprecatedAttribute
-                              cd_attributes;
-                          attributes = cd_attributes;
-                          args =
-                            (match cd_args with
-                            | Cstr_tuple args ->
-                              Args
+                           Constructor.stamp;
+                           cname;
+                           deprecated =
+                             ProcessAttributes.findDeprecatedAttribute
+                               cd_attributes;
+                           attributes = cd_attributes;
+                           args =
+                             (match cd_args with
+                             | Cstr_tuple args ->
+                               Args
                                  (args
                                  |> List.map (fun t ->
                                         (t.Typedtree.ctyp_type, t.ctyp_loc)))
@@ -262,9 +254,7 @@ let forTypeDeclaration ~env ~(exported : Exported.t)
                                  (fields
                                  |> List.map
                                       (fun (f : Typedtree.label_declaration) ->
-                                        let astamp =
-                                          Ident.binding_time f.ld_id
-                                        in
+                                        let astamp = Ident.binding_time f.ld_id in
                                         let name = Ident.name f.ld_id in
                                         {
                                           stamp = astamp;
@@ -314,15 +304,15 @@ let forTypeDeclaration ~env ~(exported : Exported.t)
                      ->
                        let fstamp = Ident.binding_time ld_id in
                        {
-                          stamp = fstamp;
-                          fname;
-                          typ = ctyp_type;
-                          optional = ld_optional;
-                          attributes = ld_attributes;
-                          docstring = attrsToDocstring ld_attributes;
-                          deprecated =
-                            ProcessAttributes.findDeprecatedAttribute
-                              ld_attributes;
+                         stamp = fstamp;
+                         fname;
+                         typ = ctyp_type;
+                         optional = ld_optional;
+                         attributes = ld_attributes;
+                         docstring = attrsToDocstring ld_attributes;
+                         deprecated =
+                           ProcessAttributes.findDeprecatedAttribute
+                             ld_attributes;
                        })));
         }
       ~name ~stamp ~env typ_attributes
@@ -747,7 +737,7 @@ and forStructure ~name ~env strItems =
   let deprecated = ProcessAttributes.findDeprecatedAttribute attributes in
   {Module.name; docstring; exported; items; deprecated}
 
-let fileForCmtInfos ~moduleName ~uri
+let file_from_cmt_infos ~moduleName ~uri
     ({cmt_modname; cmt_annots} : Cmt_format.cmt_infos) =
   let env =
     {Env.stamps = Stamps.init (); modulePath = File (uri, moduleName)}
@@ -784,28 +774,3 @@ let fileForCmtInfos ~moduleName ~uri
     let structure = forSignature ~name:moduleName ~env signature.sig_items in
     {uri; moduleName = cmt_modname; stamps = env.stamps; structure}
   | _ -> File.create moduleName uri
-
-let fileForCmt ~moduleName ~cmt ~uri =
-  match Hashtbl.find_opt state.cmtCache cmt with
-  | Some file -> Some file
-  | None -> (
-    match Shared.tryReadCmt cmt with
-    | None -> None
-    | Some infos ->
-      let file = fileForCmtInfos ~moduleName ~uri infos in
-      Hashtbl.replace state.cmtCache cmt file;
-      Some file)
-
-let fileForModule moduleName ~package =
-  match !fileForModuleHook with
-  | Some hook -> hook ~moduleName ~package
-  | None -> (
-    match Hashtbl.find_opt package.pathsForModule moduleName with
-    | Some paths ->
-      let uri = getUri paths in
-      let cmt = getCmtPath ~uri paths in
-      Log.log ("fileForModule " ^ showPaths paths);
-      fileForCmt ~cmt ~moduleName ~uri
-    | None ->
-      Log.log ("No path for module " ^ moduleName);
-      None)
