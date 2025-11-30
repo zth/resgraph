@@ -16,7 +16,6 @@
   GenerateSchemaValidation
   GenerateSchemaTypePrinters
   ProcessAttributes
-  ProcessCmt
   TypeUtils
   Shared
   SharedTypes
@@ -31,7 +30,6 @@
   BuildSystem
   Cache
   Cfg
-  Cmt
   CmtDirect
   CmtSummarize
   DirectResolve

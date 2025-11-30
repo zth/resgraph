@@ -1,35 +1,28 @@
-Refactor plan: remove ProcessCmt/ProcessExtra and work directly on CMTs
+Refactor plan: work directly on CMTs (legacy ProcessCmt removed)
 ==============================================================
+
+Status
+------
+- Legacy `generate-schema` path that depended on `ProcessCmt`/`Cmt` is gone; the CLI now calls the direct CMT pipeline (single `generate-schema` entrypoint).
+- `References` resolves constructors via `DirectResolve` + `CmtDirect/CmtSummarize` without editor caches.
+- Shared global `cmtCache` was removed; only package metadata remains global.
 
 Goal
 ----
-- Make ResGraph read `.cmt`/`.cmti` directly (no ProcessCmt/ProcessExtra layer) while keeping generation output identical.
+- Keep ResGraph reading `.cmt`/`.cmti` directly while maintaining identical generation output.
 - Shape the code so processing can be parallelized (no hidden global state or shared mutation beyond explicit caches passed around).
 
 Current data flow (what happens today)
 --------------------------------------
-- CLI calls `GenerateSchema.generateSchema`.
-- `GenerateSchema` scans project files (via `Packages`) and, for any file that textually contains `@gql.`, loads `Cmt.loadFullCmtFromPath`.
-- `Cmt.loadFullCmtFromPath`:
-  - Locates package metadata and module name.
-  - Calls `ProcessCmt.fileForCmtInfos` to turn `Cmt_format.cmt_infos` into `SharedTypes.File.t`.
-    - Builds `Module.structure`/`Module.item` trees representing signature/structure items, with doc/deprecated info from attributes.
-    - Creates `Stamps` tables keyed by binding stamps for types/values/modules/constructors.
-    - Tracks module visibility via `ModulePath` so exported names can be resolved.
-  - Calls `ProcessExtra.getExtra` to build `extra` (reference maps, locItems) used by editor-only features.
-  - Returns `full = {file; extra; package}`.
-- `GenerateSchema` builds a `QueryEnv` from `full.file` and walks `file.structure` with `traverseStructure`.
+- CLI calls `GenerateSchemaDirect.generateSchemaDirect` for `generate-schema`.
+- `GenerateSchemaDirect` scans project files (via `Packages`) and, for any file that textually contains `@gql.`, loads `CmtDirect` + `CmtSummarize` to build `SharedTypes.File.t`.
+- Per-run loader caches summarized files in-memory; `References` uses the same loader to chase type aliases across modules (`DirectResolve`).
+- `GenerateSchema` builds a `QueryEnv` from each summarized file and walks `file.structure` with `traverseStructure`.
   - Decides what to emit based on `Module.item.kind` (Type/Module/Value) and `@gql.*` attributes already attached by ProcessCmt.
   - Field/type extraction uses `SharedTypes.field`, `Constructor.t`, etc. populated by ProcessCmt.
   - Type alias chasing uses `References.digConstructor`.
-- `References.digConstructor` and `ResolvePath.resolveFromCompilerPath`:
-  - Use `SharedTypes.QueryEnv` + `Stamps` + `Exported` tables built by ProcessCmt.
-  - Cross-module lookups call back into `ProcessCmt.fileForModule ~package` to load other modules’ `SharedTypes.File.t` from CMTs.
-- `ProcessExtra` is not used by generation, only by reference/hover paths; it still sits in `SharedTypes.full`.
 - Global state to note:
-  - `SharedTypes.state` holds `packagesByRoot`, `rootForUri`, `cmtCache`.
-  - `ProcessCmt.fileForCmt` caches in `SharedTypes.state.cmtCache`.
-  - `GenerateSchema` creates its own per-run `cmtCache`, but depends on the ProcessCmt cache underneath.
+  - `SharedTypes.state` holds `packagesByRoot`, `rootForUri` (no more shared cmt cache).
 
 What generation actually needs from the processed layer
 -------------------------------------------------------

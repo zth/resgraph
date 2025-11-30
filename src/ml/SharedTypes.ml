@@ -1,12 +1,6 @@
-let str s = if s = "" then "\"\"" else s
-let list l = "[" ^ (l |> List.map str |> String.concat ", ") ^ "]"
-let ident l = l |> List.map str |> String.concat "."
-
 type path = string list
 
 type typedFnArg = Asttypes.arg_label * Types.type_expr
-
-let pathToString (path : path) = path |> String.concat "."
 
 module ModulePath = struct
   type t =
@@ -364,17 +358,6 @@ type paths =
       res: filePath;
     }
 
-let showPaths paths =
-  match paths with
-  | Impl {cmt; res} ->
-    Printf.sprintf "Impl cmt:%s res:%s" (Utils.dumpPath cmt)
-      (Utils.dumpPath res)
-  | Namespace {cmt} -> Printf.sprintf "Namespace cmt:%s" (Utils.dumpPath cmt)
-  | IntfAndImpl {cmti; resi; cmt; res} ->
-    Printf.sprintf "IntfAndImpl cmti:%s resi:%s cmt:%s res:%s"
-      (Utils.dumpPath cmti) (Utils.dumpPath resi) (Utils.dumpPath cmt)
-      (Utils.dumpPath res)
-
 let getSrc p =
   match p with
   | Impl {res} -> [res]
@@ -401,56 +384,6 @@ let getCmtPath ~uri p =
     let interface = Utils.endsWith (Uri.toPath uri) "i" in
     if interface then cmti else cmt
 
-module Tip = struct
-  type t = Value | Type | Field of string | Constructor of string | Module
-
-  let toString tip =
-    match tip with
-    | Value -> "Value"
-    | Type -> "Type"
-    | Field f -> "Field(" ^ f ^ ")"
-    | Constructor a -> "Constructor(" ^ a ^ ")"
-    | Module -> "Module"
-end
-
-let rec pathIdentToString (p : Path.t) =
-  match p with
-  | Pident {name} -> name
-  | Pdot (nextPath, id, _) ->
-    Printf.sprintf "%s.%s" (pathIdentToString nextPath) id
-  | Papply _ -> ""
-
-type locKind =
-  | LocalReference of int * Tip.t
-  | GlobalReference of string * string list * Tip.t
-  | NotFound
-  | Definition of int * Tip.t
-
-type locType =
-  | Typed of string * Types.type_expr * locKind
-  | Constant of Asttypes.constant
-  | LModule of locKind
-  | TopLevelModule of string
-  | TypeDefinition of string * Types.type_declaration * int
-
-type locItem = {loc: Location.t; locType: locType}
-
-module LocationSet = Set.Make (struct
-  include Location
-
-  let compare loc1 loc2 = compare loc2 loc1
-
-  (* polymorphic compare should be OK *)
-end)
-
-type extra = {
-  internalReferences: (int, Location.t list) Hashtbl.t;
-  externalReferences:
-    (string, (string list * Tip.t * Location.t) list) Hashtbl.t;
-  fileReferences: (string, LocationSet.t) Hashtbl.t;
-  mutable locItems: locItem list;
-}
-
 type file = string
 
 module FileSet = Set.Make (String)
@@ -472,20 +405,11 @@ type package = {
 let allFilesInPackage package =
   FileSet.union package.projectFiles package.dependenciesFiles
 
-type full = {extra: extra; file: File.t; package: package}
-
-let initExtra () =
-  {
-    internalReferences = Hashtbl.create 0;
-    externalReferences = Hashtbl.create 0;
-    fileReferences = Hashtbl.create 0;
-    locItems = [];
-  }
+type full = {file: File.t; package: package}
 
 type state = {
   packagesByRoot: (string, package) Hashtbl.t;
   rootForUri: (Uri.t, string) Hashtbl.t;
-  cmtCache: (filePath, File.t) Hashtbl.t;
 }
 
 (* There's only one state, so it can as well be global *)
@@ -493,5 +417,4 @@ let state =
   {
     packagesByRoot = Hashtbl.create 1;
     rootForUri = Hashtbl.create 30;
-    cmtCache = Hashtbl.create 30;
   }

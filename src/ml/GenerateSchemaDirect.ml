@@ -106,18 +106,14 @@ let with_hooks ~package ~preloaded f =
     | Some file -> Some file
     | None -> load_and_cache moduleName
   in
-  let processHook ~moduleName ~package:_ = loader ~moduleName in
   let digHook = DirectReferences.digConstructor ~loader in
-  ProcessCmt.setFileForModuleHook (Some processHook);
   References.setDigConstructorHook digHook;
   let res =
     try f ~loader
     with exn ->
-      ProcessCmt.clearFileForModuleHook ();
       References.clearDigConstructorHook ();
       raise exn
   in
-  ProcessCmt.clearFileForModuleHook ();
   References.clearDigConstructorHook ();
   res
 
@@ -159,7 +155,7 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
 
            preloaded
            |> List.iter (fun (_moduleName, file) ->
-                  let full = {file; extra = SharedTypes.initExtra (); package} in
+                  let full = {file; package} in
                   let env = SharedTypes.QueryEnv.fromFile file in
                   GenerateSchema.traverseStructure file.structure
                     ~originModule:env.file.moduleName ~schemaState ~env ~full
