@@ -103,7 +103,7 @@ jobs:
           mv dev/resgraph.exe ${{matrix.artifact-folder}}
           tar -cvf binary.tar ${{matrix.artifact-folder}}
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{matrix.os}}
           path: bin/binary.tar
@@ -129,7 +129,7 @@ jobs:
         run: test -f dist/Cli.mjs
 
       - name: Download MacOS x86 binary
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: macos-13
           path: ./bin
@@ -137,7 +137,7 @@ jobs:
         working-directory: ./bin
 
       - name: Download MacOS ARM binary
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: macos-14
           path: ./bin
@@ -145,7 +145,7 @@ jobs:
         working-directory: ./bin
 
       - name: Download Linux binary
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ubuntu-20.04
           path: ./bin
@@ -153,7 +153,7 @@ jobs:
         working-directory: ./bin
 
       - name: Download Windows binary
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: windows-latest
           path: ./bin
@@ -181,7 +181,7 @@ jobs:
       - name: Rename package
         run: mv resgraph*.tgz resgraph.tgz
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: resgraph.tgz
           path: resgraph.tgz
