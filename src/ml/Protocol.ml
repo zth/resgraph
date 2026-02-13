@@ -41,9 +41,9 @@ let stringifyObject properties =
   "{"
   ^ (properties
     |> List.filter_map (fun (key, value) ->
-           match value with
-           | None -> None
-           | Some value -> Some (Printf.sprintf {|"%s":%s|} key value))
+        match value with
+        | None -> None
+        | Some value -> Some (Printf.sprintf {|"%s":%s|} key value))
     |> String.concat ",")
   ^ "}"
 

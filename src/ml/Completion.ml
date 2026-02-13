@@ -36,20 +36,20 @@ let completionWithParser ~debug ~path ~pos ~currentFile ~text =
   let attribute (iterator : Ast_iterator.iterator)
       ((id, payload) : Parsetree.attribute) =
     (if id.loc.loc_ghost = false && id.loc |> Loc.hasPos ~pos:posBeforeCursor
-    then
-     let posStart, posEnd = Loc.range id.loc in
-     match
-       (Pos.positionToOffset text posStart, Pos.positionToOffset text posEnd)
-     with
-     | Some offsetStart, Some offsetEnd ->
-       let label = cleanAttributeLabel ~text ~offsetStart ~offsetEnd in
-       if Utils.startsWith label "g" then (
-         found := true;
-         if debug then
-           Printf.printf "Attribute id:%s:%s label:%s\n" id.txt
-             (Loc.toString id.loc) label;
-         setResult (Decorator {label}))
-     | _ -> ());
+     then
+       let posStart, posEnd = Loc.range id.loc in
+       match
+         (Pos.positionToOffset text posStart, Pos.positionToOffset text posEnd)
+       with
+       | Some offsetStart, Some offsetEnd ->
+         let label = cleanAttributeLabel ~text ~offsetStart ~offsetEnd in
+         if Utils.startsWith label "g" then (
+           found := true;
+           if debug then
+             Printf.printf "Attribute id:%s:%s label:%s\n" id.txt
+               (Loc.toString id.loc) label;
+           setResult (Decorator {label}))
+       | _ -> ());
     Ast_iterator.default_iterator.attribute iterator (id, payload)
   in
   let iterator = {Ast_iterator.default_iterator with attribute} in
@@ -85,40 +85,40 @@ let completion ~debug ~path ~pos ~currentFile =
       | Decorator {label} ->
         (GenerateSchemaUtils.validAttributes
         |> List.filter_map (fun (attrName, desc) ->
-               if Utils.startsWith attrName label then
-                 let completionItem : Protocol.completionItem =
-                   {
-                     label = attrName;
-                     kind = 4;
-                     tags = [];
-                     detail = desc;
-                     sortText = None;
-                     filterText = None;
-                     insertTextFormat = None;
-                     insertText = None;
-                     documentation = None;
-                   }
-                 in
-                 Some completionItem
-               else None))
+            if Utils.startsWith attrName label then
+              let completionItem : Protocol.completionItem =
+                {
+                  label = attrName;
+                  kind = 4;
+                  tags = [];
+                  detail = desc;
+                  sortText = None;
+                  filterText = None;
+                  insertTextFormat = None;
+                  insertText = None;
+                  documentation = None;
+                }
+              in
+              Some completionItem
+            else None))
         @ (GenerateSchemaUtils.makeSnippets ~path
           |> List.filter_map (fun (attrName, desc, snippetText) ->
-                 if Utils.startsWith attrName label then
-                   let completionItem : Protocol.completionItem =
-                     {
-                       label = attrName;
-                       kind = 4;
-                       tags = [];
-                       detail = desc;
-                       sortText = Some "@gql.a";
-                       filterText = None;
-                       insertTextFormat = Some Snippet;
-                       insertText = Some snippetText;
-                       documentation = None;
-                     }
-                   in
-                   Some completionItem
-                 else None)))
+              if Utils.startsWith attrName label then
+                let completionItem : Protocol.completionItem =
+                  {
+                    label = attrName;
+                    kind = 4;
+                    tags = [];
+                    detail = desc;
+                    sortText = Some "@gql.a";
+                    filterText = None;
+                    insertTextFormat = Some Snippet;
+                    insertText = Some snippetText;
+                    documentation = None;
+                  }
+                in
+                Some completionItem
+              else None)))
   in
   Printf.printf "{\"status\": \"Completion\", \"items\": %s}"
     (completions |> List.map Protocol.stringifyCompletionItem |> Protocol.array)
