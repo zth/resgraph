@@ -28,7 +28,6 @@ jobs:
             macos-15-intel, # x64
             macos-15, # ARM,
             ubuntu-20.04,
-            windows-latest,
           ]
         # syntax explanation:
         # https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#example-including-additional-values-into-combinations
@@ -39,13 +38,11 @@ jobs:
             artifact-folder: darwinarm64
           - os: ubuntu-20.04
             artifact-folder: linux
-          - os: windows-latest
-            artifact-folder: win32
 
     runs-on: ${{matrix.os}}
 
     steps:
-      # needed for Windows testing
+      # normalize line endings in CI checkout
       - name: Set git to use LF
         run: |
           git config --global core.autocrlf false
@@ -148,14 +145,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ubuntu-20.04
-          path: ./bin
-      - run: tar -xvf binary.tar
-        working-directory: ./bin
-
-      - name: Download Windows binary
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-latest
           path: ./bin
       - run: tar -xvf binary.tar
         working-directory: ./bin
