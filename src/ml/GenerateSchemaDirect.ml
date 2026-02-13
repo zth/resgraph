@@ -16,12 +16,13 @@ let load_cmt ~package ~moduleName ~sourcePath =
     Error
       {
         file = sourcePath;
-        message = "Module \"" ^ moduleName ^ "\" is missing from pathsForModule.";
+        message =
+          "Module \"" ^ moduleName ^ "\" is missing from pathsForModule.";
       }
-  | Some paths ->
+  | Some paths -> (
     let uri = Uri.fromPath sourcePath in
     let cmtPath = SharedTypes.getCmtPath ~uri paths in
-    (match CmtDirect.of_path ~moduleName ~path:cmtPath with
+    match CmtDirect.of_path ~moduleName ~path:cmtPath with
     | None ->
       Error
         {file = cmtPath; message = "Unable to read cmt/cmt[i] file for module."}
@@ -43,48 +44,39 @@ let collect_gql_cmts ~sourceFolder =
     let loaded = ref [] in
     package.projectFiles
     |> FileSet.iter (fun modName ->
-           match Hashtbl.find_opt package.pathsForModule modName with
-           | None -> ()
-           | Some paths ->
-             (* Only consider implementation .res files for the initial gql attribute check. *)
-             let sourcePaths = SharedTypes.getSrc paths in
-             List.iter
-               (fun sourcePath ->
-                 let hasAttr =
-                   try GenerateSchemaUtils.fileHasGqlAttribute sourcePath
-                   with _ -> false
-                 in
-                 if hasAttr then
-                   let moduleName =
-                     BuildSystem.namespacedName package.namespace
-                       (FindFiles.getName sourcePath)
-                   in
-                   match load_cmt ~package ~moduleName ~sourcePath with
-                   | Error err -> errs := err :: !errs
-                   | Ok (cmtPath, cmt) ->
-                     loaded :=
-                       {
-                         moduleName;
-                         sourcePath = sourcePath;
-                         cmtPath;
-                         cmt;
-                       }
-                       :: !loaded)
-               sourcePaths);
+        match Hashtbl.find_opt package.pathsForModule modName with
+        | None -> ()
+        | Some paths ->
+          (* Only consider implementation .res files for the initial gql attribute check. *)
+          let sourcePaths = SharedTypes.getSrc paths in
+          List.iter
+            (fun sourcePath ->
+              let hasAttr =
+                try GenerateSchemaUtils.fileHasGqlAttribute sourcePath
+                with _ -> false
+              in
+              if hasAttr then
+                let moduleName =
+                  BuildSystem.namespacedName package.namespace
+                    (FindFiles.getName sourcePath)
+                in
+                match load_cmt ~package ~moduleName ~sourcePath with
+                | Error err -> errs := err :: !errs
+                | Ok (cmtPath, cmt) ->
+                  loaded := {moduleName; sourcePath; cmtPath; cmt} :: !loaded)
+            sourcePaths);
     if List.length !errs > 0 then Error (List.rev !errs)
     else Ok (package, List.rev !loaded)
 
 let print_collect_errors errs =
   errs
-  |> List.iter (fun {file; message} ->
-         prerr_endline (file ^ ": " ^ message))
+  |> List.iter (fun {file; message} -> prerr_endline (file ^ ": " ^ message))
 
 let with_hooks ~package ~preloaded f =
   let cache : (string, SharedTypes.File.t) Hashtbl.t = Hashtbl.create 100 in
   (* seed cache with already loaded summaries *)
   preloaded
-  |> List.iter (fun (moduleName, file) ->
-         Hashtbl.replace cache moduleName file);
+  |> List.iter (fun (moduleName, file) -> Hashtbl.replace cache moduleName file);
   let load_and_cache moduleName =
     match Hashtbl.find_opt package.pathsForModule moduleName with
     | None -> None
@@ -127,12 +119,12 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
     let preloaded =
       loaded
       |> List.map (fun l ->
-             let file =
-               CmtSummarize.file_from_cmt_infos ~moduleName:l.moduleName
-                 ~uri:(Uri.fromPath l.sourcePath)
-                 (CmtDirect.infos l.cmt)
-             in
-             (l.moduleName, file))
+          let file =
+            CmtSummarize.file_from_cmt_infos ~moduleName:l.moduleName
+              ~uri:(Uri.fromPath l.sourcePath)
+              (CmtDirect.infos l.cmt)
+          in
+          (l.moduleName, file))
     in
     ignore
       (with_hooks ~package ~preloaded (fun ~loader:_ ->
@@ -155,11 +147,11 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
 
            preloaded
            |> List.iter (fun (_moduleName, file) ->
-                  let full = {file; package} in
-                  let env = SharedTypes.QueryEnv.fromFile file in
-                  GenerateSchema.traverseStructure file.structure
-                    ~originModule:env.file.moduleName ~schemaState ~env ~full
-                    ~debug);
+               let full = {file; package} in
+               let env = SharedTypes.QueryEnv.fromFile file in
+               GenerateSchema.traverseStructure file.structure
+                 ~originModule:env.file.moduleName ~schemaState ~env ~full
+                 ~debug);
 
            let processedSchema =
              GenerateSchemaUtils.processSchema schemaState
@@ -170,15 +162,22 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
            if schemaState.diagnostics |> List.length > 0 then (
              if printToStdOut then
                Printf.printf
-                 "{\n  \"status\": \"Error\",\n  \"errors\": \n    [\n      %s\n    ]\n}"
+                 "{\n\
+                 \  \"status\": \"Error\",\n\
+                 \  \"errors\": \n\
+                 \    [\n\
+                 \      %s\n\
+                 \    ]\n\
+                  }"
                  (schemaState.diagnostics |> List.rev
                  |> List.map (fun (_, diagnostic) ->
-                        GenerateSchemaUtils.printDiagnostic diagnostic)
+                     GenerateSchemaUtils.printDiagnostic diagnostic)
                  |> String.concat ",\n");
 
              (* Write an empty schema just to avoid type errors in the generated code. *)
              GenerateSchemaUtils.writeIfHasChanges schemaOutputPath
-               "let schema = ResGraph__GraphQLJs.GraphQLSchemaType.make(Obj.magic())\n")
+               "let schema = \
+                ResGraph__GraphQLJs.GraphQLSchemaType.make(Obj.magic())\n")
            else
              let schemaCode =
                GenerateSchemaTypePrinters.printSchemaJsFile schemaState

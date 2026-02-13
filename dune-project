@@ -15,11 +15,9 @@
  (synopsis "ResGraph")
  (depends
   (ocaml
-   (>= 4.10))
+   (= 5.3.0))
   (ocamlformat
-   (= 0.22.4))
+   (= 0.28.1))
   (cppo
    (= 1.6.9))
-  (reanalyze
-   (= 2.23.0))
   dune))

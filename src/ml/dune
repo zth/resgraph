@@ -5,38 +5,10 @@
  (flags
   (-w "+6+26+27+32+33+39"))
  (libraries unix str ext ml jsonlib syntax)
- (modules
-  Cli
-  GenerateSchema
-  GenerateSchemaDirect
-  GenerateSchemaTypes
-  GenerateSchemaUtils
-  GenerateSchemaDiagnostics
-  GenerateSchemaSDL
-  GenerateSchemaValidation
-  GenerateSchemaTypePrinters
-  ProcessAttributes
-  TypeUtils
-  Shared
-  SharedTypes
-  Utils
-  Loc
-  Pos
-  Range
-  Uri
-  Files
-  Packages
-  ModuleResolution
-  BuildSystem
-  Cache
-  Cfg
-  CmtDirect
-  CmtSummarize
-  DirectResolve
-  DirectReferences
-  Debug
-  Log
-  PrintType
-  Protocol
-  References
-  FindFiles))
+ (modules Cli GenerateSchema GenerateSchemaDirect GenerateSchemaTypes
+   GenerateSchemaUtils GenerateSchemaDiagnostics GenerateSchemaSDL
+   GenerateSchemaValidation GenerateSchemaTypePrinters ProcessAttributes
+   TypeUtils Shared SharedTypes Utils Loc Pos Range Uri Files Packages
+   ModuleResolution BuildSystem Cache Cfg CmtDirect CmtSummarize
+   DirectResolve DirectReferences Debug Log PrintType Protocol References
+   FindFiles))

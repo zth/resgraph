@@ -248,13 +248,15 @@ let forTypeDeclaration ~env ~(exported : Exported.t)
                                Args
                                  (args
                                  |> List.map (fun t ->
-                                        (t.Typedtree.ctyp_type, t.ctyp_loc)))
+                                     (t.Typedtree.ctyp_type, t.ctyp_loc)))
                              | Cstr_record fields ->
                                InlineRecord
                                  (fields
                                  |> List.map
                                       (fun (f : Typedtree.label_declaration) ->
-                                        let astamp = Ident.binding_time f.ld_id in
+                                        let astamp =
+                                          Ident.binding_time f.ld_id
+                                        in
                                         let name = Ident.name f.ld_id in
                                         {
                                           stamp = astamp;
@@ -350,13 +352,13 @@ let rec forSignatureItem ~env ~(exported : Exported.t)
   | Tsig_type (recFlag, decls) ->
     decls
     |> List.mapi (fun i decl ->
-           let recStatus =
-             match recFlag with
-             | Recursive when i = 0 -> Types.Trec_first
-             | Nonrecursive when i = 0 -> Types.Trec_not
-             | _ -> Types.Trec_next
-           in
-           decl |> forTypeDeclaration ~env ~exported ~recStatus)
+        let recStatus =
+          match recFlag with
+          | Recursive when i = 0 -> Types.Trec_first
+          | Nonrecursive when i = 0 -> Types.Trec_not
+          | _ -> Types.Trec_next
+        in
+        decl |> forTypeDeclaration ~env ~exported ~recStatus)
   | Tsig_module
       {md_id; md_attributes; md_loc; md_name = name; md_type = {mty_type}} ->
     let item =
@@ -383,8 +385,8 @@ let rec forSignatureItem ~env ~(exported : Exported.t)
   | Tsig_recmodule modDecls ->
     modDecls
     |> List.map (fun modDecl ->
-           forSignatureItem ~env ~exported
-             {item with sig_desc = Tsig_module modDecl})
+        forSignatureItem ~env ~exported
+          {item with sig_desc = Tsig_module modDecl})
     |> List.flatten
   | Tsig_include {incl_mod; incl_type} ->
     let env =
@@ -448,8 +450,8 @@ let rec forStructureItem ~(env : SharedTypes.Env.t) ~(exported : Exported.t)
           match
             pat.pat_extra
             |> Utils.filterMap (function
-                 | Typedtree.Tpat_unpack, loc, _ -> Some loc
-                 | _ -> None)
+              | Typedtree.Tpat_unpack, loc, _ -> Some loc
+              | _ -> None)
           with
           | loc :: _ -> Some loc
           | [] -> None
@@ -553,8 +555,8 @@ let rec forStructureItem ~(env : SharedTypes.Env.t) ~(exported : Exported.t)
   | Tstr_recmodule modDecls ->
     modDecls
     |> List.map (fun modDecl ->
-           forStructureItem ~env ~exported
-             {item with str_desc = Tstr_module modDecl})
+        forStructureItem ~env ~exported
+          {item with str_desc = Tstr_module modDecl})
     |> List.flatten
   | Tstr_modtype
       {
@@ -616,13 +618,13 @@ let rec forStructureItem ~(env : SharedTypes.Env.t) ~(exported : Exported.t)
   | Tstr_type (recFlag, decls) ->
     decls
     |> List.mapi (fun i decl ->
-           let recStatus =
-             match recFlag with
-             | Recursive when i = 0 -> Types.Trec_first
-             | Nonrecursive when i = 0 -> Types.Trec_not
-             | _ -> Types.Trec_next
-           in
-           decl |> forTypeDeclaration ~env ~exported ~recStatus)
+        let recStatus =
+          match recFlag with
+          | Recursive when i = 0 -> Types.Trec_first
+          | Nonrecursive when i = 0 -> Types.Trec_not
+          | _ -> Types.Trec_next
+        in
+        decl |> forTypeDeclaration ~env ~exported ~recStatus)
   | _ -> []
 
 and forModule ~env mod_desc moduleName =
@@ -681,8 +683,8 @@ and scanLetModules ~env (e : Typedtree.expression) =
     scanLetModules ~env funct;
     args
     |> List.iter (function
-         | _, Some e -> scanLetModules ~env e
-         | _, None -> ())
+      | _, Some e -> scanLetModules ~env e
+      | _, None -> ())
   | Texp_tuple exprs -> List.iter (scanLetModules ~env) exprs
   | Texp_sequence (e1, e2) ->
     scanLetModules ~env e1;
@@ -707,10 +709,10 @@ and scanLetModules ~env (e : Typedtree.expression) =
     scanLetModules ~env e;
     cases
     |> List.iter (fun {Typedtree.c_lhs = _; c_guard; c_rhs} ->
-           (match c_guard with
-           | Some g -> scanLetModules ~env g
-           | None -> ());
-           scanLetModules ~env c_rhs)
+        (match c_guard with
+        | Some g -> scanLetModules ~env g
+        | None -> ());
+        scanLetModules ~env c_rhs)
   | Texp_ifthenelse (e1, e2, e3Opt) -> (
     scanLetModules ~env e1;
     scanLetModules ~env e2;
@@ -729,9 +731,9 @@ and forStructure ~name ~env strItems =
   let attributes =
     strItems
     |> List.filter_map (fun (struc : Typedtree.structure_item) ->
-           match struc with
-           | {str_desc = Tstr_attribute attr} -> Some attr
-           | _ -> None)
+        match struc with
+        | {str_desc = Tstr_attribute attr} -> Some attr
+        | _ -> None)
   in
   let docstring = attrsToDocstring attributes in
   let deprecated = ProcessAttributes.findDeprecatedAttribute attributes in
@@ -747,10 +749,10 @@ let file_from_cmt_infos ~moduleName ~uri
     let items =
       parts |> Array.to_list
       |> Utils.filterMap (fun p ->
-             match (p : Cmt_format.binary_part) with
-             | Partial_structure str -> Some str.str_items
-             | Partial_structure_item str -> Some [str]
-             | _ -> None)
+          match (p : Cmt_format.binary_part) with
+          | Partial_structure str -> Some str.str_items
+          | Partial_structure_item str -> Some [str]
+          | _ -> None)
       |> List.concat
     in
     let structure = forStructure ~name:moduleName ~env items in
@@ -759,10 +761,10 @@ let file_from_cmt_infos ~moduleName ~uri
     let items =
       parts |> Array.to_list
       |> Utils.filterMap (fun (p : Cmt_format.binary_part) ->
-             match p with
-             | Partial_signature str -> Some str.sig_items
-             | Partial_signature_item str -> Some [str]
-             | _ -> None)
+          match p with
+          | Partial_signature str -> Some str.sig_items
+          | Partial_signature_item str -> Some [str]
+          | _ -> None)
       |> List.concat
     in
     let structure = forSignature ~name:moduleName ~env items in

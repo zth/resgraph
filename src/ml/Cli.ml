@@ -1,4 +1,5 @@
-let help = {|
+let help =
+  {|
 **Private CLI For ResGraph**
 
 Commands:

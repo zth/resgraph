@@ -5,10 +5,10 @@ let makePathsForModule ~projectFilesAndPaths ~dependenciesFilesAndPaths =
   let pathsForModule = Hashtbl.create 30 in
   dependenciesFilesAndPaths
   |> List.iter (fun (modName, paths) ->
-         Hashtbl.replace pathsForModule modName paths);
+      Hashtbl.replace pathsForModule modName paths);
   projectFilesAndPaths
   |> List.iter (fun (modName, paths) ->
-         Hashtbl.replace pathsForModule modName paths);
+      Hashtbl.replace pathsForModule modName paths);
   pathsForModule
 
 let overrideRescriptVersion = ref None
@@ -79,8 +79,8 @@ let newBsPackage ~rootPath =
                      let values =
                        items
                        |> List.filter_map (function
-                            | Json.String s -> Some s
-                            | _ -> None)
+                         | Json.String s -> Some s
+                         | _ -> None)
                      in
                      Misc.StringMap.add key values acc
                    | _ -> acc)

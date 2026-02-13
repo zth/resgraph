@@ -6,6 +6,16 @@ on:
     tags: "*.*.*"
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      npm_tag:
+        description: "npm dist-tag to use (e.g. latest, next, beta, auto to derive from git tag)"
+        required: false
+        default: "auto"
+      dry_run:
+        description: "Run npm publish in dry-run mode"
+        type: boolean
+        default: true
 
 jobs:
   test:
@@ -52,7 +62,7 @@ jobs:
       - name: Use OCaml
         uses: ocaml/setup-ocaml@v2
         with:
-          ocaml-compiler: 4.14.x
+          ocaml-compiler: 5.3.0
 
       - name: Use Node.js
         uses: actions/setup-node@v3
@@ -60,7 +70,7 @@ jobs:
           node-version: 16
 
       - run: npm ci
-      - run: opam install dune cppo
+      - run: opam install dune cppo ocamlformat.0.28.1
       # - run: npm run res:build
 
       # These 2 runs (or just the second?) are for when you have opam dependencies. We don't.
@@ -70,6 +80,10 @@ jobs:
 
       - name: Build and test
         run: opam exec -- make test
+
+      - name: Check formatting
+        if: matrix.os == 'ubuntu-20.04'
+        run: opam exec -- make checkformat
 
       - name: Verify generated outputs are clean
         run: |
@@ -107,7 +121,12 @@ jobs:
           node-version: 16
 
       - run: npm ci
-      - run: npm run res:build
+
+      - name: Build npm package artifacts
+        run: npm run build
+
+      - name: Verify CLI bundle exists
+        run: test -f dist/Cli.mjs
 
       - name: Download MacOS x86 binary
         uses: actions/download-artifact@v3
@@ -167,9 +186,40 @@ jobs:
           name: resgraph.tgz
           path: resgraph.tgz
 
-      - name: Publish release version if wanted
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: JS-DevTools/npm-publish@v1
-        with:
-          token: ${{ secrets.NPM_TOKEN }}
-          package: ./package.json
+      - name: Compute npm tag and dry-run flag
+        id: npm_publish
+        run: |
+          input_tag="${{ github.event.inputs.npm_tag }}"
+          dry_run="${{ github.event.inputs.dry_run }}"
+          ref_tag="${GITHUB_REF#refs/tags/}"
+
+          if [[ -z "$input_tag" || "$input_tag" == "auto" ]]; then
+            if [[ "$ref_tag" != "$GITHUB_REF" && "$ref_tag" == *"-"* ]]; then
+              tag="next"
+            else
+              tag="latest"
+            fi
+          else
+            tag="$input_tag"
+          fi
+
+          if [[ "$dry_run" == "" ]]; then dry_run="false"; fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "dry_run=$dry_run" >> "$GITHUB_OUTPUT"
+          echo "Using npm tag '$tag' (dry-run: $dry_run)."
+
+      - name: Publish to npm
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TAG: ${{ steps.npm_publish.outputs.tag }}
+          DRY_RUN: ${{ steps.npm_publish.outputs.dry_run }}
+        run: |
+          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ~/.npmrc
+          args="--tag $NPM_TAG"
+          if [[ "$DRY_RUN" == "true" ]]; then
+            echo "Running npm publish in dry-run mode"
+            args="$args --dry-run"
+          fi
+          npm publish $args

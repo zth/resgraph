@@ -413,8 +413,4 @@ type state = {
 }
 
 (* There's only one state, so it can as well be global *)
-let state =
-  {
-    packagesByRoot = Hashtbl.create 1;
-    rootForUri = Hashtbl.create 30;
-  }
+let state = {packagesByRoot = Hashtbl.create 1; rootForUri = Hashtbl.create 30}
