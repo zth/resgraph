@@ -31,19 +31,16 @@ type info =
   | Impl
   | Impl_intf
 
-type syntax_kind = Ml | Res
-
 type module_info = {
-  mutable info : info;
-  dir : string;
-  syntax_kind : syntax_kind;
-  case : bool;
-  name_sans_extension : string;
+  mutable info: info;
+  dir: string;
+  case: bool;
+  name_sans_extension: string;
 }
 
 type map = module_info Map_string.t
 
-type 'a cat = { mutable lib : 'a; mutable dev : 'a }
+type 'a cat = {mutable lib: 'a; mutable dev: 'a}
 
 type t = map cat
 (** indexed by the group *)

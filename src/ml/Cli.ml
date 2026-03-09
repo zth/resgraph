@@ -1,15 +1,25 @@
-let help = {|
+let help =
+  {|
 **Private CLI For ResGraph**
+
+Commands:
+  generate-schema <sourceFolder> <outputFolder> [printSdl:boolean]
+  completion <path> <line> <col> <currentFile>
+  hover <path> <line> <col>
+  hover-graphql <path> <hoverHint>
+  definition-graphql <path> <definitionHint>
 |}
+
+let run_generate ~sourceFolder ~outputFolder ~writeSdlFile =
+  GenerateSchemaDirect.generateSchemaDirect ~writeStateFile:true ~sourceFolder
+    ~debug:false ~outputFolder ~writeSdlFile ~printToStdOut:true
 
 let main () =
   match Array.to_list Sys.argv with
   | [_; "generate-schema"; sourceFolder; outputFolder; "true"] ->
-    GenerateSchema.generateSchema ~writeStateFile:true ~sourceFolder
-      ~debug:false ~outputFolder ~writeSdlFile:true ~printToStdOut:true
+    run_generate ~sourceFolder ~outputFolder ~writeSdlFile:true
   | [_; "generate-schema"; sourceFolder; outputFolder] ->
-    GenerateSchema.generateSchema ~writeStateFile:true ~sourceFolder
-      ~debug:false ~outputFolder ~writeSdlFile:false ~printToStdOut:true
+    run_generate ~sourceFolder ~outputFolder ~writeSdlFile:false
   | [_; "completion"; path; line; col; currentFile] ->
     Completion.completion ~debug:false ~path
       ~pos:(int_of_string line, int_of_string col)
@@ -20,7 +30,6 @@ let main () =
     Hover.hoverGraphQL ~path ~hoverHint |> print_endline
   | [_; "definition-graphql"; path; definitionHint] ->
     Hover.definitionGraphQL ~path ~definitionHint |> print_endline
-  | [_; "test"; path] -> Commands.test ~path
   | args when List.mem "-h" args || List.mem "--help" args -> prerr_endline help
   | _ ->
     prerr_endline help;

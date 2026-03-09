@@ -83,5 +83,5 @@ type resolveInfo = {
   schema: ResolveInfo.schema,
   fragments: Dict.t<ResolveInfo.fragmentDefinition>,
   operation: ResolveInfo.operationDefinition,
-  variableValues: Dict.t<Js.Json.t>,
+  variableValues: Dict.t<JSON.t>,
 }

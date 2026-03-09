@@ -5,6 +5,8 @@
 let initialized = ref(false)
 let shutdownRequestAlreadyReceived = ref(false)
 
+module Console = Stdlib.Console
+
 let log = Console.error
 
 module Message = {
@@ -486,7 +488,7 @@ let start = (~mode, ~configFilePath) => {
             ->send
           } else {
             shutdownRequestAlreadyReceived := true
-            watcher->Bindings.Chokidar.Watcher.close->Promise.done
+            watcher->Bindings.Chokidar.Watcher.close->Promise.ignore
             Message.Response.make(~id=msg->Message.getId, ~result=Message.Result.null(), ())
             ->Message.Response.asMessage
             ->send

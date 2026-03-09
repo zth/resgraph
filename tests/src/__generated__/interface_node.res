@@ -3,26 +3,22 @@
 @@warning("-27-34-37")
 
 module Resolver = {
-  @gql.interfaceResolver("node") type t = Group(Schema.group) | User(User.user)
+  @gql.interfaceResolver("node") type t = Thing(Thing.thing)
 }
 
 module ImplementedBy = {
-  type t = Group | User
+  type t = Thing
 
   let decode = (str: string) =>
     switch str {
-    | "Group" => Some(Group)
-    | "User" => Some(User)
+    | "Thing" => Some(Thing)
     | _ => None
     }
 
   external toString: t => string = "%identity"
 }
 
-type typeMap<'a> = {
-  @as("Group") group: 'a,
-  @as("User") user: 'a,
-}
+type typeMap<'a> = {@as("Thing") thing: 'a}
 
 module TypeMap: {
   type t<'value>
@@ -34,25 +30,28 @@ module TypeMap: {
   /** Takes a type and returns what value it represents, as string. */
   let getStringifiedValueByType: (t<'value>, ImplementedBy.t) => string
 } = {
-  external unsafe_toDict: typeMap<'value> => Js.Dict.t<'value> = "%identity"
+  external unsafe_toDict: typeMap<'value> => dict<'value> = "%identity"
   external unsafe_toType: string => ImplementedBy.t = "%identity"
   type t<'value> = {
-    typeToValue: Js.Dict.t<'value>,
-    valueToTypeAsString: Js.Dict.t<string>,
+    typeToValue: dict<'value>,
+    valueToTypeAsString: dict<string>,
     valueToString: 'value => string,
   }
   let make = (typeMap, ~valueToString) => {
     typeToValue: typeMap->unsafe_toDict,
     valueToTypeAsString: typeMap
     ->unsafe_toDict
-    ->Js.Dict.entries
+    ->Dict.toArray
     ->Array.map(((key, value)) => (valueToString(value), key))
-    ->Js.Dict.fromArray,
+    ->Dict.fromArray,
     valueToString,
   }
 
   let getStringifiedValueByType = (t, typ) =>
-    t.typeToValue->Dict.get(typ->ImplementedBy.toString)->Option.getExn->t.valueToString
+    t.typeToValue
+    ->Dict.get(typ->ImplementedBy.toString)
+    ->Option.getOrThrow
+    ->t.valueToString
   let getTypeByStringifiedValue = (t, str) =>
     t.valueToTypeAsString->Dict.get(str)->Option.map(unsafe_toType)
 }

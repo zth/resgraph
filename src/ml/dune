@@ -1,9 +1,14 @@
 (executable
  (public_name resgraph)
- (modes byte exe)
- ; The main module that will become the binary.
  (name Cli)
+ (modes byte exe)
  (flags
   (-w "+6+26+27+32+33+39"))
- ; Depends on:
- (libraries unix str ext ml jsonlib syntax))
+ (libraries unix str ext ml jsonlib syntax)
+ (modules Cli GenerateSchema GenerateSchemaDirect GenerateSchemaTypes
+   GenerateSchemaUtils GenerateSchemaDiagnostics GenerateSchemaSDL
+   GenerateSchemaValidation GenerateSchemaTypePrinters ProcessAttributes
+   TypeUtils Shared SharedTypes Utils Loc Pos Range Uri Files Packages
+   ModuleResolution BuildSystem Cache Cfg CmtDirect CmtSummarize
+   DirectResolve DirectReferences Debug Log PrintType Protocol References
+   Completion Hover Markdown FindFiles))

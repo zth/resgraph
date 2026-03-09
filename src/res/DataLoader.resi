@@ -42,8 +42,7 @@ module Plain: {
   type batchFn<'key, 'value> = array<'key> => promise<array<'value>>
 
   /** Create a new data loader, from a batch load function. */
-  @new
-  @module("dataloader")
+  @new @module("dataloader")
   external make: (batchFn<'key, 'value>, ~options: options=?) => t<'key, 'value> = "default"
   /**
    * Loads a key, returning a `promise` for the value represented by that key.
@@ -81,8 +80,7 @@ module Plain: {
   /**
    * The name given to this `DataLoader` instance, if set. Useful for APM tools..
    */
-  @get
-  @return(nullable)
+  @get @return(nullable)
   external name: t<'key, 'value> => option<string> = "name"
 }
 

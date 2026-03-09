@@ -50,8 +50,6 @@ let runtime = "runtime" (* runtime directory *)
 
 let stdlib = "stdlib"
 
-let imul = "imul" (* signed int32 mul *)
-
 let setter_suffix = "#="
 
 let setter_suffix_len = String.length setter_suffix
@@ -99,10 +97,6 @@ let suffix_cmxa = ".cmxa"
 
 let suffix_mll = ".mll"
 
-let suffix_ml = ".ml"
-
-let suffix_mli = ".mli"
-
 let suffix_res = ".res"
 
 let suffix_resi = ".resi"
@@ -130,10 +124,10 @@ let esmodule = "esmodule"
 let commonjs = "commonjs"
 
 let es6 = "es6"
-[@@ocaml.deprecated "Will be removed in v12"]
+(* [@@deprecated "Will be removed in v12"] *)
 
 let es6_global = "es6-global"
-[@@ocaml.deprecated "Will be removed in v12"]
+(* [@@deprecated "Will be removed in v12"] *)
 
 let unused_attribute = "Unused attribute "
 
@@ -169,9 +163,5 @@ let cons = "::"
 let hd = "hd"
 
 let tl = "tl"
-
-let lazy_done = "LAZY_DONE"
-
-let lazy_val = "VAL"
 
 let pure = "@__PURE__"

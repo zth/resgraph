@@ -1,12 +1,6 @@
-let str s = if s = "" then "\"\"" else s
-let list l = "[" ^ (l |> List.map str |> String.concat ", ") ^ "]"
-let ident l = l |> List.map str |> String.concat "."
-
 type path = string list
 
 type typedFnArg = Asttypes.arg_label * Types.type_expr
-
-let pathToString (path : path) = path |> String.concat "."
 
 module ModulePath = struct
   type t =
@@ -24,6 +18,16 @@ module ModulePath = struct
       | NotVisible -> current
     in
     loop modulePath [tipName]
+
+  let toPathWithPrefix modulePath prefix : path =
+    let rec loop modulePath current =
+      match modulePath with
+      | File _ -> current
+      | IncludedModule (_, inner) -> loop inner current
+      | ExportedModule {name; modulePath = inner} -> loop inner (name :: current)
+      | NotVisible -> current
+    in
+    prefix :: loop modulePath []
 end
 
 type field = {
@@ -122,13 +126,14 @@ module Module = struct
   type kind =
     | Value of Types.type_expr
     | Type of Type.t * Types.rec_status
-    | Module of t
+    | Module of {type_: t; isModuleType: bool}
 
   and item = {
     kind: kind;
     name: string;
-    attributes: Parsetree.attribute list;
     loc: Location.t;
+    docstring: string list;
+    deprecated: string option;
   }
 
   and structure = {
@@ -136,6 +141,7 @@ module Module = struct
     docstring: string list;
     exported: Exported.t;
     items: item list;
+    deprecated: string option;
   }
 
   and t = Ident of Path.t | Structure of structure | Constraint of t * t
@@ -155,6 +161,14 @@ module Declared = struct
 end
 
 module Stamps : sig
+  type kind =
+    | KType of Type.t Declared.t
+    | KValue of Types.type_expr Declared.t
+    | KModule of Module.t Declared.t
+    | KConstructor of Constructor.t Declared.t
+
+  val locOfKind : kind -> Warnings.loc
+
   type t
 
   val addConstructor : t -> int -> Constructor.t Declared.t -> unit
@@ -169,6 +183,7 @@ module Stamps : sig
   val iterModules : (int -> Module.t Declared.t -> unit) -> t -> unit
   val iterTypes : (int -> Type.t Declared.t -> unit) -> t -> unit
   val iterValues : (int -> Types.type_expr Declared.t -> unit) -> t -> unit
+  val getEntries : t -> (int * kind) list
 end = struct
   type 't stampMap = (int, 't Declared.t) Hashtbl.t
 
@@ -177,6 +192,12 @@ end = struct
     | KValue of Types.type_expr Declared.t
     | KModule of Module.t Declared.t
     | KConstructor of Constructor.t Declared.t
+
+  let locOfKind = function
+    | KType declared -> declared.extentLoc
+    | KValue declared -> declared.extentLoc
+    | KModule declared -> declared.extentLoc
+    | KConstructor declared -> declared.extentLoc
 
   type t = (int, kind) Hashtbl.t
 
@@ -239,6 +260,8 @@ end = struct
         | KConstructor d -> f stamp d
         | _ -> ())
       stamps
+
+  let getEntries t = t |> Hashtbl.to_seq |> List.of_seq
 end
 
 module File = struct
@@ -260,6 +283,7 @@ module File = struct
           docstring = [];
           exported = Exported.init ();
           items = [];
+          deprecated = None;
         };
     }
 end
@@ -311,39 +335,6 @@ end = struct
     {env with exported = structure.exported; pathRev; parent = Some env}
 end
 
-type polyVariantConstructor = {name: string; args: Types.type_expr list}
-
-type innerType = TypeExpr of Types.type_expr | ExtractedType of completionType
-and completionType =
-  | Tuple of QueryEnv.t * Types.type_expr list * Types.type_expr
-  | Texn of QueryEnv.t
-  | Toption of QueryEnv.t * innerType
-  | Tbool of QueryEnv.t
-  | Tarray of QueryEnv.t * innerType
-  | Tstring of QueryEnv.t
-  | Tvariant of {
-      env: QueryEnv.t;
-      constructors: Constructor.t list;
-      variantDecl: Types.type_declaration;
-      variantName: string;
-    }
-  | Tpolyvariant of {
-      env: QueryEnv.t;
-      constructors: polyVariantConstructor list;
-      typeExpr: Types.type_expr;
-    }
-  | Trecord of {
-      env: QueryEnv.t;
-      fields: field list;
-      definition:
-        [ `NameOnly of string
-          (** When we only have the name, like when pulling the record from a declared type. *)
-        | `TypeExpr of Types.type_expr
-          (** When we have the full type expr from the compiler. *) ];
-    }
-  | TinlineRecord of {env: QueryEnv.t; fields: field list}
-  | Tfunction of {env: QueryEnv.t; args: typedFnArg list; typ: Types.type_expr}
-
 module Env = struct
   type t = {stamps: Stamps.t; modulePath: ModulePath.t}
   let addExportedModule ~name ~isType env =
@@ -366,17 +357,6 @@ type paths =
       cmt: filePath;
       res: filePath;
     }
-
-let showPaths paths =
-  match paths with
-  | Impl {cmt; res} ->
-    Printf.sprintf "Impl cmt:%s res:%s" (Utils.dumpPath cmt)
-      (Utils.dumpPath res)
-  | Namespace {cmt} -> Printf.sprintf "Namespace cmt:%s" (Utils.dumpPath cmt)
-  | IntfAndImpl {cmti; resi; cmt; res} ->
-    Printf.sprintf "IntfAndImpl cmti:%s resi:%s cmt:%s res:%s"
-      (Utils.dumpPath cmti) (Utils.dumpPath resi) (Utils.dumpPath cmt)
-      (Utils.dumpPath res)
 
 let getSrc p =
   match p with
@@ -404,449 +384,33 @@ let getCmtPath ~uri p =
     let interface = Utils.endsWith (Uri.toPath uri) "i" in
     if interface then cmti else cmt
 
-module Tip = struct
-  type t = Value | Type | Field of string | Constructor of string | Module
-
-  let toString tip =
-    match tip with
-    | Value -> "Value"
-    | Type -> "Type"
-    | Field f -> "Field(" ^ f ^ ")"
-    | Constructor a -> "Constructor(" ^ a ^ ")"
-    | Module -> "Module"
-end
-
-let rec pathIdentToString (p : Path.t) =
-  match p with
-  | Pident {name} -> name
-  | Pdot (nextPath, id, _) ->
-    Printf.sprintf "%s.%s" (pathIdentToString nextPath) id
-  | Papply _ -> ""
-
-type locKind =
-  | LocalReference of int * Tip.t
-  | GlobalReference of string * string list * Tip.t
-  | NotFound
-  | Definition of int * Tip.t
-
-type locType =
-  | Typed of string * Types.type_expr * locKind
-  | Constant of Asttypes.constant
-  | LModule of locKind
-  | TopLevelModule of string
-  | TypeDefinition of string * Types.type_declaration * int
-
-type locItem = {loc: Location.t; locType: locType}
-
-module LocationSet = Set.Make (struct
-  include Location
-
-  let compare loc1 loc2 = compare loc2 loc1
-
-  (* polymorphic compare should be OK *)
-end)
-
-type extra = {
-  internalReferences: (int, Location.t list) Hashtbl.t;
-  externalReferences:
-    (string, (string list * Tip.t * Location.t) list) Hashtbl.t;
-  fileReferences: (string, LocationSet.t) Hashtbl.t;
-  mutable locItems: locItem list;
-}
-
 type file = string
 
 module FileSet = Set.Make (String)
 
-type builtInCompletionModules = {
-  arrayModulePath: string list;
-  optionModulePath: string list;
-  stringModulePath: string list;
-  intModulePath: string list;
-  floatModulePath: string list;
-  promiseModulePath: string list;
-  listModulePath: string list;
-  resultModulePath: string list;
-  exnModulePath: string list;
-}
-
 type package = {
+  genericJsxModule: string option;
+  suffix: string;
   rootPath: filePath;
   projectFiles: FileSet.t;
   dependenciesFiles: FileSet.t;
   pathsForModule: (file, paths) Hashtbl.t;
   namespace: string option;
-  builtInCompletionModules: builtInCompletionModules;
   opens: path list;
+  uncurried: bool;
+  rescriptVersion: int * int;
+  autocomplete: file list Misc.StringMap.t;
 }
 
 let allFilesInPackage package =
   FileSet.union package.projectFiles package.dependenciesFiles
 
-type full = {extra: extra; file: File.t; package: package}
-
-let initExtra () =
-  {
-    internalReferences = Hashtbl.create 10;
-    externalReferences = Hashtbl.create 10;
-    fileReferences = Hashtbl.create 10;
-    locItems = [];
-  }
+type full = {file: File.t; package: package}
 
 type state = {
   packagesByRoot: (string, package) Hashtbl.t;
   rootForUri: (Uri.t, string) Hashtbl.t;
-  cmtCache: (filePath, File.t) Hashtbl.t;
 }
 
 (* There's only one state, so it can as well be global *)
-let state =
-  {
-    packagesByRoot = Hashtbl.create 1;
-    rootForUri = Hashtbl.create 30;
-    cmtCache = Hashtbl.create 30;
-  }
-
-let locKindToString = function
-  | LocalReference (_, tip) -> "(LocalReference " ^ Tip.toString tip ^ ")"
-  | GlobalReference _ -> "GlobalReference"
-  | NotFound -> "NotFound"
-  | Definition (_, tip) -> "(Definition " ^ Tip.toString tip ^ ")"
-
-let locTypeToString = function
-  | Typed (name, e, locKind) ->
-    "Typed " ^ name ^ " " ^ Shared.typeToString e ^ " "
-    ^ locKindToString locKind
-  | Constant _ -> "Constant"
-  | LModule locKind -> "LModule " ^ locKindToString locKind
-  | TopLevelModule _ -> "TopLevelModule"
-  | TypeDefinition _ -> "TypeDefinition"
-
-let locItemToString {loc = {Location.loc_start; loc_end}; locType} =
-  let pos1 = Utils.cmtPosToPosition loc_start in
-  let pos2 = Utils.cmtPosToPosition loc_end in
-  Printf.sprintf "%d:%d-%d:%d %s" pos1.line pos1.character pos2.line
-    pos2.character (locTypeToString locType)
-
-(* needed for debugging *)
-let _ = locItemToString
-
-module Completable = struct
-  (* Completion context *)
-  type completionContext = Type | Value | Module | Field
-
-  type argumentLabel =
-    | Unlabelled of {argumentPosition: int}
-    | Labelled of string
-    | Optional of string
-
-  (** Additional context for nested completion where needed. *)
-  type nestedContext = RecordField of {seenFields: string list}
-
-  type nestedPath =
-    | NTupleItem of {itemNum: int}
-    | NFollowRecordField of {fieldName: string}
-    | NRecordBody of {seenFields: string list}
-    | NVariantPayload of {constructorName: string; itemNum: int}
-    | NPolyvariantPayload of {constructorName: string; itemNum: int}
-    | NArray
-
-  let nestedPathToString p =
-    match p with
-    | NTupleItem {itemNum} -> "tuple($" ^ string_of_int itemNum ^ ")"
-    | NFollowRecordField {fieldName} -> "recordField(" ^ fieldName ^ ")"
-    | NRecordBody _ -> "recordBody"
-    | NVariantPayload {constructorName; itemNum} ->
-      "variantPayload::" ^ constructorName ^ "($" ^ string_of_int itemNum ^ ")"
-    | NPolyvariantPayload {constructorName; itemNum} ->
-      "polyvariantPayload::" ^ constructorName ^ "($" ^ string_of_int itemNum
-      ^ ")"
-    | NArray -> "array"
-
-  type contextPath =
-    | CPString
-    | CPArray of contextPath option
-    | CPInt
-    | CPFloat
-    | CPBool
-    | CPOption of contextPath
-    | CPApply of contextPath * Asttypes.arg_label list
-    | CPId of string list * completionContext
-    | CPField of contextPath * string
-    | CPObj of contextPath * string
-    | CPPipe of {
-        contextPath: contextPath;
-        id: string;
-        inJsx: bool;  (** Whether this pipe was found in a JSX context. *)
-        lhsLoc: Location.t;
-            (** The loc item for the left hand side of the pipe. *)
-      }
-    | CTuple of contextPath list
-    | CArgument of {
-        functionContextPath: contextPath;
-        argumentLabel: argumentLabel;
-      }
-    | CJsxPropValue of {pathToComponent: string list; propName: string}
-    | CPatternPath of {rootCtxPath: contextPath; nested: nestedPath list}
-
-  type patternMode = Default | Destructuring
-
-  type t =
-    | Cdecorator of string  (** e.g. @module *)
-    | CnamedArg of contextPath * string * string list
-        (** e.g. (..., "label", ["l1", "l2"]) for ...(...~l1...~l2...~label...) *)
-    | Cnone  (** e.g. don't complete inside strings *)
-    | Cpath of contextPath
-    | Cjsx of string list * string * string list
-        (** E.g. (["M", "Comp"], "id", ["id1", "id2"]) for <M.Comp id1=... id2=... ... id *)
-    | Cexpression of {
-        contextPath: contextPath;
-        nested: nestedPath list;
-        prefix: string;
-      }
-    | Cpattern of {
-        contextPath: contextPath;
-        nested: nestedPath list;
-        prefix: string;
-        patternMode: patternMode;
-        fallback: t option;
-      }
-    | CexhaustiveSwitch of {contextPath: contextPath; exprLoc: Location.t}
-    | ChtmlElement of {prefix: string}
-
-  let completionContextToString = function
-    | Value -> "Value"
-    | Type -> "Type"
-    | Module -> "Module"
-    | Field -> "Field"
-
-  let rec contextPathToString = function
-    | CPString -> "string"
-    | CPInt -> "int"
-    | CPFloat -> "float"
-    | CPBool -> "bool"
-    | CPOption ctxPath -> "option<" ^ contextPathToString ctxPath ^ ">"
-    | CPApply (cp, labels) ->
-      contextPathToString cp ^ "("
-      ^ (labels
-        |> List.map (function
-             | Asttypes.Nolabel -> "Nolabel"
-             | Labelled s -> "~" ^ s
-             | Optional s -> "?" ^ s)
-        |> String.concat ", ")
-      ^ ")"
-    | CPArray (Some ctxPath) -> "array<" ^ contextPathToString ctxPath ^ ">"
-    | CPArray None -> "array"
-    | CPId (sl, completionContext) ->
-      completionContextToString completionContext ^ list sl
-    | CPField (cp, s) -> contextPathToString cp ^ "." ^ str s
-    | CPObj (cp, s) -> contextPathToString cp ^ "[\"" ^ s ^ "\"]"
-    | CPPipe {contextPath; id; inJsx} ->
-      contextPathToString contextPath
-      ^ "->" ^ id
-      ^ if inJsx then " <<jsx>>" else ""
-    | CTuple ctxPaths ->
-      "CTuple("
-      ^ (ctxPaths |> List.map contextPathToString |> String.concat ", ")
-      ^ ")"
-    | CArgument {functionContextPath; argumentLabel} ->
-      "CArgument "
-      ^ contextPathToString functionContextPath
-      ^ "("
-      ^ (match argumentLabel with
-        | Unlabelled {argumentPosition} -> "$" ^ string_of_int argumentPosition
-        | Labelled name -> "~" ^ name
-        | Optional name -> "~" ^ name ^ "=?")
-      ^ ")"
-    | CJsxPropValue {pathToComponent; propName} ->
-      "CJsxPropValue " ^ (pathToComponent |> list) ^ " " ^ propName
-    | CPatternPath {rootCtxPath; nested} ->
-      "CPatternPath("
-      ^ contextPathToString rootCtxPath
-      ^ ")" ^ "->"
-      ^ (nested
-        |> List.map (fun nestedPath -> nestedPathToString nestedPath)
-        |> String.concat "->")
-
-  let toString = function
-    | Cpath cp -> "Cpath " ^ contextPathToString cp
-    | Cdecorator s -> "Cdecorator(" ^ str s ^ ")"
-    | CnamedArg (cp, s, sl2) ->
-      "CnamedArg("
-      ^ (cp |> contextPathToString)
-      ^ ", " ^ str s ^ ", " ^ (sl2 |> list) ^ ")"
-    | Cnone -> "Cnone"
-    | Cjsx (sl1, s, sl2) ->
-      "Cjsx(" ^ (sl1 |> list) ^ ", " ^ str s ^ ", " ^ (sl2 |> list) ^ ")"
-    | Cpattern {contextPath; nested; prefix} -> (
-      "Cpattern "
-      ^ contextPathToString contextPath
-      ^ (if prefix = "" then "" else "=" ^ prefix)
-      ^
-      match nested with
-      | [] -> ""
-      | nestedPaths ->
-        "->"
-        ^ (nestedPaths
-          |> List.map (fun nestedPath -> nestedPathToString nestedPath)
-          |> String.concat ", "))
-    | Cexpression {contextPath; nested; prefix} -> (
-      "Cexpression "
-      ^ contextPathToString contextPath
-      ^ (if prefix = "" then "" else "=" ^ prefix)
-      ^
-      match nested with
-      | [] -> ""
-      | nestedPaths ->
-        "->"
-        ^ (nestedPaths
-          |> List.map (fun nestedPath -> nestedPathToString nestedPath)
-          |> String.concat ", "))
-    | CexhaustiveSwitch {contextPath} ->
-      "CexhaustiveSwitch " ^ contextPathToString contextPath
-    | ChtmlElement {prefix} -> "ChtmlElement <" ^ prefix
-end
-
-module Completion = struct
-  type kind =
-    | Module of Module.t
-    | Value of Types.type_expr
-    | ObjLabel of Types.type_expr
-    | Label of string
-    | Type of Type.t
-    | Constructor of Constructor.t * string
-    | PolyvariantConstructor of polyVariantConstructor * string
-    | Field of field * string
-    | FileModule of string
-    | Snippet of string
-    | ExtractedType of completionType * [`Value | `Type]
-    | FollowContextPath of Completable.contextPath
-
-  type t = {
-    name: string;
-    sortText: string option;
-    insertText: string option;
-    filterText: string option;
-    insertTextFormat: Protocol.insertTextFormat option;
-    env: QueryEnv.t;
-    deprecated: string option;
-    docstring: string list;
-    kind: kind;
-    detail: string option;
-  }
-
-  let create ~kind ~env ?(docstring = []) ?filterText ?detail ?deprecated
-      ?insertText name =
-    {
-      name;
-      env;
-      deprecated;
-      docstring;
-      kind;
-      sortText = None;
-      insertText;
-      insertTextFormat = None;
-      filterText;
-      detail;
-    }
-
-  let createWithSnippet ~name ?insertText ~kind ~env ?sortText ?deprecated
-      ?filterText ?detail ?(docstring = []) () =
-    {
-      name;
-      env;
-      deprecated;
-      docstring;
-      kind;
-      sortText;
-      insertText;
-      insertTextFormat = Some Protocol.Snippet;
-      filterText;
-      detail;
-    }
-
-  (* https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_completion *)
-  (* https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#completionItemKind *)
-  let kindToInt kind =
-    match kind with
-    | Module _ -> 9
-    | FileModule _ -> 9
-    | Constructor (_, _) | PolyvariantConstructor (_, _) -> 4
-    | ObjLabel _ -> 4
-    | Label _ -> 4
-    | Field (_, _) -> 5
-    | Type _ | ExtractedType (_, `Type) -> 22
-    | Value _ | ExtractedType (_, `Value) -> 12
-    | Snippet _ | FollowContextPath _ -> 15
-end
-
-let kindFromInnerType (t : innerType) =
-  match t with
-  | ExtractedType extractedType ->
-    Completion.ExtractedType (extractedType, `Value)
-  | TypeExpr typ -> Value typ
-
-module CursorPosition = struct
-  type t = NoCursor | HasCursor | EmptyLoc
-
-  let classifyLoc loc ~pos =
-    if loc |> Loc.hasPos ~pos then HasCursor
-    else if loc |> Loc.end_ = (Location.none |> Loc.end_) then EmptyLoc
-    else NoCursor
-
-  let classifyLocationLoc (loc : 'a Location.loc) ~pos =
-    if Loc.start loc.Location.loc <= pos && pos <= Loc.end_ loc.loc then
-      HasCursor
-    else if loc.loc |> Loc.end_ = (Location.none |> Loc.end_) then EmptyLoc
-    else NoCursor
-
-  let classifyPositions pos ~posStart ~posEnd =
-    if posStart <= pos && pos <= posEnd then HasCursor
-    else if posEnd = (Location.none |> Loc.end_) then EmptyLoc
-    else NoCursor
-
-  let locHasCursor loc ~pos = loc |> classifyLoc ~pos = HasCursor
-
-  let locIsEmpty loc ~pos = loc |> classifyLoc ~pos = EmptyLoc
-end
-
-type labelled = {
-  name: string;
-  opt: bool;
-  posStart: int * int;
-  posEnd: int * int;
-}
-
-type label = labelled option
-type arg = {label: label; exp: Parsetree.expression}
-
-let extractExpApplyArgs ~args =
-  let rec processArgs ~acc args =
-    match args with
-    | (((Asttypes.Labelled s | Optional s) as label), (e : Parsetree.expression))
-      :: rest -> (
-      let namedArgLoc =
-        e.pexp_attributes
-        |> List.find_opt (fun ({Asttypes.txt}, _) -> txt = "res.namedArgLoc")
-      in
-      match namedArgLoc with
-      | Some ({loc}, _) ->
-        let labelled =
-          {
-            name = s;
-            opt =
-              (match label with
-              | Optional _ -> true
-              | _ -> false);
-            posStart = Loc.start loc;
-            posEnd = Loc.end_ loc;
-          }
-        in
-        processArgs ~acc:({label = Some labelled; exp = e} :: acc) rest
-      | None -> processArgs ~acc rest)
-    | (Asttypes.Nolabel, (e : Parsetree.expression)) :: rest ->
-      if e.pexp_loc.loc_ghost then processArgs ~acc rest
-      else processArgs ~acc:({label = None; exp = e} :: acc) rest
-    | [] -> List.rev acc
-  in
-  args |> processArgs ~acc:[]
+let state = {packagesByRoot = Hashtbl.create 1; rootForUri = Hashtbl.create 30}

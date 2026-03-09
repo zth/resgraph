@@ -64,7 +64,10 @@ let is_single_int (x : t) : int option =
               ({pexp_desc = Pexp_constant (Pconst_integer (name, char)); _}, _);
           _;
         };
-      ] when (match char with Some n when n = 'n' -> false | _ -> true) ->
+      ]
+    when match char with
+         | Some n when n = 'n' -> false
+         | _ -> true ->
     Some (int_of_string name)
   | _ -> None
 
@@ -89,7 +92,8 @@ let is_single_bigint (x : t) : string option =
         {
           pstr_desc =
             Pstr_eval
-              ({pexp_desc = Pexp_constant (Pconst_integer (name, Some 'n')); _}, _);
+              ( {pexp_desc = Pexp_constant (Pconst_integer (name, Some 'n')); _},
+                _ );
           _;
         };
       ] ->
@@ -143,20 +147,22 @@ let raw_as_string_exp_exn ~(kind : Js_raw_info.raw_kind) ?is_function (x : t) :
       (match kind with
       | Raw_re | Raw_exp ->
         let ((_loc, e) as prog), errors =
-          Parser_flow.parse_expression (Parser_env.init_env None str) false
+          let open Parser_flow in
+          let env = Parser_env.init_env None str in
+          do_parse env Parse.expression false
         in
         (if kind = Raw_re then
-         match e with
-         | Literal {value = RegExp _} -> ()
-         | _ ->
-           Location.raise_errorf ~loc
-             "Syntax error: a valid JS regex literal expected");
+           match e with
+           | Flow_ast.Expression.Literal {value = RegExp _; _} -> ()
+           | _ ->
+             Location.raise_errorf ~loc
+               "Syntax error: a valid JS regex literal expected");
         (match is_function with
-          | Some is_function -> (
-            match Classify_function.classify_exp prog with
-            | Js_function {arity; _} -> is_function := Some arity
-            | _ -> ())
-          | None -> ());
+        | Some is_function -> (
+          match Classify_function.classify_exp prog with
+          | Js_function {arity; _} -> is_function := Some arity
+          | _ -> ())
+        | None -> ());
         errors
       | Raw_program -> snd (Parser_flow.parse_program false None str));
     Some {e with pexp_desc = Pexp_constant (Pconst_string (str, None))}
@@ -184,7 +190,7 @@ type action = lid * Parsetree.expression option
     {[ { x = exp }]}
 *)
 
-let unrecognizedConfigRecord loc text =
+let unrecognized_config_record loc text =
   Location.prerr_warning loc (Warnings.Bs_derive_warning text)
 
 let ident_or_record_as_config loc (x : t) :
@@ -204,14 +210,17 @@ let ident_or_record_as_config loc (x : t) :
     | None ->
       Ext_list.map label_exprs (fun u ->
           match u with
-          | ( {txt = Lident name; loc},
-              {Parsetree.pexp_desc = Pexp_ident {txt = Lident name2}} )
+          | {
+           lid = {txt = Lident name; loc};
+           x = {Parsetree.pexp_desc = Pexp_ident {txt = Lident name2}};
+          }
             when name2 = name ->
             ({Asttypes.txt = name; loc}, None)
-          | {txt = Lident name; loc}, y -> ({Asttypes.txt = name; loc}, Some y)
+          | {lid = {txt = Lident name; loc}; x = y} ->
+            ({Asttypes.txt = name; loc}, Some y)
           | _ -> Location.raise_errorf ~loc "Qualified label is not allowed")
     | Some _ ->
-      unrecognizedConfigRecord loc "`with` is not supported, discarding";
+      unrecognized_config_record loc "`with` is not supported, discarding";
       [])
   | PStr
       [
@@ -224,7 +233,7 @@ let ident_or_record_as_config loc (x : t) :
     [({Asttypes.txt; loc = lloc}, None)]
   | PStr [] -> []
   | _ ->
-    unrecognizedConfigRecord loc "invalid attribute config-record, ignoring";
+    unrecognized_config_record loc "invalid attribute config-record, ignoring";
     []
 
 let assert_strings loc (x : t) : string list =

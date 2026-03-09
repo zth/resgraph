@@ -17,55 +17,45 @@ open Asttypes
 open Typedtree
 
 type iterator = {
-  case : iterator -> case -> unit;
-  cases : iterator -> case list -> unit;
-  class_description : iterator -> class_description -> unit;
-  class_signature : iterator -> class_signature -> unit;
-  class_type : iterator -> class_type -> unit;
-  class_type_declaration : iterator -> class_type_declaration -> unit;
-  class_type_field : iterator -> class_type_field -> unit;
-  env : iterator -> Env.t -> unit;
-  expr : iterator -> expression -> unit;
-  extension_constructor : iterator -> extension_constructor -> unit;
-  module_binding : iterator -> module_binding -> unit;
-  module_coercion : iterator -> module_coercion -> unit;
-  module_declaration : iterator -> module_declaration -> unit;
-  module_expr : iterator -> module_expr -> unit;
-  module_type : iterator -> module_type -> unit;
-  module_type_declaration : iterator -> module_type_declaration -> unit;
-  package_type : iterator -> package_type -> unit;
-  pat : iterator -> pattern -> unit;
-  row_field : iterator -> row_field -> unit;
-  object_field : iterator -> object_field -> unit;
-  signature : iterator -> signature -> unit;
-  signature_item : iterator -> signature_item -> unit;
-  structure : iterator -> structure -> unit;
-  structure_item : iterator -> structure_item -> unit;
-  typ : iterator -> core_type -> unit;
-  type_declaration : iterator -> type_declaration -> unit;
-  type_declarations : iterator -> rec_flag * type_declaration list -> unit;
-  type_extension : iterator -> type_extension -> unit;
-  type_kind : iterator -> type_kind -> unit;
-  value_binding : iterator -> value_binding -> unit;
-  value_bindings : iterator -> rec_flag * value_binding list -> unit;
-  value_description : iterator -> value_description -> unit;
-  with_constraint : iterator -> with_constraint -> unit;
+  case: iterator -> case -> unit;
+  cases: iterator -> case list -> unit;
+  env: iterator -> Env.t -> unit;
+  expr: iterator -> expression -> unit;
+  extension_constructor: iterator -> extension_constructor -> unit;
+  module_binding: iterator -> module_binding -> unit;
+  module_coercion: iterator -> module_coercion -> unit;
+  module_declaration: iterator -> module_declaration -> unit;
+  module_expr: iterator -> module_expr -> unit;
+  module_type: iterator -> module_type -> unit;
+  module_type_declaration: iterator -> module_type_declaration -> unit;
+  package_type: iterator -> package_type -> unit;
+  pat: iterator -> pattern -> unit;
+  row_field: iterator -> row_field -> unit;
+  object_field: iterator -> object_field -> unit;
+  signature: iterator -> signature -> unit;
+  signature_item: iterator -> signature_item -> unit;
+  structure: iterator -> structure -> unit;
+  structure_item: iterator -> structure_item -> unit;
+  typ: iterator -> core_type -> unit;
+  type_declaration: iterator -> type_declaration -> unit;
+  type_declarations: iterator -> rec_flag * type_declaration list -> unit;
+  type_extension: iterator -> type_extension -> unit;
+  type_kind: iterator -> type_kind -> unit;
+  value_binding: iterator -> value_binding -> unit;
+  value_bindings: iterator -> rec_flag * value_binding list -> unit;
+  value_description: iterator -> value_description -> unit;
+  with_constraint: iterator -> with_constraint -> unit;
 }
 
 let structure sub {str_items; str_final_env; _} =
   List.iter (sub.structure_item sub) str_items;
   sub.env sub str_final_env
 
-let class_infos sub f x =
-  List.iter (fun (ct, _) -> sub.typ sub ct) x.ci_params;
-  f x.ci_expr
-
 let module_type_declaration sub {mtd_type; _} =
   Option.iter (sub.module_type sub) mtd_type
 
 let module_declaration sub {md_type; _} = sub.module_type sub md_type
 let include_infos f {incl_mod; _} = f incl_mod
-let class_type_declaration sub x = class_infos sub (sub.class_type sub) x
 
 let structure_item sub {str_desc; str_env; _} =
   sub.env sub str_env;
@@ -79,9 +69,6 @@ let structure_item sub {str_desc; str_env; _} =
   | Tstr_module mb -> sub.module_binding sub mb
   | Tstr_recmodule list -> List.iter (sub.module_binding sub) list
   | Tstr_modtype x -> sub.module_type_declaration sub x
-  | Tstr_class _ -> ()
-  | Tstr_class_type list ->
-    List.iter (fun (_, _, cltd) -> sub.class_type_declaration sub cltd) list
   | Tstr_include incl -> include_infos (sub.module_expr sub) incl
   | Tstr_open _ -> ()
   | Tstr_attribute _ -> ()
@@ -142,22 +129,18 @@ let pat sub {pat_extra; pat_desc; pat_env; _} =
   | Tpat_tuple l -> List.iter (sub.pat sub) l
   | Tpat_construct (_, _, l) -> List.iter (sub.pat sub) l
   | Tpat_variant (_, po, _) -> Option.iter (sub.pat sub) po
-  | Tpat_record (l, _) -> List.iter (fun (_, _, i) -> sub.pat sub i) l
+  | Tpat_record (l, _) -> List.iter (fun (_, _, i, _) -> sub.pat sub i) l
   | Tpat_array l -> List.iter (sub.pat sub) l
   | Tpat_or (p1, p2, _) ->
     sub.pat sub p1;
     sub.pat sub p2
   | Tpat_alias (p, _, _) -> sub.pat sub p
-  | Tpat_lazy p -> sub.pat sub p
 
 let expr sub {exp_extra; exp_desc; exp_env; _} =
   let extra = function
     | Texp_constraint cty -> sub.typ sub cty
-    | Texp_coerce (cty1, cty2) ->
-      Option.iter (sub.typ sub) cty1;
-      sub.typ sub cty2
+    | Texp_coerce cty2 -> sub.typ sub cty2
     | Texp_newtype _ -> ()
-    | Texp_poly cto -> Option.iter (sub.typ sub) cto
     | Texp_open (_, _, _, _) -> ()
   in
   List.iter (fun (e, _, _) -> extra e) exp_extra;
@@ -168,8 +151,8 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
   | Texp_let (rec_flag, list, exp) ->
     sub.value_bindings sub (rec_flag, list);
     sub.expr sub exp
-  | Texp_function {cases; _} -> sub.cases sub cases
-  | Texp_apply (exp, list) ->
+  | Texp_function {case; _} -> sub.case sub case
+  | Texp_apply {funct = exp; args = list} ->
     sub.expr sub exp;
     List.iter (fun (_, o) -> Option.iter (sub.expr sub) o) list
   | Texp_match (exp, list1, list2, _) ->
@@ -184,7 +167,9 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
   | Texp_variant (_, expo) -> Option.iter (sub.expr sub) expo
   | Texp_record {fields; extended_expression; _} ->
     Array.iter
-      (function _, Kept _ -> () | _, Overridden (_, exp) -> sub.expr sub exp)
+      (function
+        | _, Kept _, _ -> ()
+        | _, Overridden (_, exp), _ -> sub.expr sub exp)
       fields;
     Option.iter (sub.expr sub) extended_expression
   | Texp_field (exp, _, _) -> sub.expr sub exp
@@ -209,10 +194,6 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
   | Texp_send (exp, _, expo) ->
     sub.expr sub exp;
     Option.iter (sub.expr sub) expo
-  | Texp_new _ -> ()
-  | Texp_instvar _ -> ()
-  | Texp_setinstvar _ -> ()
-  | Texp_override _ -> ()
   | Texp_letmodule (_, _, mexpr, exp) ->
     sub.module_expr sub mexpr;
     sub.expr sub exp
@@ -220,10 +201,7 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
     sub.extension_constructor sub cd;
     sub.expr sub exp
   | Texp_assert exp -> sub.expr sub exp
-  | Texp_lazy exp -> sub.expr sub exp
-  | Texp_object _ -> ()
   | Texp_pack mexpr -> sub.module_expr sub mexpr
-  | Texp_unreachable -> ()
   | Texp_extension_constructor _ -> ()
 
 let package_type sub {pack_fields; _} =
@@ -244,12 +222,8 @@ let signature_item sub {sig_desc; sig_env; _} =
   | Tsig_recmodule list -> List.iter (sub.module_declaration sub) list
   | Tsig_modtype x -> sub.module_type_declaration sub x
   | Tsig_include incl -> include_infos (sub.module_type sub) incl
-  | Tsig_class () -> ()
-  | Tsig_class_type list -> List.iter (sub.class_type_declaration sub) list
   | Tsig_open _od -> ()
   | Tsig_attribute _ -> ()
-
-let class_description sub x = class_infos sub (sub.class_type sub) x
 
 let module_type sub {mty_desc; mty_env; _} =
   sub.env sub mty_env;
@@ -305,42 +279,17 @@ let module_expr sub {mod_desc; mod_env; _} =
 
 let module_binding sub {mb_expr; _} = sub.module_expr sub mb_expr
 
-let class_type sub {cltyp_desc; cltyp_env; _} =
-  sub.env sub cltyp_env;
-  match cltyp_desc with
-  | Tcty_signature csg -> sub.class_signature sub csg
-  | Tcty_constr (_, _, list) -> List.iter (sub.typ sub) list
-  | Tcty_arrow (_, ct, cl) ->
-    sub.typ sub ct;
-    sub.class_type sub cl
-  | Tcty_open (_, _, _, _, e) -> sub.class_type sub e
-
-let class_signature sub {csig_self; csig_fields; _} =
-  sub.typ sub csig_self;
-  List.iter (sub.class_type_field sub) csig_fields
-
-let class_type_field sub {ctf_desc; _} =
-  match ctf_desc with
-  | Tctf_inherit ct -> sub.class_type sub ct
-  | Tctf_val (_, _, _, ct) -> sub.typ sub ct
-  | Tctf_method (_, _, _, ct) -> sub.typ sub ct
-  | Tctf_constraint (ct1, ct2) ->
-    sub.typ sub ct1;
-    sub.typ sub ct2
-  | Tctf_attribute _ -> ()
-
 let typ sub {ctyp_desc; ctyp_env; _} =
   sub.env sub ctyp_env;
   match ctyp_desc with
   | Ttyp_any -> ()
   | Ttyp_var _ -> ()
-  | Ttyp_arrow (_, ct1, ct2) ->
-    sub.typ sub ct1;
-    sub.typ sub ct2
+  | Ttyp_arrow (arg, ret, _) ->
+    sub.typ sub arg.typ;
+    sub.typ sub ret
   | Ttyp_tuple list -> List.iter (sub.typ sub) list
   | Ttyp_constr (_, _, list) -> List.iter (sub.typ sub) list
   | Ttyp_object (list, _) -> List.iter (sub.object_field sub) list
-  | Ttyp_class (_, _, list) -> List.iter (sub.typ sub) list
   | Ttyp_alias (ct, _) -> sub.typ sub ct
   | Ttyp_variant (list, _, _) -> List.iter (sub.row_field sub) list
   | Ttyp_poly (_, ct) -> sub.typ sub ct
@@ -371,11 +320,6 @@ let default_iterator =
   {
     case;
     cases;
-    class_description;
-    class_signature;
-    class_type;
-    class_type_declaration;
-    class_type_field;
     env;
     expr;
     extension_constructor;

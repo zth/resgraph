@@ -1,11 +1,11 @@
 type 'a t = private
   | Empty
   | Leaf of 'a
-  | Node of { l : 'a t; v : 'a; r : 'a t; h : int }
+  | Node of {l: 'a t; v: 'a; r: 'a t; h: int}
 
 val empty : 'a t
 
-val is_empty : 'a t -> bool [@@inline]
+val is_empty : 'a t -> bool
 
 val unsafe_two_elements : 'a -> 'a -> 'a t
 

@@ -14,17 +14,17 @@
 (**************************************************************************)
 
 type loc = {
-  loc_start : Lexing.position;
-  loc_end : Lexing.position;
-  loc_ghost : bool;
+  loc_start: Lexing.position;
+  loc_end: Lexing.position;
+  loc_ghost: bool;
 }
 
-type topLevelUnitHelp = FunctionCall | Other
+type top_level_unit_help = FunctionCall | Other
 
 type t =
   | Comment_start (*  1 *)
   | Comment_not_end (*  2 *)
-  | Deprecated of string * loc * loc (*  3 *)
+  | Deprecated of string * loc * loc * bool (*  3 *)
   | Fragile_match of string (*  4 *)
   | Partial_application (*  5 *)
   | Method_override of string list (*  7 *)
@@ -78,7 +78,8 @@ type t =
   | Bs_unimplemented_primitive of string (* 106 *)
   | Bs_integer_literal_overflow (* 107 *)
   | Bs_uninterpreted_delimiters of string (* 108 *)
-  | Bs_toplevel_expression_unit of (string * topLevelUnitHelp) option (* 109 *)
+  | Bs_toplevel_expression_unit of
+      (string * top_level_unit_help) option (* 109 *)
   | Bs_todo of string option (* 110 *)
 
 val parse_options : bool -> string -> unit
@@ -90,13 +91,13 @@ val is_active : t -> bool
 val is_error : t -> bool
 
 type reporting_information = {
-  number : int;
-  message : string;
-  is_error : bool;
-  sub_locs : (loc * string) list;
+  number: int;
+  message: string;
+  is_error: bool;
+  sub_locs: (loc * string) list;
 }
 
-val report : t -> [ `Active of reporting_information | `Inactive ]
+val report : t -> [`Active of reporting_information | `Inactive]
 
 exception Errors
 
@@ -125,3 +126,10 @@ val message : t -> string
 val number : t -> int
 
 val reset : unit -> unit
+
+val loc_to_string : loc -> string
+(**
+Turn the location into a string with (line,column--line,column) format.
+*)
+
+val llm_mode : bool ref

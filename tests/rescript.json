@@ -1,5 +1,5 @@
 {
-  "name": "test",
+  "name": "resgraph-tests",
   "uncurried": true,
   "reanalyze": {
     "analysis": ["dce"]
@@ -18,17 +18,12 @@
     {
       "dir": "src",
       "subdirs": true
-    },
-    {
-      "dir": "tests",
-      "subdirs": true
     }
   ],
-  "bsc-flags": ["-w -33-44", "-open RescriptCore"],
-  "bs-dependencies": [
+  "compiler-flags": ["-w -33-44"],
+  "dependencies": [
     "@rescript/react",
     "@glennsl/rescript-fetch",
-    "@rescript/core",
     "rescript-nodejs"
   ],
   "jsx": { "version": 4 }

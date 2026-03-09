@@ -74,18 +74,18 @@ let filterDuplicates cmts =
   let intfs = Hashtbl.create 100 in
   cmts
   |> List.iter (fun path ->
-         if
-           Filename.check_suffix path ".rei"
-           || Filename.check_suffix path ".mli"
-           || Filename.check_suffix path ".cmti"
-         then Hashtbl.add intfs (getName path) true);
+      if
+        Filename.check_suffix path ".rei"
+        || Filename.check_suffix path ".mli"
+        || Filename.check_suffix path ".cmti"
+      then Hashtbl.add intfs (getName path) true);
   cmts
   |> List.filter (fun path ->
-         not
-           ((Filename.check_suffix path ".re"
-            || Filename.check_suffix path ".ml"
-            || Filename.check_suffix path ".cmt")
-           && Hashtbl.mem intfs (getName path)))
+      not
+        ((Filename.check_suffix path ".re"
+         || Filename.check_suffix path ".ml"
+         || Filename.check_suffix path ".cmt")
+        && Hashtbl.mem intfs (getName path)))
 
 let nameSpaceToName n =
   n
@@ -123,17 +123,17 @@ let collectFiles directory =
   let sources = allFiles |> List.filter isSourceFile |> filterDuplicates in
   compileds
   |> Utils.filterMap (fun path ->
-         let modName = getName path in
-         let cmt = directory /+ path in
-         let resOpt =
-           Utils.find
-             (fun name ->
-               if getName name = modName then Some (directory /+ name) else None)
-             sources
-         in
-         match resOpt with
-         | None -> None
-         | Some res -> Some (modName, SharedTypes.Impl {cmt; res}))
+      let modName = getName path in
+      let cmt = directory /+ path in
+      let resOpt =
+        Utils.find
+          (fun name ->
+            if getName name = modName then Some (directory /+ name) else None)
+          sources
+      in
+      match resOpt with
+      | None -> None
+      | Some res -> Some (modName, SharedTypes.Impl {cmt; res}))
 
 (* returns a list of (absolute path to cmt(i), relative path from base to source file) *)
 let findProjectFiles ~public ~namespace ~path ~sourceDirectories ~libBs =
@@ -141,67 +141,69 @@ let findProjectFiles ~public ~namespace ~path ~sourceDirectories ~libBs =
     sourceDirectories |> List.map (Filename.concat path) |> StringSet.of_list
   in
   let files =
+    (* Use maxDepth to prevent infinite recursion where `rescript` depends on `@rescript/runtime`,
+       but `@rescript/runtime` also has `rescript` as a dev dependency *)
     dirs |> StringSet.elements
-    |> List.map (fun name -> Files.collect name isSourceFile)
+    |> List.map (fun name -> Files.collect ~maxDepth:2 name isSourceFile)
     |> List.concat |> StringSet.of_list
   in
   dirs
   |> ifDebug true "Source directories" (fun s ->
-         s |> StringSet.elements |> List.map Utils.dumpPath |> String.concat " ");
+      s |> StringSet.elements |> List.map Utils.dumpPath |> String.concat " ");
   files
   |> ifDebug true "Source files" (fun s ->
-         s |> StringSet.elements |> List.map Utils.dumpPath |> String.concat " ");
+      s |> StringSet.elements |> List.map Utils.dumpPath |> String.concat " ");
 
   let interfaces = Hashtbl.create 100 in
   files
   |> StringSet.iter (fun path ->
-         if isInterface path then Hashtbl.replace interfaces (getName path) path);
+      if isInterface path then Hashtbl.replace interfaces (getName path) path);
 
   let normals =
     files |> StringSet.elements
     |> Utils.filterMap (fun file ->
-           if isImplementation file then (
-             let moduleName = getName file in
-             let resi = Hashtbl.find_opt interfaces moduleName in
-             Hashtbl.remove interfaces moduleName;
-             let base = compiledBaseName ~namespace (Files.relpath path file) in
-             match resi with
-             | Some resi ->
-               let cmti = (libBs /+ base) ^ ".cmti" in
-               let cmt = (libBs /+ base) ^ ".cmt" in
-               if Files.exists cmti then
-                 if Files.exists cmt then
-                   (* Log.log("Intf and impl " ++ cmti ++ " " ++ cmt) *)
-                   Some
-                     ( moduleName,
-                       SharedTypes.IntfAndImpl {cmti; resi; cmt; res = file} )
-                 else None
-               else (
-                 (* Log.log("Just intf " ++ cmti) *)
-                 Log.log ("Bad source file (no cmt/cmti/cmi) " ^ (libBs /+ base));
-                 None)
-             | None ->
-               let cmt = (libBs /+ base) ^ ".cmt" in
-               if Files.exists cmt then Some (moduleName, Impl {cmt; res = file})
-               else (
-                 Log.log ("Bad source file (no cmt/cmi) " ^ (libBs /+ base));
-                 None))
-           else None)
+        if isImplementation file then (
+          let moduleName = getName file in
+          let resi = Hashtbl.find_opt interfaces moduleName in
+          Hashtbl.remove interfaces moduleName;
+          let base = compiledBaseName ~namespace (Files.relpath path file) in
+          match resi with
+          | Some resi ->
+            let cmti = (libBs /+ base) ^ ".cmti" in
+            let cmt = (libBs /+ base) ^ ".cmt" in
+            if Files.exists cmti then
+              if Files.exists cmt then
+                (* Log.log("Intf and impl " ++ cmti ++ " " ++ cmt) *)
+                Some
+                  ( moduleName,
+                    SharedTypes.IntfAndImpl {cmti; resi; cmt; res = file} )
+              else None
+            else (
+              (* Log.log("Just intf " ++ cmti) *)
+              Log.log ("Bad source file (no cmt/cmti/cmi) " ^ (libBs /+ base));
+              None)
+          | None ->
+            let cmt = (libBs /+ base) ^ ".cmt" in
+            if Files.exists cmt then Some (moduleName, Impl {cmt; res = file})
+            else (
+              Log.log ("Bad source file (no cmt/cmi) " ^ (libBs /+ base));
+              None))
+        else None)
   in
   let result =
     normals
     |> List.filter_map (fun (name, paths) ->
-           let originalName = name in
-           let name =
-             match namespace with
-             | None -> name
-             | Some namespace -> name ^ "-" ^ namespace
-           in
-           match public with
-           | Some public ->
-             if public |> StringSet.mem originalName then Some (name, paths)
-             else None
-           | None -> Some (name, paths))
+        let originalName = name in
+        let name =
+          match namespace with
+          | None -> name
+          | Some namespace -> name ^ "-" ^ namespace
+        in
+        match public with
+        | Some public ->
+          if public |> StringSet.mem originalName then Some (name, paths)
+          else None
+        | None -> Some (name, paths))
   in
   match namespace with
   | None -> result
@@ -213,69 +215,73 @@ let findProjectFiles ~public ~namespace ~path ~sourceDirectories ~libBs =
 
 let findDependencyFiles base config =
   let deps =
-    config |> Json.get "bs-dependencies" |> bind Json.array
-    |> Option.value ~default:[]
-    |> List.filter_map Json.string
+    match
+      ( config |> Json.get "dependencies" |> bind Json.array,
+        config |> Json.get "bs-dependencies" |> bind Json.array )
+    with
+    | None, None -> []
+    | Some deps, None | _, Some deps -> deps |> List.filter_map Json.string
   in
   let devDeps =
-    config
-    |> Json.get "bs-dev-dependencies"
-    |> bind Json.array
-    |> Option.map (List.filter_map Json.string)
-    |> Option.value ~default:[]
+    match
+      ( config |> Json.get "dev-dependencies" |> bind Json.array,
+        config |> Json.get "bs-dev-dependencies" |> bind Json.array )
+    with
+    | None, None -> []
+    | Some devDeps, None | _, Some devDeps ->
+      devDeps |> List.filter_map Json.string
   in
   let deps = deps @ devDeps in
   Log.log ("Dependencies: " ^ String.concat " " deps);
   let depFiles =
     deps
     |> List.map (fun name ->
-           let result =
-             Json.bind
-               (ModuleResolution.resolveNodeModulePath ~startPath:base name)
-               (fun path ->
-                 let rescriptJsonPath = path /+ "rescript.json" in
-                 let bsconfigJsonPath = path /+ "bsconfig.json" in
+        let result =
+          Json.bind
+            (ModuleResolution.resolveNodeModulePath ~startPath:base name)
+            (fun path ->
+              let rescriptJsonPath = path /+ "rescript.json" in
+              let bsconfigJsonPath = path /+ "bsconfig.json" in
 
-                 let parseText text =
-                   match Json.parse text with
-                   | Some inner -> (
-                     let namespace = getNamespace inner in
-                     let sourceDirectories =
-                       getSourceDirectories ~includeDev:false ~baseDir:path
-                         inner
-                     in
-                     match BuildSystem.getLibBs path with
-                     | None -> None
-                     | Some libBs ->
-                       let compiledDirectories =
-                         sourceDirectories |> List.map (Filename.concat libBs)
-                       in
-                       let compiledDirectories =
-                         match namespace with
-                         | None -> compiledDirectories
-                         | Some _ -> libBs :: compiledDirectories
-                       in
-                       let projectFiles =
-                         findProjectFiles ~public:(getPublic inner) ~namespace
-                           ~path ~sourceDirectories ~libBs
-                       in
-                       Some (compiledDirectories, projectFiles))
-                   | None -> None
-                 in
+              let parseText text =
+                match Json.parse text with
+                | Some inner -> (
+                  let namespace = getNamespace inner in
+                  let sourceDirectories =
+                    getSourceDirectories ~includeDev:false ~baseDir:path inner
+                  in
+                  match BuildSystem.getLibBs path with
+                  | None -> None
+                  | Some libBs ->
+                    let compiledDirectories =
+                      sourceDirectories |> List.map (Filename.concat libBs)
+                    in
+                    let compiledDirectories =
+                      match namespace with
+                      | None -> compiledDirectories
+                      | Some _ -> libBs :: compiledDirectories
+                    in
+                    let projectFiles =
+                      findProjectFiles ~public:(getPublic inner) ~namespace
+                        ~path ~sourceDirectories ~libBs
+                    in
+                    Some (compiledDirectories, projectFiles))
+                | None -> None
+              in
 
-                 match Files.readFile rescriptJsonPath with
-                 | Some text -> parseText text
-                 | None -> (
-                   match Files.readFile bsconfigJsonPath with
-                   | Some text -> parseText text
-                   | None -> None))
-           in
+              match Files.readFile rescriptJsonPath with
+              | Some text -> parseText text
+              | None -> (
+                match Files.readFile bsconfigJsonPath with
+                | Some text -> parseText text
+                | None -> None))
+        in
 
-           match result with
-           | Some (files, directories) -> (files, directories)
-           | None ->
-             Log.log ("Skipping nonexistent dependency: " ^ name);
-             ([], []))
+        match result with
+        | Some (files, directories) -> (files, directories)
+        | None ->
+          Log.log ("Skipping nonexistent dependency: " ^ name);
+          ([], []))
   in
   match BuildSystem.getStdlib base with
   | None -> None

@@ -1,13 +1,32 @@
 let is_await : Parsetree.attribute -> bool =
-  fun ({txt}, _) -> txt = "await" || txt = "res.await"
+ fun ({txt}, _) -> txt = "await" || txt = "res.await"
 
 let create_await_expression (e : Parsetree.expression) =
   let loc = {e.pexp_loc with loc_ghost = true} in
   let unsafe_await =
     Ast_helper.Exp.ident ~loc
-      {txt = Ldot (Ldot (Lident "Js", "Promise"), "unsafe_await"); loc}
+      {txt = Ldot (Lident Primitive_modules.promise, "unsafe_await"); loc}
   in
   Ast_helper.Exp.apply ~loc unsafe_await [(Nolabel, e)]
+
+let is_await_expr (e : Parsetree.expression) =
+  match e with
+  | {
+   pexp_loc = {loc_ghost = true};
+   pexp_desc =
+     Pexp_apply
+       {
+         funct =
+           {
+             pexp_loc = {loc_ghost = true};
+             pexp_desc = Pexp_ident {txt = Ldot (Lident ident, "unsafe_await")};
+           };
+         args = [(Nolabel, _)];
+       };
+  }
+    when ident = Primitive_modules.promise ->
+    true
+  | _ -> false
 
 (* Transform `@res.await M` to unpack(@res.await Js.import(module(M: __M0__))) *)
 let create_await_module_expression ~module_type_lid (e : Parsetree.module_expr)
@@ -24,7 +43,8 @@ let create_await_module_expression ~module_type_lid (e : Parsetree.module_expr)
            (Exp.apply ~loc:e.pmod_loc
               (Exp.ident ~loc:e.pmod_loc
                  {
-                   txt = Longident.Ldot (Lident "Js", "import");
+                   txt =
+                     Longident.Ldot (Lident Primitive_modules.module_, "import");
                    loc = e.pmod_loc;
                  })
               [

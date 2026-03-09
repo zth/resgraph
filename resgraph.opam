@@ -6,10 +6,9 @@ authors: ["Gabriel Nordeborn"]
 homepage: "https://github.com/rescript-lang/rescript-vscode"
 bug-reports: "https://github.com/rescript-lang/rescript-vscode/issues"
 depends: [
-  "ocaml" {>= "4.10"}
-  "ocamlformat" {= "0.22.4"}
+  "ocaml" {= "5.3.0"}
+  "ocamlformat" {= "0.28.1"}
   "cppo" {= "1.6.9"}
-  "reanalyze" {= "2.23.0"}
   "dune"
 ]
 build: [

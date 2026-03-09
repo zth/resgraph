@@ -1,3 +1,5 @@
+[@@@warning "-11"]
+
 (* Copyright (C) 2020- Hongbo Zhang, Authors of ReScript
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -24,7 +26,11 @@
 
 let rec is_obj_literal (x : _ Flow_ast.Expression.t) : bool =
   match snd x with
-  | Identifier (_, {name = "undefined"}) | Literal _ -> true
+  | Identifier (_, {name = "undefined"}) -> true
+  | Literal {value; _} -> (
+    match value with
+    | String _ | Boolean _ | Null | Number _ | BigInt _ | RegExp _ -> true
+    | _ -> false)
   | Unary {operator = Minus; argument} -> is_obj_literal argument
   | Object {properties} -> Ext_list.for_all properties is_literal_kv
   | Array {elements} ->
@@ -61,17 +67,20 @@ let classify_exp (prog : _ Flow_ast.Expression.t) : Js_raw_info.exp =
           predicate = None;
         } ) ->
     Js_function {arity = List.length params; arrow = true}
-  | _, Literal {comments} ->
-    let comment =
-      match comments with
-      | None -> None
-      | Some {leading = [(_, {kind = Block; text = comment})]} ->
-        Some ("/*" ^ comment ^ "*/")
-      | Some {leading = [(_, {kind = Line; text = comment})]} ->
-        Some ("//" ^ comment)
-      | Some _ -> None
-    in
-    Js_literal {comment}
+  | _, Literal {value; comments; _} -> (
+    match value with
+    | String _ | Boolean _ | Null | Number _ | BigInt _ | RegExp _ ->
+      let comment =
+        match comments with
+        | None -> None
+        | Some {leading = [(_, {kind = Block; text = comment})]} ->
+          Some ("/*" ^ comment ^ "*/")
+        | Some {leading = [(_, {kind = Line; text = comment})]} ->
+          Some ("//" ^ comment)
+        | Some _ -> None
+      in
+      Js_literal {comment}
+    | _ -> if is_obj_literal prog then Js_literal {comment = None} else Js_exp_unknown)
   | _, Identifier (_, {name = "undefined"}) -> Js_literal {comment = None}
   | _, _ ->
     if is_obj_literal prog then Js_literal {comment = None} else Js_exp_unknown
@@ -84,7 +93,9 @@ let classify_exp (prog : _ Flow_ast.Expression.t) : Js_raw_info.exp =
 let classify ?(check : (Location.t * int) option) (prog : string) :
     Js_raw_info.exp =
   let prog, errors =
-    Parser_flow.parse_expression (Parser_env.init_env None prog) false
+    let open Parser_flow in
+    let env = Parser_env.init_env None prog in
+    do_parse env Parse.expression false
   in
   match (check, errors) with
   | Some (loc, offset), _ :: _ ->

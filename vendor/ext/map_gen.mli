@@ -1,7 +1,7 @@
 type ('key, +'a) t = private
   | Empty
-  | Leaf of { k : 'key; v : 'a }
-  | Node of { l : ('key, 'a) t; k : 'key; v : 'a; r : ('key, 'a) t; h : int }
+  | Leaf of {k: 'key; v: 'a}
+  | Node of {l: ('key, 'a) t; k: 'key; v: 'a; r: ('key, 'a) t; h: int}
 
 val cardinal : ('a, 'b) t -> int
 
@@ -22,10 +22,8 @@ val height : ('a, 'b) t -> int
 val singleton : 'a -> 'b -> ('a, 'b) t
 
 val unsafe_node : 'a -> 'b -> ('a, 'b) t -> ('a, 'b) t -> int -> ('a, 'b) t
-  [@@inline]
 
 val unsafe_two_elements : 'a -> 'b -> 'a -> 'b -> ('a, 'b) t
-  [@@inline]
 (** smaller comes first *)
 
 val bal : ('a, 'b) t -> 'a -> 'b -> ('a, 'b) t -> ('a, 'b) t

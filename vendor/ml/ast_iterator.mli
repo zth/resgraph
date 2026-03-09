@@ -26,13 +26,6 @@ type iterator = {
   attributes: iterator -> attribute list -> unit;
   case: iterator -> case -> unit;
   cases: iterator -> case list -> unit;
-  class_expr: iterator -> class_expr -> unit;
-  class_field: iterator -> class_field -> unit;
-  class_signature: iterator -> class_signature -> unit;
-  class_structure: iterator -> class_structure -> unit;
-  class_type: iterator -> class_type -> unit;
-  class_type_declaration: iterator -> class_type_declaration -> unit;
-  class_type_field: iterator -> class_type_field -> unit;
   constructor_declaration: iterator -> constructor_declaration -> unit;
   expr: iterator -> expression -> unit;
   extension: iterator -> extension -> unit;
@@ -66,5 +59,5 @@ type iterator = {
     argument the iterator to be applied to children in the syntax
     tree. *)
 
-val default_iterator: iterator
+val default_iterator : iterator
 (** A default iterator, which implements a "do not do anything" mapping. *)

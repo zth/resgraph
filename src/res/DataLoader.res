@@ -85,8 +85,7 @@ module Plain = {
   /**
    * The name given to this `DataLoader` instance, if set. Useful for APM tools..
    */
-  @get
-  @return(nullable)
+  @get @return(nullable)
   external name: t<'key, 'value> => option<string> = "name"
 }
 
@@ -129,46 +128,46 @@ let mapOptions = options => {
 }
 
 let makeSingle = (loadFn, ~options=?) => {
-  Lazy.from_fun(() =>
+  Lazy.make(() =>
     Plain.make(keys => Promise.all(keys->Array.map(loadFn)), ~options=?mapOptions(options))
   )
 }
 
 let makeBatched = (loadFn: batchFn<'key, 'value>, ~options=?) => {
-  Lazy.from_fun(() => Plain.make(loadFn, ~options=?mapOptions(options)))
+  Lazy.make(() => Plain.make(loadFn, ~options=?mapOptions(options)))
 }
 
 let load = (lazyLoader, key) => {
-  let loader = lazyLoader->Lazy.force
+  let loader = lazyLoader->Lazy.get
   loader->Plain.load(key)
 }
 
 let loadMany = (lazyLoader, keys) => {
-  let loader = lazyLoader->Lazy.force
+  let loader = lazyLoader->Lazy.get
   loader->Plain.loadMany(keys)
 }
 
 let clear = (lazyLoader, key) => {
-  let loader = lazyLoader->Lazy.force
+  let loader = lazyLoader->Lazy.get
   loader->Plain.clear(key)
 }
 
 let clearAll = lazyLoader => {
-  let loader = lazyLoader->Lazy.force
+  let loader = lazyLoader->Lazy.get
   loader->Plain.clearAll
 }
 
 let prime = (lazyLoader, value) => {
-  let loader = lazyLoader->Lazy.force
+  let loader = lazyLoader->Lazy.get
   loader->Plain.prime(value)
 }
 
 let primeWithPromise = (lazyLoader, value) => {
-  let loader = lazyLoader->Lazy.force
+  let loader = lazyLoader->Lazy.get
   loader->Plain.primeWithPromise(value)
 }
 
 let name = lazyLoader => {
-  let loader = lazyLoader->Lazy.force
+  let loader = lazyLoader->Lazy.get
   loader->Plain.name
 }

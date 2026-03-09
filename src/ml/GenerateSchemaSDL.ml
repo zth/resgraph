@@ -59,20 +59,19 @@ let printDeprecatedDirective deprecationReason =
 let printFields fields =
   fields
   |> List.map (fun (f : gqlField) ->
-         let args = GenerateSchemaUtils.onlyPrintableArgs f.args in
-         Printf.sprintf "%s  %s%s: %s%s"
-           (printDescription f.description 2)
-           f.name
-           (if List.length args > 0 then
-              Printf.sprintf "(%s)"
-                (args
-                |> List.map (fun (arg : gqlArg) ->
-                       Printf.sprintf "%s: %s" arg.name
-                         (graphqlTypeToString arg.typ))
-                |> String.concat ", ")
-            else "")
-           (graphqlTypeToString f.typ)
-           (printDeprecatedDirective f.deprecationReason))
+      let args = GenerateSchemaUtils.onlyPrintableArgs f.args in
+      Printf.sprintf "%s  %s%s: %s%s"
+        (printDescription f.description 2)
+        f.name
+        (if List.length args > 0 then
+           Printf.sprintf "(%s)"
+             (args
+             |> List.map (fun (arg : gqlArg) ->
+                 Printf.sprintf "%s: %s" arg.name (graphqlTypeToString arg.typ))
+             |> String.concat ", ")
+         else "")
+        (graphqlTypeToString f.typ)
+        (printDeprecatedDirective f.deprecationReason))
   |> String.concat "\n"
 
 let printSourceLoc = false
@@ -125,10 +124,10 @@ let printEnum (enum : gqlEnum) =
     (printSourceLocDirective (Some enum.typeLocation))
     (enum.values
     |> List.map (fun (v : gqlEnumValue) ->
-           Printf.sprintf "%s  %s%s"
-             (printDescription v.description 2)
-             v.value
-             (printDeprecatedDirective v.deprecationReason))
+        Printf.sprintf "%s  %s%s"
+          (printDescription v.description 2)
+          v.value
+          (printDeprecatedDirective v.deprecationReason))
     |> String.concat "\n")
 
 let printUnion (union : gqlUnion) =
@@ -138,11 +137,11 @@ let printUnion (union : gqlUnion) =
     (printSourceLocDirective (Some union.typeLocation))
     (union.types
     |> List.map (fun (v : gqlUnionMember) ->
-           Printf.sprintf "  | %s%s"
-             (match v.description with
-             | None -> ""
-             | Some desc -> Printf.sprintf "\"\"\"%s\"\"\" " desc)
-             v.displayName)
+        Printf.sprintf "  | %s%s"
+          (match v.description with
+          | None -> ""
+          | Some desc -> Printf.sprintf "\"\"\"%s\"\"\" " desc)
+          v.displayName)
     |> String.concat "\n")
 
 let printInterface (intf : gqlInterface) =
@@ -175,29 +174,29 @@ let printSchemaSDL (schemaState : schemaState) =
 
   schemaState.scalars
   |> iterHashtblAlphabetically (fun _ (scalar : gqlScalar) ->
-         addSection (printScalar scalar));
+      addSection (printScalar scalar));
 
   schemaState.enums
   |> iterHashtblAlphabetically (fun _name (enum : gqlEnum) ->
-         addSection (printEnum enum));
+      addSection (printEnum enum));
 
   schemaState.unions
   |> iterHashtblAlphabetically (fun _name (union : gqlUnion) ->
-         addSection (printUnion union));
+      addSection (printUnion union));
 
   schemaState.inputObjects
   |> iterHashtblAlphabetically (fun _name (input : gqlInputObjectType) ->
-         addSection (printInputObject input));
+      addSection (printInputObject input));
 
   schemaState.inputUnions
   |> iterHashtblAlphabetically (fun _name (input : gqlInputUnionType) ->
-         addSection (printInputUnion input));
+      addSection (printInputUnion input));
 
   schemaState.interfaces
   |> iterHashtblAlphabetically (fun _name (intf : gqlInterface) ->
-         addSection (printInterface intf));
+      addSection (printInterface intf));
 
   schemaState.types
   |> iterHashtblAlphabetically (fun _name (typ : gqlObjectType) ->
-         addSection (printObjectType typ));
+      addSection (printObjectType typ));
   !code

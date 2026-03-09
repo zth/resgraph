@@ -33,48 +33,27 @@ type t =
   | Obj of t Map_string.t
 
 (** poor man's serialization *)
-let naive_escaped (unmodified_input : string) : string =
-  let n = ref 0 in
-  let len = String.length unmodified_input in
-  for i = 0 to len - 1 do
-    n :=
-      !n
-      +
-      match String.unsafe_get unmodified_input i with
-      | '\"' | '\\' | '\n' | '\t' | '\r' | '\b' -> 2
-      | _ -> 1
-  done;
-  if !n = len then unmodified_input
-  else
-    let result = Bytes.create !n in
-    n := 0;
-    for i = 0 to len - 1 do
-      let open Bytes in
-      (match String.unsafe_get unmodified_input i with
-      | ('\"' | '\\') as c ->
-          unsafe_set result !n '\\';
-          incr n;
-          unsafe_set result !n c
-      | '\n' ->
-          unsafe_set result !n '\\';
-          incr n;
-          unsafe_set result !n 'n'
-      | '\t' ->
-          unsafe_set result !n '\\';
-          incr n;
-          unsafe_set result !n 't'
-      | '\r' ->
-          unsafe_set result !n '\\';
-          incr n;
-          unsafe_set result !n 'r'
-      | '\b' ->
-          unsafe_set result !n '\\';
-          incr n;
-          unsafe_set result !n 'b'
-      | c -> unsafe_set result !n c);
-      incr n
-    done;
-    Bytes.unsafe_to_string result
+let naive_escaped (text : string) : string =
+  let ln = String.length text in
+  let buf = Buffer.create ln in
+  let rec loop i =
+    if i < ln then (
+      (match text.[i] with
+      | '\012' -> Buffer.add_string buf "\\f"
+      | '\\' -> Buffer.add_string buf "\\\\"
+      | '"' -> Buffer.add_string buf "\\\""
+      | '\n' -> Buffer.add_string buf "\\n"
+      | '\b' -> Buffer.add_string buf "\\b"
+      | '\r' -> Buffer.add_string buf "\\r"
+      | '\t' -> Buffer.add_string buf "\\t"
+      | c ->
+        let code = Char.code c in
+        if code < 0x20 then Printf.bprintf buf "\\u%04x" code
+        else Buffer.add_char buf c);
+      loop (i + 1))
+  in
+  loop 0;
+  Buffer.contents buf
 
 let quot x = "\"" ^ naive_escaped x ^ "\""
 
@@ -100,37 +79,37 @@ let rec encode_buf (x : t) (buf : Buffer.t) : unit =
   | Null -> a "null"
   | Str s -> a (quot s)
   | Flo s ->
-      a s
-      (*
+    a s
+    (*
          since our parsing keep the original float representation, we just dump it as is, there is no cases like [nan] *)
   | Arr content -> (
-      match content with
-      | [||] -> a "[]"
-      | _ ->
-          a "[ ";
-          encode_buf (Array.unsafe_get content 0) buf;
-          for i = 1 to Array.length content - 1 do
-            a " , ";
-            encode_buf (Array.unsafe_get content i) buf
-          done;
-          a " ]")
+    match content with
+    | [||] -> a "[]"
+    | _ ->
+      a "[ ";
+      encode_buf (Array.unsafe_get content 0) buf;
+      for i = 1 to Array.length content - 1 do
+        a " , ";
+        encode_buf (Array.unsafe_get content i) buf
+      done;
+      a " ]")
   | True -> a "true"
   | False -> a "false"
   | Obj map ->
-      if Map_string.is_empty map then a "{}"
-      else (
-        (*prerr_endline "WEIRD";
-          prerr_endline (string_of_int @@ Map_string.cardinal map ); *)
-        a "{ ";
-        let (_ : int) =
-          Map_string.fold map 0 (fun k v i ->
-              if i <> 0 then a " , ";
-              a (quot k);
-              a " : ";
-              encode_buf v buf;
-              i + 1)
-        in
-        a " }")
+    if Map_string.is_empty map then a "{}"
+    else (
+      (*prerr_endline "WEIRD";
+        prerr_endline (string_of_int @@ Map_string.cardinal map ); *)
+      a "{ ";
+      let (_ : int) =
+        Map_string.fold map 0 (fun k v i ->
+            if i <> 0 then a " , ";
+            a (quot k);
+            a " : ";
+            encode_buf v buf;
+            i + 1)
+      in
+      a " }")
 
 let to_string x =
   let buf = Buffer.create 1024 in

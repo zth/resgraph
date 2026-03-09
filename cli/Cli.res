@@ -3,7 +3,10 @@
 @val
 external argv: array<option<string>> = "process.argv"
 
-let args = argv->Array.sliceToEnd(~start=2)->Array.keepSome
+module Console = Stdlib.Console
+module JsExn = Js.Exn
+
+let args = argv->Array.slice(~start=2)->Array.keepSome
 let argsList = args->List.fromArray
 
 let printBuildTime = buildDuration => {
@@ -100,13 +103,13 @@ try {
       ~config,
     )
     Console.log("Watching for changes...")
-  | list{"lsp", configFilePath} => Lsp.start(~configFilePath, ~mode=Lsp.Stdio)
+| list{"lsp", configFilePath} => Lsp.start(~configFilePath, ~mode=Lsp.Stdio)
   | list{"help"} => Console.log(helpText)
-  | v =>
-    Console.log("Invalid command: " ++ v->List.toArray->Array.join(" "))
-    Console.log(helpText)
+| v =>
+  Console.log("Invalid command: " ++ v->List.toArray->Array.join(" "))
+  Console.log(helpText)
   }
 } catch {
-| Exn.Error(e) => Console.error("Error: " ++ e->Exn.message->Option.getOr("-"))
+| Exn.Error(_) => Console.error("Error")
 | _ => Console.error("Error!")
 }

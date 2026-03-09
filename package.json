@@ -23,9 +23,11 @@
     "url": "https://github.com/zth/resgraph/issues"
   },
   "homepage": "https://github.com/zth/resgraph#readme",
+  "engines": {
+    "node": ">=20.11.0"
+  },
   "peerDependencies": {
-    "@rescript/core": ">=1.5.0",
-    "rescript": ">=11.1.0",
+    "rescript": ">=12.0.0",
     "@glennsl/rescript-fetch": ">=0.2.0"
   },
   "dependencies": {
@@ -36,9 +38,8 @@
     "@glennsl/rescript-fetch": "^0.2.2"
   },
   "devDependencies": {
-    "@rescript/core": ">=1.5.0",
     "dataloader": "^2.2.2",
-    "rescript": ">=11.1.0",
+    "rescript": "^12.0.0",
     "chalk": "^5.2.0",
     "esbuild": "^0.23.1"
   },

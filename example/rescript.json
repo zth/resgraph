@@ -19,6 +19,6 @@
     }
   ],
   "suffix": ".mjs",
-  "bs-dependencies": ["@rescript/core", "@glennsl/rescript-fetch"],
-  "bsc-flags": ["-open RescriptCore"]
+  "dependencies": ["@glennsl/rescript-fetch"],
+  "compiler-flags": []
 }

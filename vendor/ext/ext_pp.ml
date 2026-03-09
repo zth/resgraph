@@ -31,11 +31,11 @@ end
 let indent_length = String.length L.indent_str
 
 type t = {
-  output_string : string -> unit;
-  output_char : char -> unit;
-  flush : unit -> unit;
-  mutable indent_level : int;
-  mutable last_new_line : bool;
+  output_string: string -> unit;
+  output_char: char -> unit;
+  flush: unit -> unit;
+  mutable indent_level: int;
+  mutable last_new_line: bool;
       (* only when we print newline, we print the indent *)
 }
 
@@ -160,8 +160,8 @@ let paren_vgroup st n action =
 
 let paren_group st n action = group st n (fun _ -> paren st action)
 
-let cond_paren_group st b n action =
-  if b then paren_group st n action else action ()
+let cond_paren_group st b action =
+  if b then paren_group st 0 action else action ()
 
 let brace_group st n action = group st n (fun _ -> brace st action)
 

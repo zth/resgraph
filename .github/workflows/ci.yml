@@ -6,36 +6,42 @@ on:
     tags: "*.*.*"
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      npm_tag:
+        description: "npm dist-tag to use (e.g. latest, next, beta, auto to derive from git tag)"
+        required: false
+        default: "auto"
+      dry_run:
+        description: "Run npm publish in dry-run mode"
+        type: boolean
+        default: true
 
 jobs:
   test:
     strategy:
       fail-fast: false
       matrix:
-        # Stay on the oldest Ubuntu version that's still supported by Github Actions
-        # to avoid glibc incompatibilities as far as possible.
+        # Use the oldest currently-available Ubuntu runner for better glibc compatibility.
         os: [
-            macos-13, # x64
-            macos-14, # ARM,
-            ubuntu-20.04,
-            windows-latest,
+            macos-15-intel, # x64
+            macos-15, # ARM,
+            ubuntu-22.04,
           ]
         # syntax explanation:
         # https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#example-including-additional-values-into-combinations
         include:
-          - os: macos-13
+          - os: macos-15-intel
             artifact-folder: darwin
-          - os: macos-14
+          - os: macos-15
             artifact-folder: darwinarm64
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             artifact-folder: linux
-          - os: windows-latest
-            artifact-folder: win32
 
     runs-on: ${{matrix.os}}
 
     steps:
-      # needed for Windows testing
+      # normalize line endings in CI checkout
       - name: Set git to use LF
         run: |
           git config --global core.autocrlf false
@@ -50,17 +56,17 @@ jobs:
           key: ${{matrix.os}}-rescript-vscode-v4
 
       - name: Use OCaml
-        uses: ocaml/setup-ocaml@v2
+        uses: ocaml/setup-ocaml@v3
         with:
-          ocaml-compiler: 4.14.x
+          ocaml-compiler: 5.3.0
 
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 20.11.0
 
       - run: npm ci
-      - run: opam install dune cppo
+      - run: opam install dune cppo ocamlformat.0.28.1
       # - run: npm run res:build
 
       # These 2 runs (or just the second?) are for when you have opam dependencies. We don't.
@@ -71,6 +77,19 @@ jobs:
       - name: Build and test
         run: opam exec -- make test
 
+      - name: Check formatting
+        if: matrix.os == 'ubuntu-22.04'
+        run: opam exec -- make checkformat
+
+      - name: Verify generated outputs are clean
+        run: |
+          status=$(git status --porcelain)
+          if [ -n "$status" ]; then
+            echo "Working tree dirty after generation:"
+            echo "$status"
+            exit 1
+          fi
+
       # Also avoids artifacts upload permission loss:
       # https://github.com/actions/upload-artifact/tree/ee69f02b3dfdecd58bb31b4d133da38ba6fe3700#permission-loss
       - name: Compress files
@@ -80,54 +99,51 @@ jobs:
           mv dev/resgraph.exe ${{matrix.artifact-folder}}
           tar -cvf binary.tar ${{matrix.artifact-folder}}
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{matrix.os}}
           path: bin/binary.tar
 
   package:
     needs: test
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v3
 
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 20.11.0
 
       - run: npm ci
-      - run: npm run res:build
+
+      - name: Build npm package artifacts
+        run: npm run build
+
+      - name: Verify CLI bundle exists
+        run: test -f dist/Cli.mjs
 
       - name: Download MacOS x86 binary
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: macos-13
+          name: macos-15-intel
           path: ./bin
       - run: tar -xvf binary.tar
         working-directory: ./bin
 
       - name: Download MacOS ARM binary
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: macos-14
+          name: macos-15
           path: ./bin
       - run: tar -xvf binary.tar
         working-directory: ./bin
 
       - name: Download Linux binary
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: ubuntu-20.04
-          path: ./bin
-      - run: tar -xvf binary.tar
-        working-directory: ./bin
-
-      - name: Download Windows binary
-        uses: actions/download-artifact@v3
-        with:
-          name: windows-latest
+          name: ubuntu-22.04
           path: ./bin
       - run: tar -xvf binary.tar
         working-directory: ./bin
@@ -153,14 +169,45 @@ jobs:
       - name: Rename package
         run: mv resgraph*.tgz resgraph.tgz
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: resgraph.tgz
           path: resgraph.tgz
 
-      - name: Publish release version if wanted
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: JS-DevTools/npm-publish@v1
-        with:
-          token: ${{ secrets.NPM_TOKEN }}
-          package: ./package.json
+      - name: Compute npm tag and dry-run flag
+        id: npm_publish
+        run: |
+          input_tag="${{ github.event.inputs.npm_tag }}"
+          dry_run="${{ github.event.inputs.dry_run }}"
+          ref_tag="${GITHUB_REF#refs/tags/}"
+
+          if [[ -z "$input_tag" || "$input_tag" == "auto" ]]; then
+            if [[ "$ref_tag" != "$GITHUB_REF" && "$ref_tag" == *"-"* ]]; then
+              tag="next"
+            else
+              tag="latest"
+            fi
+          else
+            tag="$input_tag"
+          fi
+
+          if [[ "$dry_run" == "" ]]; then dry_run="false"; fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "dry_run=$dry_run" >> "$GITHUB_OUTPUT"
+          echo "Using npm tag '$tag' (dry-run: $dry_run)."
+
+      - name: Publish to npm
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TAG: ${{ steps.npm_publish.outputs.tag }}
+          DRY_RUN: ${{ steps.npm_publish.outputs.dry_run }}
+        run: |
+          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ~/.npmrc
+          args="--tag $NPM_TAG"
+          if [[ "$DRY_RUN" == "true" ]]; then
+            echo "Running npm publish in dry-run mode"
+            args="$args --dry-run"
+          fi
+          npm publish $args

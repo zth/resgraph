@@ -70,15 +70,13 @@ external infinity: int = "Infinity"
 
 let devBinLocation = "../bin/dev/resgraph.exe"
 
-let hasDevBin = Lazy.from_fun(() =>
-  (devBinLocation->makeUrl(currentFileUrl)).pathname->Fs.existsSync
-)
+let hasDevBin = Lazy.make(() => (devBinLocation->makeUrl(currentFileUrl)).pathname->Fs.existsSync)
 
 @module("node:os")
 external arch: unit => string = "arch"
 
 let callPrivateCli = command => {
-  let hasDevBin = hasDevBin->Lazy.force
+  let hasDevBin = hasDevBin->Lazy.get
 
   let binLocation = if hasDevBin {
     devBinLocation
@@ -180,9 +178,9 @@ let readConfigFromDir = dir => {
     [dir, "./resgraph.json"]
     ->Path.resolve
     ->Fs.readFileSync
-    ->Buffer.toStringWithEncoding(StringEncoding.utf8)
-    ->JSON.parseExn
-    ->parseConfig
+  ->Buffer.toStringWithEncoding(StringEncoding.utf8)
+  ->JSON.parseOrThrow
+  ->parseConfig
 
   let res: result<config, string> = switch readConfigResult {
   | None => Error("Could not parse config, something is wrong")

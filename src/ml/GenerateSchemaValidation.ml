@@ -40,11 +40,11 @@ let validateName ~name ~(typeLocation : typeLocation)
 let validateFields ~schemaState (fields : gqlField list) =
   fields
   |> List.iter (fun (f : gqlField) ->
-         validateName ~name:f.name
-           ~typeLocation:
-             (mkTypeLocation ~typeName:f.name ~loc:f.loc ~fileName:f.fileName
-                ~fileUri:f.fileUri)
-           schemaState)
+      validateName ~name:f.name
+        ~typeLocation:
+          (mkTypeLocation ~typeName:f.name ~loc:f.loc ~fileName:f.fileName
+             ~fileUri:f.fileUri)
+        schemaState)
 
 let validateRootTypes (schemaState : schemaState) =
   match schemaState.query with
@@ -64,36 +64,36 @@ let validateSchema (schemaState : schemaState) =
 
   schemaState.scalars
   |> Hashtbl.iter (fun _name (typ : gqlScalar) ->
-         validateName ~name:typ.displayName
-           ~typeLocation:(Concrete typ.typeLocation) schemaState);
+      validateName ~name:typ.displayName
+        ~typeLocation:(Concrete typ.typeLocation) schemaState);
 
   schemaState.types
   |> Hashtbl.iter (fun _name (typ : gqlObjectType) ->
-         match typ.typeLocation with
-         | Some _typeLocation -> validateFields ~schemaState typ.fields
-         | None -> ());
+      match typ.typeLocation with
+      | Some _typeLocation -> validateFields ~schemaState typ.fields
+      | None -> ());
 
   schemaState.inputObjects
   |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
-         (* A lot has already been validated on adding the type itself. *)
-         match typ.typeLocation with
-         | Some _typeLocation -> validateFields ~schemaState typ.fields
-         | None -> ());
+      (* A lot has already been validated on adding the type itself. *)
+      match typ.typeLocation with
+      | Some _typeLocation -> validateFields ~schemaState typ.fields
+      | None -> ());
 
   schemaState.enums
   |> Hashtbl.iter (fun _name (typ : gqlEnum) ->
-         (* No need to validate each case, ReScript has already done it for us. *)
-         validateName ~name:typ.displayName ~typeLocation:typ.typeLocation
-           schemaState);
+      (* No need to validate each case, ReScript has already done it for us. *)
+      validateName ~name:typ.displayName ~typeLocation:typ.typeLocation
+        schemaState);
 
   schemaState.unions
   |> Hashtbl.iter (fun _name (typ : gqlUnion) ->
-         (* No need to validate each case, ReScript has already done it for us. *)
-         validateName ~name:typ.displayName ~typeLocation:typ.typeLocation
-           schemaState);
+      (* No need to validate each case, ReScript has already done it for us. *)
+      validateName ~name:typ.displayName ~typeLocation:typ.typeLocation
+        schemaState);
 
   schemaState.interfaces
   |> Hashtbl.iter (fun _name (typ : gqlInterface) ->
-         (* Subtype rules etc for interface fields are a bit complicated, so we
+      (* Subtype rules etc for interface fields are a bit complicated, so we
             let graphql-js do it at runtime instead. *)
-         validateFields ~schemaState typ.fields)
+      validateFields ~schemaState typ.fields)

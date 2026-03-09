@@ -11,7 +11,7 @@ module GraphQLError = {
   @module("graphql") @new
   external make: (string, ~options: options<'extensions>=?) => t = "GraphQLError"
 
-  let raise: t => 'a = err => raise(Obj.magic(err))
+  let raise: t => 'a = err => throw(Obj.magic(err))
 }
 
 module Envelope = {
@@ -62,7 +62,7 @@ type logging =
   | @as("warn") LogLevelWarn
   | @as("error") LogLevelError
 
-type maskErrorFn = (~error: Exn.t, ~message: string, ~isDev: option<bool>) => Exn.t
+type maskErrorFn = (~error: JsExn.t, ~message: string, ~isDev: option<bool>) => JsExn.t
 type maskedErrorOpts = {
   maskError?: maskErrorFn,
   errorMessage?: string,
