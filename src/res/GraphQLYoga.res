@@ -43,8 +43,8 @@ module Server = {
 type graphqlParams = {
   query?: string,
   operationName?: string,
-  variables?: Dict.t<ResGraph.JSON.t>,
-  extensions?: Dict.t<ResGraph.JSON.t>,
+  variables?: Dict.t<ResGraph.GraphQLJSON.t>,
+  extensions?: Dict.t<ResGraph.GraphQLJSON.t>,
 }
 
 type contextConfig = {request: Request.t, params: graphqlParams}

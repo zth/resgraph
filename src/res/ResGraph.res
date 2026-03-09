@@ -9,8 +9,7 @@ type schema<'appContext> = ResGraph__GraphQLJs.GraphQLSchemaType.t<'appContext>
 @module("graphql") external printSchema: schema<_> => string = "printSchema"
 
 module GraphQLLiteralValue = ResGraph__GraphQLJs.GraphQLLiteralValue
-
-module JSON = ResGraph__GraphQLJs.GraphQLLiteralValue
+module GraphQLJSON = ResGraph__GraphQLJs.GraphQLLiteralValue
 
 module Connections = ResGraph__Connections
 
@@ -25,6 +24,8 @@ module Execute: {
     extensions?: 'extensions,
   }
 
+  type jsonExecutionResult = executionResult<JSON.t, JSON.t, JSON.t>
+
   type variables = Dict.t<JSON.t>
   type queryDocumentCache
 
@@ -33,6 +34,9 @@ module Execute: {
   let setCachedQuery: (~cache: queryDocumentCache, ~query: string, ~document: document) => unit
   let getCachedQuery: (~cache: queryDocumentCache, ~query: string) => option<document>
   let parseQueryCached: (~cache: queryDocumentCache, ~query: string) => document
+  let variablesFromJson: JSON.t => option<variables>
+  let variablesToJson: variables => JSON.t
+  let executionResultToJson: jsonExecutionResult => JSON.t
 
   let executeParsed: (
     schema<'appContext>,
@@ -43,6 +47,15 @@ module Execute: {
     ~rootValue: 'rootValue=?,
   ) => promise<executionResult<'data, 'error, 'extensions>>
 
+  let executeParsedToJson: (
+    schema<'appContext>,
+    ~document: document,
+    ~contextValue: 'appContext,
+    ~variablesJson: JSON.t=?,
+    ~operationName: string=?,
+    ~rootValue: 'rootValue=?,
+  ) => promise<JSON.t>
+
   let execute: (
     schema<'appContext>,
     ~query: string,
@@ -52,6 +65,16 @@ module Execute: {
     ~operationName: string=?,
     ~rootValue: 'rootValue=?,
   ) => promise<executionResult<'data, 'error, 'extensions>>
+
+  let executeToJson: (
+    schema<'appContext>,
+    ~query: string,
+    ~contextValue: 'appContext,
+    ~cache: queryDocumentCache=?,
+    ~variablesJson: JSON.t=?,
+    ~operationName: string=?,
+    ~rootValue: 'rootValue=?,
+  ) => promise<JSON.t>
 } = {
   type document
 
@@ -60,6 +83,8 @@ module Execute: {
     errors?: array<'error>,
     extensions?: 'extensions,
   }
+
+  type jsonExecutionResult = executionResult<JSON.t, JSON.t, JSON.t>
 
   type variables = Dict.t<JSON.t>
   type queryDocumentCache = Dict.t<document>
@@ -81,6 +106,9 @@ module Execute: {
   > = "execute"
 
   @module("node:crypto") external createHash: 'a = "createHash"
+  external variablesOfJsonObject: dict<JSON.t> => variables = "%identity"
+  external variablesToJsonObject: variables => dict<JSON.t> = "%identity"
+  external executionResultToJson: jsonExecutionResult => JSON.t = "%identity"
 
   let hashQuery = query => createHash("sha256")["update"](query)["digest"]("hex")
 
@@ -103,6 +131,15 @@ module Execute: {
       document
     }
 
+  let variablesFromJson = json =>
+    switch json {
+    | JSON.Object(jsonObject) => Some(jsonObject->variablesOfJsonObject)
+    | JSON.Null => None
+    | _ => None
+    }
+
+  let variablesToJson = variables => JSON.Object(variables->variablesToJsonObject)
+
   let executeParsed = (
     schema,
     ~document,
@@ -120,6 +157,23 @@ module Execute: {
       ?rootValue,
     })
 
+  let executeParsedToJson = (
+    schema,
+    ~document,
+    ~contextValue,
+    ~variablesJson=?,
+    ~operationName=?,
+    ~rootValue=?,
+  ) => {
+    let variableValues = switch variablesJson {
+    | Some(json) => json->variablesFromJson
+    | None => None
+    }
+
+    executeParsed(schema, ~document, ~contextValue, ~variableValues?, ~operationName?, ~rootValue?)
+    ->Promise.thenResolve(executionResultToJson)
+  }
+
   let execute = (
     schema,
     ~query,
@@ -135,6 +189,31 @@ module Execute: {
     }
 
     executeParsed(schema, ~document, ~contextValue, ~variableValues?, ~operationName?, ~rootValue?)
+  }
+
+  let executeToJson = (
+    schema,
+    ~query,
+    ~contextValue,
+    ~cache=?,
+    ~variablesJson=?,
+    ~operationName=?,
+    ~rootValue=?,
+  ) => {
+    let variableValues = switch variablesJson {
+    | Some(json) => json->variablesFromJson
+    | None => None
+    }
+
+    execute(
+      schema,
+      ~query,
+      ~contextValue,
+      ~cache?,
+      ~variableValues?,
+      ~operationName?,
+      ~rootValue?,
+    )->Promise.thenResolve(executionResultToJson)
   }
 }
 
@@ -206,5 +285,5 @@ type resolveInfo = {
   schema: ResolveInfo.schema,
   fragments: Dict.t<ResolveInfo.fragmentDefinition>,
   operation: ResolveInfo.operationDefinition,
-  variableValues: Dict.t<JSON.t>,
+  variableValues: Dict.t<GraphQLJSON.t>,
 }

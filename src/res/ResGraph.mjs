@@ -30,6 +30,18 @@ function parseQueryCached(cache, query) {
   return document$1;
 }
 
+function variablesFromJson(json) {
+  if (json === null || typeof json !== "object" || Array.isArray(json)) {
+    return;
+  } else {
+    return json;
+  }
+}
+
+function variablesToJson(variables) {
+  return variables;
+}
+
 function executeParsed(schema, document, contextValue, variableValues, operationName, rootValue) {
   return Graphql.execute({
     schema: schema,
@@ -41,13 +53,27 @@ function executeParsed(schema, document, contextValue, variableValues, operation
   });
 }
 
+function executeParsedToJson(schema, document, contextValue, variablesJson, operationName, rootValue) {
+  let variableValues = variablesJson !== undefined ? variablesFromJson(variablesJson) : undefined;
+  return executeParsed(schema, document, contextValue, variableValues, operationName, rootValue).then(prim => prim);
+}
+
 function execute(schema, query, contextValue, cache, variableValues, operationName, rootValue) {
   let document = cache !== undefined ? parseQueryCached(cache, query) : Graphql.parse(query);
   return executeParsed(schema, document, contextValue, variableValues, operationName, rootValue);
 }
 
+function executeToJson(schema, query, contextValue, cache, variablesJson, operationName, rootValue) {
+  let variableValues = variablesJson !== undefined ? variablesFromJson(variablesJson) : undefined;
+  return execute(schema, query, contextValue, cache, variableValues, operationName, rootValue).then(prim => prim);
+}
+
 function Execute_parseQuery(prim) {
   return Graphql.parse(prim);
+}
+
+function Execute_executionResultToJson(prim) {
+  return prim;
 }
 
 let Execute = {
@@ -56,15 +82,20 @@ let Execute = {
   setCachedQuery: setCachedQuery,
   getCachedQuery: getCachedQuery,
   parseQueryCached: parseQueryCached,
+  variablesFromJson: variablesFromJson,
+  variablesToJson: variablesToJson,
+  executionResultToJson: Execute_executionResultToJson,
   executeParsed: executeParsed,
-  execute: execute
+  executeParsedToJson: executeParsedToJson,
+  execute: execute,
+  executeToJson: executeToJson
 };
 
 let ResolveInfo = {};
 
 let GraphQLLiteralValue;
 
-let $$JSON;
+let GraphQLJSON;
 
 let Connections;
 
@@ -72,7 +103,7 @@ let Utils;
 
 export {
   GraphQLLiteralValue,
-  $$JSON,
+  GraphQLJSON,
   Connections,
   Utils,
   Execute,

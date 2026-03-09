@@ -3,6 +3,7 @@
 ## main
 
 - Fix regression where `gql.field` wasn't working properly with all `let` bindings.
+- More `ResGraph.Execute` utils and helpers, that makes it easier to work with.
 
 ## 1.0.0
 
