@@ -1149,14 +1149,8 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
         true;
     structure.items
     |> List.iter (fun (item : SharedTypes.Module.item) ->
-        let attributes =
-          match item.kind with
-          | Type (t, _) -> t.attributes
-          | _ -> []
-        in
-        let gqlAttribute =
-          attributes |> extractGqlAttribute ~schemaState ~env
-        in
+        let attributes = item.attributes in
+        let gqlAttribute = attributes |> extractGqlAttribute ~schemaState ~env in
         match (item.kind, gqlAttribute) with
         | Module {type_ = Structure structure; _}, _ ->
           (* Continue into modules (ignore module aliases etc) *)

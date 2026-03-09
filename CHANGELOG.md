@@ -2,6 +2,8 @@
 
 ## main
 
+- Fix regression where `gql.field` wasn't working properly with all `let` bindings.
+
 ## 1.0.0
 
 - _experimental_ Allow payloadless variant cases in input unions.

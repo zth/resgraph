@@ -112,11 +112,17 @@ let getLastBuiltFromCompilerLog = compilerLogPath => {
   }
 }
 
-let runIfCompilerDone = (fn, ~compilerLogPath) => {
+let runIfCompilerDone = (fn, ~compilerLogPath, ~lastCompletedBuild) => {
   try {
     switch getLastBuiltFromCompilerLog(compilerLogPath) {
     | None => ()
-    | Some(_) => fn()
+    | Some(buildMarker) =>
+      switch lastCompletedBuild.contents {
+      | Some(lastBuildMarker) when lastBuildMarker == buildMarker => ()
+      | _ =>
+        lastCompletedBuild := Some(buildMarker)
+        fn()
+      }
     }
   } catch {
   | _ => ()
@@ -125,6 +131,8 @@ let runIfCompilerDone = (fn, ~compilerLogPath) => {
 
 let setupWatcher = (~onResult, ~onStartRebuild, ~config) => {
   let {src, outputFolder} = config
+  let compilerLogPath = Path.resolve([Process.process->Process.cwd, "./lib/bs/.compiler.log"])
+  let lastCompletedBuild = ref(None)
   open Bindings.Chokidar
 
   let generateSchema = () => {
@@ -133,16 +141,15 @@ let setupWatcher = (~onResult, ~onStartRebuild, ~config) => {
     onResult(res)
   }
 
-  // Build on watcher start
-  generateSchema()
+  generateSchema->runIfCompilerDone(~compilerLogPath, ~lastCompletedBuild)
 
   watcher
-  ->watch(Path.resolve([Process.process->Process.cwd, "./lib/bs/.compiler.log"]))
+  ->watch(compilerLogPath)
   ->Watcher.onChange(compilerLogPath => {
-    generateSchema->runIfCompilerDone(~compilerLogPath)
+    generateSchema->runIfCompilerDone(~compilerLogPath, ~lastCompletedBuild)
   })
   ->Watcher.onUnlink(compilerLogPath => {
-    generateSchema->runIfCompilerDone(~compilerLogPath)
+    generateSchema->runIfCompilerDone(~compilerLogPath, ~lastCompletedBuild)
   })
 }
 

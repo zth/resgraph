@@ -41,6 +41,7 @@ let newDeclared ~item ~extent ~name ~stamp ~modulePath isExported attributes =
     extentLoc = extent;
     isExported;
     modulePath;
+    attributes;
     deprecated = findDeprecatedAttribute attributes;
     docstring =
       (match findDocAttribute attributes with

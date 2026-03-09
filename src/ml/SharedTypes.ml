@@ -132,6 +132,7 @@ module Module = struct
     kind: kind;
     name: string;
     loc: Location.t;
+    attributes: Parsetree.attributes;
     docstring: string list;
     deprecated: string option;
   }
@@ -154,6 +155,7 @@ module Declared = struct
     stamp: int;
     modulePath: ModulePath.t;
     isExported: bool;
+    attributes: Parsetree.attributes;
     deprecated: string option;
     docstring: string list;
     item: 'item;

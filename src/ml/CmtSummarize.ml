@@ -64,6 +64,7 @@ let rec forTypeSignatureItem ~(env : SharedTypes.Env.t) ~(exported : Exported.t)
       {
         Module.kind = Module.Value declared.item;
         name = declared.name.txt;
+        attributes = declared.attributes;
         docstring = declared.docstring;
         deprecated = declared.deprecated;
         loc = declared.extentLoc;
@@ -140,6 +141,7 @@ let rec forTypeSignatureItem ~(env : SharedTypes.Env.t) ~(exported : Exported.t)
       {
         Module.kind = Type (declared.item, recStatus);
         name = declared.name.txt;
+        attributes = declared.attributes;
         docstring = declared.docstring;
         deprecated = declared.deprecated;
         loc = declared.extentLoc;
@@ -160,6 +162,7 @@ let rec forTypeSignatureItem ~(env : SharedTypes.Env.t) ~(exported : Exported.t)
         Module.kind =
           Module {type_ = declared.item; isModuleType = isModuleType declared};
         name = declared.name.txt;
+        attributes = declared.attributes;
         docstring = declared.docstring;
         deprecated = declared.deprecated;
         loc = declared.extentLoc;
@@ -324,6 +327,7 @@ let forTypeDeclaration ~env ~(exported : Exported.t)
   {
     Module.kind = Module.Type (declared.item, recStatus);
     name = declared.name.txt;
+    attributes = declared.attributes;
     docstring = declared.docstring;
     deprecated = declared.deprecated;
     loc = declared.extentLoc;
@@ -344,6 +348,7 @@ let rec forSignatureItem ~env ~(exported : Exported.t)
       {
         Module.kind = Module.Value declared.item;
         name = declared.name.txt;
+        attributes = declared.attributes;
         docstring = declared.docstring;
         deprecated = declared.deprecated;
         loc = declared.extentLoc;
@@ -377,6 +382,7 @@ let rec forSignatureItem ~env ~(exported : Exported.t)
         Module.kind =
           Module {type_ = declared.item; isModuleType = isModuleType declared};
         name = declared.name.txt;
+        attributes = declared.attributes;
         docstring = declared.docstring;
         deprecated = declared.deprecated;
         loc = declared.extentLoc;
@@ -475,6 +481,7 @@ let rec forStructureItem ~(env : SharedTypes.Env.t) ~(exported : Exported.t)
                       isModuleType = isModuleType declared;
                     };
                 name = declared.name.txt;
+                attributes = declared.attributes;
                 docstring = declared.docstring;
                 deprecated = declared.deprecated;
                 loc = declared.extentLoc;
@@ -492,6 +499,7 @@ let rec forStructureItem ~(env : SharedTypes.Env.t) ~(exported : Exported.t)
               {
                 Module.kind = Module.Value declared.item;
                 name = declared.name.txt;
+                attributes = declared.attributes;
                 docstring = declared.docstring;
                 deprecated = declared.deprecated;
                 loc = declared.extentLoc;
@@ -509,6 +517,7 @@ let rec forStructureItem ~(env : SharedTypes.Env.t) ~(exported : Exported.t)
             {
               Module.kind = Module.Value declared.item;
               name = declared.name.txt;
+              attributes = declared.attributes;
               docstring = declared.docstring;
               deprecated = declared.deprecated;
               loc = declared.extentLoc;
@@ -547,6 +556,7 @@ let rec forStructureItem ~(env : SharedTypes.Env.t) ~(exported : Exported.t)
         Module.kind =
           Module {type_ = declared.item; isModuleType = isModuleType declared};
         name = declared.name.txt;
+        attributes = declared.attributes;
         docstring = declared.docstring;
         deprecated = declared.deprecated;
         loc = declared.extentLoc;
@@ -580,6 +590,7 @@ let rec forStructureItem ~(env : SharedTypes.Env.t) ~(exported : Exported.t)
         Module.kind =
           Module {type_ = declared.item; isModuleType = isModuleType declared};
         name = declared.name.txt;
+        attributes = declared.attributes;
         docstring = declared.docstring;
         deprecated = declared.deprecated;
         loc = declared.extentLoc;
@@ -610,6 +621,7 @@ let rec forStructureItem ~(env : SharedTypes.Env.t) ~(exported : Exported.t)
       {
         Module.kind = Value declared.item;
         name = declared.name.txt;
+        attributes = declared.attributes;
         docstring = declared.docstring;
         deprecated = declared.deprecated;
         loc = declared.extentLoc;
