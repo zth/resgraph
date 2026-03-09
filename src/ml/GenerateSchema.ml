@@ -98,8 +98,9 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
   if isSubscription then (
     let isAsyncIterablePath path =
       match pathIdentToList path |> List.rev with
-      | "t" :: ("AsyncIterator" | "AsyncIterable" | "Stdlib__AsyncIterator"
-               | "Stdlib__AsyncIterable")
+      | "t"
+        :: ( "AsyncIterator" | "AsyncIterable" | "Stdlib__AsyncIterator"
+           | "Stdlib__AsyncIterable" )
         :: _ ->
         true
       | _ -> false
@@ -110,9 +111,9 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
            ~diagnostic:
              {
                loc =
-                   (match loc with
-                   | None -> Location.in_file (env.file.moduleName ^ ".res")
-                   | Some loc -> loc);
+                 (match loc with
+                 | None -> Location.in_file (env.file.moduleName ^ ".res")
+                 | Some loc -> loc);
                fileUri = env.file.uri;
                message =
                  Printf.sprintf
@@ -1158,7 +1159,9 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
     structure.items
     |> List.iter (fun (item : SharedTypes.Module.item) ->
         let attributes = item.attributes in
-        let gqlAttribute = attributes |> extractGqlAttribute ~schemaState ~env in
+        let gqlAttribute =
+          attributes |> extractGqlAttribute ~schemaState ~env
+        in
         match (item.kind, gqlAttribute) with
         | Module {type_ = Structure structure; _}, _ ->
           (* Continue into modules (ignore module aliases etc) *)

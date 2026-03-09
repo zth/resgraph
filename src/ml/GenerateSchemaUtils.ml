@@ -254,8 +254,8 @@ let uncapitalizeFirstChar s =
   if String.length s = 0 then s
   else String.mapi (fun i c -> if i = 0 then Char.lowercase_ascii c else c) s
 
-let noticeObjectType ~env ~loc ~schemaState ~displayName ?syntheticTypeLocation ?description
-    ?(ignoreTypeLocation = false) ~makeFields typeName =
+let noticeObjectType ~env ~loc ~schemaState ~displayName ?syntheticTypeLocation
+    ?description ?(ignoreTypeLocation = false) ~makeFields typeName =
   if Hashtbl.mem schemaState.types typeName then ()
   else
     (*Printf.printf "noticing %s\n" typeName;*)
@@ -602,7 +602,7 @@ let processSchema (schemaState : schemaState) =
       | Some typeLocation -> (
         let fileUri =
           (match typeLocation with
-          | Synthetic {fileUri} | Concrete {fileUri} -> fileUri)
+            | Synthetic {fileUri} | Concrete {fileUri} -> fileUri)
           |> Uri.toPath
         in
         match Hashtbl.find_opt positionsToRead fileUri with
