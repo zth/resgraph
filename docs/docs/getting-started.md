@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Getting Started
 
-> Note that ResGraph is currently _alpha grade software_. Help us out as we work out the details for a stable release.
+> ResGraph is stable enough to build on today, but the project is still being actively polished and improved.
 
 ## Setup
 

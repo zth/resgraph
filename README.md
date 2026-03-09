@@ -134,7 +134,7 @@ ResGraph lets you build _implementation first_ GraphQL servers, where your types
 
 ## Development notes
 
-This is a heavy work-in-progess. The repo itself was originally forked from the ReScript editor tooling, which means that there's a ton of stuff lying around that aren't really used. This will be cleaned up later.
+This repo still carries some historical pieces from its origin in the ReScript editor tooling. The core library and CLI are the focus, and there is still some cleanup left around unused internals.
 
 ### Local development
 
