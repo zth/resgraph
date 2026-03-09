@@ -2,6 +2,8 @@
 
 ## main
 
+## 1.0.0
+
 - _experimental_ Allow payloadless variant cases in input unions.
 - Add `ResGraph.Execute` helpers for parsing and executing queries with optional document caching.
 
