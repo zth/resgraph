@@ -64,6 +64,8 @@ let i_Labelled: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
 let get_Labelled = () => i_Labelled.contents
 let i_Node: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
 let get_Node = () => i_Node.contents
+let t_FunctionFieldRegression: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
+let get_FunctionFieldRegression = () => t_FunctionFieldRegression.contents
 let t_LabelledAlpha: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_LabelledAlpha = () => t_LabelledAlpha.contents
 let t_LabelledBeta: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
@@ -78,12 +80,20 @@ let t_Res12Record: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_Res12Record = () => t_Res12Record.contents
 let t_ScalarHolder: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_ScalarHolder = () => t_ScalarHolder.contents
+let t_StringConnection: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
+let get_StringConnection = () => t_StringConnection.contents
+let t_StringEdge: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
+let get_StringEdge = () => t_StringEdge.contents
 let t_Subscription: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_Subscription = () => t_Subscription.contents
 let t_Thing: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_Thing = () => t_Thing.contents
 let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_User = () => t_User.contents
+let t_UserConnection: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
+let get_UserConnection = () => t_UserConnection.contents
+let t_UserEdge: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
+let get_UserEdge = () => t_UserEdge.contents
 let inputUnion_Res12Input: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_Res12Input = () => inputUnion_Res12Input.contents
 let inputUnion_Res12Input_conversionInstructions = []
@@ -227,15 +237,55 @@ i_Labelled.contents = GraphQLInterfaceType.make({
   name: "Labelled",
   description: ?None,
   interfaces: [],
-  fields: () => {%raw(`{}`)}->makeFields,
+  fields: () =>
+    {
+      "typenameEcho": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
   resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Labelled_resolveType),
 })
 i_Node.contents = GraphQLInterfaceType.make({
   name: "Node",
   description: "An object with an ID",
   interfaces: [],
-  fields: () => {%raw(`{}`)}->makeFields,
+  fields: () =>
+    {
+      "id": {
+        typ: Scalars.id->Scalars.toGraphQLType->nonNull,
+        description: "The id of the object.",
+        deprecationReason: ?None,
+      },
+    }->makeFields,
   resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Node_resolveType),
+})
+t_FunctionFieldRegression.contents = GraphQLObjectType.make({
+  name: "FunctionFieldRegression",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "computedLabel": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          FunctionFieldRegression.computedLabel(src)
+        }),
+      },
+      "id": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["id"]
+        }),
+      },
+    }->makeFields,
 })
 t_LabelledAlpha.contents = GraphQLObjectType.make({
   name: "LabelledAlpha",
@@ -250,6 +300,15 @@ t_LabelledAlpha.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["extra"]
+        }),
+      },
+      "typenameEcho": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppInterfaceExtras.typenameEcho(src, ~typeName=LabelledAlpha)
         }),
       },
     }->makeFields,
@@ -269,13 +328,43 @@ t_LabelledBeta.contents = GraphQLObjectType.make({
           src["count"]
         }),
       },
+      "typenameEcho": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppInterfaceExtras.typenameEcho(src, ~typeName=LabelledBeta)
+        }),
+      },
     }->makeFields,
 })
 t_Mutation.contents = GraphQLObjectType.make({
   name: "Mutation",
   description: ?None,
   interfaces: [],
-  fields: () => {%raw(`{}`)}->makeFields,
+  fields: () =>
+    {
+      "updateThing": {
+        typ: get_Thing()->GraphQLObjectType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {
+          "input": {typ: get_UpdateThingInput()->GraphQLInputObjectType.toGraphQLType->nonNull},
+          "thingId": {typ: Scalars.id->Scalars.toGraphQLType->nonNull},
+        }->makeArgs,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          Thing.updateThing(
+            src,
+            ~input=args["input"]->applyConversionToInputObject(
+              input_UpdateThingInput_conversionInstructions,
+            ),
+            ~thingId=args["thingId"],
+          )
+        }),
+      },
+    }->makeFields,
 })
 t_PageInfo.contents = GraphQLObjectType.make({
   name: "PageInfo",
@@ -325,7 +414,90 @@ t_Query.contents = GraphQLObjectType.make({
   name: "Query",
   description: ?None,
   interfaces: [],
-  fields: () => {%raw(`{}`)}->makeFields,
+  fields: () =>
+    {
+      "functionFieldRegression": {
+        typ: get_FunctionFieldRegression()->GraphQLObjectType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          FunctionFieldRegression.functionFieldRegression(src)
+        }),
+      },
+      "getLabelled": {
+        typ: get_LabelledAlpha()->GraphQLObjectType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppLabelledTypes.getLabelled(src)
+        }),
+      },
+      "getScalarHolder": {
+        typ: get_ScalarHolder()->GraphQLObjectType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppCustomScalars.getScalarHolder(src)
+        }),
+      },
+      "nestedConnection": {
+        typ: get_StringConnection()->GraphQLObjectType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppConnections.nestedConnection(src)
+        }),
+      },
+      "node": {
+        typ: get_Node()->GraphQLInterfaceType.toGraphQLType,
+        description: "Fetches an object given its ID.",
+        deprecationReason: ?None,
+        args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          NodeInterfaceResolver.node(src, ~ctx, ~id=args["id"])
+        }),
+      },
+      "nodes": {
+        typ: GraphQLListType.make(get_Node()->GraphQLInterfaceType.toGraphQLType)
+        ->GraphQLListType.toGraphQLType
+        ->nonNull,
+        description: "Fetches objects given their IDs.",
+        deprecationReason: ?None,
+        args: {
+          "ids": {
+            typ: GraphQLListType.make(Scalars.id->Scalars.toGraphQLType->nonNull)
+            ->GraphQLListType.toGraphQLType
+            ->nonNull,
+          },
+        }->makeArgs,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          NodeInterfaceResolver.nodes(src, ~ctx, ~ids=args["ids"])
+        }),
+      },
+      "userConnection": {
+        typ: get_UserConnection()->GraphQLObjectType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {
+          "after": {typ: Scalars.string->Scalars.toGraphQLType},
+          "first": {typ: Scalars.int->Scalars.toGraphQLType},
+        }->makeArgs,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppConnections.userConnection(
+            src,
+            ~after=?args["after"]->Nullable.toOption,
+            ~first=?args["first"]->Nullable.toOption,
+          )
+        }),
+      },
+    }->makeFields,
 })
 t_Res12Record.contents = GraphQLObjectType.make({
   name: "Res12Record",
@@ -370,11 +542,77 @@ t_ScalarHolder.contents = GraphQLObjectType.make({
       },
     }->makeFields,
 })
+t_StringConnection.contents = GraphQLObjectType.make({
+  name: "StringConnection",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "edges": {
+        typ: GraphQLListType.make(
+          get_StringEdge()->GraphQLObjectType.toGraphQLType,
+        )->GraphQLListType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["edges"]
+        }),
+      },
+      "pageInfo": {
+        typ: get_PageInfo()->GraphQLObjectType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["pageInfo"]
+        }),
+      },
+    }->makeFields,
+})
+t_StringEdge.contents = GraphQLObjectType.make({
+  name: "StringEdge",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "cursor": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["cursor"]
+        }),
+      },
+      "node": {
+        typ: Scalars.string->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["node"]
+        }),
+      },
+    }->makeFields,
+})
 t_Subscription.contents = GraphQLObjectType.make({
   name: "Subscription",
   description: ?None,
   interfaces: [],
-  fields: () => {%raw(`{}`)}->makeFields,
+  fields: () =>
+    {
+      "latestMessage": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((v, _, _, _) => v),
+        subscribe: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppSubscription.latestMessage(src, ~ctx)
+        }),
+      },
+    }->makeFields,
 })
 t_Thing.contents = GraphQLObjectType.make({
   name: "Thing",
@@ -409,6 +647,15 @@ t_Thing.contents = GraphQLObjectType.make({
           src["height"]
         }),
       },
+      "id": {
+        typ: Scalars.id->Scalars.toGraphQLType->nonNull,
+        description: "The id of the object.",
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          NodeInterfaceResolver.id(src, ~typename=Thing)
+        }),
+      },
       "isAdmin": {
         typ: Scalars.boolean->Scalars.toGraphQLType,
         description: ?None,
@@ -434,6 +681,60 @@ t_User.contents = GraphQLObjectType.make({
   description: ?None,
   interfaces: [],
   fields: () => {%raw(`{}`)}->makeFields,
+})
+t_UserConnection.contents = GraphQLObjectType.make({
+  name: "UserConnection",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "edges": {
+        typ: GraphQLListType.make(
+          get_UserEdge()->GraphQLObjectType.toGraphQLType,
+        )->GraphQLListType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["edges"]
+        }),
+      },
+      "pageInfo": {
+        typ: get_PageInfo()->GraphQLObjectType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["pageInfo"]
+        }),
+      },
+    }->makeFields,
+})
+t_UserEdge.contents = GraphQLObjectType.make({
+  name: "UserEdge",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "cursor": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["cursor"]
+        }),
+      },
+      "node": {
+        typ: get_User()->GraphQLObjectType.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["node"]
+        }),
+      },
+    }->makeFields,
 })
 input_Res12InputInline.contents = GraphQLInputObjectType.make({
   name: "Res12InputInline",
@@ -678,12 +979,17 @@ let schema = GraphQLSchemaType.make({
   "subscription": get_Subscription(),
   "types": [
     get_Query()->GraphQLObjectType.toGraphQLType,
+    get_FunctionFieldRegression()->GraphQLObjectType.toGraphQLType,
     get_LabelledBeta()->GraphQLObjectType.toGraphQLType,
     get_ScalarHolder()->GraphQLObjectType.toGraphQLType,
+    get_StringConnection()->GraphQLObjectType.toGraphQLType,
     get_PageInfo()->GraphQLObjectType.toGraphQLType,
+    get_UserConnection()->GraphQLObjectType.toGraphQLType,
     get_Subscription()->GraphQLObjectType.toGraphQLType,
     get_LabelledAlpha()->GraphQLObjectType.toGraphQLType,
+    get_UserEdge()->GraphQLObjectType.toGraphQLType,
     get_User()->GraphQLObjectType.toGraphQLType,
+    get_StringEdge()->GraphQLObjectType.toGraphQLType,
     get_Mutation()->GraphQLObjectType.toGraphQLType,
     get_Res12Record()->GraphQLObjectType.toGraphQLType,
     get_Thing()->GraphQLObjectType.toGraphQLType,

@@ -8,7 +8,7 @@ The best practice for doing pagination in GraphQL is leveraging a concept called
 
 ## Setting up a simple connection
 
-ResGraph comes with pre-defined type creators (TODO: Link) for easily creating new connections:
+Connections are regular GraphQL object types in ResGraph. Define your edge and connection explicitly:
 
 ```rescript
 @gql.type
@@ -19,14 +19,28 @@ type user = {
 
 /** An edge to a user. */
 @gql.type
-type userEdge = ResGraph.Connections.edge<user>
+type userEdge = {
+  /** A cursor for use in pagination. */
+  @gql.field
+  cursor: string,
+  /** The item at the end of the edge. */
+  @gql.field
+  node: option<user>,
+}
 
 /** A connection to users. */
 @gql.type
-type userConnection = ResGraph.Connections.connection<userEdge>
+type userConnection = {
+  /** Information to aid in pagination. */
+  @gql.field
+  pageInfo: ResGraph.Connections.pageInfo,
+  /** A list of edges. */
+  @gql.field
+  edges: option<array<option<userEdge>>>,
+}
 ```
 
-There, we have the simplest possible connection set up, by using the built-in `ResGraph.Connections.edge<'node>` and `ResGraph.Connections.node<'edge>`. This will create a connection type and an edge type hooked up to that connection type. It generates this GraphQL:
+There, we have the simplest possible connection set up using regular object types. It generates this GraphQL:
 
 ```graphql
 """
@@ -79,11 +93,32 @@ type user = {
 
 /** An edge to a user. */
 @gql.type
-type userEdge = ResGraph.Connections.edge<user>
+type userEdge = {
+  @gql.field cursor: string,
+  @gql.field node: option<user>,
+}
 
 /** A connection to users. */
 @gql.type
-type userConnection = ResGraph.Connections.connection<userEdge>
+type userConnection = {
+  @gql.field pageInfo: ResGraph.Connections.pageInfo,
+  @gql.field edges: option<array<option<userEdge>>>,
+}
+
+let fromSyntheticConnection = (
+  connection: ResGraph.Connections.connection<ResGraph.Connections.edge<user>>,
+): userConnection => {
+  pageInfo: connection.pageInfo,
+  edges:
+    connection.edges->Option.map(edges =>
+      edges->Array.map(connectionEdge =>
+        connectionEdge->Option.map(connectionEdge => {
+          cursor: connectionEdge.cursor,
+          node: connectionEdge.node,
+        })
+      )
+    ),
+}
 
 /** All currently active users. */
 @gql.field
@@ -98,9 +133,12 @@ let currentlyActiveUsers = async (
   // Returns array<user>
   let activeUsers = await ctx.dataLoaders.activeUsers.load()
 
-  activeUsers->ResGraph.Connections.connectionFromArray(
-    ~args={first, after, before, last},
-  )
+  let syntheticConnection =
+    activeUsers->ResGraph.Connections.connectionFromArray(
+      ~args={first, after, before, last},
+    )
+
+  syntheticConnection->fromSyntheticConnection
 }
 ```
 
@@ -114,7 +152,7 @@ type UserConnection {
   """
   Information to aid in pagination.
   """
-  pageInfo: User!
+  pageInfo: PageInfo!
 
   """
   A list of edges.
@@ -152,12 +190,10 @@ type Query {
 
 Let's look a bit deeper into what we did, and how it works:
 
-1. First notice we're adding all connection arguments (`first`/`last`/`before`/`after`) to our field function. Also notice we're not annotating them with types - let inference do its thing! `args` of `connectionFromArray` knows what types they should be, so we let ReScript infer that for us.
-2. Also notice that we're annotating the return type of the function with `userConnection`. This is important when using the `connectionFromArray` helper, because it returns a _generic_ connection, and ResGraph won't understand that that generic connection is in fact `userConnection` unless we tell it.
-3. We then call a fictive data loader that returns an array of `user`. Notice it returns an array, and not a connection.
-4. Finally, we use `connectionFromArray` to turn our array of `user` into a `connection<user>`, which is the same as `userConnection`.
-
-That last part may seem a bit magical, so we'll briefly dig into how `connectionFromArray` works next.
+1. First notice we're adding all connection arguments (`first`/`last`/`before`/`after`) to our field function. Also notice we're not annotating them with types. `args` of `connectionFromArray` knows what types they should be, so we let ReScript infer that for us.
+2. We then call a fictive data loader that returns an array of `user`. Notice it returns an array, and not a connection.
+3. `connectionFromArray` turns that array into ResGraph's generic connection data shape.
+4. Finally, `fromSyntheticConnection` maps that generic data into the `userConnection` GraphQL type we expose in our schema.
 
 ### `connectionFromArray`
 
@@ -204,31 +240,18 @@ type UserEdge {
 
 ## Adding more data to the connection
 
-Sometimes you'll want to expose fields on the connection that requires more data than what the generic connection shape allows for. For those instances, there's a sibling to `ResGraph.Connections.connection<'edge>` called `ResGraph.Connections.connectionWithExtra<'edge, 'extra>`. Using that connection type creator allows you to add data you can access in the connection via a field `extra: 'extra`. Let's look at an example:
+Sometimes you'll want to expose fields on the connection that require more data than the basic connection shape allows for. Since connections are regular object types, you can just add those fields directly to your connection record.
 
 ```rescript
 @gql.type
-type userEdge = ResGraph.Connections.edge<user>
-
-type connectionExtra = {totalCountFromServer: int}
-
-@gql.type
-type userConnection = ResGraph.Connections.connectionWithExtra<userEdge, connectionExtra>
-```
-
-Here we define our `userConnection` with `connectionWithExtra`, which allows us to attach extra data to the connection.
-
-With this, we can expose a field returning `totalCountFromServer` easily:
-
-```rescript
-/** The total amount of data available on the server. */
-@gql.field
-let totalCount = (connection: userConnection) => {
-  Some(connection.extra.totalCountFromServer)
+type userConnection = {
+  @gql.field totalCount: option<int>,
+  @gql.field pageInfo: ResGraph.Connections.pageInfo,
+  @gql.field edges: option<array<option<userEdge>>>,
 }
 ```
 
-Finally, whenever constructing this connection we'll use `connectionFromArrayWithExtra` instead of `connectionFromArray` to create our connection:
+Whenever constructing the connection, populate the extra field alongside `pageInfo` and `edges`:
 
 ```rescript
 /** All currently active users. */
@@ -244,14 +267,28 @@ let currentlyActiveUsers = async (
   // Returns {activeUsers: array<user>, totalCount: int}
   let {activeUsers, totalCount} = await ctx.dataLoaders.activeUsers.load()
 
-  activeUsers->ResGraph.Connections.connectionFromArrayWithExtra(
-    ~args={first, after, before, last},
-    ~extra={totalCountFromServer: totalCount}
-  )
+  let syntheticConnection =
+    activeUsers->ResGraph.Connections.connectionFromArray(
+      ~args={first, after, before, last},
+    )
+
+  {
+    totalCount: Some(totalCount),
+    pageInfo: syntheticConnection.pageInfo,
+    edges:
+      syntheticConnection.edges->Option.map(edges =>
+        edges->Array.map(connectionEdge =>
+          connectionEdge->Option.map(connectionEdge => {
+            cursor: connectionEdge.cursor,
+            node: connectionEdge.node,
+          })
+        )
+      ),
+  }
 }
 ```
 
-There, we've now added another field to our (generic) connection, that's backed by extra data added to the connection. This results in the following GraphQL:
+There, we've now added another field to our connection that's backed by extra data from the backend. This results in the following GraphQL:
 
 ```graphql
 """

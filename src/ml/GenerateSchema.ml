@@ -96,27 +96,35 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
   in
   let typ = findTyp typ in
   if isSubscription then (
+    let isAsyncIterablePath path =
+      match pathIdentToList path |> List.rev with
+      | "t" :: ("AsyncIterator" | "AsyncIterable" | "Stdlib__AsyncIterator"
+               | "Stdlib__AsyncIterable")
+        :: _ ->
+        true
+      | _ -> false
+    in
     let addSubscriptionError () =
       schemaState
       |> addDiagnostic
            ~diagnostic:
              {
                loc =
-                 (match loc with
-                 | None -> Location.in_file (env.file.moduleName ^ ".res")
-                 | Some loc -> loc);
+                   (match loc with
+                   | None -> Location.in_file (env.file.moduleName ^ ".res")
+                   | Some loc -> loc);
                fileUri = env.file.uri;
                message =
                  Printf.sprintf
-                   "Subscription fields must return an `AsyncIterable.t` \
-                    (found in RescriptCore).";
+                   "Subscription fields must return an `AsyncIterator.t` or \
+                    `AsyncIterable.t`.";
              }
     in
 
     match typ.desc with
     | Tconstr (path, [innerSubscriptionType], _) -> (
-      match pathIdentToList path with
-      | ["RescriptCore"; "AsyncIterator"; "t"] ->
+      match isAsyncIterablePath path with
+      | true ->
         findGraphQLType innerSubscriptionType ?loc ~env ~debug ~schemaState
           ~full ~typeContext
       | _ ->

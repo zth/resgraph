@@ -109,9 +109,6 @@ type gqlField = {
       (** The type this field is on, if that information is needed *)
 }
 
-type typeCreatorLocation = {env: SharedTypes.QueryEnv.t; loc: Location.t}
-(** The location of the type creator. *)
-
 type syntheticTypeLocation = {fileUri: Uri.t; loc: Location.t}
 
 type gqlObjectType = {
@@ -121,10 +118,6 @@ type gqlObjectType = {
   description: string option;
   typeLocation: typeLocation option;
   syntheticTypeLocation: syntheticTypeLocation option;
-  (* TODO: Can be removed? *)
-  typeCreatorLocation: typeCreatorLocation option;
-      (** If this type is synthetic, this will hold the location of the type
-          creator that created the type. *)
   interfaces: string list;
 }
 

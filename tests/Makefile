@@ -5,7 +5,11 @@ node_modules/.bin/rescript:
 
 build: node_modules/.bin/rescript
 	node_modules/.bin/rescript
-	../bin/dev/resgraph.exe generate-schema ./src ./src/__generated__ true
+	@output=$$(../bin/dev/resgraph.exe generate-schema ./src ./src/__generated__ true); \
+	printf "%s\n" "$$output"; \
+	if printf "%s" "$$output" | grep -q '"status": "Error"'; then \
+		exit 1; \
+	fi
 	node_modules/.bin/rescript
 
 test: build

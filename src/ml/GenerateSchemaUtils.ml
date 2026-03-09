@@ -148,15 +148,10 @@ let rec findModulePathOfType ~schemaState ~(env : SharedTypes.QueryEnv.t)
   let open SharedTypes.Module in
   structure.items
   |> List.find_map (fun (item : item) ->
-      let attributes =
-        match item.kind with
-        | Type (t, _) -> t.attributes
-        | _ -> []
-      in
       match
         ( item.kind,
           expectedType,
-          attributes |> extractGqlAttribute ~env ~schemaState )
+          item.attributes |> extractGqlAttribute ~env ~schemaState )
       with
       | Type ({kind = Variant _}, _), Enum, Some Enum when item.name = name ->
         Some modulePath
@@ -178,11 +173,6 @@ let rec findModulePathOfType ~schemaState ~(env : SharedTypes.QueryEnv.t)
           Some ObjectType )
         when item.name = name ->
         Some modulePath
-      | ( Type ({kind = Abstract (Some (_p, typeArgs))}, _),
-          ObjectType,
-          Some ObjectType )
-        when item.name = name && List.length typeArgs > 0 ->
-        Some modulePath
       | Type ({kind = Record _}, _), Interface, Some Interface
         when item.name = name ->
         Some modulePath
@@ -192,6 +182,18 @@ let rec findModulePathOfType ~schemaState ~(env : SharedTypes.QueryEnv.t)
       | Type ({kind = Abstract (Some _)}, _), Scalar, Some Scalar
         when item.name = name ->
         Some modulePath
+      | ( Module
+            {
+              type_ =
+                Constraint (Structure _implStructure, Structure intfStructure);
+              _;
+            },
+          _,
+          _ ) ->
+        name
+        |> findModulePathOfType ~env ~expectedType
+             ~modulePath:(intfStructure.name :: modulePath)
+             ~structure:intfStructure ~schemaState
       | Module {type_ = Structure structure; _}, _, _ ->
         name
         |> findModulePathOfType ~env ~expectedType
@@ -252,10 +254,9 @@ let uncapitalizeFirstChar s =
   if String.length s = 0 then s
   else String.mapi (fun i c -> if i = 0 then Char.lowercase_ascii c else c) s
 
-let noticeObjectType ?(force = false) ?typeCreatorLocation ~env ~loc
-    ~schemaState ~displayName ?syntheticTypeLocation ?description
+let noticeObjectType ~env ~loc ~schemaState ~displayName ?syntheticTypeLocation ?description
     ?(ignoreTypeLocation = false) ~makeFields typeName =
-  if Hashtbl.mem schemaState.types typeName && force = false then ()
+  if Hashtbl.mem schemaState.types typeName then ()
   else
     (*Printf.printf "noticing %s\n" typeName;*)
     let typ : gqlObjectType =
@@ -273,7 +274,6 @@ let noticeObjectType ?(force = false) ?typeCreatorLocation ~env ~loc
                (Concrete
                   (findTypeLocation ~schemaState typeName ~env ~loc
                      ~expectedType:ObjectType)));
-        typeCreatorLocation;
       }
     in
     Hashtbl.add schemaState.types typeName typ;
@@ -347,7 +347,6 @@ let addFieldToObjectType ~env ~loc ~field ~schemaState typeName =
             (Concrete
                (findTypeLocation ~schemaState typeName ~env ~loc
                   ~expectedType:ObjectType));
-        typeCreatorLocation = None;
       }
     | Some typ -> {typ with fields = field :: typ.fields}
   in
@@ -602,12 +601,9 @@ let processSchema (schemaState : schemaState) =
       | None -> ()
       | Some typeLocation -> (
         let fileUri =
-          match t.typeCreatorLocation with
-          | None ->
-            (match typeLocation with
-              | Synthetic {fileUri} | Concrete {fileUri} -> fileUri)
-            |> Uri.toPath
-          | Some {env} -> env.file.uri |> Uri.toPath
+          (match typeLocation with
+          | Synthetic {fileUri} | Concrete {fileUri} -> fileUri)
+          |> Uri.toPath
         in
         match Hashtbl.find_opt positionsToRead fileUri with
         | None ->
@@ -933,17 +929,27 @@ let makeSnippets ~path =
       ( "gql.type snippet - simple connection",
         "Boilerplate for creating a new simple GraphQL connection for \
          pagination.",
-        {|gql.type
+        {|@gql.type
 /** An edge in a connection. */
-type ${1:entity}Edge = ResGraph.Connections.edge<${1:entity}>
+type ${1:entity}Edge = {
+  @gql.field
+  cursor: string,
+  @gql.field
+  node: option<${1:entity}>,
+}
 
 /** A connection to a list of items. */
 @gql.type
-type ${1:entity}Connection = ResGraph.Connections.connection<${1:entity}Edge>|}
+type ${1:entity}Connection = {
+  @gql.field
+  pageInfo: ResGraph.Connections.pageInfo,
+  @gql.field
+  edges: option<array<option<${1:entity}Edge>>>,
+}|}
       );
       ( "gql.type snippet - full connection",
         "Boilerplate for creating a new GraphQL connection for pagination.",
-        {|gql.type
+        {|@gql.type
 /** An edge in a connection. */
 type ${1:entity}Edge = {
   /** A cursor for use in pagination. */
