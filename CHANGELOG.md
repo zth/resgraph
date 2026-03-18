@@ -2,6 +2,8 @@
 
 ## main
 
+- Add `resgraph tools find-definition SomeType.someField` command.
+
 ## 1.0.1
 
 - Fix regression where `gql.field` wasn't working properly with all `let` bindings.

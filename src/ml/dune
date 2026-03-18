@@ -11,4 +11,4 @@
    TypeUtils Shared SharedTypes Utils Loc Pos Range Uri Files Packages
    ModuleResolution BuildSystem Cache Cfg CmtDirect CmtSummarize
    DirectResolve DirectReferences Debug Log PrintType Protocol References
-   Completion Hover Markdown FindFiles))
+   Completion Hover Analyze Markdown FindFiles))

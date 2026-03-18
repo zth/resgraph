@@ -9,7 +9,7 @@ type hoverGqlType =
   | Union of gqlUnion
   | Scalar of gqlScalar
 
-let findGqlType typename ~schemaState =
+let findGqlTypeExact typename ~schemaState =
   match Hashtbl.find_opt schemaState.types typename with
   | Some obj -> Some (ObjectType obj)
   | None -> (
@@ -30,13 +30,18 @@ let findGqlType typename ~schemaState =
             | None -> (
               match Hashtbl.find_opt schemaState.scalars typename with
               | Some scalar -> Some (Scalar scalar)
-              | None -> (
-                match
-                  Hashtbl.find_opt schemaState.types
-                    (GenerateSchemaUtils.capitalizeFirstChar typename)
-                with
-                | Some obj -> Some (ObjectType obj)
-                | None -> None)))))))
+              | None -> None))))))
+
+let findGqlType typename ~schemaState =
+  let candidateNames =
+    [
+      typename;
+      GenerateSchemaUtils.uncapitalizeFirstChar typename;
+      GenerateSchemaUtils.capitalizeFirstChar typename;
+    ]
+  in
+  candidateNames
+  |> List.find_map (fun candidate -> findGqlTypeExact candidate ~schemaState)
 
 let makeTypeHoverText ~typename ~(typeLocation : typeLocationLoc) =
   Printf.sprintf "%s type defined by ResGraph.\n" typename
@@ -55,11 +60,7 @@ let hoverGraphQL ~path ~hoverHint =
     let hoverStr =
       match hoverHint |> String.split_on_char '.' with
       | [typename] -> (
-        match
-          findGqlType
-            (typename |> GenerateSchemaUtils.uncapitalizeFirstChar)
-            ~schemaState
-        with
+        match findGqlType typename ~schemaState with
         | None -> Protocol.null
         | Some (Scalar typ) ->
           Protocol.stringifyHover
@@ -92,11 +93,7 @@ let hoverGraphQL ~path ~hoverHint =
         | Some (ObjectType _) | Some (Union _) | Some (Enum _) -> Protocol.null
         | Some (InputObject {typeLocation = None}) -> Protocol.null)
       | [typename; fieldName] -> (
-        match
-          findGqlType
-            (typename |> GenerateSchemaUtils.uncapitalizeFirstChar)
-            ~schemaState
-        with
+        match findGqlType typename ~schemaState with
         | Some (ObjectType {fields} | Interface {fields} | InputObject {fields})
           -> (
           match
@@ -129,11 +126,7 @@ let definitionGraphQL ~path ~definitionHint =
     let definitionLoc =
       match definitionHint |> String.split_on_char '.' with
       | [typename] -> (
-        match
-          findGqlType
-            (typename |> GenerateSchemaUtils.uncapitalizeFirstChar)
-            ~schemaState
-        with
+        match findGqlType typename ~schemaState with
         | Some (Scalar {typeLocation = {fileUri; loc}})
         | Some (ObjectType {syntheticTypeLocation = Some {fileUri; loc}})
         | Some (ObjectType {typeLocation = Some (Concrete {fileUri; loc})})
@@ -159,11 +152,7 @@ let definitionGraphQL ~path ~definitionHint =
             }
         | _ -> None)
       | [typename; fieldName] -> (
-        match
-          findGqlType
-            (typename |> GenerateSchemaUtils.uncapitalizeFirstChar)
-            ~schemaState
-        with
+        match findGqlType typename ~schemaState with
         | Some (ObjectType {fields} | Interface {fields} | InputObject {fields})
           -> (
           match
