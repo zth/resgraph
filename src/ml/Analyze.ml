@@ -44,6 +44,8 @@ let range_of_loc (loc : Location.t) =
 let make_definition ~path ~kind ~fileUri ~loc =
   {path; kind; file = fileUri |> Uri.toPath; range = range_of_loc loc}
 
+let location_is_available (loc : Location.t) = loc <> Location.none
+
 let load_schema_state ~path =
   match Packages.getPackage ~uri:(Uri.fromPath path) with
   | None ->
@@ -62,11 +64,7 @@ let load_schema_state ~path =
            build` again.")
 
 let resolve_type_definition ~schemaState ~definitionHint typename =
-  match
-    Hover.findGqlType
-      (typename |> GenerateSchemaUtils.uncapitalizeFirstChar)
-      ~schemaState
-  with
+  match Hover.findGqlType typename ~schemaState with
   | Some (Hover.Scalar {typeLocation = {fileUri; loc}}) ->
     Ok (make_definition ~path:definitionHint ~kind:"scalar" ~fileUri ~loc)
   | Some (Hover.ObjectType {syntheticTypeLocation = Some {fileUri; loc}}) ->
@@ -94,11 +92,7 @@ let resolve_type_definition ~schemaState ~definitionHint typename =
   | None -> Error (Printf.sprintf "Could not find GraphQL type `%s`." typename)
 
 let resolve_field_definition ~schemaState ~definitionHint typename fieldName =
-  match
-    Hover.findGqlType
-      (typename |> GenerateSchemaUtils.uncapitalizeFirstChar)
-      ~schemaState
-  with
+  match Hover.findGqlType typename ~schemaState with
   | Some
       ( Hover.ObjectType {fields}
       | Hover.Interface {fields}
@@ -111,11 +105,25 @@ let resolve_field_definition ~schemaState ~definitionHint typename fieldName =
         (Printf.sprintf "Could not find field `%s` on GraphQL type `%s`."
            fieldName typename)
     | Some {resolverStyle = Resolver _; loc; fileUri} ->
-      Ok (make_definition ~path:definitionHint ~kind:"resolver" ~fileUri ~loc)
+      if location_is_available loc then
+        Ok (make_definition ~path:definitionHint ~kind:"resolver" ~fileUri ~loc)
+      else
+        Error
+          (Printf.sprintf
+             "Field `%s` exists, but ResGraph could not determine a concrete \
+              source location for it."
+             definitionHint)
     | Some {resolverStyle = Property _; loc; fileUri} ->
-      Ok
-        (make_definition ~path:definitionHint ~kind:"exposedField" ~fileUri ~loc)
-    )
+      if location_is_available loc then
+        Ok
+          (make_definition ~path:definitionHint ~kind:"exposedField" ~fileUri
+             ~loc)
+      else
+        Error
+          (Printf.sprintf
+             "Field `%s` exists, but ResGraph could not determine a concrete \
+              source location for it."
+             definitionHint))
   | Some _ ->
     Error (Printf.sprintf "GraphQL type `%s` does not expose fields." typename)
   | None -> Error (Printf.sprintf "Could not find GraphQL type `%s`." typename)
