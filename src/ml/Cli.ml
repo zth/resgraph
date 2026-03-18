@@ -8,6 +8,7 @@ Commands:
   hover <path> <line> <col>
   hover-graphql <path> <hoverHint>
   definition-graphql <path> <definitionHint>
+  find-definition <path> <definitionHint>
 |}
 
 let run_generate ~sourceFolder ~outputFolder ~writeSdlFile =
@@ -30,6 +31,8 @@ let main () =
     Hover.hoverGraphQL ~path ~hoverHint |> print_endline
   | [_; "definition-graphql"; path; definitionHint] ->
     Hover.definitionGraphQL ~path ~definitionHint |> print_endline
+  | [_; "find-definition"; path; definitionHint] ->
+    Analyze.findDefinition ~path ~definitionHint |> print_endline
   | args when List.mem "-h" args || List.mem "--help" args -> prerr_endline help
   | _ ->
     prerr_endline help;

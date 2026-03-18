@@ -19,6 +19,7 @@ type privateCliCall =
   | Hover({filePath: string, position: LspProtocol.loc})
   | HoverGraphQL({filePath: string, hoverHint: string})
   | Definition({filePath: string, definitionHint: string})
+  | FindDefinition({filePath: string, definitionHint: string})
 
 let privateCliCallToArgs = call =>
   switch call {
@@ -47,7 +48,25 @@ let privateCliCallToArgs = call =>
     ]
   | HoverGraphQL({filePath, hoverHint}) => ["hover-graphql", filePath, hoverHint]
   | Definition({filePath, definitionHint}) => ["definition-graphql", filePath, definitionHint]
+  | FindDefinition({filePath, definitionHint}) => ["find-definition", filePath, definitionHint]
   }
+
+type analyzePosition = {
+  line: int,
+  column: int,
+}
+
+type analyzeRange = {
+  start: analyzePosition,
+  @as("end") end_: analyzePosition,
+}
+
+type findDefinitionItem = {
+  path: string,
+  kind: string,
+  file: string,
+  range: analyzeRange,
+}
 
 type generateError = {
   file: string,
@@ -63,6 +82,7 @@ type callResult =
   | Completion({items: array<LspProtocol.completionItem>})
   | Hover({item: LspProtocol.hover})
   | Definition({item: LspProtocol.definition})
+  | FindDefinition({item: option<findDefinitionItem>, error: option<string>})
 
 external toCallResult: string => callResult = "JSON.parse"
 
@@ -92,6 +112,37 @@ let callPrivateCli = command => {
   ->ChildProcess.execFileSyncWith(command->privateCliCallToArgs, {maxBuffer: infinity})
   ->Buffer.toString
   ->toCallResult
+}
+
+let formatFindDefinitionText = (item: findDefinitionItem) => {
+  let {path, kind, file, range: {start, end_}} = item
+
+  `path: ${path}\nkind: ${kind}\nfile: ${file}\nrange: ${start.line->Int.toString}:${start.column->Int.toString}-${end_.line->Int.toString}:${end_.column->Int.toString}`
+}
+
+type findDefinitionJson = {
+  path: string,
+  kind: string,
+  file: string,
+  range: analyzeRange,
+}
+
+type findDefinitionErrorJson = {error: string}
+
+let stringifyFindDefinitionJson = (item: findDefinitionItem) => {
+  let payload: findDefinitionJson = {
+    path: item.path,
+    kind: item.kind,
+    file: item.file,
+    range: item.range,
+  }
+
+  payload->JSON.stringifyAny
+}
+
+let stringifyFindDefinitionError = (error: string) => {
+  let payload: findDefinitionErrorJson = {error: error}
+  payload->JSON.stringifyAny
 }
 
 let getLastBuiltFromCompilerLog = compilerLogPath => {

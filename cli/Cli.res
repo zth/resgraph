@@ -21,8 +21,27 @@ Available commands:
 init       | Initializes a new project.
 build      | Builds the project.
 watch      | Builds the project and watches for changes.
+tools      | Show available ResGraph tools.
 help       | Show this help message.
 `
+
+let toolsHelpText = `
+Tools commands:
+
+find-definition <TypeName[.fieldName]> [--json]
+
+# Useful for finding the location of where a type or field is defined in the source code.
+# By default, the output is a human-readable string. 
+# With the \`--json\` flag, the output is a JSON string with the file path and location of the definition.
+`
+
+let parseFindDefinitionArgs = args =>
+  switch args {
+  | list{target} => Some((target, false))
+  | list{target, "--json"} => Some((target, true))
+  | list{"--json", target} => Some((target, true))
+  | _ => None
+  }
 
 let validateConfig = config => {
   let issues = []
@@ -30,6 +49,34 @@ let validateConfig = config => {
 
   if issues->Array.length > 0 {
     issues->InitProject.printProjectIssues
+    Process.process->Process.exitWithCode(1)
+  }
+}
+
+let printFindDefinition = (~target, ~jsonOutput) => {
+  let config = switch Utils.readConfigFromCwd() {
+  | Error(msg) => panic(msg)
+  | Ok(config) => config
+  }
+
+  validateConfig(config)
+
+  switch Utils.callPrivateCli(FindDefinition({filePath: config.src, definitionHint: target})) {
+  | FindDefinition({item: Some(item), error: None}) =>
+    if jsonOutput {
+      Console.log(item->Utils.stringifyFindDefinitionJson)
+    } else {
+      Console.log(item->Utils.formatFindDefinitionText)
+    }
+  | FindDefinition({item: None, error: Some(error)}) =>
+    if jsonOutput {
+      Console.log(Utils.stringifyFindDefinitionError(error))
+    } else {
+      Console.error(error)
+    }
+    Process.process->Process.exitWithCode(1)
+  | _ =>
+    Console.error("Unexpected response from ResGraph tools command.")
     Process.process->Process.exitWithCode(1)
   }
 }
@@ -66,7 +113,7 @@ try {
       GenerateSchema({src: config.src, outputFolder: config.outputFolder, dumpSchemaSdl: true}),
     )
     switch res {
-    | Completion(_) | Hover(_) | Definition(_) | NotInitialized => ()
+    | Completion(_) | Hover(_) | Definition(_) | FindDefinition(_) | NotInitialized => ()
     | Success(_) =>
       let buildDuration = performance->now -. timeStart
       printBuildTime(buildDuration)
@@ -103,11 +150,19 @@ try {
       ~config,
     )
     Console.log("Watching for changes...")
-| list{"lsp", configFilePath} => Lsp.start(~configFilePath, ~mode=Lsp.Stdio)
+  | list{"lsp", configFilePath} => Lsp.start(~configFilePath, ~mode=Lsp.Stdio)
+  | list{"tools", "find-definition", ...rest} =>
+    switch parseFindDefinitionArgs(rest) {
+    | Some((target, jsonOutput)) => printFindDefinition(~target, ~jsonOutput)
+    | None =>
+      Console.error("Invalid tools arguments.")
+      Console.log(toolsHelpText)
+      Process.process->Process.exitWithCode(1)
+    }
   | list{"help"} => Console.log(helpText)
-| v =>
-  Console.log("Invalid command: " ++ v->List.toArray->Array.join(" "))
-  Console.log(helpText)
+  | v =>
+    Console.log("Invalid command: " ++ v->List.toArray->Array.join(" "))
+    Console.log(helpText)
   }
 } catch {
 | Exn.Error(_) => Console.error("Error")
