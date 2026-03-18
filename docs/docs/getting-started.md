@@ -100,6 +100,8 @@ ResGraph will automatically generate a number of things by default:
 
 Notice we built our schema using the one-shot command `resgraph build`. If you want to watch for changes and automatically rerun ResGraph, run `resgraph watch`. However, if you're also using VSCode, you're encouraged to instead use the [ResGraph VSCode extension](getting-started) (**Not yet available, coming very soon**), which will run ResGraph in watch mode for you, show you errors and so on, directly inside of VSCode.
 
+Once you have built the schema at least once, you can also inspect definitions from the terminal. For example, `npx resgraph tools find-definition Query.currentTime` will point you to the ReScript source for that GraphQL type or field.
+
 Excellent, we now have a schema! Let's hook it up to your server.
 
 ### Hooking up your schema to GraphQL Yoga
