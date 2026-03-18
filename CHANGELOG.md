@@ -2,6 +2,8 @@
 
 ## main
 
+## 1.1.0
+
 - Add `resgraph tools find-definition SomeType.someField` command.
 
 ## 1.0.1
