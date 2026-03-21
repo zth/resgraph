@@ -49,6 +49,7 @@ Add a `resgraph.json` file in the root of your ReScript project, and paste this 
 
 - `src` is the folder where code that can define GraphQL lives
 - `outputFolder` is where you want ResGraph to output the files it generates. **Ensure that this folder exists**. Create it if you don't already have it.
+- Add `"dumpSchemaSdl": true` if you want ResGraph to emit `schema.graphql`. By default, it stays off.
 
 ### `ResGraphContext.res`
 
@@ -94,7 +95,7 @@ ResGraph will automatically generate a number of things by default:
 
 1. The `ResGraphSchema.res` and `ResGraphSchema.resi` files. These hold the optimized `graphql-js` schema generated from your types and resolvers, that you then expose through your server.
 2. `Interface_<interfaceName>.res` for each interface you use. These files hold generated helpers and assets for each interface you have and use.
-3. `schema.graphql`. This is a schema SDL file dumped from ResGraph. This is intended to be used as a debug utility primarily.
+3. `schema.graphql`. This is a schema SDL file dumped from ResGraph. This is intended to be used as a debug utility primarily, and can be enabled via `dumpSchemaSdl: true`.
 
 #### Build and watch mode
 

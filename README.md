@@ -171,7 +171,7 @@ npm run watch-testapp
 ```
 
 This will start the test server and watch for changes so it's restarted with any change. You can now access GraphiQL at http://localhost:9898/graphql.
-The test server will also dump an up to date `schema.graphql` on restart, so you'll be able to see how any changes you make affect the schema.
+The test server will only dump an up to date `schema.graphql` on restart if you set `"dumpSchemaSdl": true` in `resgraph.json`.
 
 For the best experience, also run the ReScript compiler as a separate process:
 
@@ -183,7 +183,7 @@ The workflow after this is setup is roughly:
 
 1. Make changes to the test schema (primarily located in `Schema.res`)
 2. Run `ResGraph` via `make test`
-3. Test the changes in GraphiQL, or see them in `schema.graphql`
+3. Test the changes in GraphiQL, or see them in `schema.graphql` if SDL emission is enabled
 
 ## High level overview of how ResGraph works
 

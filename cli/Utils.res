@@ -9,6 +9,7 @@ type url = {pathname: string}
 type config = {
   src: string,
   outputFolder: string,
+  dumpSchemaSdl: bool,
 }
 
 let resolveRelative = path => Path.resolve([Process.process->Process.cwd, path])
@@ -181,14 +182,14 @@ let runIfCompilerDone = (fn, ~compilerLogPath, ~lastCompletedBuild) => {
 }
 
 let setupWatcher = (~onResult, ~onStartRebuild, ~config) => {
-  let {src, outputFolder} = config
+  let {src, outputFolder, dumpSchemaSdl} = config
   let compilerLogPath = Path.resolve([Process.process->Process.cwd, "./lib/bs/.compiler.log"])
   let lastCompletedBuild = ref(None)
   open Bindings.Chokidar
 
   let generateSchema = () => {
     onStartRebuild()
-    let res = callPrivateCli(GenerateSchema({src, outputFolder, dumpSchemaSdl: true}))
+    let res = callPrivateCli(GenerateSchema({src, outputFolder, dumpSchemaSdl}))
     onResult(res)
   }
 
@@ -217,14 +218,22 @@ let parseConfig = rawConfig => {
   switch rawConfig->JSON.Decode.object {
   | None => None
   | Some(dict) =>
+    let dumpSchemaSdl =
+      switch dict->Dict.get("dumpSchemaSdl") {
+      | None => Some(false)
+      | Some(value) => value->JSON.Decode.bool
+      }
+
     switch (
       dict->Dict.get("src")->Option.flatMap(JSON.Decode.string),
       dict->Dict.get("outputFolder")->Option.flatMap(JSON.Decode.string),
+      dumpSchemaSdl,
     ) {
-    | (Some(src), Some(outputFolder)) =>
+    | (Some(src), Some(outputFolder), Some(dumpSchemaSdl)) =>
       Some({
         src: src->resolveRelative,
         outputFolder: outputFolder->resolveRelative,
+        dumpSchemaSdl,
       })
     | _ => None
     }

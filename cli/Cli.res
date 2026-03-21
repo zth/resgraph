@@ -110,7 +110,11 @@ try {
     let timeStart = performance->now
 
     let res = Utils.callPrivateCli(
-      GenerateSchema({src: config.src, outputFolder: config.outputFolder, dumpSchemaSdl: true}),
+      GenerateSchema({
+        src: config.src,
+        outputFolder: config.outputFolder,
+        dumpSchemaSdl: config.dumpSchemaSdl,
+      }),
     )
     switch res {
     | Completion(_) | Hover(_) | Definition(_) | FindDefinition(_) | NotInitialized => ()

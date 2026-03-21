@@ -2,6 +2,8 @@
 
 ## main
 
+- Default `schema.graphql` emission to off, configurable via `dumpSchemaSdl`.
+
 ## 1.1.0
 
 - Add `resgraph tools find-definition SomeType.someField` command.
