@@ -72,6 +72,8 @@ let t_LabelledBeta: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_LabelledBeta = () => t_LabelledBeta.contents
 let t_Mutation: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_Mutation = () => t_Mutation.contents
+let t_NullableInterop: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
+let get_NullableInterop = () => t_NullableInterop.contents
 let t_PageInfo: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_PageInfo = () => t_PageInfo.contents
 let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
@@ -366,6 +368,32 @@ t_Mutation.contents = GraphQLObjectType.make({
       },
     }->makeFields,
 })
+t_NullableInterop.contents = GraphQLObjectType.make({
+  name: "NullableInterop",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "nullCount": {
+        typ: Scalars.int->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["nullCount"]
+        }),
+      },
+      "nullableName": {
+        typ: Scalars.string->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["nullableName"]
+        }),
+      },
+    }->makeFields,
+})
 t_PageInfo.contents = GraphQLObjectType.make({
   name: "PageInfo",
   description: "Information about pagination in a connection.",
@@ -478,6 +506,23 @@ t_Query.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           NodeInterfaceResolver.nodes(src, ~ctx, ~ids=args["ids"])
+        }),
+      },
+      "nullableInterop": {
+        typ: get_NullableInterop()->GraphQLObjectType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {
+          "nullCount": {typ: Scalars.int->Scalars.toGraphQLType},
+          "nullableName": {typ: Scalars.string->Scalars.toGraphQLType},
+        }->makeArgs,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppNullableInterop.nullableInterop(
+            src,
+            ~nullCount=args["nullCount"],
+            ~nullableName=args["nullableName"],
+          )
         }),
       },
       "userConnection": {
@@ -981,6 +1026,7 @@ let schema = GraphQLSchemaType.make({
     get_Query()->GraphQLObjectType.toGraphQLType,
     get_FunctionFieldRegression()->GraphQLObjectType.toGraphQLType,
     get_LabelledBeta()->GraphQLObjectType.toGraphQLType,
+    get_NullableInterop()->GraphQLObjectType.toGraphQLType,
     get_ScalarHolder()->GraphQLObjectType.toGraphQLType,
     get_StringConnection()->GraphQLObjectType.toGraphQLType,
     get_PageInfo()->GraphQLObjectType.toGraphQLType,

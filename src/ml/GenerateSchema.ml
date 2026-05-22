@@ -95,6 +95,15 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
     | _ -> t
   in
   let typ = findTyp typ in
+  let isRescriptNullablePath path =
+    match pathIdentToList path |> List.rev with
+    | "t" :: ("Nullable" | "Null" | "Stdlib__Nullable" | "Stdlib__Null") :: _
+    | ("nullable" | "null")
+      :: ("Primitive_js_extern" | "Stdlib__Primitive_js_extern")
+      :: _ ->
+      true
+    | _ -> false
+  in
   if isSubscription then (
     let isAsyncIterablePath path =
       match pathIdentToList path |> List.rev with
@@ -171,7 +180,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
       | ["ResGraph"; "id"] -> Some (Scalar ID)
       | ["ResGraph"; "resolveInfo"] -> Some InjectInfo
       | ["ResGraphContext"; "context"] -> Some InjectContext
-      | ["Js"; "Nullable"; "t"] | ["Js"; "Null"; "t"] -> (
+      | _ when isRescriptNullablePath path -> (
         match typeArgs with
         | [typeArg] -> (
           let inner =
