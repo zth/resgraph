@@ -98,6 +98,11 @@ type Mutation {
   updateThing(thingId: ID!, input: UpdateThingInput!): Thing
 }
 
+type NullableInterop {
+  nullCount: Int
+  nullableName: String
+}
+
 
 """Information about pagination in a connection."""
 type PageInfo {
@@ -123,6 +128,7 @@ type Query {
   """Fetches an object given its ID."""
   node(id: ID!): Node
   functionFieldRegression: FunctionFieldRegression!
+  nullableInterop(nullCount: Int, nullableName: String): NullableInterop!
   getLabelled: LabelledAlpha!
   getScalarHolder: ScalarHolder!
   nestedConnection: StringConnection!
