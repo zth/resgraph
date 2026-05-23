@@ -1,5 +1,6 @@
 tests/lib
 tests/**/*.mjs
+!tests/runtime-interface-returns.mjs
 tests/node_modules
 tests/.bsb.lock
 _build

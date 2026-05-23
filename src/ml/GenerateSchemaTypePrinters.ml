@@ -435,6 +435,44 @@ let printSchemaJsFile schemaState processSchema =
     }
     `)|};
 
+  addWithNewLine
+    {|let resolveInterfaceTypename: ('src, array<string>, string, string) => string = %raw(`function resolveInterfaceTypename(src, allowedTypenames, interfaceName, interfaceResolverTypeName) {
+      if (allowedTypenames.length === 1) {
+        return allowedTypenames[0];
+      }
+
+      if (src != null && typeof src === "object") {
+        let tag = src.TAG;
+
+        if (typeof tag === "string" && allowedTypenames.includes(tag)) {
+          return tag;
+        }
+
+        if (typeof tag === "string") {
+          throw new Error(
+            "Panic! Interface " +
+              interfaceName +
+              " resolveType got unexpected TAG " +
+              JSON.stringify(tag) +
+              ". Expected one of " +
+              allowedTypenames.join(", ") +
+              ".",
+          );
+        }
+      }
+
+      throw new Error(
+        "Panic! Interface " +
+          interfaceName +
+          " resolveType expected a tagged value from " +
+          interfaceResolverTypeName +
+          ", but got an untagged value. Use " +
+          interfaceResolverTypeName +
+          " for interface return values instead of the bare interface record type.",
+      );
+    }
+    `)|};
+
   (* Add conversion assets. *)
   addWithNewLine
     "type inputObjectFieldConverterFn; external \
@@ -584,20 +622,21 @@ let printSchemaJsFile schemaState processSchema =
         | Some i -> i
         | None -> raise (Interface_not_found ("Interface: " ^ intf.id))
       in
+      let resolvedTypenames =
+        implementedBy
+        |> List.sort sortImplementedBy
+        |> List.map (fun (member : interfaceImplementedBy) ->
+            match member with
+            | ObjectType {displayName} | Interface {displayName} ->
+              Printf.sprintf "\"%s\"" displayName)
+        |> String.concat ", "
+      in
       addWithNewLine
         (Printf.sprintf
            "let interface_%s_resolveType = (v: Interface_%s.Resolver.t) => \
-            switch v {%s}\n"
-           intf.displayName intf.id
-           (implementedBy
-           |> List.map (fun (member : interfaceImplementedBy) ->
-               let displayName =
-                 match member with
-                 | ObjectType {displayName} | Interface {displayName} ->
-                   displayName
-               in
-               Printf.sprintf " | %s(_) => \"%s\"" displayName displayName)
-           |> String.concat "\n")));
+            resolveInterfaceTypename(v, [%s], \"%s\", \
+            \"Interface_%s.Resolver.t\")\n"
+           intf.displayName intf.id resolvedTypenames intf.displayName intf.id));
 
   (* Now we can print all of the code that fills these in. *)
   schemaState.interfaces
@@ -635,6 +674,26 @@ let printSchemaJsFile schemaState processSchema =
            union.displayName (union |> printUnionType)));
 
   (* Print the schema gluing it all together. *)
+  let schemaTypes =
+    (hashtblToListAlphabetically schemaState.types
+    |> List.map (fun (_name, (t : gqlObjectType)) ->
+        "get_" ^ t.displayName ^ "()->GraphQLObjectType.toGraphQLType"))
+    @ (hashtblToListAlphabetically schemaState.interfaces
+      |> List.map (fun (_name, (t : gqlInterface)) ->
+          "get_" ^ t.displayName ^ "()->GraphQLInterfaceType.toGraphQLType"))
+    @ (hashtblToListAlphabetically schemaState.unions
+      |> List.map (fun (_name, (t : gqlUnion)) ->
+          "get_" ^ t.displayName ^ "()->GraphQLUnionType.toGraphQLType"))
+    @ (hashtblToListAlphabetically schemaState.inputUnions
+      |> List.map (fun (_name, (t : gqlInputUnionType)) ->
+          "get_" ^ t.displayName ^ "()->GraphQLInputObjectType.toGraphQLType"))
+    @ (hashtblToListAlphabetically schemaState.inputObjects
+      |> List.map (fun (_name, (t : gqlInputObjectType)) ->
+          "get_" ^ t.displayName ^ "()->GraphQLInputObjectType.toGraphQLType"))
+    @ (hashtblToListAlphabetically schemaState.enums
+      |> List.map (fun (_name, (t : gqlEnum)) ->
+          "enum_" ^ t.displayName ^ "->GraphQLEnumType.toGraphQLType"))
+  in
   addWithNewLine "";
   addWithNewLine
     (Printf.sprintf
@@ -646,37 +705,5 @@ let printSchemaJsFile schemaState processSchema =
        (match schemaState.subscription with
        | None -> ""
        | Some _ -> ", \"subscription\": get_Subscription()")
-       (Hashtbl.fold
-          (fun _ (t : gqlObjectType) acc ->
-            ("get_" ^ t.displayName ^ "()->GraphQLObjectType.toGraphQLType")
-            :: acc)
-          schemaState.types []
-        @ Hashtbl.fold
-            (fun _ (t : gqlInterface) acc ->
-              ("get_" ^ t.displayName ^ "()->GraphQLInterfaceType.toGraphQLType")
-              :: acc)
-            schemaState.interfaces []
-        @ Hashtbl.fold
-            (fun _ (t : gqlUnion) acc ->
-              ("get_" ^ t.displayName ^ "()->GraphQLUnionType.toGraphQLType")
-              :: acc)
-            schemaState.unions []
-        @ Hashtbl.fold
-            (fun _ (t : gqlInputUnionType) acc ->
-              ("get_" ^ t.displayName
-             ^ "()->GraphQLInputObjectType.toGraphQLType")
-              :: acc)
-            schemaState.inputUnions []
-        @ Hashtbl.fold
-            (fun _ (t : gqlInputObjectType) acc ->
-              ("get_" ^ t.displayName
-             ^ "()->GraphQLInputObjectType.toGraphQLType")
-              :: acc)
-            schemaState.inputObjects []
-        @ Hashtbl.fold
-            (fun _ (t : gqlEnum) acc ->
-              ("enum_" ^ t.displayName ^ "->GraphQLEnumType.toGraphQLType")
-              :: acc)
-            schemaState.enums []
-       |> String.concat ", "));
+       (schemaTypes |> String.concat ", "));
   !code

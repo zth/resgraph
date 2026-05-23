@@ -40,6 +40,47 @@ let inputUnionUnwrapper: (
       return null;
     }
     `)
+let resolveInterfaceTypename: (
+  'src,
+  array<string>,
+  string,
+  string,
+) => string = %raw(`function resolveInterfaceTypename(src, allowedTypenames, interfaceName, interfaceResolverTypeName) {
+      if (allowedTypenames.length === 1) {
+        return allowedTypenames[0];
+      }
+
+      if (src != null && typeof src === "object") {
+        let tag = src.TAG;
+
+        if (typeof tag === "string" && allowedTypenames.includes(tag)) {
+          return tag;
+        }
+
+        if (typeof tag === "string") {
+          throw new Error(
+            "Panic! Interface " +
+              interfaceName +
+              " resolveType got unexpected TAG " +
+              JSON.stringify(tag) +
+              ". Expected one of " +
+              allowedTypenames.join(", ") +
+              ".",
+          );
+        }
+      }
+
+      throw new Error(
+        "Panic! Interface " +
+          interfaceName +
+          " resolveType expected a tagged value from " +
+          interfaceResolverTypeName +
+          ", but got an untagged value. Use " +
+          interfaceResolverTypeName +
+          " for interface return values instead of the bare interface record type.",
+      );
+    }
+    `)
 type inputObjectFieldConverterFn
 external makeInputObjectFieldConverterFn: ('a => 'b) => inputObjectFieldConverterFn = "%identity"
 
@@ -70,6 +111,8 @@ let t_LabelledAlpha: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_LabelledAlpha = () => t_LabelledAlpha.contents
 let t_LabelledBeta: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_LabelledBeta = () => t_LabelledBeta.contents
+let t_LabelledWrapper: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
+let get_LabelledWrapper = () => t_LabelledWrapper.contents
 let t_Mutation: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_Mutation = () => t_Mutation.contents
 let t_NullableInterop: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
@@ -227,15 +270,15 @@ inputUnion_UpdatableString_conversionInstructions->Array.pushMany([
 ])
 
 let interface_Labelled_resolveType = (v: Interface_labelled.Resolver.t) =>
-  switch v {
-  | LabelledBeta(_) => "LabelledBeta"
-  | LabelledAlpha(_) => "LabelledAlpha"
-  }
+  resolveInterfaceTypename(
+    v,
+    ["LabelledAlpha", "LabelledBeta"],
+    "Labelled",
+    "Interface_labelled.Resolver.t",
+  )
 
 let interface_Node_resolveType = (v: Interface_node.Resolver.t) =>
-  switch v {
-  | Thing(_) => "Thing"
-  }
+  resolveInterfaceTypename(v, ["Thing"], "Node", "Interface_node.Resolver.t")
 
 i_Labelled.contents = GraphQLInterfaceType.make({
   name: "Labelled",
@@ -343,6 +386,23 @@ t_LabelledBeta.contents = GraphQLObjectType.make({
       },
     }->makeFields,
 })
+t_LabelledWrapper.contents = GraphQLObjectType.make({
+  name: "LabelledWrapper",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "nested": {
+        typ: get_Labelled()->GraphQLInterfaceType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["nested"]
+        }),
+      },
+    }->makeFields,
+})
 t_Mutation.contents = GraphQLObjectType.make({
   name: "Mutation",
   description: ?None,
@@ -446,6 +506,24 @@ t_Query.contents = GraphQLObjectType.make({
   interfaces: [],
   fields: () =>
     {
+      "badLabelled": {
+        typ: get_Labelled()->GraphQLInterfaceType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppInterfaceReturnRegression.badLabelled(src)
+        }),
+      },
+      "brokenLabelledWrapper": {
+        typ: get_LabelledWrapper()->GraphQLObjectType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppInterfaceReturnRegression.brokenLabelledWrapper(src)
+        }),
+      },
       "functionFieldRegression": {
         typ: get_FunctionFieldRegression()->GraphQLObjectType.toGraphQLType->nonNull,
         description: ?None,
@@ -471,6 +549,24 @@ t_Query.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           AppCustomScalars.getScalarHolder(src)
+        }),
+      },
+      "goodLabelled": {
+        typ: get_Labelled()->GraphQLInterfaceType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppInterfaceReturnRegression.goodLabelled(src)
+        }),
+      },
+      "labelledWrapper": {
+        typ: get_LabelledWrapper()->GraphQLObjectType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppInterfaceReturnRegression.labelledWrapper(src)
         }),
       },
       "nestedConnection": {
@@ -753,7 +849,45 @@ t_User.contents = GraphQLObjectType.make({
   name: "User",
   description: ?None,
   interfaces: [],
-  fields: () => {%raw(`{}`)}->makeFields,
+  fields: () =>
+    {
+      "age": {
+        typ: Scalars.int->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["age"]
+        }),
+      },
+      "id": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["id"]
+        }),
+      },
+      "lastAge": {
+        typ: Scalars.int->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["lastAge"]
+        }),
+      },
+      "name": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["name"]
+        }),
+      },
+    }->makeFields,
 })
 t_UserConnection.contents = GraphQLObjectType.make({
   name: "UserConnection",
@@ -1051,35 +1185,36 @@ let schema = GraphQLSchemaType.make({
   "mutation": get_Mutation(),
   "subscription": get_Subscription(),
   "types": [
-    get_Query()->GraphQLObjectType.toGraphQLType,
     get_FunctionFieldRegression()->GraphQLObjectType.toGraphQLType,
+    get_LabelledAlpha()->GraphQLObjectType.toGraphQLType,
     get_LabelledBeta()->GraphQLObjectType.toGraphQLType,
+    get_LabelledWrapper()->GraphQLObjectType.toGraphQLType,
+    get_Mutation()->GraphQLObjectType.toGraphQLType,
     get_NullableInterop()->GraphQLObjectType.toGraphQLType,
+    get_PageInfo()->GraphQLObjectType.toGraphQLType,
+    get_Query()->GraphQLObjectType.toGraphQLType,
+    get_Res12Record()->GraphQLObjectType.toGraphQLType,
     get_ScalarHolder()->GraphQLObjectType.toGraphQLType,
     get_StringConnection()->GraphQLObjectType.toGraphQLType,
-    get_PageInfo()->GraphQLObjectType.toGraphQLType,
-    get_UserConnection()->GraphQLObjectType.toGraphQLType,
-    get_Subscription()->GraphQLObjectType.toGraphQLType,
-    get_LabelledAlpha()->GraphQLObjectType.toGraphQLType,
-    get_UserEdge()->GraphQLObjectType.toGraphQLType,
-    get_User()->GraphQLObjectType.toGraphQLType,
     get_StringEdge()->GraphQLObjectType.toGraphQLType,
+    get_Subscription()->GraphQLObjectType.toGraphQLType,
     get_T()->GraphQLObjectType.toGraphQLType,
-    get_Mutation()->GraphQLObjectType.toGraphQLType,
-    get_Res12Record()->GraphQLObjectType.toGraphQLType,
     get_Thing()->GraphQLObjectType.toGraphQLType,
+    get_User()->GraphQLObjectType.toGraphQLType,
+    get_UserConnection()->GraphQLObjectType.toGraphQLType,
+    get_UserEdge()->GraphQLObjectType.toGraphQLType,
     get_Labelled()->GraphQLInterfaceType.toGraphQLType,
     get_Node()->GraphQLInterfaceType.toGraphQLType,
-    get_UpdatableNullableFloat()->GraphQLInputObjectType.toGraphQLType,
-    get_UpdatableString()->GraphQLInputObjectType.toGraphQLType,
-    get_UpdatableNullableBool()->GraphQLInputObjectType.toGraphQLType,
+    get_Res12Input()->GraphQLInputObjectType.toGraphQLType,
     get_UpdatableBool()->GraphQLInputObjectType.toGraphQLType,
     get_UpdatableFloat()->GraphQLInputObjectType.toGraphQLType,
-    get_UpdatableNullableInt()->GraphQLInputObjectType.toGraphQLType,
     get_UpdatableInt()->GraphQLInputObjectType.toGraphQLType,
-    get_Res12Input()->GraphQLInputObjectType.toGraphQLType,
+    get_UpdatableNullableBool()->GraphQLInputObjectType.toGraphQLType,
+    get_UpdatableNullableFloat()->GraphQLInputObjectType.toGraphQLType,
+    get_UpdatableNullableInt()->GraphQLInputObjectType.toGraphQLType,
     get_UpdatableNullableString()->GraphQLInputObjectType.toGraphQLType,
-    get_UpdateThingInput()->GraphQLInputObjectType.toGraphQLType,
+    get_UpdatableString()->GraphQLInputObjectType.toGraphQLType,
     get_Res12InputInline()->GraphQLInputObjectType.toGraphQLType,
+    get_UpdateThingInput()->GraphQLInputObjectType.toGraphQLType,
   ],
 })

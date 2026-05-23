@@ -94,6 +94,10 @@ type LabelledBeta implements Labelled {
   typenameEcho: String!
 }
 
+type LabelledWrapper {
+  nested: Labelled!
+}
+
 type Mutation {
   updateThing(thingId: ID!, input: UpdateThingInput!): Thing
 }
@@ -131,6 +135,10 @@ type Query {
   userDefinedNullable: T!
   nullableInterop(nullCount: Int, nullableName: String): NullableInterop!
   getLabelled: LabelledAlpha!
+  brokenLabelledWrapper: LabelledWrapper!
+  labelledWrapper: LabelledWrapper!
+  badLabelled: Labelled!
+  goodLabelled: Labelled!
   getScalarHolder: ScalarHolder!
   nestedConnection: StringConnection!
   userConnection(first: Int, after: String): UserConnection!
@@ -181,7 +189,10 @@ type Thing implements Node {
 }
 
 type User {
-
+  id: String!
+  name: String!
+  age: Int!
+  lastAge: Int
 }
 
 type UserConnection {
