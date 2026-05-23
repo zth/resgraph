@@ -96,11 +96,17 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
   in
   let typ = findTyp typ in
   let isRescriptNullablePath path =
-    match pathIdentToList path |> List.rev with
-    | "t" :: ("Nullable" | "Null" | "Stdlib__Nullable" | "Stdlib__Null") :: _
-    | ("nullable" | "null")
-      :: ("Primitive_js_extern" | "Stdlib__Primitive_js_extern")
-      :: _ ->
+    match pathIdentToList path with
+    | ["Nullable"; "t"]
+    | ["Null"; "t"]
+    | ["Stdlib"; "Nullable"; "t"]
+    | ["Stdlib"; "Null"; "t"]
+    | ["Js"; "Nullable"; "t"]
+    | ["Js"; "Null"; "t"]
+    | ["Stdlib__Nullable"; "t"]
+    | ["Stdlib__Null"; "t"]
+    | ["Primitive_js_extern"; ("nullable" | "null")]
+    | ["Stdlib__Primitive_js_extern"; ("nullable" | "null")] ->
       true
     | _ -> false
   in

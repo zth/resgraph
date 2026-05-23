@@ -88,6 +88,8 @@ let t_StringEdge: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_StringEdge = () => t_StringEdge.contents
 let t_Subscription: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_Subscription = () => t_Subscription.contents
+let t_T: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
+let get_T = () => t_T.contents
 let t_Thing: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_Thing = () => t_Thing.contents
 let t_User: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
@@ -542,6 +544,15 @@ t_Query.contents = GraphQLObjectType.make({
           )
         }),
       },
+      "userDefinedNullable": {
+        typ: get_T()->GraphQLObjectType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppUserDefinedNullable.userDefinedNullable(src)
+        }),
+      },
     }->makeFields,
 })
 t_Res12Record.contents = GraphQLObjectType.make({
@@ -655,6 +666,23 @@ t_Subscription.contents = GraphQLObjectType.make({
         subscribe: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           AppSubscription.latestMessage(src, ~ctx)
+        }),
+      },
+    }->makeFields,
+})
+t_T.contents = GraphQLObjectType.make({
+  name: "T",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "value": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["value"]
         }),
       },
     }->makeFields,
@@ -1036,6 +1064,7 @@ let schema = GraphQLSchemaType.make({
     get_UserEdge()->GraphQLObjectType.toGraphQLType,
     get_User()->GraphQLObjectType.toGraphQLType,
     get_StringEdge()->GraphQLObjectType.toGraphQLType,
+    get_T()->GraphQLObjectType.toGraphQLType,
     get_Mutation()->GraphQLObjectType.toGraphQLType,
     get_Res12Record()->GraphQLObjectType.toGraphQLType,
     get_Thing()->GraphQLObjectType.toGraphQLType,

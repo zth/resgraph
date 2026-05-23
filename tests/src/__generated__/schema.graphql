@@ -128,6 +128,7 @@ type Query {
   """Fetches an object given its ID."""
   node(id: ID!): Node
   functionFieldRegression: FunctionFieldRegression!
+  userDefinedNullable: T!
   nullableInterop(nullCount: Int, nullableName: String): NullableInterop!
   getLabelled: LabelledAlpha!
   getScalarHolder: ScalarHolder!
@@ -162,6 +163,10 @@ type StringEdge {
 
 type Subscription {
   latestMessage: String!
+}
+
+type T {
+  value: String!
 }
 
 type Thing implements Node {
