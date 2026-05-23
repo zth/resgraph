@@ -1,9 +1,9 @@
 @gql.type
 type user = {
-  id: string,
-  name: string,
-  age: int,
-  lastAge: option<int>,
+  @gql.field id: string,
+  @gql.field name: string,
+  @gql.field age: int,
+  @gql.field lastAge: option<int>,
 }
 
 let fromDbUser = (dbUser: Db.userFromDb): user => {

@@ -590,6 +590,13 @@ let hasSpreadText str =
     true
   with Not_found -> false
 
+let hashtblToListAlphabetically hashtbl =
+  Hashtbl.fold (fun k v acc -> (k, v) :: acc) hashtbl []
+  |> List.sort (fun (k1, _) (k2, _) -> String.compare k1 k2)
+
+let iterHashtblAlphabetically fn hashtbl =
+  hashtblToListAlphabetically hashtbl |> List.iter (fun (k, v) -> fn k v)
+
 let processSchema (schemaState : schemaState) =
   let processedSchema = {interfaceImplementedBy = Hashtbl.create 10} in
   let positionsToRead = Hashtbl.create 10 in
@@ -784,7 +791,7 @@ let processSchema (schemaState : schemaState) =
      included in codegen.
   *)
   schemaState.interfaces
-  |> Hashtbl.iter (fun id (intf : gqlInterface) ->
+  |> iterHashtblAlphabetically (fun id (intf : gqlInterface) ->
       if Hashtbl.mem processedSchema.interfaceImplementedBy intf.id = false then
         Hashtbl.remove schemaState.interfaces id);
 
@@ -870,11 +877,6 @@ let readStateFile ~package =
     Marshal.from_channel ch
   in
   s
-
-let iterHashtblAlphabetically fn hashtbl =
-  Hashtbl.fold (fun k v acc -> (k, v) :: acc) hashtbl []
-  |> List.sort (fun (k1, _) (k2, _) -> String.compare k1 k2)
-  |> List.iter (fun (k, v) -> fn k v)
 
 type scalarValidationResult = DoesNotNeedParsing | NeedsParsing
 let rec validateCustomScalar ~env ~package (typ : Types.type_expr) =

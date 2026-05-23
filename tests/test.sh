@@ -10,3 +10,5 @@ else
   git --no-pager diff -- tests/src/__generated__
   exit 1
 fi
+
+node ./runtime-interface-returns.mjs
