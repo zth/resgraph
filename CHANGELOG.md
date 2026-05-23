@@ -1,9 +1,12 @@
 # ResGraph Changelog
 
-## main
+## 1.1.4
 
 - Validate generated interface resolver values at runtime and surface clearer errors for untagged interface return values.
 - Stabilize generated schema type ordering to avoid nondeterministic codegen diffs.
+
+## 1.1.3
+
 - Default `schema.graphql` emission to off, configurable via `dumpSchemaSdl`.
 
 ## 1.1.0
