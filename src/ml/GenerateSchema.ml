@@ -782,7 +782,7 @@ and inputObjectFieldsOfRecordFields ~objectTypeName ~env ~debug ~schemaState
     ~(full : SharedTypes.full) (fields : SharedTypes.field list) =
   fields
   |> List.filter_map (fun (field : SharedTypes.field) ->
-      let name = field.fname.txt in
+      let name = nameFromAttribute field.attributes ~default:field.fname.txt in
       match
         findGraphQLType field.typ ~debug ~loc:field.fname.loc ~full ~env
           ~schemaState
@@ -992,11 +992,11 @@ and objectTypeFieldsOfRecordFields ~objectTypeName ~env ~schemaState ~debug
       | Some attr -> Some (field, attr))
   |> List.filter_map (fun ((field : SharedTypes.field), _attr) ->
       let fieldType = field.typ in
+      let name = nameFromAttribute field.attributes ~default:field.fname.txt in
       let typ =
         findGraphQLType fieldType ~debug ~loc:field.fname.loc ~full ~env
           ~schemaState
-          ~typeContext:
-            (ObjectField {objectTypeName; fieldName = field.fname.txt})
+          ~typeContext:(ObjectField {objectTypeName; fieldName = name})
       in
       match typ with
       | None ->
@@ -1017,7 +1017,6 @@ and objectTypeFieldsOfRecordFields ~objectTypeName ~env ~schemaState ~debug
                };
         None
       | Some typ ->
-        let name = field.fname.txt in
         Some
           {
             name;
@@ -1037,11 +1036,11 @@ and objectTypeFieldsOfInlineRecordFields ~objectTypeName ~env ~schemaState
   fields
   |> List.filter_map (fun (field : SharedTypes.field) ->
       let fieldType = field.typ in
+      let name = nameFromAttribute field.attributes ~default:field.fname.txt in
       let typ =
         findGraphQLType fieldType ~debug ~loc:field.fname.loc ~full ~env
           ~schemaState
-          ~typeContext:
-            (ObjectField {objectTypeName; fieldName = field.fname.txt})
+          ~typeContext:(ObjectField {objectTypeName; fieldName = name})
       in
       match typ with
       | None ->
@@ -1062,7 +1061,6 @@ and objectTypeFieldsOfInlineRecordFields ~objectTypeName ~env ~schemaState
                };
         None
       | Some typ ->
-        let name = field.fname.txt in
         Some
           {
             name;

@@ -101,4 +101,44 @@ assert.match(
   /Interface Labelled resolveType expected a tagged value from Interface_labelled\.Resolver\.t/,
 );
 
-console.log("runtime interface return regressions passed");
+const reservedWords = await run(`
+  query ReservedWords {
+    reservedWordRecord {
+      constraint
+      external
+      include
+      let
+      module
+      open
+      switch
+      type
+    }
+  }
+`);
+
+assert.equal(reservedWords.errors, undefined);
+assert.deepEqual(plain(reservedWords.data), {
+  reservedWordRecord: {
+    constraint: "constraint",
+    external: "external",
+    include: "include",
+    let: "let",
+    module: "module",
+    open: "open",
+    switch: "switch",
+    type: "type",
+  },
+});
+
+const reservedInput = await run(`
+  query ReservedInput {
+    reservedWordInputEcho(input: {constraint: "input constraint", type: "input type"})
+  }
+`);
+
+assert.equal(reservedInput.errors, undefined);
+assert.deepEqual(plain(reservedInput.data), {
+  reservedWordInputEcho: "input constraint:input type",
+});
+
+console.log("runtime regressions passed");

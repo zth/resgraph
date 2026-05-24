@@ -123,6 +123,8 @@ let t_Query: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_Query = () => t_Query.contents
 let t_Res12Record: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_Res12Record = () => t_Res12Record.contents
+let t_ReservedWordRecord: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
+let get_ReservedWordRecord = () => t_ReservedWordRecord.contents
 let t_ScalarHolder: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_ScalarHolder = () => t_ScalarHolder.contents
 let t_StringConnection: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
@@ -173,10 +175,14 @@ let inputUnion_UpdatableString_conversionInstructions = []
 let input_Res12InputInline: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_Res12InputInline = () => input_Res12InputInline.contents
 let input_Res12InputInline_conversionInstructions = []
+let input_ReservedWordInput: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
+let get_ReservedWordInput = () => input_ReservedWordInput.contents
+let input_ReservedWordInput_conversionInstructions = []
 let input_UpdateThingInput: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_UpdateThingInput = () => input_UpdateThingInput.contents
 let input_UpdateThingInput_conversionInstructions = []
 input_Res12InputInline_conversionInstructions->Array.pushMany([])
+input_ReservedWordInput_conversionInstructions->Array.pushMany([])
 input_UpdateThingInput_conversionInstructions->Array.pushMany([
   (
     "name",
@@ -623,6 +629,32 @@ t_Query.contents = GraphQLObjectType.make({
           )
         }),
       },
+      "reservedWordInputEcho": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {
+          "input": {typ: get_ReservedWordInput()->GraphQLInputObjectType.toGraphQLType->nonNull},
+        }->makeArgs,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppReScript12.reservedWordInputEcho(
+            src,
+            ~input=args["input"]->applyConversionToInputObject(
+              input_ReservedWordInput_conversionInstructions,
+            ),
+          )
+        }),
+      },
+      "reservedWordRecord": {
+        typ: get_ReservedWordRecord()->GraphQLObjectType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppReScript12.reservedWordRecord(src)
+        }),
+      },
       "userConnection": {
         typ: get_UserConnection()->GraphQLObjectType.toGraphQLType->nonNull,
         description: ?None,
@@ -673,6 +705,86 @@ t_Res12Record.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, _args, _ctx, _info) => {
           let src = typeUnwrapper(src)
           src["withDoc"]
+        }),
+      },
+    }->makeFields,
+})
+t_ReservedWordRecord.contents = GraphQLObjectType.make({
+  name: "ReservedWordRecord",
+  description: "Reserved ReScript field names can be exposed as GraphQL names.",
+  interfaces: [],
+  fields: () =>
+    {
+      "constraint": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["constraint"]
+        }),
+      },
+      "external": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["external"]
+        }),
+      },
+      "include": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["include"]
+        }),
+      },
+      "let": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["let"]
+        }),
+      },
+      "module": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["module"]
+        }),
+      },
+      "open": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["open"]
+        }),
+      },
+      "switch": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["switch"]
+        }),
+      },
+      "type": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["type"]
         }),
       },
     }->makeFields,
@@ -955,6 +1067,23 @@ input_Res12InputInline.contents = GraphQLInputObjectType.make({
       },
     }->makeFields,
 })
+input_ReservedWordInput.contents = GraphQLInputObjectType.make({
+  name: "ReservedWordInput",
+  description: ?None,
+  fields: () =>
+    {
+      "constraint": {
+        GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "type": {
+        GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+})
 input_UpdateThingInput.contents = GraphQLInputObjectType.make({
   name: "UpdateThingInput",
   description: ?None,
@@ -1194,6 +1323,7 @@ let schema = GraphQLSchemaType.make({
     get_PageInfo()->GraphQLObjectType.toGraphQLType,
     get_Query()->GraphQLObjectType.toGraphQLType,
     get_Res12Record()->GraphQLObjectType.toGraphQLType,
+    get_ReservedWordRecord()->GraphQLObjectType.toGraphQLType,
     get_ScalarHolder()->GraphQLObjectType.toGraphQLType,
     get_StringConnection()->GraphQLObjectType.toGraphQLType,
     get_StringEdge()->GraphQLObjectType.toGraphQLType,
@@ -1215,6 +1345,7 @@ let schema = GraphQLSchemaType.make({
     get_UpdatableNullableString()->GraphQLInputObjectType.toGraphQLType,
     get_UpdatableString()->GraphQLInputObjectType.toGraphQLType,
     get_Res12InputInline()->GraphQLInputObjectType.toGraphQLType,
+    get_ReservedWordInput()->GraphQLInputObjectType.toGraphQLType,
     get_UpdateThingInput()->GraphQLInputObjectType.toGraphQLType,
   ],
 })

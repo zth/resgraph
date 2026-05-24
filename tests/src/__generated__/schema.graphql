@@ -8,6 +8,11 @@ input Res12InputInline {
   payload: String!
 }
 
+input ReservedWordInput {
+  constraint: String!
+  type: String!
+}
+
 input UpdateThingInput {
   name: UpdatableString!
   age: UpdatableInt!
@@ -133,6 +138,8 @@ type Query {
   node(id: ID!): Node
   functionFieldRegression: FunctionFieldRegression!
   userDefinedNullable: T!
+  reservedWordInputEcho(input: ReservedWordInput!): String!
+  reservedWordRecord: ReservedWordRecord!
   nullableInterop(nullCount: Int, nullableName: String): NullableInterop!
   getLabelled: LabelledAlpha!
   brokenLabelledWrapper: LabelledWrapper!
@@ -153,6 +160,19 @@ type Res12Record {
 
   """Deprecated attribute should survive too."""
   oldField: Int! @deprecated(reason: "old field")
+}
+
+
+"""Reserved ReScript field names can be exposed as GraphQL names."""
+type ReservedWordRecord {
+  constraint: String!
+  external: String!
+  include: String!
+  let: String!
+  module: String!
+  open: String!
+  switch: String!
+  type: String!
 }
 
 type ScalarHolder {
