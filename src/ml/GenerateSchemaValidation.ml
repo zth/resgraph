@@ -37,7 +37,31 @@ let validateName ~name ~(typeLocation : typeLocation)
                    name;
              }
 
-let validateFields ~schemaState (fields : gqlField list) =
+let validateFieldNameUniqueness ~schemaState ~(parentTypeName : string)
+    (fields : gqlField list) =
+  let seen = Hashtbl.create (List.length fields) in
+  fields
+  |> List.iter (fun (field : gqlField) ->
+      match Hashtbl.find_opt seen field.name with
+      | None -> Hashtbl.add seen field.name field
+      | Some firstField ->
+        schemaState
+        |> addDiagnostic
+             ~diagnostic:
+               {
+                 loc = field.loc;
+                 fileUri = field.fileUri;
+                 message =
+                   Printf.sprintf
+                     "Field `%s` appears more than once on GraphQL type `%s`. \
+                      Rename one of the fields or change its @as attribute. \
+                      The first field was declared in %s."
+                     field.name parentTypeName firstField.fileName;
+               })
+
+let validateFields ~schemaState ~(parentTypeName : string)
+    (fields : gqlField list) =
+  validateFieldNameUniqueness ~schemaState ~parentTypeName fields;
   fields
   |> List.iter (fun (f : gqlField) ->
       validateName ~name:f.name
@@ -69,16 +93,11 @@ let validateSchema (schemaState : schemaState) =
 
   schemaState.types
   |> Hashtbl.iter (fun _name (typ : gqlObjectType) ->
-      match typ.typeLocation with
-      | Some _typeLocation -> validateFields ~schemaState typ.fields
-      | None -> ());
+      validateFields ~schemaState ~parentTypeName:typ.displayName typ.fields);
 
   schemaState.inputObjects
   |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
-      (* A lot has already been validated on adding the type itself. *)
-      match typ.typeLocation with
-      | Some _typeLocation -> validateFields ~schemaState typ.fields
-      | None -> ());
+      validateFields ~schemaState ~parentTypeName:typ.displayName typ.fields);
 
   schemaState.enums
   |> Hashtbl.iter (fun _name (typ : gqlEnum) ->
@@ -96,4 +115,4 @@ let validateSchema (schemaState : schemaState) =
   |> Hashtbl.iter (fun _name (typ : gqlInterface) ->
       (* Subtype rules etc for interface fields are a bit complicated, so we
             let graphql-js do it at runtime instead. *)
-      validateFields ~schemaState typ.fields)
+      validateFields ~schemaState ~parentTypeName:typ.displayName typ.fields)
