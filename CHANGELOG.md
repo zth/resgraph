@@ -1,5 +1,10 @@
 # ResGraph Changelog
 
+## 1.1.5
+
+- Support `@as` on record-backed object and input object fields, allowing safe ReScript field names to emit reserved GraphQL field names.
+- Validate duplicate GraphQL field names introduced through `@as` before generating schema output.
+
 ## 1.1.4
 
 - Validate generated interface resolver values at runtime and surface clearer errors for untagged interface return values.
