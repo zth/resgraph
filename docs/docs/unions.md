@@ -72,6 +72,17 @@ Notice a few things:
 - Each inline record has been synthesized into an actual GraphQL type holding _all_ fields that were defined in that inline record.
 - The synthetiszed GraphQL types are called `<unionName><caseName>`. `Ok` therefore becomes `SetPasswordPayloadOk`.
 
+Inline record fields are record-backed fields, so use `@as` when the GraphQL field name is reserved in ReScript:
+
+```rescript
+@gql.union
+type rulePayload =
+  | Rule({
+      @as("constraint") @gql.field
+      constraint_: string,
+    })
+```
+
 This is intended to be a quick way to define one-off GraphQL types only intended to be used in a specific enum, like how you'd typically design a result from a mutation.
 
 ## Using unions in the schema

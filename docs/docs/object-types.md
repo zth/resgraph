@@ -43,11 +43,11 @@ Building on point 2 above, there are two ways to add fields to a type. One is an
 
 The second way is to define a field on a type via a function. What's commonly called a _resolver_ in GraphQL.
 
-### Customizing record field names with `@as`
+### Customizing record-backed field names with `@as`
 
 Sometimes the GraphQL field name you need is awkward or impossible to use as a normal ReScript record field name. For example, `type`, `constraint`, `module` and other reserved ReScript keywords are valid GraphQL field names, but they cannot be used as ordinary ReScript identifiers.
 
-For record-backed fields, use ReScript's `@as` attribute together with `@gql.field`:
+For record-backed fields, use ReScript's `@as` attribute together with `@gql.field`. This keeps the ReScript field name usable while emitting the `@as` name in GraphQL:
 
 ```rescript
 @gql.type
@@ -79,7 +79,9 @@ let rule = {
 
 ResGraph validates the final GraphQL field names after applying `@as`, so two fields cannot accidentally emit the same GraphQL name.
 
-`@as` works for record fields exposed directly from `@gql.type` records. It does not rename fields added through `@gql.field` functions, and it does not rename resolver arguments.
+Use `@as` for record-backed fields, including fields on `@gql.type` records, `@gql.interface` records, and inline record payloads in unions. Input object fields use the same pattern, covered in [input objects](input-objects#customizing-field-names-with-as).
+
+`@as` does not rename resolver arguments. For reserved argument names, use escaped labels as shown in [adding arguments to your fields](#adding-arguments-to-your-fields).
 
 ### Adding fields to types via functions
 
@@ -168,6 +170,8 @@ let check = (_: query, ~\"constraint" as constraint_: string) => constraint_
 ```
 
 This emits the argument as `constraint` in GraphQL while letting the resolver body use `constraint_`.
+
+Use this for arguments on any `@gql.field` function: root fields on `Query`, `Mutation`, and `Subscription`, fields added to object types, and fields added to interfaces.
 
 > Note: Anything exposed to GraphQL, like fields, arguments and so on, must all be [valid GraphQL types](valid-graphql-types). ResGraph will complain (and tell you how to fix it) if you try and use anything not valid.
 
