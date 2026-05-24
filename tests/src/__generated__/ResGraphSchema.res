@@ -629,6 +629,16 @@ t_Query.contents = GraphQLObjectType.make({
           )
         }),
       },
+      "reservedWordArgumentEcho": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {"constraint": {typ: Scalars.string->Scalars.toGraphQLType->nonNull}}->makeArgs,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppReScript12.reservedWordArgumentEcho(src, ~\"constraint"=args["constraint"])
+        }),
+      },
       "reservedWordInputEcho": {
         typ: Scalars.string->Scalars.toGraphQLType->nonNull,
         description: ?None,

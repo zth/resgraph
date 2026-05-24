@@ -160,6 +160,15 @@ type User {
 
 Arguments can also be [input objects](input-objects), [custom scalars](custom-scalars) and so on.
 
+If an argument needs a GraphQL name that is reserved in ReScript, use ReScript's escaped label syntax and bind it to a local name:
+
+```rescript
+@gql.field
+let check = (_: query, ~\"constraint" as constraint_: string) => constraint_
+```
+
+This emits the argument as `constraint` in GraphQL while letting the resolver body use `constraint_`.
+
 > Note: Anything exposed to GraphQL, like fields, arguments and so on, must all be [valid GraphQL types](valid-graphql-types). ResGraph will complain (and tell you how to fix it) if you try and use anything not valid.
 
 #### Handling `null` in arguments

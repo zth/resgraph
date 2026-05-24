@@ -3,6 +3,10 @@ open GenerateSchemaUtils
 
 type context = CtxDefault | CtxInterface | CtxSubscription
 
+let printLabelledArg name =
+  if Res_token.is_keyword_txt name then Printf.sprintf "~\\\"%s\"" name
+  else Printf.sprintf "~%s" name
+
 let printResolverForField (field : gqlField) =
   match field.resolverStyle with
   | Property name ->
@@ -29,13 +33,17 @@ let printResolverForField (field : gqlField) =
         |> List.sort (fun (a1 : gqlArg) a2 -> String.compare a1.name a2.name)
         |> List.map (fun (arg : gqlArg) ->
             if hasInfoArg && Some arg.name = infoArgName then
-              Printf.sprintf "~%s=info" (infoArgName |> Option.get)
+              Printf.sprintf "%s=info"
+                (printLabelledArg (infoArgName |> Option.get))
             else if hasCtxArg && Some arg.name = ctxArgName then
-              Printf.sprintf "~%s=ctx" (ctxArgName |> Option.get)
+              Printf.sprintf "%s=ctx"
+                (printLabelledArg (ctxArgName |> Option.get))
             else if hasIntTypeArg && Some arg.name = intfTypeArgName then
               match field.onType with
               | Some name ->
-                Printf.sprintf "~%s=%s" (intfTypeArgName |> Option.get) name
+                Printf.sprintf "%s=%s"
+                  (printLabelledArg (intfTypeArgName |> Option.get))
+                  name
               | _ -> ""
             else
               let argsText =
@@ -43,7 +51,8 @@ let printResolverForField (field : gqlField) =
                   (Printf.sprintf "args[\"%s\"]" arg.name)
                   arg.typ
               in
-              Printf.sprintf "~%s=%s" arg.name
+              Printf.sprintf "%s=%s"
+                (printLabelledArg arg.name)
                 (if arg.isOptionLabelled then Printf.sprintf "?(%s)" argsText
                  else argsText))
         |> String.concat ", ")
