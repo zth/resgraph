@@ -138,6 +138,7 @@ type Query {
   node(id: ID!): Node
   functionFieldRegression: FunctionFieldRegression!
   userDefinedNullable: T!
+  reservedWordArgumentEcho(constraint: String!): String!
   reservedWordInputEcho(input: ReservedWordInput!): String!
   reservedWordRecord: ReservedWordRecord!
   nullableInterop(nullCount: Int, nullableName: String): NullableInterop!

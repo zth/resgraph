@@ -42,6 +42,17 @@ Input unions are unions that can be used as inputs for fields and mutations. Inp
 
 Using an inline record will produce a new input object type for only this inline record.
 
+Inline record fields follow the same naming rules as regular [input object fields](input-objects#customizing-field-names-with-as). If the GraphQL input field should be a reserved ReScript name such as `constraint`, use `@as` on the inline record field:
+
+```rescript
+@gql.inputUnion
+type ruleInput =
+  | Rule({
+      @as("constraint")
+      constraint_: string,
+    })
+```
+
 Input unions are defined by using a variant annotated with `@gql.inputUnion`. Full example:
 
 ```rescript

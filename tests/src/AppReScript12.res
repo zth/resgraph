@@ -62,3 +62,7 @@ let reservedWordRecord = (_: Query.query): reservedWordRecord => {
 @gql.field
 let reservedWordInputEcho = (_: Query.query, ~input: reservedWordInput) =>
   input.constraint_ ++ ":" ++ input.type_
+
+@gql.field
+let reservedWordArgumentEcho = (_: Query.query, ~\"constraint" as constraint_: string) =>
+  constraint_

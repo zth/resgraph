@@ -72,6 +72,16 @@ type User implements HasName {
 
 Just like with [fields on object types](object-types#fields), you can expose fields on interfaces either directly via `@gql.field`, or by defining a function with `@gql.field`.
 
+Interface record fields are record-backed fields, so if an interface needs to expose a field whose GraphQL name is reserved in ReScript, use `@as` the same way as for [object type record fields](object-types#customizing-record-backed-field-names-with-as):
+
+```rescript
+@gql.interface
+type constrained = {
+  @as("constraint") @gql.field
+  constraint_: string,
+}
+```
+
 When defining a function you add the interface type as the first unlabelled argument so ResGraph understands this field is for the interface. Each type implementing that interface will then get a copy of that field added to it automatically. An example:
 
 ```rescript
@@ -142,6 +152,14 @@ let id = (node: node, ~typename: Interface_node.ImplementedBy.t) => {
 ```
 
 More information on `Interface_<interfaceName>.ImplementedBy.t` and friends [lower on this page](#extras).
+
+For reserved argument names on interface field functions, use ReScript's escaped label syntax:
+
+```rescript
+@gql.field
+let matches = (_: constrained, ~\"constraint" as constraint_: string) =>
+  constraint_
+```
 
 ### Overriding interface fields per type
 

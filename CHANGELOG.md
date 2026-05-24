@@ -1,5 +1,10 @@
 # ResGraph Changelog
 
+## 1.1.6
+
+- Support escaped resolver argument labels for reserved ReScript names, allowing GraphQL arguments like `constraint` while using ReScript-safe local bindings.
+- Document reserved ReScript name handling across object fields, interface fields, input objects, unions, input unions and resolver arguments.
+
 ## 1.1.5
 
 - Support `@as` on record-backed object and input object fields, allowing safe ReScript field names to emit reserved GraphQL field names.

@@ -141,4 +141,15 @@ assert.deepEqual(plain(reservedInput.data), {
   reservedWordInputEcho: "input constraint:input type",
 });
 
+const reservedArgument = await run(`
+  query ReservedArgument {
+    reservedWordArgumentEcho(constraint: "arg constraint")
+  }
+`);
+
+assert.equal(reservedArgument.errors, undefined);
+assert.deepEqual(plain(reservedArgument.data), {
+  reservedWordArgumentEcho: "arg constraint",
+});
+
 console.log("runtime regressions passed");
