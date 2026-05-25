@@ -1,4 +1,3 @@
-
 """Custom scalar with specifiedByUrl coverage."""
 scalar Uuid
 
@@ -295,4 +294,3 @@ type UserEdge {
   cursor: String!
   node: User
 }
-

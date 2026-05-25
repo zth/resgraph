@@ -1,5 +1,9 @@
 # ResGraph Changelog
 
+## 1.2.1
+
+- Remove trailing whitespace and extra final blank lines from dumped SDL output.
+
 ## 1.2.0
 
 - Add repeatable `@gql.implements("InterfaceName")` for declaring object and interface implementations without spreading fields into the ReScript record.

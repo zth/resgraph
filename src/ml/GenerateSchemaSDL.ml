@@ -131,7 +131,7 @@ let printEnum (enum : gqlEnum) =
     |> String.concat "\n")
 
 let printUnion (union : gqlUnion) =
-  Printf.sprintf "%sunion %s%s = \n%s\n"
+  Printf.sprintf "%sunion %s%s =\n%s\n"
     (printDescription union.description 0)
     union.displayName
     (printSourceLocDirective (Some union.typeLocation))
@@ -199,4 +199,4 @@ let printSchemaSDL (schemaState : schemaState) =
   schemaState.types
   |> iterHashtblAlphabetically (fun _name (typ : gqlObjectType) ->
       addSection (printObjectType typ));
-  !code
+  String.trim !code ^ "\n"
