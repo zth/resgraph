@@ -1,5 +1,9 @@
 # ResGraph Changelog
 
+## 1.2.2
+
+- Include compiled ReScript metadata in the package tarball so schema generation can inspect ResGraph-provided types when installed from a release tarball.
+
 ## 1.2.1
 
 - Remove trailing whitespace and extra final blank lines from dumped SDL output.
