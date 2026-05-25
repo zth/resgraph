@@ -152,4 +152,80 @@ assert.deepEqual(plain(reservedArgument.data), {
   reservedWordArgumentEcho: "arg constraint",
 });
 
+const explicitNamed = await run(`
+  query ExplicitNamed {
+    explicitNamed {
+      __typename
+      ... on ExplicitCompany {
+        name
+        entityKind
+      }
+    }
+  }
+`);
+
+assert.equal(explicitNamed.errors, undefined);
+assert.deepEqual(plain(explicitNamed.data), {
+  explicitNamed: {
+    __typename: "ExplicitCompany",
+    name: "Informind",
+    entityKind: "Company",
+  },
+});
+
+const explicitSearchable = await run(`
+  query ExplicitSearchable {
+    explicitSearchable {
+      __typename
+      ... on ExplicitSearchResult {
+        id
+        label(prefix: "result")
+      }
+    }
+  }
+`);
+
+assert.equal(explicitSearchable.errors, undefined);
+assert.deepEqual(plain(explicitSearchable.data), {
+  explicitSearchable: {
+    __typename: "ExplicitSearchResult",
+    id: "search-result",
+    label: "result:searchable",
+  },
+});
+
+const explicitContextResult = await run(`
+  query ExplicitContextResult {
+    explicitContextResult {
+      id
+      contextLabel
+    }
+  }
+`);
+
+assert.equal(explicitContextResult.errors, undefined);
+assert.deepEqual(plain(explicitContextResult.data), {
+  explicitContextResult: {
+    id: "ctx-result",
+    contextLabel: "override-no-ctx",
+  },
+});
+
+const explicitContextOverrideResult = await run(`
+  query ExplicitContextOverrideResult {
+    explicitContextOverrideResult {
+      id
+      contextOverrideLabel
+    }
+  }
+`);
+
+assert.equal(explicitContextOverrideResult.errors, undefined);
+assert.deepEqual(plain(explicitContextOverrideResult.data), {
+  explicitContextOverrideResult: {
+    id: "ctx-override-result",
+    contextOverrideLabel: "override:123",
+  },
+});
+
 console.log("runtime regressions passed");

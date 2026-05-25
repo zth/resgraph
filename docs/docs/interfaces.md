@@ -68,6 +68,44 @@ type User implements HasName {
 }
 ```
 
+You can also implement interfaces explicitly with `@gql.implements("InterfaceName")`.
+This is useful when the implementing type already declares the fields itself, or
+when spreading the interface record would not fit the ReScript type shape you
+want.
+
+```rescript
+/** An entity with a name. */
+@gql.interface
+type hasName = {
+  /** The name of the thing. */
+  @gql.field name: string
+}
+
+/** An entity with a stable rank. */
+@gql.interface
+type ranked = {
+  @gql.field rank: int
+}
+
+/** A user in the system. */
+@gql.implements("HasName")
+@gql.implements("Ranked")
+@gql.type
+type user = {
+  @gql.field name: string,
+  @gql.field rank: int,
+  @gql.field age: int
+}
+```
+
+```graphql
+type User implements HasName & Ranked {
+  name: String!
+  rank: Int!
+  age: Int!
+}
+```
+
 ## Exposing fields from the interface
 
 Just like with [fields on object types](object-types#fields), you can expose fields on interfaces either directly via `@gql.field`, or by defining a function with `@gql.field`.

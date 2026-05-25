@@ -12,3 +12,4 @@ else
 fi
 
 node ./runtime-interface-returns.mjs
+./invalid-interface-implements.sh

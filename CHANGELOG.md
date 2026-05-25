@@ -2,6 +2,8 @@
 
 ## 1.1.6
 
+- Add repeatable `@gql.implements("InterfaceName")` for declaring object and interface implementations without spreading fields into the ReScript record.
+- Validate GraphQL interface implementation parity during schema generation, including missing interfaces, missing fields, output field type compatibility, required field arguments, argument type mismatches, and extra required arguments.
 - Support escaped resolver argument labels for reserved ReScript names, allowing GraphQL arguments like `constraint` while using ReScript-safe local bindings.
 - Document reserved ReScript name handling across object fields, interface fields, input objects, unions, input unions and resolver arguments.
 

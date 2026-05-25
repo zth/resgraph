@@ -31,6 +31,9 @@ let validAttributes =
     ("gql.type", "Indicates that the annotated record is a GraphQL Object Type.");
     ( "gql.interface",
       "Indicates that the annotated record is a GraphQL interface." );
+    ( "gql.implements",
+      "Indicates that the annotated object type or interface implements a \
+       GraphQL interface." );
     ("gql.interfaceResolver", "");
     ("gql.field", "");
     ("gql.enum", "");
@@ -52,6 +55,7 @@ let extractGqlAttribute ~(schemaState : GenerateSchemaTypes.schemaState)
       match String.split_on_char '.' name.txt with
       | ["gql"; "type"] -> Some ObjectType
       | ["gql"; "interface"] -> Some Interface
+      | ["gql"; "implements"] -> None
       | ["gql"; "scalar"] -> Some Scalar
       | ["gql"; "interfaceResolver"] -> (
         match payload with
@@ -103,6 +107,41 @@ let extractGqlAttribute ~(schemaState : GenerateSchemaTypes.schemaState)
                      name.txt;
                };
         None
+      | _ -> None)
+
+let extractGqlImplementsAttributes
+    ~(schemaState : GenerateSchemaTypes.schemaState)
+    ~(env : SharedTypes.QueryEnv.t) (attributes : Parsetree.attributes) =
+  attributes
+  |> List.filter_map (fun ((name, payload) : Parsetree.attribute) ->
+      match String.split_on_char '.' name.txt with
+      | ["gql"; "implements"] -> (
+        match payload with
+        | PStr
+            [
+              {
+                pstr_desc =
+                  Pstr_eval
+                    ( {
+                        pexp_desc =
+                          Pexp_constant (Pconst_string (interfaceName, _));
+                      },
+                      _ );
+              };
+            ] ->
+          Some {interfaceName; loc = name.loc; fileUri = env.file.uri}
+        | _ ->
+          schemaState
+          |> addDiagnostic
+               ~diagnostic:
+                 {
+                   loc = name.loc;
+                   fileUri = env.file.uri;
+                   message =
+                     "`@gql.implements` requires a string literal GraphQL \
+                      interface name.";
+                 };
+          None)
       | _ -> None)
 
 let getFieldAttribute gqlAttribute =
@@ -255,7 +294,8 @@ let uncapitalizeFirstChar s =
   else String.mapi (fun i c -> if i = 0 then Char.lowercase_ascii c else c) s
 
 let noticeObjectType ~env ~loc ~schemaState ~displayName ?syntheticTypeLocation
-    ?description ?(ignoreTypeLocation = false) ~makeFields typeName =
+    ?description ?(ignoreTypeLocation = false) ?(explicitInterfaces = [])
+    ~makeFields typeName =
   if Hashtbl.mem schemaState.types typeName then ()
   else
     (*Printf.printf "noticing %s\n" typeName;*)
@@ -267,6 +307,7 @@ let noticeObjectType ~env ~loc ~schemaState ~displayName ?syntheticTypeLocation
         fields = makeFields ();
         description;
         interfaces = [];
+        explicitInterfaces;
         typeLocation =
           (if ignoreTypeLocation then None
            else
@@ -341,6 +382,7 @@ let addFieldToObjectType ~env ~loc ~field ~schemaState typeName =
         displayName = capitalizeFirstChar typeName;
         fields = [field];
         interfaces = [];
+        explicitInterfaces = [];
         description = field.description;
         typeLocation =
           Some
@@ -361,6 +403,7 @@ let addFieldToInterfaceType ~env ~loc ~field ~schemaState typeName =
         displayName = capitalizeFirstChar typeName;
         fields = [field];
         interfaces = [];
+        explicitInterfaces = [];
         description = field.description;
         typeLocation =
           findTypeLocation ~schemaState typeName ~env ~loc
@@ -597,6 +640,218 @@ let hashtblToListAlphabetically hashtbl =
 let iterHashtblAlphabetically fn hashtbl =
   hashtblToListAlphabetically hashtbl |> List.iter (fun (k, v) -> fn k v)
 
+let findInterfaceByName (schemaState : schemaState) interfaceName =
+  match Hashtbl.find_opt schemaState.interfaces interfaceName with
+  | Some intf -> Some intf
+  | None ->
+    Hashtbl.fold
+      (fun _id (intf : gqlInterface) acc ->
+        match acc with
+        | Some _ -> acc
+        | None -> if intf.displayName = interfaceName then Some intf else None)
+      schemaState.interfaces None
+
+let appendUniqueString values value =
+  if List.mem value values then values else values @ [value]
+
+let appendUniqueStrings values newValues =
+  newValues |> List.fold_left appendUniqueString values
+
+let isResolverField (field : gqlField) =
+  match field.resolverStyle with
+  | Resolver _ -> true
+  | Property _ -> false
+
+let addMissingInterfaceResolverFields ~displayName fields (intf : gqlInterface)
+    =
+  let hasField name =
+    fields |> List.exists (fun (field : gqlField) -> field.name = name)
+  in
+  fields
+  @ (intf.fields
+    |> List.filter (fun (field : gqlField) ->
+        isResolverField field && hasField field.name = false)
+    |> List.map (fun (field : gqlField) ->
+        {field with onType = Some displayName}))
+
+let inheritInterfaceResolverFields (schemaState : schemaState) =
+  schemaState.types |> hashtblToListAlphabetically
+  |> List.iter (fun (_id, (typ : gqlObjectType)) ->
+      let fields =
+        typ.interfaces
+        |> List.fold_left
+             (fun fields intfId ->
+               match Hashtbl.find_opt schemaState.interfaces intfId with
+               | None -> fields
+               | Some intf ->
+                 addMissingInterfaceResolverFields ~displayName:typ.displayName
+                   fields intf)
+             typ.fields
+      in
+      Hashtbl.replace schemaState.types typ.id {typ with fields});
+
+  schemaState.interfaces |> hashtblToListAlphabetically
+  |> List.iter (fun (_id, (typ : gqlInterface)) ->
+      let fields =
+        typ.interfaces
+        |> List.fold_left
+             (fun fields intfId ->
+               match Hashtbl.find_opt schemaState.interfaces intfId with
+               | None -> fields
+               | Some intf ->
+                 addMissingInterfaceResolverFields ~displayName:typ.displayName
+                   fields intf)
+             typ.fields
+      in
+      Hashtbl.replace schemaState.interfaces typ.id {typ with fields})
+
+let implementedById (implementedBy : interfaceImplementedBy) =
+  match implementedBy with
+  | ObjectType typ -> typ.id
+  | Interface intf -> intf.id
+
+let registerInterfaceImplementedBy processedSchema intfId
+    (implementedBy : interfaceImplementedBy) =
+  match Hashtbl.find_opt processedSchema.interfaceImplementedBy intfId with
+  | None ->
+    Hashtbl.add processedSchema.interfaceImplementedBy intfId [implementedBy]
+  | Some existing ->
+    if
+      existing
+      |> List.exists (fun existingImplementedBy ->
+          implementedById existingImplementedBy = implementedById implementedBy)
+    then ()
+    else
+      Hashtbl.replace processedSchema.interfaceImplementedBy intfId
+        (implementedBy :: existing)
+
+let rec collectInterfaceAncestors (schemaState : schemaState) ~visited intfId =
+  if List.mem intfId visited then []
+  else
+    match Hashtbl.find_opt schemaState.interfaces intfId with
+    | None -> []
+    | Some intf ->
+      let visited = intfId :: visited in
+      intf.interfaces
+      |> List.fold_left
+           (fun acc parentInterfaceId ->
+             let acc = appendUniqueString acc parentInterfaceId in
+             appendUniqueStrings acc
+               (collectInterfaceAncestors schemaState ~visited parentInterfaceId))
+           []
+
+let expandInterfaceList schemaState interfaces =
+  interfaces
+  |> List.fold_left
+       (fun acc intfId ->
+         let acc = appendUniqueString acc intfId in
+         appendUniqueStrings acc
+           (collectInterfaceAncestors schemaState ~visited:[] intfId))
+       []
+
+let expandTransitiveInterfaceImplementations schemaState processedSchema =
+  schemaState.types |> hashtblToListAlphabetically
+  |> List.iter (fun (_id, (typ : gqlObjectType)) ->
+      let expandedInterfaces = expandInterfaceList schemaState typ.interfaces in
+      let typ = {typ with interfaces = expandedInterfaces} in
+      Hashtbl.replace schemaState.types typ.id typ;
+      expandedInterfaces
+      |> List.iter (fun intfId ->
+          registerInterfaceImplementedBy processedSchema intfId (ObjectType typ)));
+
+  schemaState.interfaces |> hashtblToListAlphabetically
+  |> List.iter (fun (_id, (typ : gqlInterface)) ->
+      let expandedInterfaces = expandInterfaceList schemaState typ.interfaces in
+      let typ = {typ with interfaces = expandedInterfaces} in
+      Hashtbl.replace schemaState.interfaces typ.id typ;
+      expandedInterfaces
+      |> List.iter (fun intfId ->
+          registerInterfaceImplementedBy processedSchema intfId (Interface typ)))
+
+let uniqueImplementedBy implementedBy =
+  implementedBy
+  |> List.fold_left
+       (fun acc item ->
+         if
+           acc
+           |> List.exists (fun existingItem ->
+               implementedById existingItem = implementedById item)
+         then acc
+         else item :: acc)
+       []
+  |> List.rev
+
+let finalizeConcreteInterfaceImplementations (processedSchema : processedSchema)
+    =
+  let originalImplementations =
+    Hashtbl.copy processedSchema.interfaceImplementedBy
+  in
+  let rec collectConcreteImplementations ~visited intfId =
+    if List.mem intfId visited then []
+    else
+      match Hashtbl.find_opt originalImplementations intfId with
+      | None -> []
+      | Some implementedBy ->
+        implementedBy
+        |> List.fold_left
+             (fun acc (implementedBy : interfaceImplementedBy) ->
+               match implementedBy with
+               | ObjectType _ -> implementedBy :: acc
+               | Interface intf ->
+                 collectConcreteImplementations ~visited:(intfId :: visited)
+                   intf.id
+                 @ acc)
+             []
+        |> uniqueImplementedBy
+  in
+  originalImplementations
+  |> iterHashtblAlphabetically (fun intfId _ ->
+      match collectConcreteImplementations ~visited:[] intfId with
+      | [] -> Hashtbl.remove processedSchema.interfaceImplementedBy intfId
+      | concreteImplementations ->
+        Hashtbl.replace processedSchema.interfaceImplementedBy intfId
+          concreteImplementations)
+
+let typeLocationLocOfObjectType (typ : gqlObjectType) =
+  match typ.typeLocation with
+  | Some (Concrete typeLocation) -> Some typeLocation
+  | Some (Synthetic {fileUri; modulePath; fileName}) ->
+    let loc =
+      match typ.syntheticTypeLocation with
+      | Some {loc} -> loc
+      | None -> Location.none
+    in
+    Some {fileName; fileUri; modulePath; typeName = typ.id; loc}
+  | None -> None
+
+let validateInterfaceImplementations (schemaState : schemaState) =
+  schemaState.types |> hashtblToListAlphabetically
+  |> List.iter (fun (_id, (typ : gqlObjectType)) ->
+      match typeLocationLocOfObjectType typ with
+      | None -> ()
+      | Some typeLocation ->
+        typ.interfaces
+        |> List.iter (fun intfId ->
+            match Hashtbl.find_opt schemaState.interfaces intfId with
+            | None -> ()
+            | Some intf ->
+              GenerateSchemaValidation.validateInterfaceImplementation
+                ~schemaState ~loc:typeLocation.loc ~fileUri:typeLocation.fileUri
+                ~implementingTypeName:typ.displayName
+                ~implementingFields:typ.fields ~interface:intf));
+  schemaState.interfaces |> hashtblToListAlphabetically
+  |> List.iter (fun (_id, (typ : gqlInterface)) ->
+      typ.interfaces
+      |> List.iter (fun intfId ->
+          match Hashtbl.find_opt schemaState.interfaces intfId with
+          | None -> ()
+          | Some intf ->
+            GenerateSchemaValidation.validateInterfaceImplementation
+              ~schemaState ~loc:typ.typeLocation.loc
+              ~fileUri:typ.typeLocation.fileUri
+              ~implementingTypeName:typ.displayName
+              ~implementingFields:typ.fields ~interface:intf))
+
 let processSchema (schemaState : schemaState) =
   let processedSchema = {interfaceImplementedBy = Hashtbl.create 10} in
   let positionsToRead = Hashtbl.create 10 in
@@ -650,7 +905,7 @@ let processSchema (schemaState : schemaState) =
               id = t.id;
               position =
                 (t.typeLocation.loc |> Loc.start, t.typeLocation.loc |> Loc.end_);
-              typ = ObjectType;
+              typ = Interface;
             };
           ]
       | Some existingEntries ->
@@ -659,7 +914,7 @@ let processSchema (schemaState : schemaState) =
              id = t.id;
              position =
                (t.typeLocation.loc |> Loc.start, t.typeLocation.loc |> Loc.end_);
-             typ = ObjectType;
+             typ = Interface;
            }
           :: existingEntries));
 
@@ -713,7 +968,10 @@ let processSchema (schemaState : schemaState) =
                  Hashtbl.replace schemaState.types entry.id
                    {
                      (Hashtbl.find schemaState.types entry.id) with
-                     interfaces = implementsInterfaces;
+                     interfaces =
+                       appendUniqueStrings
+                         (Hashtbl.find schemaState.types entry.id).interfaces
+                         implementsInterfaces;
                    };
 
                  (* Process each interface for this type *)
@@ -743,44 +1001,86 @@ let processSchema (schemaState : schemaState) =
                        };
 
                      (* Map interface as implemented by this type *)
-                     match
-                       Hashtbl.find_opt processedSchema.interfaceImplementedBy
-                         intfId
-                     with
-                     | None ->
-                       Hashtbl.add processedSchema.interfaceImplementedBy intfId
-                         [ObjectType (Hashtbl.find schemaState.types entry.id)]
-                     | Some item ->
-                       Hashtbl.replace processedSchema.interfaceImplementedBy
-                         intfId
-                         (ObjectType (Hashtbl.find schemaState.types entry.id)
-                         :: item))
+                     registerInterfaceImplementedBy processedSchema intfId
+                       (ObjectType (Hashtbl.find schemaState.types entry.id)))
                | Interface ->
                  Hashtbl.replace schemaState.interfaces entry.id
                    {
                      (Hashtbl.find schemaState.interfaces entry.id) with
-                     interfaces = implementsInterfaces;
+                     interfaces =
+                       appendUniqueStrings
+                         (Hashtbl.find schemaState.interfaces entry.id)
+                           .interfaces implementsInterfaces;
                    };
                  implementsInterfaces
                  |> List.iter (fun intfId ->
-                     match
-                       Hashtbl.find_opt processedSchema.interfaceImplementedBy
-                         intfId
-                     with
-                     | None ->
-                       Hashtbl.add processedSchema.interfaceImplementedBy intfId
-                         [
-                           Interface
-                             (Hashtbl.find schemaState.interfaces entry.id);
-                         ]
-                     | Some item ->
-                       Hashtbl.replace processedSchema.interfaceImplementedBy
-                         intfId
-                         (Interface
-                            (Hashtbl.find schemaState.interfaces entry.id)
-                         :: item))));
+                     registerInterfaceImplementedBy processedSchema intfId
+                       (Interface (Hashtbl.find schemaState.interfaces entry.id)))
+               ));
           lastEndlingLine := endingLineNum);
       close_in fileChannel);
+
+  schemaState.types |> hashtblToListAlphabetically
+  |> List.iter (fun (_id, (typ : gqlObjectType)) ->
+      typ.explicitInterfaces
+      |> List.iter (fun {interfaceName; loc; fileUri} ->
+          match findInterfaceByName schemaState interfaceName with
+          | None ->
+            schemaState
+            |> addDiagnostic
+                 ~diagnostic:
+                   {
+                     loc;
+                     fileUri;
+                     message =
+                       Printf.sprintf
+                         "`%s` declares @gql.implements(\"%s\"), but no \
+                          @gql.interface named `%s` exists."
+                         typ.displayName interfaceName interfaceName;
+                   }
+          | Some intf ->
+            let currentTyp = Hashtbl.find schemaState.types typ.id in
+            Hashtbl.replace schemaState.types typ.id
+              {
+                currentTyp with
+                interfaces = appendUniqueString currentTyp.interfaces intf.id;
+              };
+            registerInterfaceImplementedBy processedSchema intf.id
+              (ObjectType (Hashtbl.find schemaState.types typ.id))));
+
+  schemaState.interfaces |> hashtblToListAlphabetically
+  |> List.iter (fun (_id, (typ : gqlInterface)) ->
+      typ.explicitInterfaces
+      |> List.iter (fun {interfaceName; loc; fileUri} ->
+          match findInterfaceByName schemaState interfaceName with
+          | None ->
+            schemaState
+            |> addDiagnostic
+                 ~diagnostic:
+                   {
+                     loc;
+                     fileUri;
+                     message =
+                       Printf.sprintf
+                         "`%s` declares @gql.implements(\"%s\"), but no \
+                          @gql.interface named `%s` exists."
+                         typ.displayName interfaceName interfaceName;
+                   }
+          | Some intf ->
+            let currentTyp = Hashtbl.find schemaState.interfaces typ.id in
+            Hashtbl.replace schemaState.interfaces typ.id
+              {
+                currentTyp with
+                interfaces = appendUniqueString currentTyp.interfaces intf.id;
+              };
+            registerInterfaceImplementedBy processedSchema intf.id
+              (Interface (Hashtbl.find schemaState.interfaces typ.id))));
+
+  expandTransitiveInterfaceImplementations schemaState processedSchema;
+  inheritInterfaceResolverFields schemaState;
+  finalizeConcreteInterfaceImplementations processedSchema;
+
+  validateInterfaceImplementations schemaState;
 
   (* Remove any interface that isn't actually implemented by any type or
      interface. Otherwise the codegen we do for interfaces will error out on a
