@@ -50,6 +50,12 @@ type gqlArg = {
 
 type gqlInterfaceIdentifier = {id: string; displayName: string}
 
+type explicitInterfaceImplementation = {
+  interfaceName: string;
+  loc: Location.t;
+  fileUri: Uri.t;
+}
+
 type gqlEnumValue = {
   value: string;
   description: string option;
@@ -119,6 +125,7 @@ type gqlObjectType = {
   typeLocation: typeLocation option;
   syntheticTypeLocation: syntheticTypeLocation option;
   interfaces: string list;
+  explicitInterfaces: explicitInterfaceImplementation list;
 }
 
 type gqlInterface = {
@@ -128,6 +135,7 @@ type gqlInterface = {
   description: string option;
   typeLocation: typeLocationLoc;
   interfaces: string list;
+  explicitInterfaces: explicitInterfaceImplementation list;
 }
 
 type gqlInputObjectType = {

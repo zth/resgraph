@@ -226,6 +226,25 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
           let gqlAttribute =
             item.attributes |> extractGqlAttribute ~env ~schemaState
           in
+          let gqlImplementsAttributes =
+            item.attributes |> extractGqlImplementsAttributes ~schemaState ~env
+          in
+          (if List.length gqlImplementsAttributes > 0 then
+             match (gqlAttribute, item) with
+             | Some ObjectType, {kind = Record _}
+             | Some Interface, {kind = Record _} ->
+               ()
+             | _ ->
+               schemaState
+               |> addDiagnostic
+                    ~diagnostic:
+                      {
+                        loc = item.decl.type_loc;
+                        fileUri = env.file.uri;
+                        message =
+                          "`@gql.implements` can only be used on @gql.type or \
+                           @gql.interface records.";
+                      });
           match (gqlAttribute, item) with
           | ( Some ObjectType,
               {
@@ -247,6 +266,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
             noticeObjectType id ~displayName ~schemaState ~env
               ?description:
                 (GenerateSchemaUtils.attributesToDocstring attributes)
+              ~explicitInterfaces:gqlImplementsAttributes
               ~makeFields:(fun () ->
                 fields
                 |> objectTypeFieldsOfRecordFields ~objectTypeName:displayName
@@ -290,6 +310,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
                   id;
                   displayName;
                   interfaces = [];
+                  explicitInterfaces = gqlImplementsAttributes;
                   fields =
                     objectTypeFieldsOfRecordFields fields
                       ~objectTypeName:displayName ~env ~full ~schemaState ~debug;
@@ -1175,6 +1196,23 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
         let gqlAttribute =
           attributes |> extractGqlAttribute ~schemaState ~env
         in
+        let gqlImplementsAttributes =
+          attributes |> extractGqlImplementsAttributes ~schemaState ~env
+        in
+        (if List.length gqlImplementsAttributes > 0 then
+           match (item.kind, gqlAttribute) with
+           | Type ({kind = Record _}, _), Some (ObjectType | Interface) -> ()
+           | _ ->
+             schemaState
+             |> addDiagnostic
+                  ~diagnostic:
+                    {
+                      loc = item.loc;
+                      fileUri = env.file.uri;
+                      message =
+                        "`@gql.implements` can only be used on @gql.type or \
+                         @gql.interface records.";
+                    });
         match (item.kind, gqlAttribute) with
         | Module {type_ = Structure structure; _}, _ ->
           (* Continue into modules (ignore module aliases etc) *)
@@ -1219,7 +1257,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
           let displayName = capitalizeFirstChar item.name in
           noticeObjectType ~env ~loc:decl.type_loc ~schemaState
             ?description:(attributesToDocstring attributes)
-            ~displayName
+            ~displayName ~explicitInterfaces:gqlImplementsAttributes
             ~makeFields:(fun () ->
               objectTypeFieldsOfRecordFields fields ~objectTypeName:displayName
                 ~env ~full ~schemaState ~debug)
@@ -1256,6 +1294,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                     ~objectTypeName:displayName ~env ~full ~schemaState ~debug;
                 description = attributesToDocstring attributes;
                 interfaces = [];
+                explicitInterfaces = gqlImplementsAttributes;
                 typeLocation =
                   findTypeLocation item.name ~env ~schemaState
                     ~loc:decl.type_loc ~expectedType:Interface;

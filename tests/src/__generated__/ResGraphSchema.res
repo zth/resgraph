@@ -101,10 +101,36 @@ let scalar_Uuid = GraphQLScalar.make({
   name: "Uuid",
   description: "Custom scalar with specifiedByUrl coverage.",
 })
+let i_CompanyHolder: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
+let get_CompanyHolder = () => i_CompanyHolder.contents
+let i_ContextOverride: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
+let get_ContextOverride = () => i_ContextOverride.contents
+let i_Contextual: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
+let get_Contextual = () => i_Contextual.contents
 let i_Labelled: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
 let get_Labelled = () => i_Labelled.contents
+let i_Named: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
+let get_Named = () => i_Named.contents
+let i_NamedEntity: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
+let get_NamedEntity = () => i_NamedEntity.contents
 let i_Node: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
 let get_Node = () => i_Node.contents
+let i_NullableNamed: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
+let get_NullableNamed = () => i_NullableNamed.contents
+let i_Ranked: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
+let get_Ranked = () => i_Ranked.contents
+let i_Searchable: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
+let get_Searchable = () => i_Searchable.contents
+let t_ExplicitCompany: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
+let get_ExplicitCompany = () => t_ExplicitCompany.contents
+let t_ExplicitCompanyHolder: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
+let get_ExplicitCompanyHolder = () => t_ExplicitCompanyHolder.contents
+let t_ExplicitContextOverrideResult: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
+let get_ExplicitContextOverrideResult = () => t_ExplicitContextOverrideResult.contents
+let t_ExplicitContextResult: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
+let get_ExplicitContextResult = () => t_ExplicitContextResult.contents
+let t_ExplicitSearchResult: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
+let get_ExplicitSearchResult = () => t_ExplicitSearchResult.contents
 let t_FunctionFieldRegression: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_FunctionFieldRegression = () => t_FunctionFieldRegression.contents
 let t_LabelledAlpha: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
@@ -275,6 +301,30 @@ inputUnion_UpdatableString_conversionInstructions->Array.pushMany([
   ("leaveUnchanged", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
 ])
 
+let interface_CompanyHolder_resolveType = (v: Interface_companyHolder.Resolver.t) =>
+  resolveInterfaceTypename(
+    v,
+    ["ExplicitCompanyHolder"],
+    "CompanyHolder",
+    "Interface_companyHolder.Resolver.t",
+  )
+
+let interface_ContextOverride_resolveType = (v: Interface_contextOverride.Resolver.t) =>
+  resolveInterfaceTypename(
+    v,
+    ["ExplicitContextOverrideResult"],
+    "ContextOverride",
+    "Interface_contextOverride.Resolver.t",
+  )
+
+let interface_Contextual_resolveType = (v: Interface_contextual.Resolver.t) =>
+  resolveInterfaceTypename(
+    v,
+    ["ExplicitContextResult"],
+    "Contextual",
+    "Interface_contextual.Resolver.t",
+  )
+
 let interface_Labelled_resolveType = (v: Interface_labelled.Resolver.t) =>
   resolveInterfaceTypename(
     v,
@@ -283,9 +333,93 @@ let interface_Labelled_resolveType = (v: Interface_labelled.Resolver.t) =>
     "Interface_labelled.Resolver.t",
   )
 
+let interface_Named_resolveType = (v: Interface_named.Resolver.t) =>
+  resolveInterfaceTypename(v, ["ExplicitCompany"], "Named", "Interface_named.Resolver.t")
+
+let interface_NamedEntity_resolveType = (v: Interface_namedEntity.Resolver.t) =>
+  resolveInterfaceTypename(
+    v,
+    ["ExplicitCompany"],
+    "NamedEntity",
+    "Interface_namedEntity.Resolver.t",
+  )
+
 let interface_Node_resolveType = (v: Interface_node.Resolver.t) =>
   resolveInterfaceTypename(v, ["Thing"], "Node", "Interface_node.Resolver.t")
 
+let interface_NullableNamed_resolveType = (v: Interface_nullableNamed.Resolver.t) =>
+  resolveInterfaceTypename(
+    v,
+    ["ExplicitCompany"],
+    "NullableNamed",
+    "Interface_nullableNamed.Resolver.t",
+  )
+
+let interface_Ranked_resolveType = (v: Interface_ranked.Resolver.t) =>
+  resolveInterfaceTypename(v, ["ExplicitCompany"], "Ranked", "Interface_ranked.Resolver.t")
+
+let interface_Searchable_resolveType = (v: Interface_searchable.Resolver.t) =>
+  resolveInterfaceTypename(
+    v,
+    ["ExplicitSearchResult"],
+    "Searchable",
+    "Interface_searchable.Resolver.t",
+  )
+
+i_CompanyHolder.contents = GraphQLInterfaceType.make({
+  name: "CompanyHolder",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "company": {
+        typ: get_NamedEntity()->GraphQLInterfaceType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_CompanyHolder_resolveType),
+})
+i_ContextOverride.contents = GraphQLInterfaceType.make({
+  name: "ContextOverride",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "contextOverrideLabel": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "id": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(
+    interface_ContextOverride_resolveType,
+  ),
+})
+i_Contextual.contents = GraphQLInterfaceType.make({
+  name: "Contextual",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "contextLabel": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "id": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Contextual_resolveType),
+})
 i_Labelled.contents = GraphQLInterfaceType.make({
   name: "Labelled",
   description: ?None,
@@ -300,6 +434,39 @@ i_Labelled.contents = GraphQLInterfaceType.make({
     }->makeFields,
   resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Labelled_resolveType),
 })
+i_Named.contents = GraphQLInterfaceType.make({
+  name: "Named",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "name": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Named_resolveType),
+})
+i_NamedEntity.contents = GraphQLInterfaceType.make({
+  name: "NamedEntity",
+  description: ?None,
+  interfaces: [get_Named()],
+  fields: () =>
+    {
+      "entityKind": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "name": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_NamedEntity_resolveType),
+})
 i_Node.contents = GraphQLInterfaceType.make({
   name: "Node",
   description: "An object with an ID",
@@ -313,6 +480,203 @@ i_Node.contents = GraphQLInterfaceType.make({
       },
     }->makeFields,
   resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Node_resolveType),
+})
+i_NullableNamed.contents = GraphQLInterfaceType.make({
+  name: "NullableNamed",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "nullableName": {
+        typ: Scalars.string->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_NullableNamed_resolveType),
+})
+i_Ranked.contents = GraphQLInterfaceType.make({
+  name: "Ranked",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "rank": {
+        typ: Scalars.int->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+    }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Ranked_resolveType),
+})
+i_Searchable.contents = GraphQLInterfaceType.make({
+  name: "Searchable",
+  description: ?None,
+  interfaces: [],
+  fields: () =>
+    {
+      "id": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+      },
+      "label": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {"prefix": {typ: Scalars.string->Scalars.toGraphQLType}}->makeArgs,
+      },
+    }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Searchable_resolveType),
+})
+t_ExplicitCompany.contents = GraphQLObjectType.make({
+  name: "ExplicitCompany",
+  description: ?None,
+  interfaces: [get_Named(), get_NamedEntity(), get_NullableNamed(), get_Ranked()],
+  fields: () =>
+    {
+      "entityKind": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["entityKind"]
+        }),
+      },
+      "headquarters": {
+        typ: Scalars.string->Scalars.toGraphQLType,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["headquarters"]
+        }),
+      },
+      "name": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["name"]
+        }),
+      },
+      "nullableName": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["nullableName"]
+        }),
+      },
+      "rank": {
+        typ: Scalars.int->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["rank"]
+        }),
+      },
+    }->makeFields,
+})
+t_ExplicitCompanyHolder.contents = GraphQLObjectType.make({
+  name: "ExplicitCompanyHolder",
+  description: ?None,
+  interfaces: [get_CompanyHolder()],
+  fields: () =>
+    {
+      "company": {
+        typ: get_ExplicitCompany()->GraphQLObjectType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["company"]
+        }),
+      },
+    }->makeFields,
+})
+t_ExplicitContextOverrideResult.contents = GraphQLObjectType.make({
+  name: "ExplicitContextOverrideResult",
+  description: ?None,
+  interfaces: [get_ContextOverride()],
+  fields: () =>
+    {
+      "contextOverrideLabel": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppExplicitInterfaceImplements.contextOverrideLabel(src, ~ctx)
+        }),
+      },
+      "id": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["id"]
+        }),
+      },
+    }->makeFields,
+})
+t_ExplicitContextResult.contents = GraphQLObjectType.make({
+  name: "ExplicitContextResult",
+  description: ?None,
+  interfaces: [get_Contextual()],
+  fields: () =>
+    {
+      "contextLabel": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppExplicitInterfaceImplements.contextLabel(src)
+        }),
+      },
+      "id": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["id"]
+        }),
+      },
+    }->makeFields,
+})
+t_ExplicitSearchResult.contents = GraphQLObjectType.make({
+  name: "ExplicitSearchResult",
+  description: ?None,
+  interfaces: [get_Searchable()],
+  fields: () =>
+    {
+      "id": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, _args, _ctx, _info) => {
+          let src = typeUnwrapper(src)
+          src["id"]
+        }),
+      },
+      "label": {
+        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        args: {"prefix": {typ: Scalars.string->Scalars.toGraphQLType}}->makeArgs,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppExplicitInterfaceImplements.label(src, ~prefix=?args["prefix"]->Nullable.toOption)
+        }),
+      },
+    }->makeFields,
 })
 t_FunctionFieldRegression.contents = GraphQLObjectType.make({
   name: "FunctionFieldRegression",
@@ -528,6 +892,69 @@ t_Query.contents = GraphQLObjectType.make({
         resolve: makeResolveFn((src, args, ctx, info) => {
           let src = typeUnwrapper(src)
           AppInterfaceReturnRegression.brokenLabelledWrapper(src)
+        }),
+      },
+      "explicitCompany": {
+        typ: get_ExplicitCompany()->GraphQLObjectType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppExplicitInterfaceImplements.explicitCompany(src)
+        }),
+      },
+      "explicitCompanyHolder": {
+        typ: get_ExplicitCompanyHolder()->GraphQLObjectType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppExplicitInterfaceImplements.explicitCompanyHolder(src)
+        }),
+      },
+      "explicitContextOverrideResult": {
+        typ: get_ExplicitContextOverrideResult()->GraphQLObjectType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppExplicitInterfaceImplements.explicitContextOverrideResult(src)
+        }),
+      },
+      "explicitContextResult": {
+        typ: get_ExplicitContextResult()->GraphQLObjectType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppExplicitInterfaceImplements.explicitContextResult(src)
+        }),
+      },
+      "explicitNamed": {
+        typ: get_Named()->GraphQLInterfaceType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppExplicitInterfaceReturns.explicitNamed(src)
+        }),
+      },
+      "explicitSearchResult": {
+        typ: get_ExplicitSearchResult()->GraphQLObjectType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppExplicitInterfaceImplements.explicitSearchResult(src)
+        }),
+      },
+      "explicitSearchable": {
+        typ: get_Searchable()->GraphQLInterfaceType.toGraphQLType->nonNull,
+        description: ?None,
+        deprecationReason: ?None,
+        resolve: makeResolveFn((src, args, ctx, info) => {
+          let src = typeUnwrapper(src)
+          AppExplicitInterfaceReturns.explicitSearchable(src)
         }),
       },
       "functionFieldRegression": {
@@ -1324,6 +1751,11 @@ let schema = GraphQLSchemaType.make({
   "mutation": get_Mutation(),
   "subscription": get_Subscription(),
   "types": [
+    get_ExplicitCompany()->GraphQLObjectType.toGraphQLType,
+    get_ExplicitCompanyHolder()->GraphQLObjectType.toGraphQLType,
+    get_ExplicitContextOverrideResult()->GraphQLObjectType.toGraphQLType,
+    get_ExplicitContextResult()->GraphQLObjectType.toGraphQLType,
+    get_ExplicitSearchResult()->GraphQLObjectType.toGraphQLType,
     get_FunctionFieldRegression()->GraphQLObjectType.toGraphQLType,
     get_LabelledAlpha()->GraphQLObjectType.toGraphQLType,
     get_LabelledBeta()->GraphQLObjectType.toGraphQLType,
@@ -1343,8 +1775,16 @@ let schema = GraphQLSchemaType.make({
     get_User()->GraphQLObjectType.toGraphQLType,
     get_UserConnection()->GraphQLObjectType.toGraphQLType,
     get_UserEdge()->GraphQLObjectType.toGraphQLType,
+    get_CompanyHolder()->GraphQLInterfaceType.toGraphQLType,
+    get_ContextOverride()->GraphQLInterfaceType.toGraphQLType,
+    get_Contextual()->GraphQLInterfaceType.toGraphQLType,
     get_Labelled()->GraphQLInterfaceType.toGraphQLType,
+    get_Named()->GraphQLInterfaceType.toGraphQLType,
+    get_NamedEntity()->GraphQLInterfaceType.toGraphQLType,
     get_Node()->GraphQLInterfaceType.toGraphQLType,
+    get_NullableNamed()->GraphQLInterfaceType.toGraphQLType,
+    get_Ranked()->GraphQLInterfaceType.toGraphQLType,
+    get_Searchable()->GraphQLInterfaceType.toGraphQLType,
     get_Res12Input()->GraphQLInputObjectType.toGraphQLType,
     get_UpdatableBool()->GraphQLInputObjectType.toGraphQLType,
     get_UpdatableFloat()->GraphQLInputObjectType.toGraphQLType,

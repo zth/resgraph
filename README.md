@@ -113,6 +113,24 @@ enum TextFormat {
 
 [Check out the docs on getting started](https://zth.github.io/resgraph/docs/getting-started).
 
+Interfaces can be implemented by spreading the interface record into the
+implementing record, or explicitly with repeatable `@gql.implements(...)`
+attributes when the implementing type declares the shared fields itself:
+
+```rescript
+@gql.interface
+type hasName = {
+  @gql.field name: string,
+}
+
+@gql.implements("HasName")
+@gql.type
+type user = {
+  @gql.field name: string,
+  @gql.field age: int,
+}
+```
+
 ## Introduction
 
 ResGraph lets you build _implementation first_ GraphQL servers, where your types and code is the source of truth for the schema.

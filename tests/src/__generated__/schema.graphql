@@ -72,8 +72,31 @@ input UpdatableString @oneOf {
   leaveUnchanged: Boolean
 }
 
+interface CompanyHolder {
+  company: NamedEntity!
+}
+
+interface ContextOverride {
+  contextOverrideLabel: String!
+  id: String!
+}
+
+interface Contextual {
+  contextLabel: String!
+  id: String!
+}
+
 interface Labelled {
   typenameEcho: String!
+}
+
+interface Named {
+  name: String!
+}
+
+interface NamedEntity implements Named {
+  name: String!
+  entityKind: String!
 }
 
 
@@ -82,6 +105,46 @@ interface Node {
 
   """The id of the object."""
   id: ID!
+}
+
+interface NullableNamed {
+  nullableName: String
+}
+
+interface Ranked {
+  rank: Int!
+}
+
+interface Searchable {
+  label(prefix: String): String!
+  id: String!
+}
+
+type ExplicitCompany implements NamedEntity & Named & NullableNamed & Ranked {
+  name: String!
+  entityKind: String!
+  nullableName: String!
+  rank: Int!
+  headquarters: String
+}
+
+type ExplicitCompanyHolder implements CompanyHolder {
+  company: ExplicitCompany!
+}
+
+type ExplicitContextOverrideResult implements ContextOverride {
+  contextOverrideLabel: String!
+  id: String!
+}
+
+type ExplicitContextResult implements Contextual {
+  contextLabel: String!
+  id: String!
+}
+
+type ExplicitSearchResult implements Searchable {
+  id: String!
+  label(prefix: String): String!
 }
 
 type FunctionFieldRegression {
@@ -147,6 +210,13 @@ type Query {
   labelledWrapper: LabelledWrapper!
   badLabelled: Labelled!
   goodLabelled: Labelled!
+  explicitSearchable: Searchable!
+  explicitNamed: Named!
+  explicitContextOverrideResult: ExplicitContextOverrideResult!
+  explicitContextResult: ExplicitContextResult!
+  explicitSearchResult: ExplicitSearchResult!
+  explicitCompanyHolder: ExplicitCompanyHolder!
+  explicitCompany: ExplicitCompany!
   getScalarHolder: ScalarHolder!
   nestedConnection: StringConnection!
   userConnection(first: Int, after: String): UserConnection!
