@@ -143,6 +143,20 @@ if [[ -e "$tmp_dir/artifact-output/ResGraphSchema.res" ]]; then
   exit 1
 fi
 
+mkdir -p "$tmp_dir/interface-artifact-output"
+if "$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/valid/src" \
+  "$tmp_dir/interface-artifact-output" false required Security.onForbidden \
+  "$tmp_dir/interface-artifact-output/interface_named.res" \
+  >/dev/null 2>/dev/null; then
+  echo "Generation unexpectedly accepted an interface/manifest path collision." >&2
+  exit 1
+fi
+if [[ -e "$tmp_dir/interface-artifact-output/interface_named.res" ]]; then
+  echo "Manifest preparation wrote over an interface artifact path." >&2
+  exit 1
+fi
+
 mkdir -p "$tmp_dir/cli-project/src" "$tmp_dir/cli-project/generated/schema"
 cp "$root_dir/tests/authorization/config/resgraph.json" \
   "$tmp_dir/cli-project/resgraph.json"
