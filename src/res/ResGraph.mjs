@@ -4,15 +4,31 @@ import * as Graphql from "graphql";
 import * as Nodecrypto from "node:crypto";
 import * as Primitive_option from "@rescript/runtime/lib/es6/Primitive_option.js";
 
-function raiseForbidden(_reason) {
-  throw new Graphql.GraphQLError("Forbidden", {
+function makeError(message, code) {
+  return {
+    message: message,
+    code: code
+  };
+}
+
+function raiseError(error) {
+  throw new Graphql.GraphQLError(error.message, {
     extensions: {
-      code: "FORBIDDEN"
+      code: error.code
     }
   });
 }
 
+function raiseForbidden(_reason) {
+  return raiseError({
+    message: "Forbidden",
+    code: "FORBIDDEN"
+  });
+}
+
 let Authorization = {
+  makeError: makeError,
+  raiseError: raiseError,
   raiseForbidden: raiseForbidden
 };
 

@@ -35,7 +35,7 @@ grep -F 'switch await Query.asyncOutcome' "$tmp_dir/valid/ResGraphSchema.res" >/
 grep -F 'switch OutcomeNamed.computed' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 grep -F 'Security.canFindUser(Obj.magic(src), ~args=authorizationArgs, ~ctx, ~info)' \
   "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
-grep -F 'throw(Security.onForbidden(reason, ~ctx, ~info))' \
+grep -F 'ResGraph.Authorization.raiseError(Security.onForbidden(reason, ~ctx, ~info))' \
   "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 grep -F 'switch Security.canReadNamed(Obj.magic(src)' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 grep -F 'switch Security.first' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
@@ -63,6 +63,8 @@ grep -F 'Mutation field `Mutation.outcomeOnly` requires at least one pre-resolve
   "$tmp_dir/invalid-result.json" >/dev/null
 grep -F 'Only one `@gql.public` annotation is allowed per field.' \
   "$tmp_dir/invalid-result.json" >/dev/null
+grep -F 'requires a reason with at least 3 non-whitespace characters' \
+  "$tmp_dir/invalid-result.json" >/dev/null
 grep -F '`@gql.public` can only be used on output fields or resolver functions' \
   "$tmp_dir/invalid-result.json" >/dev/null
 grep -F 'has source type `Mutation`, but it is applied to `Query`' \
@@ -78,6 +80,11 @@ node --input-type=module -e \
    try { Authorization.raiseForbidden("internal") }
    catch (error) {
      if (error.message !== "Forbidden" || error.extensions?.code !== "FORBIDDEN") process.exit(1)
+   }
+   const custom = Authorization.makeError("Not authorized", "CUSTOM_FORBIDDEN");
+   try { Authorization.raiseError(custom) }
+   catch (error) {
+     if (error.message !== "Not authorized" || error.extensions?.code !== "CUSTOM_FORBIDDEN") process.exit(1)
    }'
 
 echo "Authorization fixtures passed."

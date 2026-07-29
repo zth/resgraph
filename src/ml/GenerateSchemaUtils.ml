@@ -153,6 +153,9 @@ let emptyDeclaredAuthorization : declaredAuthorization =
 let authorizationCoordinate ~parentTypeName ~fieldName =
   parentTypeName ^ "." ^ fieldName
 
+let authorizationFunctionName (reference : authorizationFunctionReference) =
+  String.concat "." reference.path
+
 let addAuthorizationDiagnostic ~schemaState ~(env : SharedTypes.QueryEnv.t) ~loc
     message =
   schemaState
@@ -200,12 +203,13 @@ let publicReasonFromPayload ~schemaState ~(env : SharedTypes.QueryEnv.t)
     | _ -> None
   in
   match reason with
-  | Some reason when String.trim reason <> "" ->
+  | Some reason when String.length (String.trim reason) >= 3 ->
     Some {reason; loc = attributeLoc; fileUri = env.file.uri}
   | _ ->
     addAuthorizationDiagnostic ~schemaState ~env ~loc:attributeLoc
-      "`@gql.public` requires a non-empty string reason, for example \
-       `@gql.public({reason: \"Public profile data\"})`.";
+      "`@gql.public` requires a reason with at least 3 non-whitespace \
+       characters, for example `@gql.public({reason: \"Public profile \
+       data\"})`.";
     None
 
 let extractDeclaredAuthorization ~allowPublic ~schemaState

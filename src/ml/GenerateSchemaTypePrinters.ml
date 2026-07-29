@@ -23,11 +23,13 @@ let printForbidden ~schemaState =
   match schemaState.authorizationConfig.onForbidden with
   | None -> "ResGraph.Authorization.raiseForbidden(reason)"
   | Some handler ->
-    Printf.sprintf "throw(%s(reason, ~ctx=ctx, ~info=info))" handler
+    Printf.sprintf
+      "ResGraph.Authorization.raiseError(%s(reason, ~ctx=ctx, ~info=info))"
+      handler
 
 let printPolicyCall (fn : authorizationFunction) =
   Printf.sprintf "%s(Obj.magic(src), ~args=authorizationArgs%s)"
-    (String.concat "." fn.reference.path)
+    (authorizationFunctionName fn.reference)
     (fn.injections
     |> List.map (function
       | AuthorizationContext -> ", ~ctx=ctx"

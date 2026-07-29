@@ -7,21 +7,14 @@ let addAuthorizationDiagnostic schemaState
   |> addDiagnostic
        ~diagnostic:{loc = reference.loc; fileUri = reference.fileUri; message}
 
-let pathToString path = String.concat "." path
-
-let rec unwrapType (typ : Types.type_expr) =
-  match typ.desc with
-  | Tlink inner | Tsubst inner | Tpoly (inner, []) -> unwrapType inner
-  | _ -> typ
-
 let isUnitType typ =
-  match (unwrapType typ).desc with
-  | Tconstr (Path.Pident {name = "unit"}, [], _) -> true
+  match (TypeUtils.unwrapType typ).desc with
+  | Tconstr (path, [], _) -> Path.same path Predef.path_unit
   | _ -> false
 
 let objectFieldNames typ =
   let rec fields acc typ =
-    match (unwrapType typ).desc with
+    match (TypeUtils.unwrapType typ).desc with
     | Tfield (name, kind, _fieldType, rest) ->
       let acc =
         match Btype.field_kind_repr kind with
@@ -32,37 +25,10 @@ let objectFieldNames typ =
     | Tnil | Tvar _ -> Some (List.rev acc)
     | _ -> None
   in
-  match (unwrapType typ).desc with
+  match (TypeUtils.unwrapType typ).desc with
   | Tobject (row, _) -> fields [] row
+  | Tvar _ -> Some []
   | _ -> None
-
-let rec structureFromModule = function
-  | SharedTypes.Module.Structure structure -> Some structure
-  | Constraint (_, inner) -> structureFromModule inner
-  | Ident _ -> None
-
-let rec findValueInStructure (structure : SharedTypes.Module.structure) path =
-  match path with
-  | [] -> None
-  | [valueName] ->
-    structure.items
-    |> List.find_map (fun (item : SharedTypes.Module.item) ->
-        if item.name <> valueName then None
-        else
-          match item.kind with
-          | Value typ -> Some typ
-          | _ -> None)
-  | moduleName :: rest ->
-    structure.items
-    |> List.find_map (fun (item : SharedTypes.Module.item) ->
-        if item.name <> moduleName then None
-        else
-          match item.kind with
-          | Module {type_; _} -> (
-            match structureFromModule type_ with
-            | Some structure -> findValueInStructure structure rest
-            | None -> None)
-          | _ -> None)
 
 let loadPolicyModule ~loader ~(package : SharedTypes.package) moduleName =
   let namespacedName =
@@ -81,7 +47,7 @@ let resolveFunction ~loader ~(package : SharedTypes.package)
     match loadPolicyModule ~loader ~package moduleName with
     | None -> None
     | Some (file : SharedTypes.File.t) -> (
-      match findValueInStructure file.structure nestedPath with
+      match SharedTypes.Module.findValueByPath file.structure nestedPath with
       | None -> None
       | Some typ -> Some (SharedTypes.QueryEnv.fromFile file, typ)))
 
@@ -90,6 +56,10 @@ let graphqlTypeDisplayName = function
     Some displayName
   | _ -> None
 
+(* Generated policy calls use [Obj.magic] so interface policies can accept an
+   interface source while concrete fields pass their implementing object.
+   Validate the relationship here to keep that isolated cast safe and provide a
+   source-located error. *)
 let validateSource ~schemaState ~env ~package ~parentTypeName ~reference typ =
   match
     GenerateSchema.findGraphQLType typ ~debug:false ~env
@@ -105,7 +75,7 @@ let validateSource ~schemaState ~env ~package ~parentTypeName ~reference typ =
          "Authorization function `%s` has source type `%s`, but it is applied \
           to `%s`. Its first unlabelled argument must be the owning object or \
           interface type."
-         (pathToString reference.path)
+         (GenerateSchemaUtils.authorizationFunctionName reference)
          (match graphqlTypeDisplayName graphqlType with
          | Some displayName -> displayName
          | None -> "<non-object>")
@@ -116,7 +86,7 @@ let validateSource ~schemaState ~env ~package ~parentTypeName ~reference typ =
       (Printf.sprintf
          "Authorization function `%s` has an invalid source type. Its first \
           unlabelled argument must be `%s`."
-         (pathToString reference.path)
+         (GenerateSchemaUtils.authorizationFunctionName reference)
          parentTypeName);
     false
 
@@ -128,7 +98,7 @@ let validateArgsObject ~schemaState ~reference ~parentTypeName
       (Printf.sprintf
          "Authorization function `%s` must declare `~args` as a ReScript \
           polymorphic object."
-         (pathToString reference.path));
+         (GenerateSchemaUtils.authorizationFunctionName reference));
     false
   | Some names ->
     let availableNames =
@@ -145,7 +115,7 @@ let validateArgsObject ~schemaState ~reference ~parentTypeName
         (Printf.sprintf
            "Authorization function `%s` requests unavailable field argument%s \
             %s on `%s.%s`."
-           (pathToString reference.path)
+           (GenerateSchemaUtils.authorizationFunctionName reference)
            (if List.length unavailable = 1 then "" else "s")
            (unavailable
            |> List.map (Printf.sprintf "`%s`")
@@ -167,7 +137,7 @@ let validateInjection ~schemaState ~env ~package ~reference label typ =
          "Authorization function `%s` has invalid `~%s`. Only `~ctx: \
           ResGraphContext.context` and `~info: ResGraph.resolveInfo` are \
           supported injections."
-         (pathToString reference.path)
+         (GenerateSchemaUtils.authorizationFunctionName reference)
          label);
     None
 
@@ -180,7 +150,7 @@ let validateFunction ~loader ~(package : SharedTypes.package) ~schemaState
       (Printf.sprintf
          "Could not resolve authorization function `%s`. The path must name an \
           exported module-qualified function."
-         (pathToString reference.path));
+         (GenerateSchemaUtils.authorizationFunctionName reference));
     None
   | Some (env, typ) ->
     let args, returnType =
@@ -196,7 +166,7 @@ let validateFunction ~loader ~(package : SharedTypes.package) ~schemaState
           (Printf.sprintf
              "Authorization function `%s` must take the owning source as its \
               first unlabelled argument."
-             (pathToString reference.path));
+             (GenerateSchemaUtils.authorizationFunctionName reference));
         false
     in
     let remainingArgs =
@@ -217,7 +187,7 @@ let validateFunction ~loader ~(package : SharedTypes.package) ~schemaState
               (Printf.sprintf
                  "Authorization function `%s` must declare `~args` exactly \
                   once."
-                 (pathToString reference.path)))
+                 (GenerateSchemaUtils.authorizationFunctionName reference)))
           else argsObject := Some typ
         | Asttypes.Labelled {txt = ("ctx" | "info") as name} -> (
           match
@@ -232,7 +202,7 @@ let validateFunction ~loader ~(package : SharedTypes.package) ~schemaState
                "Authorization function `%s` has unsupported argument `%s`. \
                 Supported labelled arguments are mandatory `~args` and \
                 optional injections `~ctx` and `~info`."
-               (pathToString reference.path)
+               (GenerateSchemaUtils.authorizationFunctionName reference)
                name)
         | Asttypes.Nolabel ->
           labelsValid := false;
@@ -240,7 +210,7 @@ let validateFunction ~loader ~(package : SharedTypes.package) ~schemaState
             (Printf.sprintf
                "Authorization function `%s` can only have one unlabelled \
                 argument: its source."
-               (pathToString reference.path)));
+               (GenerateSchemaUtils.authorizationFunctionName reference)));
     let argsValid =
       match !argsObject with
       | None ->
@@ -248,7 +218,7 @@ let validateFunction ~loader ~(package : SharedTypes.package) ~schemaState
           (Printf.sprintf
              "Authorization function `%s` must declare the mandatory `~args` \
               polymorphic object, including for fields without arguments."
-             (pathToString reference.path));
+             (GenerateSchemaUtils.authorizationFunctionName reference));
         false
       | Some typ ->
         validateArgsObject ~schemaState ~reference ~parentTypeName ~field typ
@@ -262,7 +232,7 @@ let validateFunction ~loader ~(package : SharedTypes.package) ~schemaState
              "Authorization function `%s` must return \
               `ResGraph.Authorization.outcome<unit, 'reason>` or a promise of \
               that outcome."
-             (pathToString reference.path));
+             (GenerateSchemaUtils.authorizationFunctionName reference));
         None
     in
     if sourceValid && argsValid && !labelsValid && Option.is_some outcome then
@@ -484,7 +454,7 @@ let provenanceToString = function
 let manifestPolicy ~package (fn : authorizationFunction) =
   Printf.sprintf
     "{\"path\":%s,\"provenance\":%s,\"file\":%s,\"location\":%s,\"async\":%s}"
-    (jsonString (pathToString fn.reference.path))
+    (jsonString (GenerateSchemaUtils.authorizationFunctionName fn.reference))
     (jsonString (provenanceToString fn.provenance))
     (jsonString (relativeSourcePath ~package fn.reference.fileUri))
     (jsonString (Loc.toString fn.reference.loc))
