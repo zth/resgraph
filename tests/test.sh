@@ -28,6 +28,21 @@ if [[ $incrementalOutput != *"Incremental cache hit"* ]]; then
 fi
 printf '%b%s%b\n' "$successGreen" '✅ Incremental schema cache hit.' "$reset"
 
+runtimeChangeOutput=$(
+  RESCRIPT_RUNTIME=./node_modules/@rescript/runtime \
+    RESGRAPH_INCREMENTAL_DEBUG=1 ../bin/dev/resgraph.exe generate-schema \
+    ./src ./src/__generated__ true 2>&1
+)
+if [[ $runtimeChangeOutput != *"ReScript runtime selection changed"* ]]; then
+  printf '%b%s\n%s\n%b\n' "$warningYellow" \
+    '⚠️ ReScript runtime change did not invalidate incremental cache.' \
+    "$runtimeChangeOutput" "$reset"
+  exit 1
+fi
+../bin/dev/resgraph.exe generate-schema ./src ./src/__generated__ true >/dev/null
+printf '%b%s%b\n' "$successGreen" \
+  '✅ ReScript runtime changes invalidate incremental cache.' "$reset"
+
 alternateExecutable=$(mktemp)
 cp ../bin/dev/resgraph.exe "$alternateExecutable"
 chmod +x "$alternateExecutable"
@@ -112,6 +127,39 @@ fi
 ../bin/dev/resgraph.exe generate-schema ./src ./src/__generated__ true >/dev/null
 printf '%b%s%b\n' "$successGreen" \
   '✅ Dependency configuration changes invalidate incremental cache.' "$reset"
+
+hiddenDependency=./node_modules/resgraph-hidden-dependency
+hiddenConfigBackup=$(mktemp)
+cp ./rescript.json "$hiddenConfigBackup"
+mkdir -p "$hiddenDependency/src" "$hiddenDependency/lib/bs"
+printf '%s\n' \
+  '{"name":"resgraph-hidden-dependency","sources":["src"],"public":[]}' \
+  >"$hiddenDependency/rescript.json"
+node -e '
+  const fs = require("fs")
+  const config = JSON.parse(fs.readFileSync("rescript.json", "utf8"))
+  config.dependencies.push("resgraph-hidden-dependency")
+  fs.writeFileSync("rescript.json", JSON.stringify(config, null, 2) + "\n")
+'
+../bin/dev/resgraph.exe generate-schema ./src ./src/__generated__ true >/dev/null
+printf '\n' >>"$hiddenDependency/rescript.json"
+hiddenDependencyOutput=$(
+  RESGRAPH_INCREMENTAL_DEBUG=1 ../bin/dev/resgraph.exe generate-schema \
+    ./src ./src/__generated__ true 2>&1
+)
+cp "$hiddenConfigBackup" ./rescript.json
+rm -f "$hiddenConfigBackup" "$hiddenDependency/rescript.json"
+rmdir "$hiddenDependency/src" "$hiddenDependency/lib/bs" \
+  "$hiddenDependency/lib" "$hiddenDependency"
+if [[ $hiddenDependencyOutput != *"project input changed"* ]]; then
+  printf '%b%s\n%s\n%b\n' "$warningYellow" \
+    '⚠️ Hidden dependency configuration change did not invalidate cache.' \
+    "$hiddenDependencyOutput" "$reset"
+  exit 1
+fi
+../bin/dev/resgraph.exe generate-schema ./src ./src/__generated__ true >/dev/null
+printf '%b%s%b\n' "$successGreen" \
+  '✅ Dependencies without visible modules remain tracked.' "$reset"
 
 sourceBackup=$(mktemp)
 cp ./src/ResGraphContext.res "$sourceBackup"

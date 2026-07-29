@@ -18,13 +18,14 @@ type t = {
   writeStateFile: bool;
   writeSdlFile: bool;
   debug: bool;
+  rescriptRuntime: string option;
   executable: fileSignature;
   inputs: fileSignature list;
   outputs: output list;
 }
 
-let version = 2
-let magic = "RESGRAPH_INCREMENTAL_CACHE_V2\n"
+let version = 3
+let magic = "RESGRAPH_INCREMENTAL_CACHE_V3\n"
 let fileName = ".resgraphIncrementalCache"
 
 let enabled () = Sys.getenv_opt "RESGRAPH_INCREMENTAL_CACHE" <> Some "false"
@@ -42,6 +43,9 @@ let canonicalize path =
 let absolute path =
   if Filename.is_relative path then Filename.concat (Sys.getcwd ()) path
   else path
+
+let rescriptRuntime () =
+  Sys.getenv_opt "RESCRIPT_RUNTIME" |> Option.map canonicalize
 
 let fromRoot rootPath path =
   if Filename.is_relative path then Filename.concat rootPath path else path
@@ -172,6 +176,59 @@ let configPaths rootPath =
   |> List.map (Filename.concat rootPath)
   |> List.filter Files.exists
 
+let configuredDependencyNames rootPath =
+  let configPath =
+    let rescriptJson = Filename.concat rootPath "rescript.json" in
+    if Files.exists rescriptJson then rescriptJson
+    else Filename.concat rootPath "bsconfig.json"
+  in
+  match Option.bind (Files.readFile configPath) Json.parse with
+  | None -> []
+  | Some config ->
+    let strings key =
+      match Option.bind (Json.get key config) Json.array with
+      | None -> None
+      | Some values -> Some (List.filter_map Json.string values)
+    in
+    let prefer current legacy =
+      match (strings current, strings legacy) with
+      | None, None -> []
+      | Some values, None | _, Some values -> values
+    in
+    prefer "dependencies" "bs-dependencies"
+    @ prefer "dev-dependencies" "bs-dev-dependencies"
+
+let dependencySearchPaths rootPath dependencyName =
+  let isScoped = String.starts_with dependencyName ~prefix:"@" in
+  let scope = Filename.dirname dependencyName in
+  let rec loop current paths =
+    let nodeModules = Filename.concat current "node_modules" in
+    let watchPath =
+      if not (Files.exists nodeModules) then current
+      else if isScoped then
+        let scopePath = Filename.concat nodeModules scope in
+        if Files.exists scopePath then scopePath else nodeModules
+      else nodeModules
+    in
+    let paths = watchPath :: paths in
+    let parent = Filename.dirname current in
+    if parent = current then paths else loop parent paths
+  in
+  loop rootPath []
+
+let configuredDependencyPaths rootPath =
+  configuredDependencyNames rootPath
+  |> List.map (fun dependencyName ->
+      let searchPaths = dependencySearchPaths rootPath dependencyName in
+      match
+        ModuleResolution.resolveNodeModulePath ~startPath:rootPath
+          dependencyName
+      with
+      | None -> searchPaths
+      | Some dependencyRoot ->
+        (dependencyRoot :: configPaths dependencyRoot) @ searchPaths)
+  |> List.concat
+
 let inputPaths (package : SharedTypes.package) =
   let rootPath = canonicalize package.rootPath in
   let moduleFiles =
@@ -193,7 +250,11 @@ let inputPaths (package : SharedTypes.package) =
         dependencyRoot :: configPaths dependencyRoot)
     |> List.concat
   in
-  let files = configPaths rootPath @ dependencyConfigPaths @ moduleFiles in
+  let files =
+    configPaths rootPath
+    @ configuredDependencyPaths rootPath
+    @ dependencyConfigPaths @ moduleFiles
+  in
   let paths =
     rootPath :: files
     |> List.fold_left (fun paths path -> addPath path paths) StringSet.empty
@@ -305,6 +366,8 @@ let canSkipEnabled ~sourceFolder ~outputFolder ~writeStateFile ~writeSdlFile
       else if cache.writeSdlFile <> writeSdlFile then
         invalid "SDL setting changed"
       else if cache.debug <> debugMode then invalid "debug setting changed"
+      else if cache.rescriptRuntime <> rescriptRuntime () then
+        invalid "ReScript runtime selection changed"
       else if signature Sys.executable_name <> Some cache.executable then
         invalid "ResGraph executable changed"
       else if cachedOutputPaths <> outputPaths then
@@ -343,6 +406,7 @@ let update ~(package : SharedTypes.package) ~sourceFolder ~outputFolder
           writeStateFile;
           writeSdlFile;
           debug = debugMode;
+          rescriptRuntime = rescriptRuntime ();
           executable;
           inputs;
           outputs;
