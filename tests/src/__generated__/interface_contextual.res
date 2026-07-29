@@ -3,7 +3,8 @@
 @@warning("-27-34-37")
 
 module Resolver = {
-  @gql.interfaceResolver("contextual") type t = ExplicitContextResult(AppExplicitInterfaceImplements.explicitContextResult)
+  @gql.interfaceResolver("contextual")
+  type t = ExplicitContextResult(AppExplicitInterfaceImplements.explicitContextResult)
 }
 
 module ImplementedBy = {

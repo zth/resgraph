@@ -128,7 +128,7 @@ let sortImplementedBy (a1 : interfaceImplementedBy) a2 =
 let printInterfaceResolverReturnType
     (gqlInterfaceIdentifier : gqlInterfaceIdentifier)
     ~(implementedBy : interfaceImplementedBy list) =
-  Printf.sprintf " @gql.interfaceResolver(\"%s\") type t = %s"
+  Printf.sprintf "@gql.interfaceResolver(\"%s\")\ntype t = %s"
     gqlInterfaceIdentifier.id
     (implementedBy
     |> List.sort sortImplementedBy

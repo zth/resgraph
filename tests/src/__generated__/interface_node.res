@@ -3,7 +3,8 @@
 @@warning("-27-34-37")
 
 module Resolver = {
-  @gql.interfaceResolver("node") type t = Thing(Thing.thing)
+  @gql.interfaceResolver("node")
+  type t = Thing(Thing.thing)
 }
 
 module ImplementedBy = {

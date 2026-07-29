@@ -3,7 +3,8 @@
 @@warning("-27-34-37")
 
 module Resolver = {
-  @gql.interfaceResolver("labelled") type t = LabelledAlpha(AppLabelledTypes.labelledAlpha) | LabelledBeta(AppLabelledTypes.labelledBeta)
+  @gql.interfaceResolver("labelled")
+  type t = LabelledAlpha(AppLabelledTypes.labelledAlpha) | LabelledBeta(AppLabelledTypes.labelledBeta)
 }
 
 module ImplementedBy = {

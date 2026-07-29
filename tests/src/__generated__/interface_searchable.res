@@ -3,7 +3,8 @@
 @@warning("-27-34-37")
 
 module Resolver = {
-  @gql.interfaceResolver("searchable") type t = ExplicitSearchResult(AppExplicitInterfaceImplements.explicitSearchResult)
+  @gql.interfaceResolver("searchable")
+  type t = ExplicitSearchResult(AppExplicitInterfaceImplements.explicitSearchResult)
 }
 
 module ImplementedBy = {

@@ -3,7 +3,8 @@
 @@warning("-27-34-37")
 
 module Resolver = {
-  @gql.interfaceResolver("nullableNamed") type t = ExplicitCompany(AppExplicitInterfaceImplements.explicitCompany)
+  @gql.interfaceResolver("nullableNamed")
+  type t = ExplicitCompany(AppExplicitInterfaceImplements.explicitCompany)
 }
 
 module ImplementedBy = {

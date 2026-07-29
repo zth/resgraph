@@ -3,7 +3,8 @@
 @@warning("-27-34-37")
 
 module Resolver = {
-  @gql.interfaceResolver("contextOverride") type t = ExplicitContextOverrideResult(AppExplicitInterfaceImplements.explicitContextOverrideResult)
+  @gql.interfaceResolver("contextOverride")
+  type t = ExplicitContextOverrideResult(AppExplicitInterfaceImplements.explicitContextOverrideResult)
 }
 
 module ImplementedBy = {
