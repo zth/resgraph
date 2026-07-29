@@ -77,6 +77,22 @@ fi
 printf '%b%s%b\n' "$successGreen" \
   '✅ Symlink retargets invalidate incremental cache.' "$reset"
 
+printf '{}\n' >./bsconfig.json
+configAdditionOutput=$(
+  RESGRAPH_INCREMENTAL_DEBUG=1 ../bin/dev/resgraph.exe generate-schema \
+    ./src ./src/__generated__ true 2>&1
+)
+rm -f ./bsconfig.json
+if [[ $configAdditionOutput != *"project input changed"* ]]; then
+  printf '%b%s\n%s\n%b\n' "$warningYellow" \
+    '⚠️ Added configuration file did not invalidate incremental cache.' \
+    "$configAdditionOutput" "$reset"
+  exit 1
+fi
+../bin/dev/resgraph.exe generate-schema ./src ./src/__generated__ true >/dev/null
+printf '%b%s%b\n' "$successGreen" \
+  '✅ Added configuration files invalidate incremental cache.' "$reset"
+
 sourceBackup=$(mktemp)
 cp ./src/ResGraphContext.res "$sourceBackup"
 printf '\n// Conservative cache input probe.\n' >>./src/ResGraphContext.res

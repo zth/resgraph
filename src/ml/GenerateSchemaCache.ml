@@ -183,7 +183,7 @@ let inputPaths (package : SharedTypes.package) =
 
   let files = configPaths rootPath @ moduleFiles in
   let paths =
-    files
+    rootPath :: files
     |> List.fold_left (fun paths path -> addPath path paths) StringSet.empty
   in
   let paths =
