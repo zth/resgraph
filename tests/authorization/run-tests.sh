@@ -85,6 +85,19 @@ grep -F 'has invalid `~ctx`' "$tmp_dir/invalid-result.json" >/dev/null
 grep -F 'Required authorization coverage does not support subscriptions yet.' \
   "$tmp_dir/invalid-result.json" >/dev/null
 
+cp "$root_dir/tests/authorization/valid/expected-authorization-manifest.json" \
+  "$tmp_dir/valid/authorization-manifest.json"
+if "$resgraph_bin" generate-schema \
+  "$tmp_dir/not-a-project" "$tmp_dir/early-error" false required - \
+  "$tmp_dir/valid/authorization-manifest.json" >/dev/null 2>/dev/null; then
+  echo "Generation unexpectedly succeeded for a missing ReScript project." >&2
+  exit 1
+fi
+if [[ -e "$tmp_dir/valid/authorization-manifest.json" ]]; then
+  echo "Stale authorization manifest survived an early generation failure." >&2
+  exit 1
+fi
+
 node --input-type=module -e \
   'import path from "node:path";
    import {readConfigFromDir} from "./cli/Utils.mjs";

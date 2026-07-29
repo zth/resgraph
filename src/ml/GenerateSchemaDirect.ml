@@ -111,6 +111,7 @@ let with_hooks ~package ~preloaded f =
 
 let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
     ~outputFolder ~writeSdlFile ~authorizationConfig =
+  GenerateSchemaAuthorization.removeManifest authorizationConfig;
   match collect_gql_cmts ~sourceFolder with
   | Error errs ->
     print_collect_errors errs;
@@ -166,7 +167,6 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
            let sdlOutputPath = outputFolder ^ "/schema.graphql" in
 
            if schemaState.diagnostics |> List.length > 0 then (
-             GenerateSchemaAuthorization.removeManifest schemaState;
              if printToStdOut then
                Printf.printf
                  "{\n\
