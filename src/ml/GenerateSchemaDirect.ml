@@ -111,104 +111,113 @@ let with_hooks ~package ~preloaded f =
 
 let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
     ~outputFolder ~writeSdlFile =
-  match collect_gql_cmts ~sourceFolder with
-  | Error errs ->
-    print_collect_errors errs;
-    exit 1
-  | Ok (package, loaded) ->
-    let preloaded =
-      loaded
-      |> List.map (fun l ->
-          let file =
-            CmtSummarize.file_from_cmt_infos ~moduleName:l.moduleName
-              ~uri:(Uri.fromPath l.sourcePath)
-              (CmtDirect.infos l.cmt)
-          in
-          (l.moduleName, file))
-    in
-    ignore
-      (with_hooks ~package ~preloaded (fun ~loader:_ ->
-           let schemaState =
-             {
-               types = Hashtbl.create 50;
-               enums = Hashtbl.create 10;
-               unions = Hashtbl.create 10;
-               inputObjects = Hashtbl.create 10;
-               inputUnions = Hashtbl.create 10;
-               interfaces = Hashtbl.create 10;
-               scalars = Hashtbl.create 10;
-               query = None;
-               subscription = None;
-               mutation = None;
-               diagnostics = [];
-               processedFiles = Hashtbl.create 100;
-             }
-           in
-
-           preloaded
-           |> List.iter (fun (_moduleName, file) ->
-               let full = {file; package} in
-               let env = SharedTypes.QueryEnv.fromFile file in
-               GenerateSchema.traverseStructure file.structure
-                 ~originModule:env.file.moduleName ~schemaState ~env ~full
-                 ~debug);
-
-           let processedSchema =
-             GenerateSchemaUtils.processSchema schemaState
-           in
-           let schemaOutputPath = outputFolder ^ "/ResGraphSchema.res" in
-           let sdlOutputPath = outputFolder ^ "/schema.graphql" in
-
-           if schemaState.diagnostics |> List.length > 0 then (
-             if printToStdOut then
-               Printf.printf
-                 "{\n\
-                 \  \"status\": \"Error\",\n\
-                 \  \"errors\": \n\
-                 \    [\n\
-                 \      %s\n\
-                 \    ]\n\
-                  }"
-                 (schemaState.diagnostics |> List.rev
-                 |> List.map (fun (_, diagnostic) ->
-                     GenerateSchemaUtils.printDiagnostic diagnostic)
-                 |> String.concat ",\n");
-
-             (* Write an empty schema just to avoid type errors in the generated code. *)
-             GenerateSchemaUtils.writeIfHasChanges schemaOutputPath
-               "let schema = \
-                ResGraph__GraphQLJs.GraphQLSchemaType.make(Obj.magic())\n")
-           else
-             let schemaCode =
-               GenerateSchemaTypePrinters.printSchemaJsFile schemaState
-                 processedSchema
-               |> GenerateSchemaUtils.formatCode ~debug
+  if
+    GenerateSchemaCache.canSkip ~sourceFolder ~outputFolder ~writeStateFile
+      ~writeSdlFile ~debug
+  then (
+    if printToStdOut then
+      Printf.printf "{\"status\": \"Success\", \"ok\": true}")
+  else
+    match collect_gql_cmts ~sourceFolder with
+    | Error errs ->
+      print_collect_errors errs;
+      exit 1
+    | Ok (package, loaded) ->
+      let preloaded =
+        loaded
+        |> List.map (fun l ->
+            let file =
+              CmtSummarize.file_from_cmt_infos ~moduleName:l.moduleName
+                ~uri:(Uri.fromPath l.sourcePath)
+                (CmtDirect.infos l.cmt)
+            in
+            (l.moduleName, file))
+      in
+      ignore
+        (with_hooks ~package ~preloaded (fun ~loader:_ ->
+             let schemaState =
+               {
+                 types = Hashtbl.create 50;
+                 enums = Hashtbl.create 10;
+                 unions = Hashtbl.create 10;
+                 inputObjects = Hashtbl.create 10;
+                 inputUnions = Hashtbl.create 10;
+                 interfaces = Hashtbl.create 10;
+                 scalars = Hashtbl.create 10;
+                 query = None;
+                 subscription = None;
+                 mutation = None;
+                 diagnostics = [];
+                 processedFiles = Hashtbl.create 100;
+               }
              in
 
-             GenerateSchemaTypePrinters.cleanInterfaceFiles schemaState
-               ~outputFolder;
-             GenerateSchemaTypePrinters.printInterfaceFiles schemaState
-               ~processedSchema ~outputFolder ~debug;
+             preloaded
+             |> List.iter (fun (_moduleName, file) ->
+                 let full = {file; package} in
+                 let env = SharedTypes.QueryEnv.fromFile file in
+                 GenerateSchema.traverseStructure file.structure
+                   ~originModule:env.file.moduleName ~schemaState ~env ~full
+                   ~debug);
 
-             (* TODO: Do this in parallell in some fancy way *)
-             if writeStateFile then
-               GenerateSchemaUtils.writeStateFile ~package ~schemaState
-                 ~processedSchema;
-
-             (if writeSdlFile then
-                let sdl = GenerateSchemaSDL.printSchemaSDL schemaState in
-                GenerateSchemaUtils.writeIfHasChanges sdlOutputPath sdl);
-
-             (* Write generated schema *)
-             GenerateSchemaUtils.writeIfHasChanges schemaOutputPath schemaCode;
-
-             (* Write resi file *)
-             let resiOutputPath = schemaOutputPath ^ "i" in
-             let resiContent =
-               "let schema: ResGraph.schema<ResGraphContext.context>\n"
+             let processedSchema =
+               GenerateSchemaUtils.processSchema schemaState
              in
-             GenerateSchemaUtils.writeIfHasChanges resiOutputPath resiContent;
+             let schemaOutputPath = outputFolder ^ "/ResGraphSchema.res" in
+             let sdlOutputPath = outputFolder ^ "/schema.graphql" in
 
-             if debug && printToStdOut then schemaCode |> print_endline
-             else if printToStdOut then
-               Printf.printf "{\"status\": \"Success\", \"ok\": true}"))
+             if schemaState.diagnostics |> List.length > 0 then (
+               if printToStdOut then
+                 Printf.printf
+                   "{\n\
+                   \  \"status\": \"Error\",\n\
+                   \  \"errors\": \n\
+                   \    [\n\
+                   \      %s\n\
+                   \    ]\n\
+                    }"
+                   (schemaState.diagnostics |> List.rev
+                   |> List.map (fun (_, diagnostic) ->
+                       GenerateSchemaUtils.printDiagnostic diagnostic)
+                   |> String.concat ",\n");
+
+               (* Write an empty schema just to avoid type errors in the generated code. *)
+               GenerateSchemaUtils.writeIfHasChanges schemaOutputPath
+                 "let schema = \
+                  ResGraph__GraphQLJs.GraphQLSchemaType.make(Obj.magic())\n")
+             else
+               let schemaCode =
+                 GenerateSchemaTypePrinters.printSchemaJsFile schemaState
+                   processedSchema
+               in
+
+               GenerateSchemaTypePrinters.cleanInterfaceFiles schemaState
+                 ~outputFolder;
+               GenerateSchemaTypePrinters.printInterfaceFiles schemaState
+                 ~processedSchema ~outputFolder;
+
+               (* TODO: Do this in parallell in some fancy way *)
+               if writeStateFile then
+                 GenerateSchemaUtils.writeStateFile ~package ~schemaState
+                   ~processedSchema;
+
+               (if writeSdlFile then
+                  let sdl = GenerateSchemaSDL.printSchemaSDL schemaState in
+                  GenerateSchemaUtils.writeIfHasChanges sdlOutputPath sdl);
+
+               (* Write generated schema *)
+               GenerateSchemaUtils.writeIfHasChanges schemaOutputPath schemaCode;
+
+               (* Write resi file *)
+               let resiOutputPath = schemaOutputPath ^ "i" in
+               let resiContent =
+                 "let schema: ResGraph.schema<ResGraphContext.context>\n"
+               in
+               GenerateSchemaUtils.writeIfHasChanges resiOutputPath resiContent;
+
+               GenerateSchemaCache.update ~package ~sourceFolder ~outputFolder
+                 ~writeStateFile ~writeSdlFile ~debug;
+
+               if debug && printToStdOut then schemaCode |> print_endline
+               else if printToStdOut then
+                 Printf.printf "{\"status\": \"Success\", \"ok\": true}"))

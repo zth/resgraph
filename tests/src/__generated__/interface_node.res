@@ -9,16 +9,17 @@ module Resolver = {
 module ImplementedBy = {
   type t = Thing
 
-  let decode = (str: string) =>
-    switch str {
+  let decode = (str: string) => switch str {
     | "Thing" => Some(Thing)
     | _ => None
-    }
+  }
 
   external toString: t => string = "%identity"
 }
 
-type typeMap<'a> = {@as("Thing") thing: 'a}
+type typeMap<'a> = {
+  @as("Thing") thing: 'a,
+}
 
 module TypeMap: {
   type t<'value>

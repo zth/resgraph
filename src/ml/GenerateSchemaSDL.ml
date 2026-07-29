@@ -161,8 +161,11 @@ let printObjectType (typ : gqlObjectType) =
     (printFields typ.fields)
 
 let printSchemaSDL (schemaState : schemaState) =
-  let code = ref "" in
-  let addWithNewLine text = code := !code ^ text ^ "\n" in
+  let code = Buffer.create 16384 in
+  let addWithNewLine text =
+    Buffer.add_string code text;
+    Buffer.add_char code '\n'
+  in
   let addSection text = addWithNewLine (text ^ "\n") in
 
   if printSourceLoc then
@@ -199,4 +202,4 @@ let printSchemaSDL (schemaState : schemaState) =
   schemaState.types
   |> iterHashtblAlphabetically (fun _name (typ : gqlObjectType) ->
       addSection (printObjectType typ));
-  String.trim !code ^ "\n"
+  String.trim (Buffer.contents code) ^ "\n"

@@ -2,12 +2,8 @@
 
 open ResGraph__GraphQLJs
 
-let typeUnwrapper: 'src => 'return = %raw(`function typeUnwrapper(src) { if (src == null) return null; if (typeof src === 'object' && src.hasOwnProperty('_0')) return src['_0']; if (typeof src === 'object' && src.hasOwnProperty('VAL')) return src['VAL']; return src;}`)
-let inputUnionUnwrapper: (
-  'src,
-  array<string>,
-  array<string>,
-) => 'return = %raw(`function inputUnionUnwrapper(src, inlineRecordTypenames, emptyPayloadTypenames) {
+let typeUnwrapper: ('src) => 'return = %raw(`function typeUnwrapper(src) { if (src == null) return null; if (typeof src === 'object' && src.hasOwnProperty('_0')) return src['_0']; if (typeof src === 'object' && src.hasOwnProperty('VAL')) return src['VAL']; return src;}`)
+let inputUnionUnwrapper: ('src, array<string>, array<string>) => 'return = %raw(`function inputUnionUnwrapper(src, inlineRecordTypenames, emptyPayloadTypenames) {
       if (src == null) return null;
     
       let targetKey = null;
@@ -40,12 +36,7 @@ let inputUnionUnwrapper: (
       return null;
     }
     `)
-let resolveInterfaceTypename: (
-  'src,
-  array<string>,
-  string,
-  string,
-) => string = %raw(`function resolveInterfaceTypename(src, allowedTypenames, interfaceName, interfaceResolverTypeName) {
+let resolveInterfaceTypename: ('src, array<string>, string, string) => string = %raw(`function resolveInterfaceTypename(src, allowedTypenames, interfaceName, interfaceResolverTypeName) {
       if (allowedTypenames.length === 1) {
         return allowedTypenames[0];
       }
@@ -81,26 +72,22 @@ let resolveInterfaceTypename: (
       );
     }
     `)
+
 type inputObjectFieldConverterFn
 external makeInputObjectFieldConverterFn: ('a => 'b) => inputObjectFieldConverterFn = "%identity"
 
-let applyConversionToInputObject: (
-  'a,
-  array<(string, inputObjectFieldConverterFn)>,
-) => 'a = %raw(`function applyConversionToInputObject(obj, instructions) {
-      if (instructions.length === 0) return obj;
-      let newObj = Object.assign({}, obj);
-      instructions.forEach(instruction => {
-        let value = newObj[instruction[0]];
-         newObj[instruction[0]] = instruction[1](value);
-      })
-      return newObj;
-    }`)
+let applyConversionToInputObject: ('a, array<(string, inputObjectFieldConverterFn)>) => 'a = %raw(`function applyConversionToInputObject(obj, instructions) {
+  if (instructions.length === 0) return obj;
+  let newObj = Object.assign({}, obj);
+  instructions.forEach(instruction => {
+    let value = newObj[instruction[0]];
+    newObj[instruction[0]] = instruction[1](value);
+  })
+  return newObj;
+}`)
 
-let scalar_Uuid = GraphQLScalar.make({
-  name: "Uuid",
-  description: "Custom scalar with specifiedByUrl coverage.",
-})
+let scalar_Uuid = GraphQLScalar.make({name: "Uuid", description: "Custom scalar with specifiedByUrl coverage."})
+
 let i_CompanyHolder: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
 let get_CompanyHolder = () => i_CompanyHolder.contents
 let i_ContextOverride: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
@@ -190,9 +177,7 @@ let inputUnion_UpdatableNullableFloat_conversionInstructions = []
 let inputUnion_UpdatableNullableInt: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_UpdatableNullableInt = () => inputUnion_UpdatableNullableInt.contents
 let inputUnion_UpdatableNullableInt_conversionInstructions = []
-let inputUnion_UpdatableNullableString: ref<GraphQLInputObjectType.t> = Obj.magic({
-  "contents": null,
-})
+let inputUnion_UpdatableNullableString: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_UpdatableNullableString = () => inputUnion_UpdatableNullableString.contents
 let inputUnion_UpdatableNullableString_conversionInstructions = []
 let inputUnion_UpdatableString: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
@@ -212,1538 +197,1211 @@ input_ReservedWordInput_conversionInstructions->Array.pushMany([])
 input_UpdateThingInput_conversionInstructions->Array.pushMany([
   (
     "name",
-    makeInputObjectFieldConverterFn(v =>
-      v
-      ->applyConversionToInputObject(inputUnion_UpdatableString_conversionInstructions)
-      ->inputUnionUnwrapper([], ["LeaveUnchanged"])
-    ),
+    makeInputObjectFieldConverterFn((v) => v->applyConversionToInputObject(inputUnion_UpdatableString_conversionInstructions)->inputUnionUnwrapper([], ["LeaveUnchanged"]))
   ),
   (
     "age",
-    makeInputObjectFieldConverterFn(v =>
-      v
-      ->applyConversionToInputObject(inputUnion_UpdatableInt_conversionInstructions)
-      ->inputUnionUnwrapper([], ["LeaveUnchanged"])
-    ),
+    makeInputObjectFieldConverterFn((v) => v->applyConversionToInputObject(inputUnion_UpdatableInt_conversionInstructions)->inputUnionUnwrapper([], ["LeaveUnchanged"]))
   ),
   (
     "favoriteColor",
-    makeInputObjectFieldConverterFn(v =>
-      v
-      ->applyConversionToInputObject(inputUnion_UpdatableNullableString_conversionInstructions)
-      ->inputUnionUnwrapper([], ["UnsetValue", "LeaveUnchanged"])
-    ),
+    makeInputObjectFieldConverterFn((v) => v->applyConversionToInputObject(inputUnion_UpdatableNullableString_conversionInstructions)->inputUnionUnwrapper([], ["UnsetValue", "LeaveUnchanged"]))
   ),
   (
     "isAdmin",
-    makeInputObjectFieldConverterFn(v =>
-      v
-      ->applyConversionToInputObject(inputUnion_UpdatableNullableBool_conversionInstructions)
-      ->inputUnionUnwrapper([], ["UnsetValue", "LeaveUnchanged"])
-    ),
+    makeInputObjectFieldConverterFn((v) => v->applyConversionToInputObject(inputUnion_UpdatableNullableBool_conversionInstructions)->inputUnionUnwrapper([], ["UnsetValue", "LeaveUnchanged"]))
   ),
   (
     "height",
-    makeInputObjectFieldConverterFn(v =>
-      v
-      ->applyConversionToInputObject(inputUnion_UpdatableNullableFloat_conversionInstructions)
-      ->inputUnionUnwrapper([], ["UnsetValue", "LeaveUnchanged"])
-    ),
+    makeInputObjectFieldConverterFn((v) => v->applyConversionToInputObject(inputUnion_UpdatableNullableFloat_conversionInstructions)->inputUnionUnwrapper([], ["UnsetValue", "LeaveUnchanged"]))
   ),
 ])
 inputUnion_Res12Input_conversionInstructions->Array.pushMany([
   (
     "inline",
-    makeInputObjectFieldConverterFn(v =>
-      switch v->Nullable.toOption {
-      | None => None
-      | Some(v) =>
-        v->applyConversionToInputObject(input_Res12InputInline_conversionInstructions)->Some
-      }
-    ),
+    makeInputObjectFieldConverterFn((v) => (switch v->Nullable.toOption { | None => None | Some(v) => v->applyConversionToInputObject(input_Res12InputInline_conversionInstructions)->Some}))
   ),
-  ("empty", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  (
+    "empty",
+    makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
+  ),
 ])
 inputUnion_UpdatableBool_conversionInstructions->Array.pushMany([
-  ("updateValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
-  ("leaveUnchanged", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  (
+    "updateValue",
+    makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
+  ),
+  (
+    "leaveUnchanged",
+    makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
+  ),
 ])
 inputUnion_UpdatableFloat_conversionInstructions->Array.pushMany([
-  ("updateValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
-  ("leaveUnchanged", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  (
+    "updateValue",
+    makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
+  ),
+  (
+    "leaveUnchanged",
+    makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
+  ),
 ])
 inputUnion_UpdatableInt_conversionInstructions->Array.pushMany([
-  ("updateValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
-  ("leaveUnchanged", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  (
+    "updateValue",
+    makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
+  ),
+  (
+    "leaveUnchanged",
+    makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
+  ),
 ])
 inputUnion_UpdatableNullableBool_conversionInstructions->Array.pushMany([
-  ("updateValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
-  ("unsetValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
-  ("leaveUnchanged", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  (
+    "updateValue",
+    makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
+  ),
+  (
+    "unsetValue",
+    makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
+  ),
+  (
+    "leaveUnchanged",
+    makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
+  ),
 ])
 inputUnion_UpdatableNullableFloat_conversionInstructions->Array.pushMany([
-  ("updateValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
-  ("unsetValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
-  ("leaveUnchanged", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  (
+    "updateValue",
+    makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
+  ),
+  (
+    "unsetValue",
+    makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
+  ),
+  (
+    "leaveUnchanged",
+    makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
+  ),
 ])
 inputUnion_UpdatableNullableInt_conversionInstructions->Array.pushMany([
-  ("updateValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
-  ("unsetValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
-  ("leaveUnchanged", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  (
+    "updateValue",
+    makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
+  ),
+  (
+    "unsetValue",
+    makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
+  ),
+  (
+    "leaveUnchanged",
+    makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
+  ),
 ])
 inputUnion_UpdatableNullableString_conversionInstructions->Array.pushMany([
-  ("updateValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
-  ("unsetValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
-  ("leaveUnchanged", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  (
+    "updateValue",
+    makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
+  ),
+  (
+    "unsetValue",
+    makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
+  ),
+  (
+    "leaveUnchanged",
+    makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
+  ),
 ])
 inputUnion_UpdatableString_conversionInstructions->Array.pushMany([
-  ("updateValue", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
-  ("leaveUnchanged", makeInputObjectFieldConverterFn(v => v->Nullable.toOption)),
+  (
+    "updateValue",
+    makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
+  ),
+  (
+    "leaveUnchanged",
+    makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
+  ),
 ])
 
-let interface_CompanyHolder_resolveType = (v: Interface_companyHolder.Resolver.t) =>
-  resolveInterfaceTypename(
-    v,
-    ["ExplicitCompanyHolder"],
-    "CompanyHolder",
-    "Interface_companyHolder.Resolver.t",
-  )
+let interface_CompanyHolder_resolveType = (v: Interface_companyHolder.Resolver.t) => resolveInterfaceTypename(v, ["ExplicitCompanyHolder"], "CompanyHolder", "Interface_companyHolder.Resolver.t")
 
-let interface_ContextOverride_resolveType = (v: Interface_contextOverride.Resolver.t) =>
-  resolveInterfaceTypename(
-    v,
-    ["ExplicitContextOverrideResult"],
-    "ContextOverride",
-    "Interface_contextOverride.Resolver.t",
-  )
+let interface_ContextOverride_resolveType = (v: Interface_contextOverride.Resolver.t) => resolveInterfaceTypename(v, ["ExplicitContextOverrideResult"], "ContextOverride", "Interface_contextOverride.Resolver.t")
 
-let interface_Contextual_resolveType = (v: Interface_contextual.Resolver.t) =>
-  resolveInterfaceTypename(
-    v,
-    ["ExplicitContextResult"],
-    "Contextual",
-    "Interface_contextual.Resolver.t",
-  )
+let interface_Contextual_resolveType = (v: Interface_contextual.Resolver.t) => resolveInterfaceTypename(v, ["ExplicitContextResult"], "Contextual", "Interface_contextual.Resolver.t")
 
-let interface_Labelled_resolveType = (v: Interface_labelled.Resolver.t) =>
-  resolveInterfaceTypename(
-    v,
-    ["LabelledAlpha", "LabelledBeta"],
-    "Labelled",
-    "Interface_labelled.Resolver.t",
-  )
+let interface_Labelled_resolveType = (v: Interface_labelled.Resolver.t) => resolveInterfaceTypename(v, ["LabelledAlpha", "LabelledBeta"], "Labelled", "Interface_labelled.Resolver.t")
 
-let interface_Named_resolveType = (v: Interface_named.Resolver.t) =>
-  resolveInterfaceTypename(v, ["ExplicitCompany"], "Named", "Interface_named.Resolver.t")
+let interface_Named_resolveType = (v: Interface_named.Resolver.t) => resolveInterfaceTypename(v, ["ExplicitCompany"], "Named", "Interface_named.Resolver.t")
 
-let interface_NamedEntity_resolveType = (v: Interface_namedEntity.Resolver.t) =>
-  resolveInterfaceTypename(
-    v,
-    ["ExplicitCompany"],
-    "NamedEntity",
-    "Interface_namedEntity.Resolver.t",
-  )
+let interface_NamedEntity_resolveType = (v: Interface_namedEntity.Resolver.t) => resolveInterfaceTypename(v, ["ExplicitCompany"], "NamedEntity", "Interface_namedEntity.Resolver.t")
 
-let interface_Node_resolveType = (v: Interface_node.Resolver.t) =>
-  resolveInterfaceTypename(v, ["Thing"], "Node", "Interface_node.Resolver.t")
+let interface_Node_resolveType = (v: Interface_node.Resolver.t) => resolveInterfaceTypename(v, ["Thing"], "Node", "Interface_node.Resolver.t")
 
-let interface_NullableNamed_resolveType = (v: Interface_nullableNamed.Resolver.t) =>
-  resolveInterfaceTypename(
-    v,
-    ["ExplicitCompany"],
-    "NullableNamed",
-    "Interface_nullableNamed.Resolver.t",
-  )
+let interface_NullableNamed_resolveType = (v: Interface_nullableNamed.Resolver.t) => resolveInterfaceTypename(v, ["ExplicitCompany"], "NullableNamed", "Interface_nullableNamed.Resolver.t")
 
-let interface_Ranked_resolveType = (v: Interface_ranked.Resolver.t) =>
-  resolveInterfaceTypename(v, ["ExplicitCompany"], "Ranked", "Interface_ranked.Resolver.t")
+let interface_Ranked_resolveType = (v: Interface_ranked.Resolver.t) => resolveInterfaceTypename(v, ["ExplicitCompany"], "Ranked", "Interface_ranked.Resolver.t")
 
-let interface_Searchable_resolveType = (v: Interface_searchable.Resolver.t) =>
-  resolveInterfaceTypename(
-    v,
-    ["ExplicitSearchResult"],
-    "Searchable",
-    "Interface_searchable.Resolver.t",
-  )
+let interface_Searchable_resolveType = (v: Interface_searchable.Resolver.t) => resolveInterfaceTypename(v, ["ExplicitSearchResult"], "Searchable", "Interface_searchable.Resolver.t")
 
 i_CompanyHolder.contents = GraphQLInterfaceType.make({
   name: "CompanyHolder",
-  description: ?None,
+  description: ?(None),
   interfaces: [],
-  fields: () =>
-    {
-      "company": {
-        typ: get_NamedEntity()->GraphQLInterfaceType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-    }->makeFields,
-  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_CompanyHolder_resolveType),
+  fields: () => {
+    "company": {
+      typ: get_NamedEntity()->GraphQLInterfaceType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+    }
+  }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_CompanyHolder_resolveType)
 })
 i_ContextOverride.contents = GraphQLInterfaceType.make({
   name: "ContextOverride",
-  description: ?None,
+  description: ?(None),
   interfaces: [],
-  fields: () =>
-    {
-      "contextOverrideLabel": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "id": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-    }->makeFields,
-  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(
-    interface_ContextOverride_resolveType,
-  ),
+  fields: () => {
+    "contextOverrideLabel": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+    },
+    "id": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+    }
+  }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_ContextOverride_resolveType)
 })
 i_Contextual.contents = GraphQLInterfaceType.make({
   name: "Contextual",
-  description: ?None,
+  description: ?(None),
   interfaces: [],
-  fields: () =>
-    {
-      "contextLabel": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "id": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-    }->makeFields,
-  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Contextual_resolveType),
+  fields: () => {
+    "contextLabel": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+    },
+    "id": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+    }
+  }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Contextual_resolveType)
 })
 i_Labelled.contents = GraphQLInterfaceType.make({
   name: "Labelled",
-  description: ?None,
+  description: ?(None),
   interfaces: [],
-  fields: () =>
-    {
-      "typenameEcho": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-    }->makeFields,
-  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Labelled_resolveType),
+  fields: () => {
+    "typenameEcho": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+    }
+  }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Labelled_resolveType)
 })
 i_Named.contents = GraphQLInterfaceType.make({
   name: "Named",
-  description: ?None,
+  description: ?(None),
   interfaces: [],
-  fields: () =>
-    {
-      "name": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-    }->makeFields,
-  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Named_resolveType),
+  fields: () => {
+    "name": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+    }
+  }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Named_resolveType)
 })
 i_NamedEntity.contents = GraphQLInterfaceType.make({
   name: "NamedEntity",
-  description: ?None,
+  description: ?(None),
   interfaces: [get_Named()],
-  fields: () =>
-    {
-      "entityKind": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "name": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-    }->makeFields,
-  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_NamedEntity_resolveType),
+  fields: () => {
+    "entityKind": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+    },
+    "name": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+    }
+  }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_NamedEntity_resolveType)
 })
 i_Node.contents = GraphQLInterfaceType.make({
   name: "Node",
   description: "An object with an ID",
   interfaces: [],
-  fields: () =>
-    {
-      "id": {
-        typ: Scalars.id->Scalars.toGraphQLType->nonNull,
-        description: "The id of the object.",
-        deprecationReason: ?None,
-      },
-    }->makeFields,
-  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Node_resolveType),
+  fields: () => {
+    "id": {
+      typ: Scalars.id->Scalars.toGraphQLType->nonNull,
+      description: "The id of the object.",
+      deprecationReason: ?(None),
+    }
+  }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Node_resolveType)
 })
 i_NullableNamed.contents = GraphQLInterfaceType.make({
   name: "NullableNamed",
-  description: ?None,
+  description: ?(None),
   interfaces: [],
-  fields: () =>
-    {
-      "nullableName": {
-        typ: Scalars.string->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-    }->makeFields,
-  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_NullableNamed_resolveType),
+  fields: () => {
+    "nullableName": {
+      typ: Scalars.string->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None),
+    }
+  }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_NullableNamed_resolveType)
 })
 i_Ranked.contents = GraphQLInterfaceType.make({
   name: "Ranked",
-  description: ?None,
+  description: ?(None),
   interfaces: [],
-  fields: () =>
-    {
-      "rank": {
-        typ: Scalars.int->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-    }->makeFields,
-  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Ranked_resolveType),
+  fields: () => {
+    "rank": {
+      typ: Scalars.int->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+    }
+  }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Ranked_resolveType)
 })
 i_Searchable.contents = GraphQLInterfaceType.make({
   name: "Searchable",
-  description: ?None,
+  description: ?(None),
   interfaces: [],
-  fields: () =>
-    {
-      "id": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "label": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        args: {"prefix": {typ: Scalars.string->Scalars.toGraphQLType}}->makeArgs,
-      },
-    }->makeFields,
-  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Searchable_resolveType),
+  fields: () => {
+    "id": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+    },
+    "label": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      args: {
+        "prefix": {typ: Scalars.string->Scalars.toGraphQLType}
+      }->makeArgs,
+    }
+  }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Searchable_resolveType)
 })
 t_ExplicitCompany.contents = GraphQLObjectType.make({
   name: "ExplicitCompany",
-  description: ?None,
+  description: ?(None),
   interfaces: [get_Named(), get_NamedEntity(), get_NullableNamed(), get_Ranked()],
-  fields: () =>
-    {
-      "entityKind": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["entityKind"]
-        }),
-      },
-      "headquarters": {
-        typ: Scalars.string->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["headquarters"]
-        }),
-      },
-      "name": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["name"]
-        }),
-      },
-      "nullableName": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["nullableName"]
-        }),
-      },
-      "rank": {
-        typ: Scalars.int->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["rank"]
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "entityKind": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["entityKind"]})
+    },
+    "headquarters": {
+      typ: Scalars.string->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["headquarters"]})
+    },
+    "name": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["name"]})
+    },
+    "nullableName": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["nullableName"]})
+    },
+    "rank": {
+      typ: Scalars.int->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["rank"]})
+    }
+  }->makeFields
 })
 t_ExplicitCompanyHolder.contents = GraphQLObjectType.make({
   name: "ExplicitCompanyHolder",
-  description: ?None,
+  description: ?(None),
   interfaces: [get_CompanyHolder()],
-  fields: () =>
-    {
-      "company": {
-        typ: get_ExplicitCompany()->GraphQLObjectType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["company"]
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "company": {
+      typ: get_ExplicitCompany()->GraphQLObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["company"]})
+    }
+  }->makeFields
 })
 t_ExplicitContextOverrideResult.contents = GraphQLObjectType.make({
   name: "ExplicitContextOverrideResult",
-  description: ?None,
+  description: ?(None),
   interfaces: [get_ContextOverride()],
-  fields: () =>
-    {
-      "contextOverrideLabel": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppExplicitInterfaceImplements.contextOverrideLabel(src, ~ctx)
-        }),
-      },
-      "id": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["id"]
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "contextOverrideLabel": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppExplicitInterfaceImplements.contextOverrideLabel(src, ~ctx=ctx)})
+    },
+    "id": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["id"]})
+    }
+  }->makeFields
 })
 t_ExplicitContextResult.contents = GraphQLObjectType.make({
   name: "ExplicitContextResult",
-  description: ?None,
+  description: ?(None),
   interfaces: [get_Contextual()],
-  fields: () =>
-    {
-      "contextLabel": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppExplicitInterfaceImplements.contextLabel(src)
-        }),
-      },
-      "id": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["id"]
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "contextLabel": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppExplicitInterfaceImplements.contextLabel(src)})
+    },
+    "id": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["id"]})
+    }
+  }->makeFields
 })
 t_ExplicitSearchResult.contents = GraphQLObjectType.make({
   name: "ExplicitSearchResult",
-  description: ?None,
+  description: ?(None),
   interfaces: [get_Searchable()],
-  fields: () =>
-    {
-      "id": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["id"]
-        }),
-      },
-      "label": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        args: {"prefix": {typ: Scalars.string->Scalars.toGraphQLType}}->makeArgs,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppExplicitInterfaceImplements.label(src, ~prefix=?args["prefix"]->Nullable.toOption)
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "id": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["id"]})
+    },
+    "label": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      args: {
+        "prefix": {typ: Scalars.string->Scalars.toGraphQLType}
+      }->makeArgs,
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppExplicitInterfaceImplements.label(src, ~prefix=?((args["prefix"]->Nullable.toOption)))})
+    }
+  }->makeFields
 })
 t_FunctionFieldRegression.contents = GraphQLObjectType.make({
   name: "FunctionFieldRegression",
-  description: ?None,
+  description: ?(None),
   interfaces: [],
-  fields: () =>
-    {
-      "computedLabel": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          FunctionFieldRegression.computedLabel(src)
-        }),
-      },
-      "id": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["id"]
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "computedLabel": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); FunctionFieldRegression.computedLabel(src)})
+    },
+    "id": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["id"]})
+    }
+  }->makeFields
 })
 t_LabelledAlpha.contents = GraphQLObjectType.make({
   name: "LabelledAlpha",
-  description: ?None,
+  description: ?(None),
   interfaces: [get_Labelled()],
-  fields: () =>
-    {
-      "extra": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["extra"]
-        }),
-      },
-      "typenameEcho": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppInterfaceExtras.typenameEcho(src, ~typeName=LabelledAlpha)
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "extra": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["extra"]})
+    },
+    "typenameEcho": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppInterfaceExtras.typenameEcho(src, ~typeName=LabelledAlpha)})
+    }
+  }->makeFields
 })
 t_LabelledBeta.contents = GraphQLObjectType.make({
   name: "LabelledBeta",
-  description: ?None,
+  description: ?(None),
   interfaces: [get_Labelled()],
-  fields: () =>
-    {
-      "count": {
-        typ: Scalars.int->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["count"]
-        }),
-      },
-      "typenameEcho": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppInterfaceExtras.typenameEcho(src, ~typeName=LabelledBeta)
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "count": {
+      typ: Scalars.int->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["count"]})
+    },
+    "typenameEcho": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppInterfaceExtras.typenameEcho(src, ~typeName=LabelledBeta)})
+    }
+  }->makeFields
 })
 t_LabelledWrapper.contents = GraphQLObjectType.make({
   name: "LabelledWrapper",
-  description: ?None,
+  description: ?(None),
   interfaces: [],
-  fields: () =>
-    {
-      "nested": {
-        typ: get_Labelled()->GraphQLInterfaceType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["nested"]
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "nested": {
+      typ: get_Labelled()->GraphQLInterfaceType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["nested"]})
+    }
+  }->makeFields
 })
 t_Mutation.contents = GraphQLObjectType.make({
   name: "Mutation",
-  description: ?None,
+  description: ?(None),
   interfaces: [],
-  fields: () =>
-    {
-      "updateThing": {
-        typ: get_Thing()->GraphQLObjectType.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-        args: {
-          "input": {typ: get_UpdateThingInput()->GraphQLInputObjectType.toGraphQLType->nonNull},
-          "thingId": {typ: Scalars.id->Scalars.toGraphQLType->nonNull},
-        }->makeArgs,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          Thing.updateThing(
-            src,
-            ~input=args["input"]->applyConversionToInputObject(
-              input_UpdateThingInput_conversionInstructions,
-            ),
-            ~thingId=args["thingId"],
-          )
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "updateThing": {
+      typ: get_Thing()->GraphQLObjectType.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None),
+      args: {
+        "input": {typ: get_UpdateThingInput()->GraphQLInputObjectType.toGraphQLType->nonNull},
+        "thingId": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}
+      }->makeArgs,
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); Thing.updateThing(src, ~input=args["input"]->applyConversionToInputObject(input_UpdateThingInput_conversionInstructions), ~thingId=args["thingId"])})
+    }
+  }->makeFields
 })
 t_NullableInterop.contents = GraphQLObjectType.make({
   name: "NullableInterop",
-  description: ?None,
+  description: ?(None),
   interfaces: [],
-  fields: () =>
-    {
-      "nullCount": {
-        typ: Scalars.int->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["nullCount"]
-        }),
-      },
-      "nullableName": {
-        typ: Scalars.string->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["nullableName"]
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "nullCount": {
+      typ: Scalars.int->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["nullCount"]})
+    },
+    "nullableName": {
+      typ: Scalars.string->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["nullableName"]})
+    }
+  }->makeFields
 })
 t_PageInfo.contents = GraphQLObjectType.make({
   name: "PageInfo",
   description: "Information about pagination in a connection.",
   interfaces: [],
-  fields: () =>
-    {
-      "endCursor": {
-        typ: Scalars.string->Scalars.toGraphQLType,
-        description: "When paginating forwards, the cursor to continue.",
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["endCursor"]
-        }),
-      },
-      "hasNextPage": {
-        typ: Scalars.boolean->Scalars.toGraphQLType->nonNull,
-        description: "When paginating forwards, are there more items?",
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["hasNextPage"]
-        }),
-      },
-      "hasPreviousPage": {
-        typ: Scalars.boolean->Scalars.toGraphQLType->nonNull,
-        description: "When paginating backwards, are there more items?",
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["hasPreviousPage"]
-        }),
-      },
-      "startCursor": {
-        typ: Scalars.string->Scalars.toGraphQLType,
-        description: "When paginating backwards, the cursor to continue.",
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["startCursor"]
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "endCursor": {
+      typ: Scalars.string->Scalars.toGraphQLType,
+      description: "When paginating forwards, the cursor to continue.",
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["endCursor"]})
+    },
+    "hasNextPage": {
+      typ: Scalars.boolean->Scalars.toGraphQLType->nonNull,
+      description: "When paginating forwards, are there more items?",
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["hasNextPage"]})
+    },
+    "hasPreviousPage": {
+      typ: Scalars.boolean->Scalars.toGraphQLType->nonNull,
+      description: "When paginating backwards, are there more items?",
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["hasPreviousPage"]})
+    },
+    "startCursor": {
+      typ: Scalars.string->Scalars.toGraphQLType,
+      description: "When paginating backwards, the cursor to continue.",
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["startCursor"]})
+    }
+  }->makeFields
 })
 t_Query.contents = GraphQLObjectType.make({
   name: "Query",
-  description: ?None,
+  description: ?(None),
   interfaces: [],
-  fields: () =>
-    {
-      "badLabelled": {
-        typ: get_Labelled()->GraphQLInterfaceType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppInterfaceReturnRegression.badLabelled(src)
-        }),
-      },
-      "brokenLabelledWrapper": {
-        typ: get_LabelledWrapper()->GraphQLObjectType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppInterfaceReturnRegression.brokenLabelledWrapper(src)
-        }),
-      },
-      "explicitCompany": {
-        typ: get_ExplicitCompany()->GraphQLObjectType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppExplicitInterfaceImplements.explicitCompany(src)
-        }),
-      },
-      "explicitCompanyHolder": {
-        typ: get_ExplicitCompanyHolder()->GraphQLObjectType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppExplicitInterfaceImplements.explicitCompanyHolder(src)
-        }),
-      },
-      "explicitContextOverrideResult": {
-        typ: get_ExplicitContextOverrideResult()->GraphQLObjectType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppExplicitInterfaceImplements.explicitContextOverrideResult(src)
-        }),
-      },
-      "explicitContextResult": {
-        typ: get_ExplicitContextResult()->GraphQLObjectType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppExplicitInterfaceImplements.explicitContextResult(src)
-        }),
-      },
-      "explicitNamed": {
-        typ: get_Named()->GraphQLInterfaceType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppExplicitInterfaceReturns.explicitNamed(src)
-        }),
-      },
-      "explicitSearchResult": {
-        typ: get_ExplicitSearchResult()->GraphQLObjectType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppExplicitInterfaceImplements.explicitSearchResult(src)
-        }),
-      },
-      "explicitSearchable": {
-        typ: get_Searchable()->GraphQLInterfaceType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppExplicitInterfaceReturns.explicitSearchable(src)
-        }),
-      },
-      "functionFieldRegression": {
-        typ: get_FunctionFieldRegression()->GraphQLObjectType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          FunctionFieldRegression.functionFieldRegression(src)
-        }),
-      },
-      "getLabelled": {
-        typ: get_LabelledAlpha()->GraphQLObjectType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppLabelledTypes.getLabelled(src)
-        }),
-      },
-      "getScalarHolder": {
-        typ: get_ScalarHolder()->GraphQLObjectType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppCustomScalars.getScalarHolder(src)
-        }),
-      },
-      "goodLabelled": {
-        typ: get_Labelled()->GraphQLInterfaceType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppInterfaceReturnRegression.goodLabelled(src)
-        }),
-      },
-      "labelledWrapper": {
-        typ: get_LabelledWrapper()->GraphQLObjectType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppInterfaceReturnRegression.labelledWrapper(src)
-        }),
-      },
-      "nestedConnection": {
-        typ: get_StringConnection()->GraphQLObjectType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppConnections.nestedConnection(src)
-        }),
-      },
-      "node": {
-        typ: get_Node()->GraphQLInterfaceType.toGraphQLType,
-        description: "Fetches an object given its ID.",
-        deprecationReason: ?None,
-        args: {"id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}}->makeArgs,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          NodeInterfaceResolver.node(src, ~ctx, ~id=args["id"])
-        }),
-      },
-      "nodes": {
-        typ: GraphQLListType.make(get_Node()->GraphQLInterfaceType.toGraphQLType)
-        ->GraphQLListType.toGraphQLType
-        ->nonNull,
-        description: "Fetches objects given their IDs.",
-        deprecationReason: ?None,
-        args: {
-          "ids": {
-            typ: GraphQLListType.make(Scalars.id->Scalars.toGraphQLType->nonNull)
-            ->GraphQLListType.toGraphQLType
-            ->nonNull,
-          },
-        }->makeArgs,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          NodeInterfaceResolver.nodes(src, ~ctx, ~ids=args["ids"])
-        }),
-      },
-      "nullableInterop": {
-        typ: get_NullableInterop()->GraphQLObjectType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        args: {
-          "nullCount": {typ: Scalars.int->Scalars.toGraphQLType},
-          "nullableName": {typ: Scalars.string->Scalars.toGraphQLType},
-        }->makeArgs,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppNullableInterop.nullableInterop(
-            src,
-            ~nullCount=args["nullCount"],
-            ~nullableName=args["nullableName"],
-          )
-        }),
-      },
-      "reservedWordArgumentEcho": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        args: {"constraint": {typ: Scalars.string->Scalars.toGraphQLType->nonNull}}->makeArgs,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppReScript12.reservedWordArgumentEcho(src, ~\"constraint"=args["constraint"])
-        }),
-      },
-      "reservedWordInputEcho": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        args: {
-          "input": {typ: get_ReservedWordInput()->GraphQLInputObjectType.toGraphQLType->nonNull},
-        }->makeArgs,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppReScript12.reservedWordInputEcho(
-            src,
-            ~input=args["input"]->applyConversionToInputObject(
-              input_ReservedWordInput_conversionInstructions,
-            ),
-          )
-        }),
-      },
-      "reservedWordRecord": {
-        typ: get_ReservedWordRecord()->GraphQLObjectType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppReScript12.reservedWordRecord(src)
-        }),
-      },
-      "userConnection": {
-        typ: get_UserConnection()->GraphQLObjectType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        args: {
-          "after": {typ: Scalars.string->Scalars.toGraphQLType},
-          "first": {typ: Scalars.int->Scalars.toGraphQLType},
-        }->makeArgs,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppConnections.userConnection(
-            src,
-            ~after=?args["after"]->Nullable.toOption,
-            ~first=?args["first"]->Nullable.toOption,
-          )
-        }),
-      },
-      "userDefinedNullable": {
-        typ: get_T()->GraphQLObjectType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppUserDefinedNullable.userDefinedNullable(src)
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "badLabelled": {
+      typ: get_Labelled()->GraphQLInterfaceType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppInterfaceReturnRegression.badLabelled(src)})
+    },
+    "brokenLabelledWrapper": {
+      typ: get_LabelledWrapper()->GraphQLObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppInterfaceReturnRegression.brokenLabelledWrapper(src)})
+    },
+    "explicitCompany": {
+      typ: get_ExplicitCompany()->GraphQLObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppExplicitInterfaceImplements.explicitCompany(src)})
+    },
+    "explicitCompanyHolder": {
+      typ: get_ExplicitCompanyHolder()->GraphQLObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppExplicitInterfaceImplements.explicitCompanyHolder(src)})
+    },
+    "explicitContextOverrideResult": {
+      typ: get_ExplicitContextOverrideResult()->GraphQLObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppExplicitInterfaceImplements.explicitContextOverrideResult(src)})
+    },
+    "explicitContextResult": {
+      typ: get_ExplicitContextResult()->GraphQLObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppExplicitInterfaceImplements.explicitContextResult(src)})
+    },
+    "explicitNamed": {
+      typ: get_Named()->GraphQLInterfaceType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppExplicitInterfaceReturns.explicitNamed(src)})
+    },
+    "explicitSearchResult": {
+      typ: get_ExplicitSearchResult()->GraphQLObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppExplicitInterfaceImplements.explicitSearchResult(src)})
+    },
+    "explicitSearchable": {
+      typ: get_Searchable()->GraphQLInterfaceType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppExplicitInterfaceReturns.explicitSearchable(src)})
+    },
+    "functionFieldRegression": {
+      typ: get_FunctionFieldRegression()->GraphQLObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); FunctionFieldRegression.functionFieldRegression(src)})
+    },
+    "getLabelled": {
+      typ: get_LabelledAlpha()->GraphQLObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppLabelledTypes.getLabelled(src)})
+    },
+    "getScalarHolder": {
+      typ: get_ScalarHolder()->GraphQLObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppCustomScalars.getScalarHolder(src)})
+    },
+    "goodLabelled": {
+      typ: get_Labelled()->GraphQLInterfaceType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppInterfaceReturnRegression.goodLabelled(src)})
+    },
+    "labelledWrapper": {
+      typ: get_LabelledWrapper()->GraphQLObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppInterfaceReturnRegression.labelledWrapper(src)})
+    },
+    "nestedConnection": {
+      typ: get_StringConnection()->GraphQLObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppConnections.nestedConnection(src)})
+    },
+    "node": {
+      typ: get_Node()->GraphQLInterfaceType.toGraphQLType,
+      description: "Fetches an object given its ID.",
+      deprecationReason: ?(None),
+      args: {
+        "id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}
+      }->makeArgs,
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); NodeInterfaceResolver.node(src, ~ctx=ctx, ~id=args["id"])})
+    },
+    "nodes": {
+      typ: GraphQLListType.make(get_Node()->GraphQLInterfaceType.toGraphQLType)->GraphQLListType.toGraphQLType->nonNull,
+      description: "Fetches objects given their IDs.",
+      deprecationReason: ?(None),
+      args: {
+        "ids": {typ: GraphQLListType.make(Scalars.id->Scalars.toGraphQLType->nonNull)->GraphQLListType.toGraphQLType->nonNull}
+      }->makeArgs,
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); NodeInterfaceResolver.nodes(src, ~ctx=ctx, ~ids=args["ids"])})
+    },
+    "nullableInterop": {
+      typ: get_NullableInterop()->GraphQLObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      args: {
+        "nullCount": {typ: Scalars.int->Scalars.toGraphQLType},
+        "nullableName": {typ: Scalars.string->Scalars.toGraphQLType}
+      }->makeArgs,
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppNullableInterop.nullableInterop(src, ~nullCount=args["nullCount"], ~nullableName=args["nullableName"])})
+    },
+    "reservedWordArgumentEcho": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      args: {
+        "constraint": {typ: Scalars.string->Scalars.toGraphQLType->nonNull}
+      }->makeArgs,
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppReScript12.reservedWordArgumentEcho(src, ~\"constraint"=args["constraint"])})
+    },
+    "reservedWordInputEcho": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      args: {
+        "input": {typ: get_ReservedWordInput()->GraphQLInputObjectType.toGraphQLType->nonNull}
+      }->makeArgs,
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppReScript12.reservedWordInputEcho(src, ~input=args["input"]->applyConversionToInputObject(input_ReservedWordInput_conversionInstructions))})
+    },
+    "reservedWordRecord": {
+      typ: get_ReservedWordRecord()->GraphQLObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppReScript12.reservedWordRecord(src)})
+    },
+    "userConnection": {
+      typ: get_UserConnection()->GraphQLObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      args: {
+        "after": {typ: Scalars.string->Scalars.toGraphQLType},
+        "first": {typ: Scalars.int->Scalars.toGraphQLType}
+      }->makeArgs,
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppConnections.userConnection(src, ~after=?((args["after"]->Nullable.toOption)), ~first=?((args["first"]->Nullable.toOption)))})
+    },
+    "userDefinedNullable": {
+      typ: get_T()->GraphQLObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppUserDefinedNullable.userDefinedNullable(src)})
+    }
+  }->makeFields
 })
 t_Res12Record.contents = GraphQLObjectType.make({
   name: "Res12Record",
   description: "Extra coverage for ReScript 12 CMT/attribute changes.",
   interfaces: [],
-  fields: () =>
-    {
-      "oldField": {
-        typ: Scalars.int->Scalars.toGraphQLType->nonNull,
-        description: "Deprecated attribute should survive too.",
-        deprecationReason: "old field",
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["oldField"]
-        }),
-      },
-      "withDoc": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: "Doc should survive on fields.",
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["withDoc"]
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "oldField": {
+      typ: Scalars.int->Scalars.toGraphQLType->nonNull,
+      description: "Deprecated attribute should survive too.",
+      deprecationReason: "old field",
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["oldField"]})
+    },
+    "withDoc": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: "Doc should survive on fields.",
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["withDoc"]})
+    }
+  }->makeFields
 })
 t_ReservedWordRecord.contents = GraphQLObjectType.make({
   name: "ReservedWordRecord",
   description: "Reserved ReScript field names can be exposed as GraphQL names.",
   interfaces: [],
-  fields: () =>
-    {
-      "constraint": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["constraint"]
-        }),
-      },
-      "external": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["external"]
-        }),
-      },
-      "include": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["include"]
-        }),
-      },
-      "let": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["let"]
-        }),
-      },
-      "module": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["module"]
-        }),
-      },
-      "open": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["open"]
-        }),
-      },
-      "switch": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["switch"]
-        }),
-      },
-      "type": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["type"]
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "constraint": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["constraint"]})
+    },
+    "external": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["external"]})
+    },
+    "include": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["include"]})
+    },
+    "let": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["let"]})
+    },
+    "module": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["module"]})
+    },
+    "open": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["open"]})
+    },
+    "switch": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["switch"]})
+    },
+    "type": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["type"]})
+    }
+  }->makeFields
 })
 t_ScalarHolder.contents = GraphQLObjectType.make({
   name: "ScalarHolder",
-  description: ?None,
+  description: ?(None),
   interfaces: [],
-  fields: () =>
-    {
-      "id": {
-        typ: scalar_Uuid->GraphQLScalar.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["id"]
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "id": {
+      typ: scalar_Uuid->GraphQLScalar.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["id"]})
+    }
+  }->makeFields
 })
 t_StringConnection.contents = GraphQLObjectType.make({
   name: "StringConnection",
-  description: ?None,
+  description: ?(None),
   interfaces: [],
-  fields: () =>
-    {
-      "edges": {
-        typ: GraphQLListType.make(
-          get_StringEdge()->GraphQLObjectType.toGraphQLType,
-        )->GraphQLListType.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["edges"]
-        }),
-      },
-      "pageInfo": {
-        typ: get_PageInfo()->GraphQLObjectType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["pageInfo"]
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "edges": {
+      typ: GraphQLListType.make(get_StringEdge()->GraphQLObjectType.toGraphQLType)->GraphQLListType.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["edges"]})
+    },
+    "pageInfo": {
+      typ: get_PageInfo()->GraphQLObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["pageInfo"]})
+    }
+  }->makeFields
 })
 t_StringEdge.contents = GraphQLObjectType.make({
   name: "StringEdge",
-  description: ?None,
+  description: ?(None),
   interfaces: [],
-  fields: () =>
-    {
-      "cursor": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["cursor"]
-        }),
-      },
-      "node": {
-        typ: Scalars.string->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["node"]
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "cursor": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["cursor"]})
+    },
+    "node": {
+      typ: Scalars.string->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["node"]})
+    }
+  }->makeFields
 })
 t_Subscription.contents = GraphQLObjectType.make({
   name: "Subscription",
-  description: ?None,
+  description: ?(None),
   interfaces: [],
-  fields: () =>
-    {
-      "latestMessage": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((v, _, _, _) => v),
-        subscribe: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          AppSubscription.latestMessage(src, ~ctx)
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "latestMessage": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((v, _, _, _) => v),
+      subscribe: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppSubscription.latestMessage(src, ~ctx=ctx)})
+    }
+  }->makeFields
 })
 t_T.contents = GraphQLObjectType.make({
   name: "T",
-  description: ?None,
+  description: ?(None),
   interfaces: [],
-  fields: () =>
-    {
-      "value": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["value"]
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "value": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["value"]})
+    }
+  }->makeFields
 })
 t_Thing.contents = GraphQLObjectType.make({
   name: "Thing",
-  description: ?None,
+  description: ?(None),
   interfaces: [get_Node()],
-  fields: () =>
-    {
-      "age": {
-        typ: Scalars.int->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["age"]
-        }),
-      },
-      "favoriteColor": {
-        typ: Scalars.string->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["favoriteColor"]
-        }),
-      },
-      "height": {
-        typ: Scalars.float->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["height"]
-        }),
-      },
-      "id": {
-        typ: Scalars.id->Scalars.toGraphQLType->nonNull,
-        description: "The id of the object.",
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, args, ctx, info) => {
-          let src = typeUnwrapper(src)
-          NodeInterfaceResolver.id(src, ~typename=Thing)
-        }),
-      },
-      "isAdmin": {
-        typ: Scalars.boolean->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["isAdmin"]
-        }),
-      },
-      "name": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["name"]
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "age": {
+      typ: Scalars.int->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["age"]})
+    },
+    "favoriteColor": {
+      typ: Scalars.string->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["favoriteColor"]})
+    },
+    "height": {
+      typ: Scalars.float->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["height"]})
+    },
+    "id": {
+      typ: Scalars.id->Scalars.toGraphQLType->nonNull,
+      description: "The id of the object.",
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); NodeInterfaceResolver.id(src, ~typename=Thing)})
+    },
+    "isAdmin": {
+      typ: Scalars.boolean->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["isAdmin"]})
+    },
+    "name": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["name"]})
+    }
+  }->makeFields
 })
 t_User.contents = GraphQLObjectType.make({
   name: "User",
-  description: ?None,
+  description: ?(None),
   interfaces: [],
-  fields: () =>
-    {
-      "age": {
-        typ: Scalars.int->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["age"]
-        }),
-      },
-      "id": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["id"]
-        }),
-      },
-      "lastAge": {
-        typ: Scalars.int->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["lastAge"]
-        }),
-      },
-      "name": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["name"]
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "age": {
+      typ: Scalars.int->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["age"]})
+    },
+    "id": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["id"]})
+    },
+    "lastAge": {
+      typ: Scalars.int->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["lastAge"]})
+    },
+    "name": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["name"]})
+    }
+  }->makeFields
 })
 t_UserConnection.contents = GraphQLObjectType.make({
   name: "UserConnection",
-  description: ?None,
+  description: ?(None),
   interfaces: [],
-  fields: () =>
-    {
-      "edges": {
-        typ: GraphQLListType.make(
-          get_UserEdge()->GraphQLObjectType.toGraphQLType,
-        )->GraphQLListType.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["edges"]
-        }),
-      },
-      "pageInfo": {
-        typ: get_PageInfo()->GraphQLObjectType.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["pageInfo"]
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "edges": {
+      typ: GraphQLListType.make(get_UserEdge()->GraphQLObjectType.toGraphQLType)->GraphQLListType.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["edges"]})
+    },
+    "pageInfo": {
+      typ: get_PageInfo()->GraphQLObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["pageInfo"]})
+    }
+  }->makeFields
 })
 t_UserEdge.contents = GraphQLObjectType.make({
   name: "UserEdge",
-  description: ?None,
+  description: ?(None),
   interfaces: [],
-  fields: () =>
-    {
-      "cursor": {
-        typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["cursor"]
-        }),
-      },
-      "node": {
-        typ: get_User()->GraphQLObjectType.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-        resolve: makeResolveFn((src, _args, _ctx, _info) => {
-          let src = typeUnwrapper(src)
-          src["node"]
-        }),
-      },
-    }->makeFields,
+  fields: () => {
+    "cursor": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["cursor"]})
+    },
+    "node": {
+      typ: get_User()->GraphQLObjectType.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["node"]})
+    }
+  }->makeFields
 })
 input_Res12InputInline.contents = GraphQLInputObjectType.make({
   name: "Res12InputInline",
-  description: ?None,
-  fields: () =>
-    {
-      "payload": {
-        GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: "Field doc on inline record.",
-        deprecationReason: ?None,
-      },
-    }->makeFields,
+  description: ?(None),
+  fields: () => {
+    "payload": {
+      GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: "Field doc on inline record.",
+      deprecationReason: ?(None)
+    }
+  }->makeFields
 })
 input_ReservedWordInput.contents = GraphQLInputObjectType.make({
   name: "ReservedWordInput",
-  description: ?None,
-  fields: () =>
-    {
-      "constraint": {
-        GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "type": {
-        GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-    }->makeFields,
+  description: ?(None),
+  fields: () => {
+    "constraint": {
+      GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None)
+    },
+    "type": {
+      GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None)
+    }
+  }->makeFields
 })
 input_UpdateThingInput.contents = GraphQLInputObjectType.make({
   name: "UpdateThingInput",
-  description: ?None,
-  fields: () =>
-    {
-      "age": {
-        GraphQLInputObjectType.typ: get_UpdatableInt()
-        ->GraphQLInputObjectType.toGraphQLType
-        ->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "favoriteColor": {
-        GraphQLInputObjectType.typ: get_UpdatableNullableString()
-        ->GraphQLInputObjectType.toGraphQLType
-        ->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "height": {
-        GraphQLInputObjectType.typ: get_UpdatableNullableFloat()
-        ->GraphQLInputObjectType.toGraphQLType
-        ->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "isAdmin": {
-        GraphQLInputObjectType.typ: get_UpdatableNullableBool()
-        ->GraphQLInputObjectType.toGraphQLType
-        ->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "name": {
-        GraphQLInputObjectType.typ: get_UpdatableString()
-        ->GraphQLInputObjectType.toGraphQLType
-        ->nonNull,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-    }->makeFields,
+  description: ?(None),
+  fields: () => {
+    "age": {
+      GraphQLInputObjectType.typ: get_UpdatableInt()->GraphQLInputObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None)
+    },
+    "favoriteColor": {
+      GraphQLInputObjectType.typ: get_UpdatableNullableString()->GraphQLInputObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None)
+    },
+    "height": {
+      GraphQLInputObjectType.typ: get_UpdatableNullableFloat()->GraphQLInputObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None)
+    },
+    "isAdmin": {
+      GraphQLInputObjectType.typ: get_UpdatableNullableBool()->GraphQLInputObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None)
+    },
+    "name": {
+      GraphQLInputObjectType.typ: get_UpdatableString()->GraphQLInputObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None)
+    }
+  }->makeFields
 })
 inputUnion_Res12Input.contents = GraphQLInputObjectType.make({
   name: "Res12Input",
-  description: ?None,
-  fields: () =>
-    {
-      "empty": {
-        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "inline": {
-        GraphQLInputObjectType.typ: get_Res12InputInline()->GraphQLInputObjectType.toGraphQLType,
-        description: " Inline record doc is preserved. ",
-        deprecationReason: ?None,
-      },
-    }->makeFields,
-  extensions: {oneOf: true},
+  description: ?(None),
+  fields: () => {
+    "empty": {
+      GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None)
+    },
+    "inline": {
+      GraphQLInputObjectType.typ: get_Res12InputInline()->GraphQLInputObjectType.toGraphQLType,
+      description: " Inline record doc is preserved. ",
+      deprecationReason: ?(None)
+    }
+  }->makeFields,
+  extensions: {oneOf: true}
 })
 inputUnion_UpdatableBool.contents = GraphQLInputObjectType.make({
   name: "UpdatableBool",
-  description: ?None,
-  fields: () =>
-    {
-      "leaveUnchanged": {
-        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "updateValue": {
-        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-    }->makeFields,
-  extensions: {oneOf: true},
+  description: ?(None),
+  fields: () => {
+    "leaveUnchanged": {
+      GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None)
+    },
+    "updateValue": {
+      GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None)
+    }
+  }->makeFields,
+  extensions: {oneOf: true}
 })
 inputUnion_UpdatableFloat.contents = GraphQLInputObjectType.make({
   name: "UpdatableFloat",
-  description: ?None,
-  fields: () =>
-    {
-      "leaveUnchanged": {
-        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "updateValue": {
-        GraphQLInputObjectType.typ: Scalars.float->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-    }->makeFields,
-  extensions: {oneOf: true},
+  description: ?(None),
+  fields: () => {
+    "leaveUnchanged": {
+      GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None)
+    },
+    "updateValue": {
+      GraphQLInputObjectType.typ: Scalars.float->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None)
+    }
+  }->makeFields,
+  extensions: {oneOf: true}
 })
 inputUnion_UpdatableInt.contents = GraphQLInputObjectType.make({
   name: "UpdatableInt",
-  description: ?None,
-  fields: () =>
-    {
-      "leaveUnchanged": {
-        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "updateValue": {
-        GraphQLInputObjectType.typ: Scalars.int->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-    }->makeFields,
-  extensions: {oneOf: true},
+  description: ?(None),
+  fields: () => {
+    "leaveUnchanged": {
+      GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None)
+    },
+    "updateValue": {
+      GraphQLInputObjectType.typ: Scalars.int->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None)
+    }
+  }->makeFields,
+  extensions: {oneOf: true}
 })
 inputUnion_UpdatableNullableBool.contents = GraphQLInputObjectType.make({
   name: "UpdatableNullableBool",
-  description: ?None,
-  fields: () =>
-    {
-      "leaveUnchanged": {
-        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "unsetValue": {
-        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "updateValue": {
-        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-    }->makeFields,
-  extensions: {oneOf: true},
+  description: ?(None),
+  fields: () => {
+    "leaveUnchanged": {
+      GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None)
+    },
+    "unsetValue": {
+      GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None)
+    },
+    "updateValue": {
+      GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None)
+    }
+  }->makeFields,
+  extensions: {oneOf: true}
 })
 inputUnion_UpdatableNullableFloat.contents = GraphQLInputObjectType.make({
   name: "UpdatableNullableFloat",
-  description: ?None,
-  fields: () =>
-    {
-      "leaveUnchanged": {
-        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "unsetValue": {
-        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "updateValue": {
-        GraphQLInputObjectType.typ: Scalars.float->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-    }->makeFields,
-  extensions: {oneOf: true},
+  description: ?(None),
+  fields: () => {
+    "leaveUnchanged": {
+      GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None)
+    },
+    "unsetValue": {
+      GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None)
+    },
+    "updateValue": {
+      GraphQLInputObjectType.typ: Scalars.float->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None)
+    }
+  }->makeFields,
+  extensions: {oneOf: true}
 })
 inputUnion_UpdatableNullableInt.contents = GraphQLInputObjectType.make({
   name: "UpdatableNullableInt",
-  description: ?None,
-  fields: () =>
-    {
-      "leaveUnchanged": {
-        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "unsetValue": {
-        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "updateValue": {
-        GraphQLInputObjectType.typ: Scalars.int->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-    }->makeFields,
-  extensions: {oneOf: true},
+  description: ?(None),
+  fields: () => {
+    "leaveUnchanged": {
+      GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None)
+    },
+    "unsetValue": {
+      GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None)
+    },
+    "updateValue": {
+      GraphQLInputObjectType.typ: Scalars.int->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None)
+    }
+  }->makeFields,
+  extensions: {oneOf: true}
 })
 inputUnion_UpdatableNullableString.contents = GraphQLInputObjectType.make({
   name: "UpdatableNullableString",
-  description: ?None,
-  fields: () =>
-    {
-      "leaveUnchanged": {
-        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "unsetValue": {
-        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "updateValue": {
-        GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-    }->makeFields,
-  extensions: {oneOf: true},
+  description: ?(None),
+  fields: () => {
+    "leaveUnchanged": {
+      GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None)
+    },
+    "unsetValue": {
+      GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None)
+    },
+    "updateValue": {
+      GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None)
+    }
+  }->makeFields,
+  extensions: {oneOf: true}
 })
 inputUnion_UpdatableString.contents = GraphQLInputObjectType.make({
   name: "UpdatableString",
-  description: ?None,
-  fields: () =>
-    {
-      "leaveUnchanged": {
-        GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-      "updateValue": {
-        GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType,
-        description: ?None,
-        deprecationReason: ?None,
-      },
-    }->makeFields,
-  extensions: {oneOf: true},
+  description: ?(None),
+  fields: () => {
+    "leaveUnchanged": {
+      GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None)
+    },
+    "updateValue": {
+      GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None)
+    }
+  }->makeFields,
+  extensions: {oneOf: true}
 })
 
 let schema = GraphQLSchemaType.make({
@@ -1796,6 +1454,6 @@ let schema = GraphQLSchemaType.make({
     get_UpdatableString()->GraphQLInputObjectType.toGraphQLType,
     get_Res12InputInline()->GraphQLInputObjectType.toGraphQLType,
     get_ReservedWordInput()->GraphQLInputObjectType.toGraphQLType,
-    get_UpdateThingInput()->GraphQLInputObjectType.toGraphQLType,
-  ],
+    get_UpdateThingInput()->GraphQLInputObjectType.toGraphQLType
+  ]
 })

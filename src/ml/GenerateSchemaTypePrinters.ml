@@ -156,10 +156,10 @@ let printNodeInterfaceAssets (implementedBy : interfaceImplementedBy list) =
       (implementedBy
       |> List.sort sortImplementedBy
       |> List.map (fun (i : interfaceImplementedBy) ->
-          Printf.sprintf "@as(\"%s\") %s: 'a,"
+          Printf.sprintf "  @as(\"%s\") %s: 'a,"
             (displayNameFromImplementedBy i)
             (idFromImplementedBy i))
-      |> String.concat "\n  ")
+      |> String.concat "\n")
     ^ Printf.sprintf
         {|module TypeMap: {
   type t<'value>
@@ -202,13 +202,13 @@ let printInterfaceTypenameDecoder ~(implementedBy : interfaceImplementedBy list)
   if List.length implementedBy = 0 then ""
   else
     Printf.sprintf
-      "let decode = (str: string) => switch str { | %s | _ => None}"
+      "let decode = (str: string) => switch str {\n%s\n  | _ => None\n}"
       (implementedBy
       |> List.sort sortImplementedBy
-      |> List.map (fun (i : interfaceImplementedBy) ->
-          let displayName = displayNameFromImplementedBy i in
-          Printf.sprintf "\"%s\" => Some(%s)" displayName displayName)
-      |> String.concat " | ")
+      |> List.map (fun (item : interfaceImplementedBy) ->
+          let displayName = displayNameFromImplementedBy item in
+          Printf.sprintf "  | \"%s\" => Some(%s)" displayName displayName)
+      |> String.concat "\n")
 
 let printInterfaceTypenameToString
     ~(implementedBy : interfaceImplementedBy list) =
@@ -217,160 +217,261 @@ let printInterfaceTypenameToString
 
 let printArg (arg : gqlArg) =
   Printf.sprintf "{typ: %s}" (printGraphQLType arg.typ)
+
 let printArgs (args : gqlArg list) =
-  args
-  |> List.sort (fun (a1 : gqlArg) a2 -> String.compare a1.name a2.name)
-  |> List.filter_map (fun (arg : gqlArg) ->
-      if isPrintableArg arg then
-        Some (Printf.sprintf "\"%s\": %s" arg.name (printArg arg))
-      else None)
-  |> String.concat ", "
+  let args =
+    args
+    |> List.sort (fun (a1 : gqlArg) a2 -> String.compare a1.name a2.name)
+    |> List.filter isPrintableArg
+  in
+  let writer = CodeWriter.create 256 in
+  CodeWriter.line writer "{";
+  CodeWriter.indented writer (fun () ->
+      args
+      |> List.iteri (fun index (arg : gqlArg) ->
+          CodeWriter.line writer
+            (Printf.sprintf "\"%s\": %s%s" arg.name (printArg arg)
+               (if index = List.length args - 1 then "" else ","))));
+  CodeWriter.add writer "}->makeArgs";
+  CodeWriter.contents writer
+
 let printField ?(context = CtxDefault) (field : gqlField) =
   let printableArgs = GenerateSchemaUtils.onlyPrintableArgs field.args in
-  Printf.sprintf "{typ: %s, description: %s, deprecationReason: %s, %s%s}"
-    (printGraphQLType field.typ)
-    (field.description |> descriptionAsString)
-    (field.deprecationReason |> undefinedOrValueAsString)
-    (if printableArgs |> List.length > 0 then
-       Printf.sprintf " args: {%s}->makeArgs, " (printArgs printableArgs)
-     else " ")
-    (match context with
-    | CtxDefault ->
-      Printf.sprintf "resolve: makeResolveFn(%s)" (printResolverForField field)
-    | CtxInterface -> ""
-    | CtxSubscription ->
-      Printf.sprintf
-        "resolve: makeResolveFn((v, _, _, _) => v), subscribe: \
-         makeResolveFn(%s)"
-        (printResolverForField field))
+  let writer = CodeWriter.create 512 in
+  CodeWriter.line writer "{";
+  CodeWriter.indented writer (fun () ->
+      CodeWriter.line writer
+        (Printf.sprintf "typ: %s," (printGraphQLType field.typ));
+      CodeWriter.line writer
+        (Printf.sprintf "description: %s,"
+           (field.description |> descriptionAsString));
+      CodeWriter.line writer
+        (Printf.sprintf "deprecationReason: %s,"
+           (field.deprecationReason |> undefinedOrValueAsString));
+      if List.length printableArgs > 0 then (
+        CodeWriter.add writer "args: ";
+        CodeWriter.add writer (printArgs printableArgs);
+        CodeWriter.line writer ",");
+      match context with
+      | CtxDefault ->
+        CodeWriter.line writer
+          (Printf.sprintf "resolve: makeResolveFn(%s)"
+             (printResolverForField field))
+      | CtxInterface -> ()
+      | CtxSubscription ->
+        CodeWriter.line writer
+          (Printf.sprintf
+             "resolve: makeResolveFn((v, _, _, _) => v),\n\
+              subscribe: makeResolveFn(%s)"
+             (printResolverForField field)));
+  CodeWriter.add writer "}";
+  CodeWriter.contents writer
 
 let printInputObjectField (field : gqlField) =
-  Printf.sprintf
-    "{GraphQLInputObjectType.typ: %s, description: %s, deprecationReason: %s}"
-    (printGraphQLType field.typ)
-    (field.description |> descriptionAsString)
-    (field.deprecationReason |> undefinedOrValueAsString)
+  let writer = CodeWriter.create 256 in
+  CodeWriter.line writer "{";
+  CodeWriter.indented writer (fun () ->
+      CodeWriter.line writer
+        (Printf.sprintf "GraphQLInputObjectType.typ: %s,"
+           (printGraphQLType field.typ));
+      CodeWriter.line writer
+        (Printf.sprintf "description: %s,"
+           (field.description |> descriptionAsString));
+      CodeWriter.line writer
+        (Printf.sprintf "deprecationReason: %s"
+           (field.deprecationReason |> undefinedOrValueAsString)));
+  CodeWriter.add writer "}";
+  CodeWriter.contents writer
 
-let printFields ?context (fields : gqlField list) =
-  Printf.sprintf "{%s}->makeFields"
-    (if fields |> List.length = 0 then "%raw(`{}`)"
-     else
-       fields
-       |> List.sort (fun (a1 : gqlField) a2 -> String.compare a1.name a2.name)
-       |> List.map (fun (field : gqlField) ->
-           Printf.sprintf "\"%s\": %s" field.name (printField ?context field))
-       |> String.concat ",\n")
-let printInputObjectFields (fields : gqlField list) =
-  Printf.sprintf "{%s}->makeFields"
-    (if fields |> List.length = 0 then "%raw(`{}`)"
-     else
-       fields
-       |> List.sort (fun (a1 : gqlField) a2 -> String.compare a1.name a2.name)
-       |> List.map (fun (field : gqlField) ->
-           Printf.sprintf "\"%s\": %s" field.name (printInputObjectField field))
-       |> String.concat ",\n")
+let printFieldsWith printer (fields : gqlField list) =
+  if List.length fields = 0 then "%raw(`{}`)->makeFields"
+  else
+    let fields =
+      fields
+      |> List.sort (fun (a1 : gqlField) a2 -> String.compare a1.name a2.name)
+    in
+    let writer = CodeWriter.create 1024 in
+    CodeWriter.line writer "{";
+    CodeWriter.indented writer (fun () ->
+        fields
+        |> List.iteri (fun index (field : gqlField) ->
+            CodeWriter.add writer (Printf.sprintf "\"%s\": " field.name);
+            CodeWriter.add writer (printer field);
+            CodeWriter.line writer
+              (if index = List.length fields - 1 then "" else ",")));
+    CodeWriter.add writer "}->makeFields";
+    CodeWriter.contents writer
+
+let printFields ?context fields =
+  printFieldsWith (fun field -> printField ?context field) fields
+
+let printInputObjectFields fields = printFieldsWith printInputObjectField fields
+
 let printObjectType (typ : gqlObjectType) =
-  Printf.sprintf
-    "{name: \"%s\", description: %s, interfaces: [%s], fields: () => %s}"
-    typ.displayName
-    (descriptionAsString typ.description)
-    (typ.interfaces |> List.sort String.compare
-    |> List.map (fun id ->
-        Printf.sprintf "get_%s()" (GenerateSchemaUtils.capitalizeFirstChar id))
-    |> String.concat ", ")
-    (printFields
-       ?context:(if typ.id = "subscription" then Some CtxSubscription else None)
-       typ.fields)
+  let writer = CodeWriter.create 1024 in
+  CodeWriter.line writer "{";
+  CodeWriter.indented writer (fun () ->
+      CodeWriter.line writer (Printf.sprintf "name: \"%s\"," typ.displayName);
+      CodeWriter.line writer
+        (Printf.sprintf "description: %s,"
+           (descriptionAsString typ.description));
+      CodeWriter.line writer
+        (Printf.sprintf "interfaces: [%s],"
+           (typ.interfaces |> List.sort String.compare
+           |> List.map (fun id ->
+               Printf.sprintf "get_%s()"
+                 (GenerateSchemaUtils.capitalizeFirstChar id))
+           |> String.concat ", "));
+      CodeWriter.add writer "fields: () => ";
+      CodeWriter.add writer
+        (printFields
+           ?context:
+             (if typ.id = "subscription" then Some CtxSubscription else None)
+           typ.fields);
+      CodeWriter.newline writer);
+  CodeWriter.add writer "}";
+  CodeWriter.contents writer
 
 let printScalar (typ : gqlScalar) =
   match typ.encoderDecoderLoc with
   | None ->
-    Printf.sprintf "{ name: \"%s\", description: %s}" typ.displayName
+    Printf.sprintf "{name: \"%s\", description: %s}" typ.displayName
       (descriptionAsString typ.description)
   | Some encoderDecoderLoc ->
-    Printf.sprintf
-      "{ let config: GraphQLScalar.config<%s> = {name: \"%s\", description: \
-       %s, parseValue: %s, serialize: %s}; config}"
-      (typeLocationToAccessor typ.typeLocation)
-      typ.displayName
-      (descriptionAsString typ.description)
-      (typeLocationModuleToAccesor encoderDecoderLoc ["parseValue"])
-      (typeLocationModuleToAccesor encoderDecoderLoc ["serialize"])
+    let writer = CodeWriter.create 256 in
+    CodeWriter.line writer "{";
+    CodeWriter.indented writer (fun () ->
+        CodeWriter.line writer
+          (Printf.sprintf "let config: GraphQLScalar.config<%s> = {"
+             (typeLocationToAccessor typ.typeLocation));
+        CodeWriter.indented writer (fun () ->
+            CodeWriter.line writer
+              (Printf.sprintf "name: \"%s\"," typ.displayName);
+            CodeWriter.line writer
+              (Printf.sprintf "description: %s,"
+                 (descriptionAsString typ.description));
+            CodeWriter.line writer
+              (Printf.sprintf "parseValue: %s,"
+                 (typeLocationModuleToAccesor encoderDecoderLoc ["parseValue"]));
+            CodeWriter.line writer
+              (Printf.sprintf "serialize: %s,"
+                 (typeLocationModuleToAccesor encoderDecoderLoc ["serialize"])));
+        CodeWriter.line writer "}";
+        CodeWriter.line writer "config");
+    CodeWriter.add writer "}";
+    CodeWriter.contents writer
 
 let printInterfaceType (typ : gqlInterface) =
-  Printf.sprintf
-    "{name: \"%s\", description: %s, interfaces: [%s], fields: () => %s, \
-     resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(%s)}"
-    typ.displayName
-    (descriptionAsString typ.description)
-    (typ.interfaces |> List.sort String.compare
-    |> List.map (fun id ->
-        Printf.sprintf "get_%s()" (GenerateSchemaUtils.capitalizeFirstChar id))
-    |> String.concat ", ")
-    (printFields ~context:CtxInterface typ.fields)
-    (Printf.sprintf "interface_%s_resolveType" typ.displayName)
+  let writer = CodeWriter.create 1024 in
+  CodeWriter.line writer "{";
+  CodeWriter.indented writer (fun () ->
+      CodeWriter.line writer (Printf.sprintf "name: \"%s\"," typ.displayName);
+      CodeWriter.line writer
+        (Printf.sprintf "description: %s,"
+           (descriptionAsString typ.description));
+      CodeWriter.line writer
+        (Printf.sprintf "interfaces: [%s],"
+           (typ.interfaces |> List.sort String.compare
+           |> List.map (fun id ->
+               Printf.sprintf "get_%s()"
+                 (GenerateSchemaUtils.capitalizeFirstChar id))
+           |> String.concat ", "));
+      CodeWriter.add writer "fields: () => ";
+      CodeWriter.add writer (printFields ~context:CtxInterface typ.fields);
+      CodeWriter.line writer ",";
+      CodeWriter.line writer
+        (Printf.sprintf
+           "resolveType: \
+            GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_%s_resolveType)"
+           typ.displayName));
+  CodeWriter.add writer "}";
+  CodeWriter.contents writer
 
 let printInputObjectType ?(inputUnion = false) (typ : gqlInputObjectType) =
-  Printf.sprintf "{name: \"%s\", description: %s, fields: () => %s%s}"
-    typ.displayName
-    (descriptionAsString typ.description)
-    (printInputObjectFields typ.fields)
-    (if inputUnion then Printf.sprintf ", extensions: {oneOf: true}" else "")
+  let writer = CodeWriter.create 512 in
+  CodeWriter.line writer "{";
+  CodeWriter.indented writer (fun () ->
+      CodeWriter.line writer (Printf.sprintf "name: \"%s\"," typ.displayName);
+      CodeWriter.line writer
+        (Printf.sprintf "description: %s,"
+           (descriptionAsString typ.description));
+      CodeWriter.add writer "fields: () => ";
+      CodeWriter.add writer (printInputObjectFields typ.fields);
+      if inputUnion then (
+        CodeWriter.line writer ",";
+        CodeWriter.line writer "extensions: {oneOf: true}")
+      else CodeWriter.newline writer);
+  CodeWriter.add writer "}";
+  CodeWriter.contents writer
 
 let printUnionType (union : gqlUnion) =
-  Printf.sprintf
-    "{name: \"%s\", description: %s, types: () => [%s], resolveType: \
-     GraphQLUnionType.makeResolveUnionTypeFn(%s)}"
-    union.displayName
-    (descriptionAsString union.description)
-    (union.types
-    |> List.sort (fun (m1 : gqlUnionMember) m2 ->
-        String.compare m1.displayName m2.displayName)
-    |> List.map (fun (member : gqlUnionMember) ->
-        Printf.sprintf "get_%s()" member.displayName)
-    |> String.concat ", ")
-    (Printf.sprintf "union_%s_resolveType" union.displayName)
+  let writer = CodeWriter.create 512 in
+  CodeWriter.line writer "{";
+  CodeWriter.indented writer (fun () ->
+      CodeWriter.line writer (Printf.sprintf "name: \"%s\"," union.displayName);
+      CodeWriter.line writer
+        (Printf.sprintf "description: %s,"
+           (descriptionAsString union.description));
+      CodeWriter.line writer
+        (Printf.sprintf "types: () => [%s],"
+           (union.types
+           |> List.sort (fun (m1 : gqlUnionMember) m2 ->
+               String.compare m1.displayName m2.displayName)
+           |> List.map (fun (member : gqlUnionMember) ->
+               Printf.sprintf "get_%s()" member.displayName)
+           |> String.concat ", "));
+      CodeWriter.line writer
+        (Printf.sprintf
+           "resolveType: \
+            GraphQLUnionType.makeResolveUnionTypeFn(union_%s_resolveType)"
+           union.displayName));
+  CodeWriter.add writer "}";
+  CodeWriter.contents writer
 
-let getIntfAssets (typ : gqlInterface) ~processedSchema ~debug =
-  let code = ref "/* @generated */\n\n@@warning(\"-27-34-37\")\n\n" in
-  let addWithNewLine text = code := !code ^ text ^ "\n" in
-
-  (* Interface assets *)
+let getIntfAssets (typ : gqlInterface) ~processedSchema =
+  let writer = CodeWriter.create 2048 in
   let interfaceIdentifier = {id = typ.id; displayName = typ.displayName} in
   match Hashtbl.find_opt processedSchema.interfaceImplementedBy typ.id with
   | None -> ""
   | Some implementedBy ->
-    addWithNewLine "module Resolver = {";
-    addWithNewLine
-      (printInterfaceResolverReturnType interfaceIdentifier ~implementedBy);
-    addWithNewLine "}";
-    addWithNewLine "";
-    addWithNewLine "module ImplementedBy = {";
-    addWithNewLine (printInterfaceImplementedByType ~implementedBy);
-    addWithNewLine "";
-    addWithNewLine (printInterfaceTypenameDecoder ~implementedBy);
-    addWithNewLine "";
-    addWithNewLine (printInterfaceTypenameToString ~implementedBy);
-    addWithNewLine "}";
-    addWithNewLine "";
-
-    (* Special treatment of the Node interface. *)
-    if typ.displayName = "Node" then
-      addWithNewLine (printNodeInterfaceAssets implementedBy);
-    !code |> formatCode ~debug
+    CodeWriter.line writer "/* @generated */";
+    CodeWriter.blankLine writer;
+    CodeWriter.line writer "@@warning(\"-27-34-37\")";
+    CodeWriter.blankLine writer;
+    CodeWriter.line writer "module Resolver = {";
+    CodeWriter.indented writer (fun () ->
+        CodeWriter.line writer
+          (String.trim
+             (printInterfaceResolverReturnType interfaceIdentifier
+                ~implementedBy)));
+    CodeWriter.line writer "}";
+    CodeWriter.blankLine writer;
+    CodeWriter.line writer "module ImplementedBy = {";
+    CodeWriter.indented writer (fun () ->
+        CodeWriter.line writer
+          (String.trim (printInterfaceImplementedByType ~implementedBy));
+        CodeWriter.blankLine writer;
+        CodeWriter.line writer (printInterfaceTypenameDecoder ~implementedBy);
+        CodeWriter.blankLine writer;
+        CodeWriter.line writer (printInterfaceTypenameToString ~implementedBy));
+    CodeWriter.line writer "}";
+    if typ.displayName = "Node" then (
+      CodeWriter.blankLine writer;
+      CodeWriter.line writer (printNodeInterfaceAssets implementedBy));
+    CodeWriter.contents writer
 
 let mkIntfFileName intfId = Printf.sprintf "interface_%s.res" intfId
 
 let mkIntfFilePath intfId ~outputFolder =
   Printf.sprintf "%s/%s" outputFolder (mkIntfFileName intfId)
 
-let printInterfaceFiles (schemaState : schemaState) ~processedSchema ~debug
+let printInterfaceFiles (schemaState : schemaState) ~processedSchema
     ~outputFolder =
   schemaState.interfaces
   |> Hashtbl.iter (fun intfId intf ->
       let interfaceFileOutputLoc = mkIntfFilePath ~outputFolder intfId in
       writeIfHasChanges interfaceFileOutputLoc
-        (getIntfAssets intf ~processedSchema ~debug))
+        (getIntfAssets intf ~processedSchema))
 
 let cleanInterfaceFiles (schemaState : schemaState) ~outputFolder =
   let validNames =
@@ -393,8 +494,12 @@ let cleanInterfaceFiles (schemaState : schemaState) ~outputFolder =
 exception Interface_not_found of string
 
 let printSchemaJsFile schemaState processSchema =
-  let code = ref "@@warning(\"-27-32\")\n\nopen ResGraph__GraphQLJs\n\n" in
-  let addWithNewLine text = code := !code ^ text ^ "\n" in
+  let code = CodeWriter.create (1024 * 1024) in
+  CodeWriter.line code "@@warning(\"-27-32\")";
+  CodeWriter.blankLine code;
+  CodeWriter.line code "open ResGraph__GraphQLJs";
+  CodeWriter.blankLine code;
+  let addWithNewLine = CodeWriter.line code in
   (* Add the type unwrapper. Source types passed to resolvers might be either
      objects or variant cases. This is because we rely on variants for unions
      and interfaces. Variant cases are boxed, so they need to be unwrapped
@@ -483,25 +588,23 @@ let printSchemaJsFile schemaState processSchema =
     `)|};
 
   (* Add conversion assets. *)
+  addWithNewLine "";
+  addWithNewLine "type inputObjectFieldConverterFn";
   addWithNewLine
-    "type inputObjectFieldConverterFn; external \
-     makeInputObjectFieldConverterFn: ('a => 'b) => \
-     inputObjectFieldConverterFn = \"%identity\";";
-
+    "external makeInputObjectFieldConverterFn: ('a => 'b) => \
+     inputObjectFieldConverterFn = \"%identity\"";
+  addWithNewLine "";
   addWithNewLine
-    {|
-    
-    let applyConversionToInputObject: ('a, array<(string, inputObjectFieldConverterFn)>) => 'a = %raw(`function applyConversionToInputObject(obj, instructions) {
-      if (instructions.length === 0) return obj;
-      let newObj = Object.assign({}, obj);
-      instructions.forEach(instruction => {
-        let value = newObj[instruction[0]];
-         newObj[instruction[0]] = instruction[1](value);
-      })
-      return newObj;
-    }`)
-    
-    |};
+    {|let applyConversionToInputObject: ('a, array<(string, inputObjectFieldConverterFn)>) => 'a = %raw(`function applyConversionToInputObject(obj, instructions) {
+  if (instructions.length === 0) return obj;
+  let newObj = Object.assign({}, obj);
+  instructions.forEach(instruction => {
+    let value = newObj[instruction[0]];
+    newObj[instruction[0]] = instruction[1](value);
+  })
+  return newObj;
+}`)|};
+  addWithNewLine "";
 
   (* Print all custom scalars. *)
   schemaState.scalars
@@ -509,25 +612,32 @@ let printSchemaJsFile schemaState processSchema =
       addWithNewLine
         (Printf.sprintf "let scalar_%s = GraphQLScalar.make(%s)"
            scalar.displayName (printScalar scalar)));
+  addWithNewLine "";
 
-  (* Print all enums. These won't have any other dependencies, so they can be printed as is. *)
+  (* Print all enums. These won't have any other dependencies. *)
   schemaState.enums
   |> iterHashtblAlphabetically (fun _name (enum : gqlEnum) ->
-      addWithNewLine
-        (Printf.sprintf
-           "let enum_%s = GraphQLEnumType.make({name: \"%s\", description: %s, \
-            values: {%s}->makeEnumValues})"
-           enum.displayName enum.displayName
-           (descriptionAsString enum.description)
-           (enum.values
-           |> List.map (fun (v : gqlEnumValue) ->
-               Printf.sprintf
-                 "\"%s\": {GraphQLEnumType.value: \"%s\", description: %s, \
-                  deprecationReason: %s}"
-                 v.value v.value
-                 (descriptionAsString v.description)
-                 (undefinedOrValueAsString v.deprecationReason))
-           |> String.concat ", ")));
+      CodeWriter.line code
+        (Printf.sprintf "let enum_%s = GraphQLEnumType.make({" enum.displayName);
+      CodeWriter.indented code (fun () ->
+          CodeWriter.line code (Printf.sprintf "name: \"%s\"," enum.displayName);
+          CodeWriter.line code
+            (Printf.sprintf "description: %s,"
+               (descriptionAsString enum.description));
+          CodeWriter.line code "values: {";
+          CodeWriter.indented code (fun () ->
+              enum.values
+              |> List.iter (fun (value : gqlEnumValue) ->
+                  CodeWriter.line code
+                    (Printf.sprintf
+                       "\"%s\": {GraphQLEnumType.value: \"%s\", description: \
+                        %s, deprecationReason: %s},"
+                       value.value value.value
+                       (descriptionAsString value.description)
+                       (undefinedOrValueAsString value.deprecationReason))));
+          CodeWriter.line code "}->makeEnumValues,");
+      CodeWriter.line code "})";
+      CodeWriter.blankLine code);
 
   (* Print the interface type holders and getters *)
   schemaState.interfaces
@@ -565,7 +675,7 @@ let printSchemaJsFile schemaState processSchema =
         (Printf.sprintf "let get_%s = () => inputUnion_%s.contents"
            inputUnion.displayName inputUnion.displayName);
       addWithNewLine
-        (Printf.sprintf "let inputUnion_%s_conversionInstructions = [];"
+        (Printf.sprintf "let inputUnion_%s_conversionInstructions = []"
            inputUnion.displayName));
 
   (* Print the input object type holders and getters *)
@@ -580,7 +690,7 @@ let printSchemaJsFile schemaState processSchema =
         (Printf.sprintf "let get_%s = () => input_%s.contents" typ.displayName
            typ.displayName);
       addWithNewLine
-        (Printf.sprintf "let input_%s_conversionInstructions = [];"
+        (Printf.sprintf "let input_%s_conversionInstructions = []"
            typ.displayName));
 
   (* Now add all of the conversion instructions. *)
@@ -685,34 +795,43 @@ let printSchemaJsFile schemaState processSchema =
   (* Print the schema gluing it all together. *)
   let schemaTypes =
     (hashtblToListAlphabetically schemaState.types
-    |> List.map (fun (_name, (t : gqlObjectType)) ->
-        "get_" ^ t.displayName ^ "()->GraphQLObjectType.toGraphQLType"))
+    |> List.map (fun (_name, (typ : gqlObjectType)) ->
+        "get_" ^ typ.displayName ^ "()->GraphQLObjectType.toGraphQLType"))
     @ (hashtblToListAlphabetically schemaState.interfaces
-      |> List.map (fun (_name, (t : gqlInterface)) ->
-          "get_" ^ t.displayName ^ "()->GraphQLInterfaceType.toGraphQLType"))
+      |> List.map (fun (_name, (typ : gqlInterface)) ->
+          "get_" ^ typ.displayName ^ "()->GraphQLInterfaceType.toGraphQLType"))
     @ (hashtblToListAlphabetically schemaState.unions
-      |> List.map (fun (_name, (t : gqlUnion)) ->
-          "get_" ^ t.displayName ^ "()->GraphQLUnionType.toGraphQLType"))
+      |> List.map (fun (_name, (typ : gqlUnion)) ->
+          "get_" ^ typ.displayName ^ "()->GraphQLUnionType.toGraphQLType"))
     @ (hashtblToListAlphabetically schemaState.inputUnions
-      |> List.map (fun (_name, (t : gqlInputUnionType)) ->
-          "get_" ^ t.displayName ^ "()->GraphQLInputObjectType.toGraphQLType"))
+      |> List.map (fun (_name, (typ : gqlInputUnionType)) ->
+          "get_" ^ typ.displayName ^ "()->GraphQLInputObjectType.toGraphQLType")
+      )
     @ (hashtblToListAlphabetically schemaState.inputObjects
-      |> List.map (fun (_name, (t : gqlInputObjectType)) ->
-          "get_" ^ t.displayName ^ "()->GraphQLInputObjectType.toGraphQLType"))
+      |> List.map (fun (_name, (typ : gqlInputObjectType)) ->
+          "get_" ^ typ.displayName ^ "()->GraphQLInputObjectType.toGraphQLType")
+      )
     @ (hashtblToListAlphabetically schemaState.enums
-      |> List.map (fun (_name, (t : gqlEnum)) ->
-          "enum_" ^ t.displayName ^ "->GraphQLEnumType.toGraphQLType"))
+      |> List.map (fun (_name, (typ : gqlEnum)) ->
+          "enum_" ^ typ.displayName ^ "->GraphQLEnumType.toGraphQLType"))
   in
-  addWithNewLine "";
-  addWithNewLine
-    (Printf.sprintf
-       "let schema = GraphQLSchemaType.make({\"query\": get_Query()%s%s, \
-        \"types\": [%s]})"
-       (match schemaState.mutation with
-       | None -> ""
-       | Some _ -> ", \"mutation\": get_Mutation()")
-       (match schemaState.subscription with
-       | None -> ""
-       | Some _ -> ", \"subscription\": get_Subscription()")
-       (schemaTypes |> String.concat ", "));
-  !code
+  CodeWriter.blankLine code;
+  CodeWriter.line code "let schema = GraphQLSchemaType.make({";
+  CodeWriter.indented code (fun () ->
+      CodeWriter.line code "\"query\": get_Query(),";
+      (match schemaState.mutation with
+      | None -> ()
+      | Some _ -> CodeWriter.line code "\"mutation\": get_Mutation(),");
+      (match schemaState.subscription with
+      | None -> ()
+      | Some _ -> CodeWriter.line code "\"subscription\": get_Subscription(),");
+      CodeWriter.line code "\"types\": [";
+      CodeWriter.indented code (fun () ->
+          schemaTypes
+          |> List.iteri (fun index schemaType ->
+              CodeWriter.line code
+                (schemaType
+                ^ if index = List.length schemaTypes - 1 then "" else ",")));
+      CodeWriter.line code "]");
+  CodeWriter.line code "})";
+  CodeWriter.contents code
