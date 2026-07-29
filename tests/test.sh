@@ -28,6 +28,55 @@ if [[ $incrementalOutput != *"Incremental cache hit"* ]]; then
 fi
 printf '%b%s%b\n' "$successGreen" '✅ Incremental schema cache hit.' "$reset"
 
+alternateExecutable=$(mktemp)
+cp ../bin/dev/resgraph.exe "$alternateExecutable"
+chmod +x "$alternateExecutable"
+executableChangeOutput=$(
+  RESGRAPH_INCREMENTAL_DEBUG=1 "$alternateExecutable" generate-schema \
+    ./src ./src/__generated__ true 2>&1
+)
+rm -f "$alternateExecutable"
+if [[ $executableChangeOutput != *"ResGraph executable changed"* ]]; then
+  printf '%b%s\n%s\n%b\n' "$warningYellow" \
+    '⚠️ Executable change did not invalidate incremental cache.' \
+    "$executableChangeOutput" "$reset"
+  exit 1
+fi
+../bin/dev/resgraph.exe generate-schema ./src ./src/__generated__ true >/dev/null
+printf '%b%s%b\n' "$successGreen" \
+  '✅ Executable changes invalidate incremental cache.' "$reset"
+
+configBackup=$(mktemp)
+symlinkTargets=$(mktemp -d)
+cp ./rescript.json "$configBackup"
+mkdir "$symlinkTargets/a" "$symlinkTargets/b"
+ln -s "$symlinkTargets/a" ./cache-link-src
+node -e '
+  const fs = require("fs")
+  const config = JSON.parse(fs.readFileSync("rescript.json", "utf8"))
+  config.sources.push("cache-link-src")
+  fs.writeFileSync("rescript.json", JSON.stringify(config, null, 2) + "\n")
+'
+../bin/dev/resgraph.exe generate-schema ./src ./src/__generated__ true >/dev/null
+rm ./cache-link-src
+ln -s "$symlinkTargets/b" ./cache-link-src
+symlinkChangeOutput=$(
+  RESGRAPH_INCREMENTAL_DEBUG=1 ../bin/dev/resgraph.exe generate-schema \
+    ./src ./src/__generated__ true 2>&1
+)
+cp "$configBackup" ./rescript.json
+rm -f "$configBackup" ./cache-link-src
+rm -r "$symlinkTargets"
+if [[ $symlinkChangeOutput != *"project input changed"* ]]; then
+  printf '%b%s\n%s\n%b\n' "$warningYellow" \
+    '⚠️ Symlink retarget did not invalidate incremental cache.' \
+    "$symlinkChangeOutput" "$reset"
+  exit 1
+fi
+../bin/dev/resgraph.exe generate-schema ./src ./src/__generated__ true >/dev/null
+printf '%b%s%b\n' "$successGreen" \
+  '✅ Symlink retargets invalidate incremental cache.' "$reset"
+
 sourceBackup=$(mktemp)
 cp ./src/ResGraphContext.res "$sourceBackup"
 printf '\n// Conservative cache input probe.\n' >>./src/ResGraphContext.res

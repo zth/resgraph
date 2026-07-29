@@ -6,6 +6,7 @@ type fileSignature = {
   ctime: float;
   size: int;
   kind: Unix.file_kind;
+  symlinkTarget: string option;
 }
 
 type output = {signature: fileSignature; digest: string}
@@ -22,8 +23,8 @@ type t = {
   outputs: output list;
 }
 
-let version = 1
-let magic = "RESGRAPH_INCREMENTAL_CACHE_V1\n"
+let version = 2
+let magic = "RESGRAPH_INCREMENTAL_CACHE_V2\n"
 let fileName = ".resgraphIncrementalCache"
 
 let enabled () = Sys.getenv_opt "RESGRAPH_INCREMENTAL_CACHE" <> Some "false"
@@ -38,16 +39,19 @@ let canonicalize path =
     if Filename.is_relative path then Filename.concat (Sys.getcwd ()) path
     else path
 
+let absolute path =
+  if Filename.is_relative path then Filename.concat (Sys.getcwd ()) path
+  else path
+
 let fromRoot rootPath path =
-  if Filename.is_relative path then canonicalize (Filename.concat rootPath path)
-  else canonicalize path
+  if Filename.is_relative path then Filename.concat rootPath path else path
 
 let cachePath rootPath =
   Filename.concat (Filename.concat rootPath "lib") fileName
 
 let signatureCanonical path =
   try
-    let stat = Unix.stat path in
+    let stat = Unix.lstat path in
     Some
       {
         path;
@@ -55,6 +59,8 @@ let signatureCanonical path =
         ctime = stat.st_ctime;
         size = stat.st_size;
         kind = stat.st_kind;
+        symlinkTarget =
+          (if stat.st_kind = Unix.S_LNK then Some (Unix.readlink path) else None);
       }
   with _ -> None
 
@@ -98,7 +104,22 @@ let write path cache =
     Sys.rename tempPath path
   with _ -> ( try Sys.remove tempPath with _ -> ())
 
-let addPath path paths = StringSet.add (canonicalize path) paths
+let rec addSymlinkAncestors path paths =
+  let paths =
+    match Unix.lstat path with
+    | {Unix.st_kind = Unix.S_LNK} -> StringSet.add path paths
+    | _ -> paths
+    | exception _ -> paths
+  in
+  let parent = Filename.dirname path in
+  if parent = path then paths else addSymlinkAncestors parent paths
+
+let addPath path paths =
+  let path = absolute path in
+  let canonicalPath = canonicalize path in
+  paths |> StringSet.add path
+  |> StringSet.add canonicalPath
+  |> addSymlinkAncestors path
 
 let filesForModulePaths = function
   | SharedTypes.Impl {cmt; res} -> [cmt; res]
@@ -272,8 +293,8 @@ let canSkipEnabled ~sourceFolder ~outputFolder ~writeStateFile ~writeSdlFile
       else if cache.writeSdlFile <> writeSdlFile then
         invalid "SDL setting changed"
       else if cache.debug <> debugMode then invalid "debug setting changed"
-      else if signatureCanonical cache.executable.path <> Some cache.executable
-      then invalid "ResGraph executable changed"
+      else if signature Sys.executable_name <> Some cache.executable then
+        invalid "ResGraph executable changed"
       else if cachedOutputPaths <> outputPaths then
         invalid "generated output set changed"
       else if not (validateInputs cache.inputs) then
