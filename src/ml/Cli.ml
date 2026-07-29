@@ -11,16 +11,50 @@ Commands:
   find-definition <path> <definitionHint>
 |}
 
-let run_generate ~sourceFolder ~outputFolder ~writeSdlFile =
+let optional_arg = function
+  | "-" -> None
+  | value -> Some value
+
+let optional_authorization_config =
+  {
+    GenerateSchemaTypes.mode = AuthorizationOptional;
+    onForbidden = None;
+    manifestPath = None;
+  }
+
+let run_generate ~sourceFolder ~outputFolder ~writeSdlFile ~authorizationConfig
+    =
   GenerateSchemaDirect.generateSchemaDirect ~writeStateFile:true ~sourceFolder
     ~debug:false ~outputFolder ~writeSdlFile ~printToStdOut:true
+    ~authorizationConfig
 
 let main () =
   match Array.to_list Sys.argv with
+  | [
+   _;
+   "generate-schema";
+   sourceFolder;
+   outputFolder;
+   (("true" | "false") as writeSdlFile);
+   "required";
+   onForbidden;
+   manifestPath;
+  ] ->
+    run_generate ~sourceFolder ~outputFolder
+      ~writeSdlFile:(writeSdlFile = "true")
+      ~authorizationConfig:
+        {
+          mode = AuthorizationRequired;
+          onForbidden = optional_arg onForbidden;
+          manifestPath = optional_arg manifestPath;
+        }
   | [_; "generate-schema"; sourceFolder; outputFolder; "true"] ->
     run_generate ~sourceFolder ~outputFolder ~writeSdlFile:true
+      ~authorizationConfig:optional_authorization_config
+  | [_; "generate-schema"; sourceFolder; outputFolder; "false"]
   | [_; "generate-schema"; sourceFolder; outputFolder] ->
     run_generate ~sourceFolder ~outputFolder ~writeSdlFile:false
+      ~authorizationConfig:optional_authorization_config
   | [_; "completion"; path; line; col; currentFile] ->
     Completion.completion ~debug:false ~path
       ~pos:(int_of_string line, int_of_string col)

@@ -1,0 +1,8 @@
+{
+  "name": "resgraph-authorization-invalid",
+  "uncurried": true,
+  "sources": [{"dir": "src", "subdirs": true}],
+  "compiler-flags": ["-w", "-27"],
+  "package-specs": {"module": "esmodule", "in-source": true},
+  "suffix": ".mjs"
+}

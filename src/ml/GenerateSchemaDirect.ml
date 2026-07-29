@@ -110,7 +110,7 @@ let with_hooks ~package ~preloaded f =
   res
 
 let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
-    ~outputFolder ~writeSdlFile =
+    ~outputFolder ~writeSdlFile ~authorizationConfig =
   match collect_gql_cmts ~sourceFolder with
   | Error errs ->
     print_collect_errors errs;
@@ -127,7 +127,7 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
           (l.moduleName, file))
     in
     ignore
-      (with_hooks ~package ~preloaded (fun ~loader:_ ->
+      (with_hooks ~package ~preloaded (fun ~loader ->
            let schemaState =
              {
                types = Hashtbl.create 50;
@@ -137,6 +137,10 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
                inputUnions = Hashtbl.create 10;
                interfaces = Hashtbl.create 10;
                scalars = Hashtbl.create 10;
+               authorizationConfig;
+               authorizationDeclarations = Hashtbl.create 50;
+               authorizationPlans = Hashtbl.create 50;
+               resolverOutcomes = Hashtbl.create 20;
                query = None;
                subscription = None;
                mutation = None;
@@ -156,6 +160,7 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
            let processedSchema =
              GenerateSchemaUtils.processSchema schemaState
            in
+           GenerateSchemaAuthorization.buildPlans ~loader ~package schemaState;
            let schemaOutputPath = outputFolder ^ "/ResGraphSchema.res" in
            let sdlOutputPath = outputFolder ^ "/schema.graphql" in
 
@@ -179,6 +184,9 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
                "let schema = \
                 ResGraph__GraphQLJs.GraphQLSchemaType.make(Obj.magic())\n")
            else
+             let () =
+               GenerateSchemaAuthorization.writeManifest ~package schemaState
+             in
              let schemaCode =
                GenerateSchemaTypePrinters.printSchemaJsFile schemaState
                  processedSchema

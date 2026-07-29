@@ -114,6 +114,7 @@ try {
         src: config.src,
         outputFolder: config.outputFolder,
         dumpSchemaSdl: config.dumpSchemaSdl,
+        authorization: ?config.authorization,
       }),
     )
     switch res {

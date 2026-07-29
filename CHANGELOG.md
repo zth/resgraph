@@ -1,5 +1,9 @@
 # ResGraph Changelog
 
+## Unreleased
+
+- Add opt-in required authorization coverage with typed `@gql.authorize` policies, explicit `@gql.public` dispositions, resolver outcomes, mutation prechecks, interface policy inheritance, custom forbidden handlers, and deterministic audit manifests.
+
 ## 1.2.2
 
 - Include compiled ReScript metadata in the package tarball so schema generation can inspect ResGraph-provided types when installed from a release tarball.

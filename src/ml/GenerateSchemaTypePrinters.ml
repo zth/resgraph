@@ -7,57 +7,143 @@ let printLabelledArg name =
   if Res_token.is_keyword_txt name then Printf.sprintf "~\\\"%s\"" name
   else Printf.sprintf "~%s" name
 
-let printResolverForField (field : gqlField) =
-  match field.resolverStyle with
-  | Property name ->
-    Printf.sprintf
-      "(src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src[\"%s\"]}"
-      name
-  | Resolver {moduleName; fnName; pathToFn} ->
-    let ctxArgName = findContextArgName field.args in
-    let hasCtxArg = ctxArgName |> Option.is_some in
+let printAuthorizationArgs (field : gqlField) =
+  let fields =
+    field.args |> List.filter isPrintableArg
+    |> List.sort (fun (a1 : gqlArg) a2 -> String.compare a1.name a2.name)
+    |> List.map (fun (arg : gqlArg) ->
+        Printf.sprintf "\"%s\": %s" arg.name
+          (generateConverter (Printf.sprintf "args[\"%s\"]" arg.name) arg.typ))
+  in
+  match fields with
+  | [] -> "%raw(`{}`)"
+  | fields -> Printf.sprintf "{%s}" (String.concat ", " fields)
 
-    let infoArgName = findInfoArgName field.args in
-    let hasInfoArg = infoArgName |> Option.is_some in
+let printForbidden ~schemaState =
+  match schemaState.authorizationConfig.onForbidden with
+  | None -> "ResGraph.Authorization.raiseForbidden(reason)"
+  | Some handler ->
+    Printf.sprintf "throw(%s(reason, ~ctx=ctx, ~info=info))" handler
 
-    let intfTypeArgName = findInterfaceTypeArgName field.args in
-    let hasIntTypeArg = intfTypeArgName |> Option.is_some in
-    let resolverCode =
-      Printf.sprintf
-        "(src, args, ctx, info) => {let src = typeUnwrapper(src); %s(src"
+let printPolicyCall (fn : authorizationFunction) =
+  Printf.sprintf "%s(Obj.magic(src), ~args=authorizationArgs%s)"
+    (String.concat "." fn.reference.path)
+    (fn.injections
+    |> List.map (function
+      | AuthorizationContext -> ", ~ctx=ctx"
+      | AuthorizationInfo -> ", ~info=info")
+    |> String.concat "")
+
+let printResolverForField ~parentTypeName ~(schemaState : schemaState)
+    (field : gqlField) =
+  let coordinate =
+    authorizationCoordinate ~parentTypeName ~fieldName:field.name
+  in
+  let plan =
+    match Hashtbl.find_opt schemaState.authorizationPlans coordinate with
+    | Some plan -> plan
+    | None ->
+      {
+        functions = [];
+        public = None;
+        resolverOutcome =
+          Hashtbl.find_opt schemaState.resolverOutcomes coordinate;
+      }
+  in
+  let usesAuthorizationArgs = plan.functions <> [] in
+  let resolverCall =
+    match field.resolverStyle with
+    | Property name -> Printf.sprintf "src[\"%s\"]" name
+    | Resolver {moduleName; fnName; pathToFn} ->
+      let ctxArgName = findContextArgName field.args in
+      let hasCtxArg = Option.is_some ctxArgName in
+      let infoArgName = findInfoArgName field.args in
+      let hasInfoArg = Option.is_some infoArgName in
+      let intfTypeArgName = findInterfaceTypeArgName field.args in
+      let hasIntTypeArg = Option.is_some intfTypeArgName in
+      Printf.sprintf "%s(src%s)"
         ([moduleName] @ pathToFn @ [fnName] |> String.concat ".")
-    in
-    if List.length field.args > 0 then
-      resolverCode ^ ", "
-      ^ (field.args
-        |> List.sort (fun (a1 : gqlArg) a2 -> String.compare a1.name a2.name)
-        |> List.map (fun (arg : gqlArg) ->
-            if hasInfoArg && Some arg.name = infoArgName then
-              Printf.sprintf "%s=info"
-                (printLabelledArg (infoArgName |> Option.get))
-            else if hasCtxArg && Some arg.name = ctxArgName then
-              Printf.sprintf "%s=ctx"
-                (printLabelledArg (ctxArgName |> Option.get))
-            else if hasIntTypeArg && Some arg.name = intfTypeArgName then
-              match field.onType with
-              | Some name ->
-                Printf.sprintf "%s=%s"
-                  (printLabelledArg (intfTypeArgName |> Option.get))
-                  name
-              | _ -> ""
-            else
-              let argsText =
-                generateConverter
-                  (Printf.sprintf "args[\"%s\"]" arg.name)
-                  arg.typ
-              in
-              Printf.sprintf "%s=%s"
-                (printLabelledArg arg.name)
-                (if arg.isOptionLabelled then Printf.sprintf "?(%s)" argsText
-                 else argsText))
-        |> String.concat ", ")
-      ^ ")}"
-    else resolverCode ^ ")}"
+        (if field.args = [] then ""
+         else
+           ", "
+           ^ (field.args
+             |> List.sort (fun (a1 : gqlArg) a2 ->
+                 String.compare a1.name a2.name)
+             |> List.filter_map (fun (arg : gqlArg) ->
+                 if hasInfoArg && Some arg.name = infoArgName then
+                   Some
+                     (Printf.sprintf "%s=info"
+                        (printLabelledArg (Option.get infoArgName)))
+                 else if hasCtxArg && Some arg.name = ctxArgName then
+                   Some
+                     (Printf.sprintf "%s=ctx"
+                        (printLabelledArg (Option.get ctxArgName)))
+                 else if hasIntTypeArg && Some arg.name = intfTypeArgName then
+                   field.onType
+                   |> Option.map (fun name ->
+                       Printf.sprintf "%s=%s"
+                         (printLabelledArg (Option.get intfTypeArgName))
+                         name)
+                 else
+                   let argsText =
+                     if usesAuthorizationArgs then
+                       Printf.sprintf "authorizationArgs[\"%s\"]" arg.name
+                     else
+                       generateConverter
+                         (Printf.sprintf "args[\"%s\"]" arg.name)
+                         arg.typ
+                   in
+                   Some
+                     (Printf.sprintf "%s=%s"
+                        (printLabelledArg arg.name)
+                        (if arg.isOptionLabelled then
+                           Printf.sprintf "?(%s)" argsText
+                         else argsText)))
+             |> String.concat ", "))
+  in
+  let resolverBody =
+    match plan.resolverOutcome with
+    | None -> resolverCall
+    | Some {isAsync} ->
+      Printf.sprintf
+        "switch %s%s { | ResGraph.Authorization.Allowed(value) => value | \
+         ResGraph.Authorization.Forbidden(reason) => %s }"
+        (if isAsync then "await " else "")
+        resolverCall
+        (printForbidden ~schemaState)
+  in
+  let authorizedBody =
+    List.fold_right
+      (fun (fn : authorizationFunction) next ->
+        Printf.sprintf
+          "switch %s%s { | ResGraph.Authorization.Allowed() => %s | \
+           ResGraph.Authorization.Forbidden(reason) => %s }"
+          (if fn.isAsync then "await " else "")
+          (printPolicyCall fn) next
+          (printForbidden ~schemaState))
+      plan.functions resolverBody
+  in
+  let isAsync =
+    List.exists (fun (fn : authorizationFunction) -> fn.isAsync) plan.functions
+    ||
+    match plan.resolverOutcome with
+    | Some {isAsync = true} -> true
+    | _ -> false
+  in
+  let resolverArguments =
+    match (field.resolverStyle, plan.functions, plan.resolverOutcome) with
+    | Property _, [], None -> "(src, _args, _ctx, _info)"
+    | _ -> "(src, args, ctx, info)"
+  in
+  Printf.sprintf "%s%s => {let src = typeUnwrapper(src); %s%s}"
+    (if isAsync then "async " else "")
+    resolverArguments
+    (if usesAuthorizationArgs then
+       Printf.sprintf "let authorizationArgs = %s; "
+         (printAuthorizationArgs field)
+     else "")
+    authorizedBody
+
 let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
   let nullablePostfix = if nullable then "" else "->nonNull" in
   match returnType with
@@ -225,7 +311,8 @@ let printArgs (args : gqlArg list) =
         Some (Printf.sprintf "\"%s\": %s" arg.name (printArg arg))
       else None)
   |> String.concat ", "
-let printField ?(context = CtxDefault) (field : gqlField) =
+let printField ?(context = CtxDefault) ~parentTypeName ~schemaState
+    (field : gqlField) =
   let printableArgs = GenerateSchemaUtils.onlyPrintableArgs field.args in
   Printf.sprintf "{typ: %s, description: %s, deprecationReason: %s, %s%s}"
     (printGraphQLType field.typ)
@@ -236,13 +323,14 @@ let printField ?(context = CtxDefault) (field : gqlField) =
      else " ")
     (match context with
     | CtxDefault ->
-      Printf.sprintf "resolve: makeResolveFn(%s)" (printResolverForField field)
+      Printf.sprintf "resolve: makeResolveFn(%s)"
+        (printResolverForField ~parentTypeName ~schemaState field)
     | CtxInterface -> ""
     | CtxSubscription ->
       Printf.sprintf
         "resolve: makeResolveFn((v, _, _, _) => v), subscribe: \
          makeResolveFn(%s)"
-        (printResolverForField field))
+        (printResolverForField ~parentTypeName ~schemaState field))
 
 let printInputObjectField (field : gqlField) =
   Printf.sprintf
@@ -251,14 +339,15 @@ let printInputObjectField (field : gqlField) =
     (field.description |> descriptionAsString)
     (field.deprecationReason |> undefinedOrValueAsString)
 
-let printFields ?context (fields : gqlField list) =
+let printFields ?context ~parentTypeName ~schemaState (fields : gqlField list) =
   Printf.sprintf "{%s}->makeFields"
     (if fields |> List.length = 0 then "%raw(`{}`)"
      else
        fields
        |> List.sort (fun (a1 : gqlField) a2 -> String.compare a1.name a2.name)
        |> List.map (fun (field : gqlField) ->
-           Printf.sprintf "\"%s\": %s" field.name (printField ?context field))
+           Printf.sprintf "\"%s\": %s" field.name
+             (printField ?context ~parentTypeName ~schemaState field))
        |> String.concat ",\n")
 let printInputObjectFields (fields : gqlField list) =
   Printf.sprintf "{%s}->makeFields"
@@ -269,7 +358,7 @@ let printInputObjectFields (fields : gqlField list) =
        |> List.map (fun (field : gqlField) ->
            Printf.sprintf "\"%s\": %s" field.name (printInputObjectField field))
        |> String.concat ",\n")
-let printObjectType (typ : gqlObjectType) =
+let printObjectType ~(schemaState : schemaState) (typ : gqlObjectType) =
   Printf.sprintf
     "{name: \"%s\", description: %s, interfaces: [%s], fields: () => %s}"
     typ.displayName
@@ -280,7 +369,7 @@ let printObjectType (typ : gqlObjectType) =
     |> String.concat ", ")
     (printFields
        ?context:(if typ.id = "subscription" then Some CtxSubscription else None)
-       typ.fields)
+       ~parentTypeName:typ.displayName ~schemaState typ.fields)
 
 let printScalar (typ : gqlScalar) =
   match typ.encoderDecoderLoc with
@@ -297,7 +386,7 @@ let printScalar (typ : gqlScalar) =
       (typeLocationModuleToAccesor encoderDecoderLoc ["parseValue"])
       (typeLocationModuleToAccesor encoderDecoderLoc ["serialize"])
 
-let printInterfaceType (typ : gqlInterface) =
+let printInterfaceType ~(schemaState : schemaState) (typ : gqlInterface) =
   Printf.sprintf
     "{name: \"%s\", description: %s, interfaces: [%s], fields: () => %s, \
      resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(%s)}"
@@ -307,7 +396,8 @@ let printInterfaceType (typ : gqlInterface) =
     |> List.map (fun id ->
         Printf.sprintf "get_%s()" (GenerateSchemaUtils.capitalizeFirstChar id))
     |> String.concat ", ")
-    (printFields ~context:CtxInterface typ.fields)
+    (printFields ~context:CtxInterface ~parentTypeName:typ.displayName
+       ~schemaState typ.fields)
     (Printf.sprintf "interface_%s_resolveType" typ.displayName)
 
 let printInputObjectType ?(inputUnion = false) (typ : gqlInputObjectType) =
@@ -653,13 +743,14 @@ let printSchemaJsFile schemaState processSchema =
       addWithNewLine
         (Printf.sprintf "i_%s.contents = GraphQLInterfaceType.make(%s)"
            typ.displayName
-           (typ |> printInterfaceType)));
+           (typ |> printInterfaceType ~schemaState)));
 
   schemaState.types
   |> iterHashtblAlphabetically (fun _name (typ : gqlObjectType) ->
       addWithNewLine
         (Printf.sprintf "t_%s.contents = GraphQLObjectType.make(%s)"
-           typ.displayName (typ |> printObjectType)));
+           typ.displayName
+           (typ |> printObjectType ~schemaState)));
 
   schemaState.inputObjects
   |> iterHashtblAlphabetically (fun _name (typ : gqlInputObjectType) ->
