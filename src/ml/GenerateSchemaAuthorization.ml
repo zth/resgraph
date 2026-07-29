@@ -675,6 +675,17 @@ let isGeneratedBaseline path =
 
 let validateBaselineOutputPath ~outputFolder ~writeSdlFile
     ~additionalOutputPaths (authorizationConfig : authorizationConfig) =
+  (match
+     (authorizationConfig.baselinePath, authorizationConfig.manifestPath)
+   with
+  | Some baselinePath, Some manifestPath
+    when Files.pathEq baselinePath manifestPath ->
+    failwith
+      (Printf.sprintf
+         "Authorization baseline path `%s` collides with the authorization \
+          manifest path."
+         baselinePath)
+  | _ -> ());
   match (authorizationConfig.mode, authorizationConfig.baselinePath) with
   | AuthorizationBaseline, None ->
     failwith

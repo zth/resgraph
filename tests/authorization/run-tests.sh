@@ -147,6 +147,16 @@ grep -F '"status": "Success"' "$tmp_dir/baseline-required-result.json" >/dev/nul
 jq -e '[.fields[] | select(.disposition == "baseline")] | length == 4' \
   "$baseline_manifest_path" >/dev/null
 
+cp "$baseline_path" "$tmp_dir/baseline-before-collision.json"
+if "$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/baseline/src" "$tmp_dir/baseline-output" \
+  false required - "$baseline_path" "$baseline_path" \
+  >/dev/null 2>/dev/null; then
+  echo "Required mode accepted a manifest/baseline path collision." >&2
+  exit 1
+fi
+cmp "$tmp_dir/baseline-before-collision.json" "$baseline_path"
+
 "$resgraph_bin" generate-schema \
   "$root_dir/tests/authorization/baseline/src" "$tmp_dir/baseline-output" \
   false required - - "$tmp_dir/missing-baseline.json" \
