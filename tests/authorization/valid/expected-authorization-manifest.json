@@ -1,6 +1,8 @@
 {
   "version": 1,
   "fields": [
+    {"coordinate":"DeclaredResultFailure.message","disposition":"synthetic","mutation":false,"policies":[],"public":null,"resolverOutcome":null},
+    {"coordinate":"DeclaredResultSuccess.value","disposition":"synthetic","mutation":false,"policies":[],"public":null,"resolverOutcome":null},
     {"coordinate":"Device.name","disposition":"policies","mutation":false,"policies":[{"path":"Security.canReadNamed","provenance":"interfaceType:Named","file":"src/Named.res","location":"[0:0->0:14]","async":false}],"public":null,"resolverOutcome":null},
     {"coordinate":"Device.serial","disposition":"policies","mutation":false,"policies":[{"path":"Security.canReadNamed","provenance":"interfaceType:Named","file":"src/Named.res","location":"[0:0->0:14]","async":false}],"public":null,"resolverOutcome":null},
     {"coordinate":"InferredFailure.message","disposition":"synthetic","mutation":false,"policies":[],"public":null,"resolverOutcome":null},
@@ -14,6 +16,7 @@
     {"coordinate":"PublicDevice.label","disposition":"public","mutation":false,"policies":[],"public":{"reason":"Names are public across this interface","file":"src/PublicNamed.res","location":"[2:2->2:13]"},"resolverOutcome":null},
     {"coordinate":"Query.asyncOutcome","disposition":"resolverOutcome","mutation":false,"policies":[],"public":null,"resolverOutcome":{"async":true}},
     {"coordinate":"Query.asyncValue","disposition":"policies","mutation":false,"policies":[{"path":"Security.canLoadAsync","provenance":"field:Query.asyncValue","file":"src/Query.res","location":"[17:0->17:14]","async":true}],"public":null,"resolverOutcome":null},
+    {"coordinate":"Query.declared","disposition":"policies","mutation":false,"policies":[{"path":"Security.first","provenance":"field:Query.declared","file":"src/Query.res","location":"[44:0->44:14]","async":false}],"public":null,"resolverOutcome":null},
     {"coordinate":"Query.device","disposition":"policies","mutation":false,"policies":[{"path":"Security.canLoadDevice","provenance":"field:Query.device","file":"src/Query.res","location":"[20:0->20:14]","async":false}],"public":null,"resolverOutcome":null},
     {"coordinate":"Query.health","disposition":"public","mutation":false,"policies":[],"public":{"reason":"Health check contains no private data","file":"src/Query.res","location":"[5:0->5:11]"},"resolverOutcome":null},
     {"coordinate":"Query.inferred","disposition":"policies","mutation":false,"policies":[{"path":"Security.first","provenance":"field:Query.inferred","file":"src/Query.res","location":"[26:0->26:14]","async":false}],"public":null,"resolverOutcome":null},
