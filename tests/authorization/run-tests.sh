@@ -157,6 +157,63 @@ if "$resgraph_bin" generate-schema \
 fi
 cmp "$tmp_dir/baseline-before-collision.json" "$baseline_path"
 
+if "$resgraph_bin" generate-schema \
+  "$tmp_dir/missing-project/src" "$tmp_dir/missing-project/output" \
+  false required - "$baseline_path" "$baseline_path" \
+  >/dev/null 2>/dev/null; then
+  echo "Early project collection accepted a manifest/baseline collision." >&2
+  exit 1
+fi
+cmp "$tmp_dir/baseline-before-collision.json" "$baseline_path"
+
+required_artifact_output="$tmp_dir/required-artifact-output"
+mkdir -p "$required_artifact_output"
+cp "$baseline_path" "$required_artifact_output/ResGraphSchema.res"
+cp "$baseline_path" "$tmp_dir/schema-baseline.expected.json"
+if "$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/baseline/src" "$required_artifact_output" \
+  false required - - "$required_artifact_output/ResGraphSchema.res" \
+  >/dev/null 2>/dev/null; then
+  echo "Required mode accepted a baseline/schema artifact collision." >&2
+  exit 1
+fi
+cmp "$tmp_dir/schema-baseline.expected.json" \
+  "$required_artifact_output/ResGraphSchema.res"
+
+cp "$baseline_path" "$required_artifact_output/interface_legacy.res"
+cp "$baseline_path" "$tmp_dir/interface-baseline.expected.json"
+if "$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/baseline/src" "$required_artifact_output" \
+  false required - - "$required_artifact_output/interface_legacy.res" \
+  >/dev/null 2>/dev/null; then
+  echo "Required mode accepted a baseline/interface artifact collision." >&2
+  exit 1
+fi
+cmp "$tmp_dir/interface-baseline.expected.json" \
+  "$required_artifact_output/interface_legacy.res"
+
+state_collision_project="$tmp_dir/required-state-collision-project"
+mkdir -p "$state_collision_project/src" "$state_collision_project/output"
+cp "$root_dir/tests/authorization/baseline/rescript.json" \
+  "$state_collision_project/rescript.json"
+cp "$root_dir/tests/authorization/baseline/src/"*.res \
+  "$state_collision_project/src/"
+(
+  cd "$state_collision_project"
+  "$rescript_bin"
+)
+state_baseline_path="$state_collision_project/lib/.resgraphState.marshal"
+cp "$baseline_path" "$state_baseline_path"
+cp "$baseline_path" "$tmp_dir/state-baseline.expected.json"
+if "$resgraph_bin" generate-schema \
+  "$state_collision_project/src" "$state_collision_project/output" \
+  false required - - "$state_baseline_path" \
+  >/dev/null 2>/dev/null; then
+  echo "Required mode accepted a baseline/state artifact collision." >&2
+  exit 1
+fi
+cmp "$tmp_dir/state-baseline.expected.json" "$state_baseline_path"
+
 "$resgraph_bin" generate-schema \
   "$root_dir/tests/authorization/baseline/src" "$tmp_dir/baseline-output" \
   false required - - "$tmp_dir/missing-baseline.json" \
