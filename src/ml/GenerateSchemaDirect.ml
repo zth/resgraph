@@ -186,9 +186,6 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
                "let schema = \
                 ResGraph__GraphQLJs.GraphQLSchemaType.make(Obj.magic())\n")
            else
-             let () =
-               GenerateSchemaAuthorization.writeManifest ~package schemaState
-             in
              let schemaCode =
                GenerateSchemaTypePrinters.printSchemaJsFile schemaState
                  processedSchema
@@ -218,6 +215,8 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
                "let schema: ResGraph.schema<ResGraphContext.context>\n"
              in
              GenerateSchemaUtils.writeIfHasChanges resiOutputPath resiContent;
+
+             GenerateSchemaAuthorization.writeManifest ~package schemaState;
 
              if debug && printToStdOut then schemaCode |> print_endline
              else if printToStdOut then
