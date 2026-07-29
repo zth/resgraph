@@ -170,6 +170,10 @@ try {
     Console.log(helpText)
   }
 } catch {
-| Exn.Error(_) => Console.error("Error")
-| _ => Console.error("Error!")
+| Exn.Error(_) =>
+  Console.error("Error")
+  Process.process->Process.exitWithCode(1)
+| _ =>
+  Console.error("Error!")
+  Process.process->Process.exitWithCode(1)
 }
