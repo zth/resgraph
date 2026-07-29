@@ -199,6 +199,23 @@ if [[ ! -L "$symlink_artifact_output/ResGraphSchema.res" ]]; then
   exit 1
 fi
 
+dangling_artifact_output="$tmp_dir/dangling-artifact-output"
+dangling_baseline_path="$tmp_dir/dangling-authorization-baseline.json"
+mkdir -p "$dangling_artifact_output"
+ln -s "$dangling_artifact_output/ResGraphSchema.res" "$dangling_baseline_path"
+if "$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/baseline/src" "$dangling_artifact_output" \
+  false baseline - - "$dangling_baseline_path" \
+  >/dev/null 2>/dev/null; then
+  echo "Baseline generation accepted a dangling symlink to the schema output." >&2
+  exit 1
+fi
+if [[ ! -L "$dangling_baseline_path" || \
+      -e "$dangling_artifact_output/ResGraphSchema.res" ]]; then
+  echo "Baseline generation modified a dangling artifact collision." >&2
+  exit 1
+fi
+
 cp "$baseline_path" "$required_artifact_output/interface_legacy.res"
 cp "$baseline_path" "$tmp_dir/interface-baseline.expected.json"
 if "$resgraph_bin" generate-schema \
