@@ -225,13 +225,14 @@ let printArgs (args : gqlArg list) =
     |> List.filter isPrintableArg
   in
   let writer = CodeWriter.create 256 in
+  let lastArgIndex = List.length args - 1 in
   CodeWriter.line writer "{";
   CodeWriter.indented writer (fun () ->
       args
       |> List.iteri (fun index (arg : gqlArg) ->
           CodeWriter.line writer
             (Printf.sprintf "\"%s\": %s%s" arg.name (printArg arg)
-               (if index = List.length args - 1 then "" else ","))));
+               (if index = lastArgIndex then "" else ","))));
   CodeWriter.add writer "}->makeArgs";
   CodeWriter.contents writer
 
@@ -291,14 +292,14 @@ let printFieldsWith printer (fields : gqlField list) =
       |> List.sort (fun (a1 : gqlField) a2 -> String.compare a1.name a2.name)
     in
     let writer = CodeWriter.create 1024 in
+    let lastFieldIndex = List.length fields - 1 in
     CodeWriter.line writer "{";
     CodeWriter.indented writer (fun () ->
         fields
         |> List.iteri (fun index (field : gqlField) ->
             CodeWriter.add writer (Printf.sprintf "\"%s\": " field.name);
             CodeWriter.add writer (printer field);
-            CodeWriter.line writer
-              (if index = List.length fields - 1 then "" else ",")));
+            CodeWriter.line writer (if index = lastFieldIndex then "" else ",")));
     CodeWriter.add writer "}->makeFields";
     CodeWriter.contents writer
 
@@ -815,6 +816,7 @@ let printSchemaJsFile schemaState processSchema =
       |> List.map (fun (_name, (typ : gqlEnum)) ->
           "enum_" ^ typ.displayName ^ "->GraphQLEnumType.toGraphQLType"))
   in
+  let lastSchemaTypeIndex = List.length schemaTypes - 1 in
   CodeWriter.blankLine code;
   CodeWriter.line code "let schema = GraphQLSchemaType.make({";
   CodeWriter.indented code (fun () ->
@@ -830,8 +832,7 @@ let printSchemaJsFile schemaState processSchema =
           schemaTypes
           |> List.iteri (fun index schemaType ->
               CodeWriter.line code
-                (schemaType
-                ^ if index = List.length schemaTypes - 1 then "" else ",")));
+                (schemaType ^ if index = lastSchemaTypeIndex then "" else ",")));
       CodeWriter.line code "]");
   CodeWriter.line code "})";
   CodeWriter.contents code

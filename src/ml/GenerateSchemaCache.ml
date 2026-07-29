@@ -180,8 +180,20 @@ let inputPaths (package : SharedTypes.package) =
       package.pathsForModule []
     |> List.map (fromRoot rootPath)
   in
+  let dependencyRoots =
+    (package.dependenciesFiles |> SharedTypes.FileSet.elements) @ moduleFiles
+    |> List.filter_map findRoot
+    |> List.filter (fun dependencyRoot -> dependencyRoot <> rootPath)
+    |> List.sort_uniq String.compare
+  in
 
-  let files = configPaths rootPath @ moduleFiles in
+  let dependencyConfigPaths =
+    dependencyRoots
+    |> List.map (fun dependencyRoot ->
+        dependencyRoot :: configPaths dependencyRoot)
+    |> List.concat
+  in
+  let files = configPaths rootPath @ dependencyConfigPaths @ moduleFiles in
   let paths =
     rootPath :: files
     |> List.fold_left (fun paths path -> addPath path paths) StringSet.empty

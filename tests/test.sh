@@ -93,6 +93,26 @@ fi
 printf '%b%s%b\n' "$successGreen" \
   '✅ Added configuration files invalidate incremental cache.' "$reset"
 
+dependencyConfig=./node_modules/@rescript/react/rescript.json
+dependencyConfigBackup=$(mktemp)
+cp "$dependencyConfig" "$dependencyConfigBackup"
+printf '\n' >>"$dependencyConfig"
+dependencyConfigOutput=$(
+  RESGRAPH_INCREMENTAL_DEBUG=1 ../bin/dev/resgraph.exe generate-schema \
+    ./src ./src/__generated__ true 2>&1
+)
+cp "$dependencyConfigBackup" "$dependencyConfig"
+rm -f "$dependencyConfigBackup"
+if [[ $dependencyConfigOutput != *"project input changed"* ]]; then
+  printf '%b%s\n%s\n%b\n' "$warningYellow" \
+    '⚠️ Dependency configuration change did not invalidate cache.' \
+    "$dependencyConfigOutput" "$reset"
+  exit 1
+fi
+../bin/dev/resgraph.exe generate-schema ./src ./src/__generated__ true >/dev/null
+printf '%b%s%b\n' "$successGreen" \
+  '✅ Dependency configuration changes invalidate incremental cache.' "$reset"
+
 sourceBackup=$(mktemp)
 cp ./src/ResGraphContext.res "$sourceBackup"
 printf '\n// Conservative cache input probe.\n' >>./src/ResGraphContext.res
