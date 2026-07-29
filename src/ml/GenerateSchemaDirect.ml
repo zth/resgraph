@@ -111,13 +111,25 @@ let with_hooks ~package ~preloaded f =
 
 let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
     ~outputFolder ~writeSdlFile ~authorizationConfig =
-  GenerateSchemaAuthorization.prepareManifest ~outputFolder ~writeSdlFile
-    authorizationConfig;
-  match collect_gql_cmts ~sourceFolder with
+  let collection =
+    try collect_gql_cmts ~sourceFolder
+    with exn ->
+      GenerateSchemaAuthorization.prepareManifest ~outputFolder ~writeSdlFile
+        ~additionalOutputPaths:[] authorizationConfig;
+      raise exn
+  in
+  match collection with
   | Error errs ->
+    GenerateSchemaAuthorization.prepareManifest ~outputFolder ~writeSdlFile
+      ~additionalOutputPaths:[] authorizationConfig;
     print_collect_errors errs;
     exit 1
   | Ok (package, loaded) ->
+    GenerateSchemaAuthorization.prepareManifest ~outputFolder ~writeSdlFile
+      ~additionalOutputPaths:
+        (if writeStateFile then [GenerateSchemaUtils.getStateFilePath package]
+         else [])
+      authorizationConfig;
     let preloaded =
       loaded
       |> List.map (fun l ->

@@ -157,6 +157,23 @@ if [[ -e "$tmp_dir/interface-artifact-output/interface_named.res" ]]; then
   exit 1
 fi
 
+state_file="$root_dir/tests/authorization/valid/lib/.resgraphState.marshal"
+state_checksum_before="$(sha256sum "$state_file" | cut -d ' ' -f 1)"
+if "$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/valid/src" "$tmp_dir/state-artifact-output" \
+  false required Security.onForbidden "$state_file" \
+  >/dev/null 2>"$tmp_dir/state-collision-error.txt"; then
+  echo "Generation unexpectedly accepted a state/manifest path collision." >&2
+  exit 1
+fi
+grep -F 'collides with a generated schema artifact' \
+  "$tmp_dir/state-collision-error.txt" >/dev/null
+state_checksum_after="$(sha256sum "$state_file" | cut -d ' ' -f 1)"
+if [[ "$state_checksum_before" != "$state_checksum_after" ]]; then
+  echo "Manifest preparation modified the compiler state artifact." >&2
+  exit 1
+fi
+
 mkdir -p "$tmp_dir/cli-project/src" "$tmp_dir/cli-project/generated/schema"
 cp "$root_dir/tests/authorization/config/resgraph.json" \
   "$tmp_dir/cli-project/resgraph.json"
