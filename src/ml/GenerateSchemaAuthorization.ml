@@ -539,7 +539,13 @@ let prepareManifest ~outputFolder ~writeSdlFile
       ]
       @ if writeSdlFile then [outputFolder ^ "/schema.graphql"] else []
     in
-    if List.mem path generatedOutputPaths then
+    let manifestFileName = Filename.basename path in
+    let collidesWithInterfaceFile =
+      Files.pathEq (Filename.dirname path) outputFolder
+      && String.starts_with manifestFileName ~prefix:"interface_"
+      && Filename.check_suffix manifestFileName ".res"
+    in
+    if List.mem path generatedOutputPaths || collidesWithInterfaceFile then
       failwith
         (Printf.sprintf
            "Authorization manifest path `%s` collides with a generated schema \
