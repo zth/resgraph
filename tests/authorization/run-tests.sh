@@ -125,6 +125,21 @@ if "$resgraph_bin" generate-schema \
 fi
 cmp "$tmp_dir/manifest-collision.expected.json" "$tmp_dir/manifest-collision.json"
 
+mkdir -p "$tmp_dir/cli-project/src" "$tmp_dir/cli-project/generated/schema"
+cp "$root_dir/tests/authorization/config/resgraph.json" \
+  "$tmp_dir/cli-project/resgraph.json"
+cp "$root_dir/tests/authorization/config/resgraph.json" \
+  "$tmp_dir/cli-project/generated/authorization-manifest.json"
+cp "$tmp_dir/cli-project/generated/authorization-manifest.json" \
+  "$tmp_dir/cli-project/generated/authorization-manifest.expected.json"
+if (cd "$tmp_dir/cli-project" && node "$root_dir/cli/Cli.mjs" build) \
+  >/dev/null 2>/dev/null; then
+  echo "JavaScript CLI reported success after native generation failed." >&2
+  exit 1
+fi
+cmp "$tmp_dir/cli-project/generated/authorization-manifest.expected.json" \
+  "$tmp_dir/cli-project/generated/authorization-manifest.json"
+
 node --input-type=module -e \
   'import path from "node:path";
    import {readConfigFromDir} from "./cli/Utils.mjs";
