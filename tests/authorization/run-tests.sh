@@ -180,6 +180,25 @@ fi
 cmp "$tmp_dir/schema-baseline.expected.json" \
   "$required_artifact_output/ResGraphSchema.res"
 
+symlink_artifact_output="$tmp_dir/symlink-artifact-output"
+symlink_baseline_path="$tmp_dir/symlink-authorization-baseline.json"
+mkdir -p "$symlink_artifact_output"
+cp "$baseline_path" "$symlink_baseline_path"
+cp "$baseline_path" "$tmp_dir/symlink-baseline.expected.json"
+ln -s "$symlink_baseline_path" "$symlink_artifact_output/ResGraphSchema.res"
+if "$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/baseline/src" "$symlink_artifact_output" \
+  false required - - "$symlink_baseline_path" \
+  >/dev/null 2>/dev/null; then
+  echo "Required mode accepted a symlinked baseline/schema collision." >&2
+  exit 1
+fi
+cmp "$tmp_dir/symlink-baseline.expected.json" "$symlink_baseline_path"
+if [[ ! -L "$symlink_artifact_output/ResGraphSchema.res" ]]; then
+  echo "Schema generation replaced the colliding symlink." >&2
+  exit 1
+fi
+
 cp "$baseline_path" "$required_artifact_output/interface_legacy.res"
 cp "$baseline_path" "$tmp_dir/interface-baseline.expected.json"
 if "$resgraph_bin" generate-schema \

@@ -673,13 +673,29 @@ let isGeneratedBaseline path =
          = Some "authorizationBaseline"
       && Option.bind (Json.get "version" json) Json.number = Some 1.)
 
+let isInterfaceArtifactFileName fileName =
+  let fileName = String.lowercase_ascii fileName in
+  String.starts_with fileName ~prefix:"interface_"
+  && Filename.check_suffix fileName ".res"
+
+let collidesWithInterfaceArtifact ~outputFolder path =
+  Files.sameFile (Filename.dirname path) outputFolder
+  && isInterfaceArtifactFileName (Filename.basename path)
+  ||
+    try
+      Sys.readdir outputFolder
+      |> Array.exists (fun fileName ->
+          isInterfaceArtifactFileName fileName
+          && Files.sameFile path (Filename.concat outputFolder fileName))
+    with Sys_error _ -> false
+
 let validateBaselineOutputPath ~outputFolder ~writeSdlFile
     ~additionalOutputPaths (authorizationConfig : authorizationConfig) =
   (match
      (authorizationConfig.baselinePath, authorizationConfig.manifestPath)
    with
   | Some baselinePath, Some manifestPath
-    when Files.pathEq baselinePath manifestPath ->
+    when Files.sameFile baselinePath manifestPath ->
     failwith
       (Printf.sprintf
          "Authorization baseline path `%s` collides with the authorization \
@@ -704,15 +720,12 @@ let validateBaselineOutputPath ~outputFolder ~writeSdlFile
       | Some manifestPath -> [manifestPath]
       | None -> []
     in
-    let baselineFileName = Filename.basename path |> String.lowercase_ascii in
     let collidesWithInterfaceFile =
-      Files.pathEq (Filename.dirname path) outputFolder
-      && String.starts_with baselineFileName ~prefix:"interface_"
-      && Filename.check_suffix baselineFileName ".res"
+      collidesWithInterfaceArtifact ~outputFolder path
     in
     if
       List.exists
-        (fun generatedPath -> Files.pathEq path generatedPath)
+        (fun generatedPath -> Files.sameFile path generatedPath)
         generatedOutputPaths
       || collidesWithInterfaceFile
     then
@@ -777,15 +790,12 @@ let prepareManifest ~outputFolder ~writeSdlFile ~additionalOutputPaths
       @ (if writeSdlFile then [outputFolder ^ "/schema.graphql"] else [])
       @ additionalOutputPaths
     in
-    let manifestFileName = Filename.basename path |> String.lowercase_ascii in
     let collidesWithInterfaceFile =
-      Files.pathEq (Filename.dirname path) outputFolder
-      && String.starts_with manifestFileName ~prefix:"interface_"
-      && Filename.check_suffix manifestFileName ".res"
+      collidesWithInterfaceArtifact ~outputFolder path
     in
     if
       List.exists
-        (fun generatedPath -> Files.pathEq path generatedPath)
+        (fun generatedPath -> Files.sameFile path generatedPath)
         generatedOutputPaths
       || collidesWithInterfaceFile
     then
