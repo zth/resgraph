@@ -38,3 +38,9 @@ let publicDevice = (_: query): PublicDevice.publicDevice => {label: "public"}
 
 @gql.authorize(Security.canLoadOutcomeDevice) @gql.field
 let outcomeDevice = (_: query): OutcomeDevice.outcomeDevice => {id: "outcome"}
+
+@gql.union
+type declaredResult = Success({value: string}) | Failure({message: string})
+
+@gql.authorize(Security.first) @gql.field
+let declared = (_: query): declaredResult => Success({value: "visible"})

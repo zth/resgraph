@@ -861,10 +861,19 @@ and variantCasesToUnionValues ~env ~debug ~schemaState ~full ~ownerName
           ~syntheticTypeLocation:{fileUri = env.file.uri; loc = case.cname.loc}
           ~schemaState ~env
           ~makeFields:(fun () ->
-            fields
-            |> objectTypeFieldsOfInlineRecordFields
-                 ~objectTypeName:syntheticTypeName ~env ~full ~schemaState
-                 ~debug)
+            let syntheticFields =
+              fields
+              |> objectTypeFieldsOfInlineRecordFields
+                   ~objectTypeName:syntheticTypeName ~env ~full ~schemaState
+                   ~debug
+            in
+            syntheticFields
+            |> List.iter (fun (field : gqlField) ->
+                Hashtbl.replace schemaState.authorizationExemptions
+                  (authorizationCoordinate ~parentTypeName:syntheticTypeName
+                     ~fieldName:field.name)
+                  ());
+            syntheticFields)
           ~loc:case.cname.loc;
         let member : gqlUnionMember =
           {
