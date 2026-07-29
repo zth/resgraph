@@ -25,10 +25,12 @@ Policies are module-qualified functions attached with repeatable `@gql.authorize
 @gql.type
 type user = {
   @gql.field id: string,
-
-  @gql.authorize(UserSecurity.canReadEmail)
-  @gql.field email: string,
+  emailAddress: string,
 }
+
+@gql.authorize(UserSecurity.canReadEmail)
+@gql.field
+let email = (user: user, ~includeUnverified: bool): string => user.emailAddress
 
 type reason = IncludeUnverifiedDenied
 

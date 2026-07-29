@@ -338,7 +338,9 @@ let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
   let resolverOutcome =
     match Hashtbl.find_opt schemaState.resolverOutcomes coordinate with
     | Some outcome -> Some outcome
-    | None -> interfaceResolverOutcome schemaState typ field.name
+    | None when Option.is_some field.onType ->
+      interfaceResolverOutcome schemaState typ field.name
+    | None -> None
   in
   let synthetic = Hashtbl.mem schemaState.authorizationExemptions coordinate in
   let public =

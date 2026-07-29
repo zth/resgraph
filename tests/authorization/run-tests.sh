@@ -33,6 +33,11 @@ grep -F 'let authorizationArgs = %raw(`{}`)' "$tmp_dir/valid/ResGraphSchema.res"
 grep -F 'switch await Security.canLoadAsync' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 grep -F 'switch await Query.asyncOutcome' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 grep -F 'switch OutcomeNamed.computed' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
+grep -F 'OutcomeDevice.computed(src)' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
+if grep -F 'switch OutcomeDevice.computed' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null; then
+  echo "Concrete interface resolver override was treated as an outcome." >&2
+  exit 1
+fi
 grep -F 'Security.canFindUser(Obj.magic(src), ~args=authorizationArgs, ~ctx, ~info)' \
   "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 grep -F 'ResGraph.Authorization.raiseError(Security.onForbidden(reason, ~ctx, ~info))' \
