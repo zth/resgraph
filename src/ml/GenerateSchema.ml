@@ -490,6 +490,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
                     deprecationReason = None;
                     loc = Location.none;
                     onType = None;
+                    inheritedFromInterface = None;
                   }))
             ~loc:Location.none;
           Some (GraphQLObjectType {id; displayName = syntheticTypeName})
@@ -848,6 +849,7 @@ and inputObjectFieldsOfRecordFields ~objectTypeName ~env ~debug ~schemaState
             deprecationReason = field.deprecated;
             loc = field.fname.loc;
             onType = None;
+            inheritedFromInterface = None;
           })
 
 and variantCasesToUnionValues ~env ~debug ~schemaState ~full ~ownerName
@@ -1076,6 +1078,7 @@ and objectTypeFieldsOfRecordFields ~objectTypeName ~env ~schemaState ~debug
             deprecationReason = field.deprecated;
             loc = field.fname.loc;
             onType = None;
+            inheritedFromInterface = None;
           })
 
 and objectTypeFieldsOfInlineRecordFields ~objectTypeName ~env ~schemaState
@@ -1125,6 +1128,7 @@ and objectTypeFieldsOfInlineRecordFields ~objectTypeName ~env ~schemaState
             deprecationReason = field.deprecated;
             loc = field.fname.loc;
             onType = None;
+            inheritedFromInterface = None;
           })
 
 and extractAuthorizationOutcome ~env ~package (typ : Types.type_expr) =
@@ -1597,6 +1601,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                 typ = returnType;
                 args;
                 onType = None;
+                inheritedFromInterface = None;
               }
             in
             addFieldToObjectType ~env ~loc:item.loc ~field ~schemaState id
@@ -1656,6 +1661,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                 typ = returnType;
                 args;
                 onType = None;
+                inheritedFromInterface = None;
               }
             in
             addFieldToInterfaceType ~env ~loc:item.loc ~field ~schemaState id

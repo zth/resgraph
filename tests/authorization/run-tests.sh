@@ -43,6 +43,11 @@ if grep -F 'switch OutcomeDevice.computed' "$tmp_dir/valid/ResGraphSchema.res" >
   echo "Concrete interface resolver override was treated as an outcome." >&2
   exit 1
 fi
+grep -F 'PlainNamed.computed(src)' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
+if grep -F 'switch PlainNamed.computed' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null; then
+  echo "Inherited resolver used outcome metadata from a different interface." >&2
+  exit 1
+fi
 grep -F 'Security.canFindUser(Obj.magic(src), ~args=authorizationArgs, ~ctx, ~info)' \
   "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 grep -F 'ResGraph.Authorization.raiseError(Security.onForbidden(reason, ~ctx, ~info))' \
@@ -124,6 +129,19 @@ if "$resgraph_bin" generate-schema \
   exit 1
 fi
 cmp "$tmp_dir/manifest-collision.expected.json" "$tmp_dir/manifest-collision.json"
+
+mkdir -p "$tmp_dir/artifact-output"
+if "$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/valid/src" "$tmp_dir/artifact-output" \
+  false required Security.onForbidden "$tmp_dir/artifact-output/ResGraphSchema.res" \
+  >/dev/null 2>/dev/null; then
+  echo "Generation unexpectedly accepted a manifest/schema path collision." >&2
+  exit 1
+fi
+if [[ -e "$tmp_dir/artifact-output/ResGraphSchema.res" ]]; then
+  echo "Manifest preparation wrote over a generated schema artifact path." >&2
+  exit 1
+fi
 
 mkdir -p "$tmp_dir/cli-project/src" "$tmp_dir/cli-project/generated/schema"
 cp "$root_dir/tests/authorization/config/resgraph.json" \

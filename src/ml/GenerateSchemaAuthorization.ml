@@ -300,15 +300,13 @@ let interfaceDeclarations schemaState (typ : gqlObjectType) fieldName =
            references @ typeReferences @ fieldReferences)
        []
 
-let interfaceResolverOutcome schemaState (typ : gqlObjectType) fieldName =
-  typ.interfaces
-  |> List.find_map (fun interfaceId ->
-      match Hashtbl.find_opt schemaState.interfaces interfaceId with
-      | None -> None
-      | Some intf ->
-        Hashtbl.find_opt schemaState.resolverOutcomes
-          (GenerateSchemaUtils.authorizationCoordinate
-             ~parentTypeName:intf.displayName ~fieldName))
+let interfaceResolverOutcome schemaState (field : gqlField) =
+  match field.inheritedFromInterface with
+  | None -> None
+  | Some parentTypeName ->
+    Hashtbl.find_opt schemaState.resolverOutcomes
+      (GenerateSchemaUtils.authorizationCoordinate ~parentTypeName
+         ~fieldName:field.name)
 
 let interfacePublic schemaState (typ : gqlObjectType) fieldName =
   typ.interfaces
@@ -356,9 +354,7 @@ let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
   let resolverOutcome =
     match Hashtbl.find_opt schemaState.resolverOutcomes coordinate with
     | Some outcome -> Some outcome
-    | None when Option.is_some field.onType ->
-      interfaceResolverOutcome schemaState typ field.name
-    | None -> None
+    | None -> interfaceResolverOutcome schemaState field
   in
   let synthetic = Hashtbl.mem schemaState.authorizationExemptions coordinate in
   let public =
@@ -531,11 +527,25 @@ let isGeneratedManifest path =
       true
     with Not_found -> false)
 
-let prepareManifest (authorizationConfig : authorizationConfig) =
+let prepareManifest ~outputFolder ~writeSdlFile
+    (authorizationConfig : authorizationConfig) =
   match authorizationConfig.manifestPath with
   | None -> ()
   | Some path ->
-    if Sys.file_exists path && not (isGeneratedManifest path) then
+    let generatedOutputPaths =
+      [
+        outputFolder ^ "/ResGraphSchema.res";
+        outputFolder ^ "/ResGraphSchema.resi";
+      ]
+      @ if writeSdlFile then [outputFolder ^ "/schema.graphql"] else []
+    in
+    if List.mem path generatedOutputPaths then
+      failwith
+        (Printf.sprintf
+           "Authorization manifest path `%s` collides with a generated schema \
+            artifact."
+           path)
+    else if Sys.file_exists path && not (isGeneratedManifest path) then
       failwith
         (Printf.sprintf
            "Refusing to overwrite authorization manifest path `%s` because it \

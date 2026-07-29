@@ -158,6 +158,8 @@ type gqlField = {
   fileUri: Uri.t;
   onType: string option;
       (** The type this field is on, if that information is needed *)
+  inheritedFromInterface: string option;
+      (** The interface that supplied an inherited resolver field. *)
 }
 
 type syntheticTypeLocation = {fileUri: Uri.t; loc: Location.t}

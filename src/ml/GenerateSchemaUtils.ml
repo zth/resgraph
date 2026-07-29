@@ -633,6 +633,7 @@ let inputUnionToInputObj (inputUnion : gqlInputUnionType) : gqlInputObjectType =
             fileName = inputUnion.typeLocation.fileName;
             fileUri = inputUnion.typeLocation.fileUri;
             onType = None;
+            inheritedFromInterface = None;
           });
   }
 
@@ -792,7 +793,11 @@ let addMissingInterfaceResolverFields ~displayName fields (intf : gqlInterface)
     |> List.filter (fun (field : gqlField) ->
         isResolverField field && hasField field.name = false)
     |> List.map (fun (field : gqlField) ->
-        {field with onType = Some displayName}))
+        {
+          field with
+          onType = Some displayName;
+          inheritedFromInterface = Some intf.displayName;
+        }))
 
 let inheritInterfaceResolverFields (schemaState : schemaState) =
   schemaState.types |> hashtblToListAlphabetically
@@ -1117,7 +1122,12 @@ let processSchema (schemaState : schemaState) =
                              |> List.filter (fun (field : gqlField) ->
                                  doesNotHaveField field.name)
                              |> List.map (fun (field : gqlField) ->
-                                 {field with onType = Some typ.displayName}));
+                                 {
+                                   field with
+                                   onType = Some typ.displayName;
+                                   inheritedFromInterface =
+                                     Some interface.displayName;
+                                 }));
                        };
 
                      (* Map interface as implemented by this type *)
