@@ -1,5 +1,7 @@
 {
+  "generatedBy": "resgraph",
   "version": 1,
+  "status": "success",
   "fields": [
     {"coordinate":"DeclaredResultFailure.message","disposition":"synthetic","mutation":false,"policies":[],"public":null,"resolverOutcome":null},
     {"coordinate":"DeclaredResultSuccess.value","disposition":"synthetic","mutation":false,"policies":[],"public":null,"resolverOutcome":null},
@@ -22,7 +24,7 @@
     {"coordinate":"Query.device","disposition":"policies","mutation":false,"policies":[{"path":"Security.canLoadDevice","provenance":"field:Query.device","file":"src/Query.res","location":"[20:0->20:14]","async":false}],"public":null,"resolverOutcome":null},
     {"coordinate":"Query.health","disposition":"public","mutation":false,"policies":[],"public":{"reason":"Health check contains no private data","file":"src/Query.res","location":"[5:0->5:11]"},"resolverOutcome":null},
     {"coordinate":"Query.inferred","disposition":"policies","mutation":false,"policies":[{"path":"Security.first","provenance":"field:Query.inferred","file":"src/Query.res","location":"[26:0->26:14]","async":false}],"public":null,"resolverOutcome":null},
-    {"coordinate":"Query.ordered","disposition":"policies","mutation":false,"policies":[{"path":"Security.first","provenance":"field:Query.ordered","file":"src/Query.res","location":"[23:0->23:14]","async":false},{"path":"Security.Nested.second","provenance":"field:Query.ordered","file":"src/Query.res","location":"[23:31->23:45]","async":false}],"public":null,"resolverOutcome":null},
+    {"coordinate":"Query.ordered","disposition":"policies","mutation":false,"policies":[{"path":"Security.first","provenance":"field:Query.ordered","file":"src/Query.res","location":"[23:0->23:14]","async":false},{"path":"Security.Alias.second","provenance":"field:Query.ordered","file":"src/Query.res","location":"[23:31->23:45]","async":false}],"public":null,"resolverOutcome":null},
     {"coordinate":"Query.outcome","disposition":"resolverOutcome","mutation":false,"policies":[],"public":null,"resolverOutcome":{"async":false}},
     {"coordinate":"Query.outcomeDevice","disposition":"policies","mutation":false,"policies":[{"path":"Security.canLoadOutcomeDevice","provenance":"field:Query.outcomeDevice","file":"src/Query.res","location":"[38:0->38:14]","async":false}],"public":null,"resolverOutcome":null},
     {"coordinate":"Query.publicDevice","disposition":"policies","mutation":false,"policies":[{"path":"Security.canLoadPublicDevice","provenance":"field:Query.publicDevice","file":"src/Query.res","location":"[35:0->35:14]","async":false}],"public":null,"resolverOutcome":null},

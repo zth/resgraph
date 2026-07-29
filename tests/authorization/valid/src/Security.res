@@ -35,6 +35,8 @@ module Nested = {
   let second = (_: Query.query, ~args) => ResGraph.Authorization.Allowed()
 }
 
+module Alias = Nested
+
 let canLoadPublicDevice = (_: Query.query, ~args) => ResGraph.Authorization.Allowed()
 
 let canLoadOutcomeDevice = (_: Query.query, ~args) => ResGraph.Authorization.Allowed()
