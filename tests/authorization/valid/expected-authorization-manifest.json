@@ -11,6 +11,8 @@
     {"coordinate":"InferredSuccess.value","disposition":"synthetic","mutation":false,"policies":[],"public":null,"resolverOutcome":null},
     {"coordinate":"InheritedOutcomeDevice.computed","disposition":"resolverOutcome","mutation":false,"policies":[],"public":null,"resolverOutcome":{"async":false}},
     {"coordinate":"InheritedOutcomeDevice.id","disposition":"public","mutation":false,"policies":[],"public":{"reason":"Identifiers are public across this interface","file":"src/OutcomeNamed.res","location":"[2:2->2:13]"},"resolverOutcome":null},
+    {"coordinate":"MultiOutcomeDevice.computed","disposition":"public","mutation":false,"policies":[],"public":{"reason":"Plain computed values are public","file":"src/PlainNamed.res","location":"[6:0->6:11]"},"resolverOutcome":null},
+    {"coordinate":"MultiOutcomeDevice.id","disposition":"public","mutation":false,"policies":[],"public":{"reason":"Identifiers are public on the plain interface","file":"src/PlainNamed.res","location":"[2:2->2:13]"},"resolverOutcome":null},
     {"coordinate":"Mutation.ping","disposition":"public","mutation":true,"policies":[],"public":{"reason":"Explicitly public mutation used by uptime checks","file":"src/Mutation.res","location":"[6:0->6:11]"},"resolverOutcome":null},
     {"coordinate":"Mutation.update","disposition":"policies","mutation":true,"policies":[{"path":"Security.canMutate","provenance":"field:Mutation.update","file":"src/Mutation.res","location":"[3:0->3:14]","async":false}],"public":null,"resolverOutcome":null},
     {"coordinate":"OutcomeDevice.computed","disposition":"public","mutation":false,"policies":[],"public":{"reason":"Concrete override has its own public disposition","file":"src/OutcomeDevice.res","location":"[12:0->12:11]"},"resolverOutcome":null},

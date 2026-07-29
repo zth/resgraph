@@ -111,7 +111,8 @@ let with_hooks ~package ~preloaded f =
 
 let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
     ~outputFolder ~writeSdlFile ~authorizationConfig =
-  GenerateSchemaAuthorization.prepareManifest authorizationConfig;
+  GenerateSchemaAuthorization.prepareManifest ~outputFolder ~writeSdlFile
+    authorizationConfig;
   match collect_gql_cmts ~sourceFolder with
   | Error errs ->
     print_collect_errors errs;
