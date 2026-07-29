@@ -223,19 +223,6 @@ let dependencySearchPaths rootPath dependencyName =
   in
   loop rootPath []
 
-let configuredDependencyPaths rootPath =
-  configuredDependencyNames rootPath
-  |> List.map (fun dependencyName ->
-      let searchPaths = dependencySearchPaths rootPath dependencyName in
-      match
-        ModuleResolution.resolveNodeModulePath ~startPath:rootPath
-          dependencyName
-      with
-      | None -> searchPaths
-      | Some dependencyRoot ->
-        (dependencyRoot :: configPaths dependencyRoot) @ searchPaths)
-  |> List.concat
-
 let rec nearestExistingPath path =
   if Files.exists path then Some path
   else
@@ -258,6 +245,21 @@ let configuredCompiledPaths rootPath =
     in
     paths |> List.filter_map nearestExistingPath
 
+let configuredDependencyPaths rootPath =
+  configuredDependencyNames rootPath
+  |> List.map (fun dependencyName ->
+      let searchPaths = dependencySearchPaths rootPath dependencyName in
+      match
+        ModuleResolution.resolveNodeModulePath ~startPath:rootPath
+          dependencyName
+      with
+      | None -> searchPaths
+      | Some dependencyRoot ->
+        (dependencyRoot :: configPaths dependencyRoot)
+        @ configuredCompiledPaths dependencyRoot
+        @ searchPaths)
+  |> List.concat
+
 let inputPaths (package : SharedTypes.package) =
   let rootPath = canonicalize package.rootPath in
   let moduleFiles =
@@ -276,7 +278,8 @@ let inputPaths (package : SharedTypes.package) =
   let dependencyConfigPaths =
     dependencyRoots
     |> List.map (fun dependencyRoot ->
-        dependencyRoot :: configPaths dependencyRoot)
+        (dependencyRoot :: configPaths dependencyRoot)
+        @ configuredCompiledPaths dependencyRoot)
     |> List.concat
   in
   let files =

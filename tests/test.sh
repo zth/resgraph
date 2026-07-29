@@ -170,18 +170,19 @@ node -e '
   fs.writeFileSync("rescript.json", JSON.stringify(config, null, 2) + "\n")
 '
 ../bin/dev/resgraph.exe generate-schema ./src ./src/__generated__ true >/dev/null
-printf '\n' >>"$hiddenDependency/rescript.json"
+printf 'not a real cmt' >"$hiddenDependency/lib/bs/FirstModule.cmt"
 hiddenDependencyOutput=$(
   RESGRAPH_INCREMENTAL_DEBUG=1 ../bin/dev/resgraph.exe generate-schema \
     ./src ./src/__generated__ true 2>&1
 )
 cp "$hiddenConfigBackup" ./rescript.json
-rm -f "$hiddenConfigBackup" "$hiddenDependency/rescript.json"
+rm -f "$hiddenConfigBackup" "$hiddenDependency/rescript.json" \
+  "$hiddenDependency/lib/bs/FirstModule.cmt"
 rmdir "$hiddenDependency/src" "$hiddenDependency/lib/bs" \
   "$hiddenDependency/lib" "$hiddenDependency"
 if [[ $hiddenDependencyOutput != *"project input changed"* ]]; then
   printf '%b%s\n%s\n%b\n' "$warningYellow" \
-    '⚠️ Hidden dependency configuration change did not invalidate cache.' \
+    '⚠️ First compiled dependency module did not invalidate cache.' \
     "$hiddenDependencyOutput" "$reset"
   exit 1
 fi
