@@ -21,7 +21,7 @@ let asyncValue = (_: query): string => "async"
 @gql.authorize(Security.canLoadDevice) @gql.field
 let device = (_: query): Device.device => {name: "device", serial: "123"}
 
-@gql.authorize(Security.first) @gql.authorize(Security.Nested.second) @gql.field
+@gql.authorize(Security.first) @gql.authorize(Security.Alias.second) @gql.field
 let ordered = (_: query): string => "ordered"
 
 @gql.authorize(Security.first) @gql.field

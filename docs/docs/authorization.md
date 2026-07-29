@@ -14,7 +14,7 @@ ResGraph can require every application-defined GraphQL output field to have an e
 }
 ```
 
-`onForbidden` and `manifestPath` are optional. Manifest paths resolve relative to `resgraph.json`. Introspection fields are outside this check, and required mode currently rejects subscriptions.
+`onForbidden` and `manifestPath` are optional. Manifest paths resolve relative to `resgraph.json`. During generation, the manifest has a `generationFailed` status and empty fields; it changes to `success` only after every schema artifact is written. ResGraph refuses to overwrite an existing file that lacks its generated-manifest marker. Introspection fields are outside this check, and required mode currently rejects subscriptions.
 
 ## Authorization policies
 

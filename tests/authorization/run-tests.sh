@@ -49,7 +49,7 @@ grep -F 'ResGraph.Authorization.raiseError(Security.onForbidden(reason, ~ctx, ~i
   "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 grep -F 'switch Security.canReadNamed(Obj.magic(src)' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 grep -F 'switch Security.first' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
-grep -F 'switch Security.Nested.second' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
+grep -F 'switch Security.Alias.second' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 diff -u "$root_dir/tests/authorization/valid/expected-authorization-manifest.json" \
   "$tmp_dir/valid/authorization-manifest.json"
 
@@ -58,10 +58,8 @@ diff -u "$root_dir/tests/authorization/valid/expected-authorization-manifest.jso
   "$tmp_dir/invalid" false required - "$tmp_dir/valid/authorization-manifest.json" \
   >"$tmp_dir/invalid-result.json"
 
-if [[ -e "$tmp_dir/valid/authorization-manifest.json" ]]; then
-  echo "Stale authorization manifest survived a failed generation." >&2
-  exit 1
-fi
+jq -e '.generatedBy == "resgraph" and .status == "generationFailed" and (.fields | length) == 0' \
+  "$tmp_dir/valid/authorization-manifest.json" >/dev/null
 
 grep -F 'Field `Query.uncovered` has no authorization disposition.' \
   "$tmp_dir/invalid-result.json" >/dev/null
@@ -98,10 +96,8 @@ if "$resgraph_bin" generate-schema \
   echo "Generation unexpectedly succeeded for a missing ReScript project." >&2
   exit 1
 fi
-if [[ -e "$tmp_dir/valid/authorization-manifest.json" ]]; then
-  echo "Stale authorization manifest survived an early generation failure." >&2
-  exit 1
-fi
+jq -e '.generatedBy == "resgraph" and .status == "generationFailed" and (.fields | length) == 0' \
+  "$tmp_dir/valid/authorization-manifest.json" >/dev/null
 
 cp "$root_dir/tests/authorization/valid/expected-authorization-manifest.json" \
   "$tmp_dir/output-is-a-file"
@@ -114,10 +110,20 @@ if "$resgraph_bin" generate-schema \
   echo "Generation unexpectedly succeeded with an invalid output folder." >&2
   exit 1
 fi
-if [[ -e "$tmp_dir/late-failure-manifest.json" ]]; then
-  echo "Authorization manifest was written before generation completed." >&2
+jq -e '.generatedBy == "resgraph" and .status == "generationFailed" and (.fields | length) == 0' \
+  "$tmp_dir/late-failure-manifest.json" >/dev/null
+
+cp "$root_dir/tests/authorization/config/resgraph.json" \
+  "$tmp_dir/manifest-collision.json"
+cp "$tmp_dir/manifest-collision.json" "$tmp_dir/manifest-collision.expected.json"
+if "$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/valid/src" "$tmp_dir/collision-output" \
+  false required Security.onForbidden "$tmp_dir/manifest-collision.json" \
+  >/dev/null 2>/dev/null; then
+  echo "Generation unexpectedly overwrote a non-manifest file." >&2
   exit 1
 fi
+cmp "$tmp_dir/manifest-collision.expected.json" "$tmp_dir/manifest-collision.json"
 
 node --input-type=module -e \
   'import path from "node:path";
