@@ -1125,9 +1125,9 @@ and objectTypeFieldsOfInlineRecordFields ~objectTypeName ~env ~schemaState
             onType = None;
           })
 
-and extractAuthorizationOutcome (typ : Types.type_expr) =
-  let outcomePayload typ =
-    let typ = TypeUtils.unwrapType typ in
+and extractAuthorizationOutcome ~env ~package (typ : Types.type_expr) =
+  let outcomePayload ~env typ =
+    let typ = TypeUtils.expandTransparentAlias ~env ~package typ in
     match typ.desc with
     | Tconstr (path, [allowedType; _reasonType], _) -> (
       match pathIdentToList path |> List.rev with
@@ -1137,13 +1137,14 @@ and extractAuthorizationOutcome (typ : Types.type_expr) =
       | _ -> None)
     | _ -> None
   in
+  let env, typ = TypeUtils.expandTransparentAliasWithEnv ~env ~package typ in
   match TypeUtils.typeConstructorArgs ~name:"promise" typ with
   | Some [outcomeType] -> (
-    match outcomePayload outcomeType with
+    match outcomePayload ~env outcomeType with
     | Some allowedType -> Some (allowedType, {isAsync = true})
     | None -> None)
   | _ -> (
-    match outcomePayload (TypeUtils.unwrapType typ) with
+    match outcomePayload ~env typ with
     | Some allowedType -> Some (allowedType, {isAsync = false})
     | None -> None)
 
@@ -1171,7 +1172,9 @@ and extractResolverFunctionInfo ~resolverName ~env ?loc
         | _ -> ""
       in
       let returnType =
-        match extractAuthorizationOutcome returnType with
+        match
+          extractAuthorizationOutcome ~env ~package:full.package returnType
+        with
         | None -> returnType
         | Some (allowedType, resolverOutcome) ->
           let coordinate =
