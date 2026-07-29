@@ -1,6 +1,8 @@
 @gql.type
 type query
 
+type inferredResult = [#Success({"value": string}) | #Failure({"message": string})]
+
 @gql.public({reason: "Health check contains no private data"}) @gql.field
 let health = (_: query) => "ok"
 
@@ -21,6 +23,9 @@ let device = (_: query): Device.device => {name: "device", serial: "123"}
 
 @gql.authorize(Security.first) @gql.authorize(Security.Nested.second) @gql.field
 let ordered = (_: query): string => "ordered"
+
+@gql.authorize(Security.first) @gql.field
+let inferred = (_: query): inferredResult => #Success({"value": "visible"})
 
 @gql.field
 let asyncOutcome = async (_: query): ResGraph.Authorization.outcome<

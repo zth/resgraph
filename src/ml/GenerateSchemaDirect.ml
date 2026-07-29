@@ -141,6 +141,7 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
                authorizationDeclarations = Hashtbl.create 50;
                authorizationPlans = Hashtbl.create 50;
                resolverOutcomes = Hashtbl.create 20;
+               authorizationExemptions = Hashtbl.create 20;
                query = None;
                subscription = None;
                mutation = None;

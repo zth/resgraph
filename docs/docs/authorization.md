@@ -112,4 +112,8 @@ let onForbidden = (
 
 `manifestPath` emits stable, sorted JSON with every concrete field, its disposition, policy order and provenance, public reason, source locations, resolver-outcome metadata, and mutation status. Commit it when authorization posture should be reviewed through diffs.
 
+Fields on inferred union payload objects use the `synthetic` disposition. They
+have no annotation surface and are reachable only after their parent resolver
+field has passed its own required authorization disposition.
+
 Required authorization coverage is a structural guarantee that checks are declared and generated. It does not prove policy correctness, authentication setup, or collection filtering. Authorization on a list gates access to the list field but does not scope its items, lengths, ordering, cursors, or existence. Filter collections in the data/domain layer, and keep authorization caches request-scoped unless they include every security-relevant identity, tenant, action, argument, and invalidation dimension.

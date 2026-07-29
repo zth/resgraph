@@ -76,6 +76,16 @@ grep -F 'Required authorization coverage does not support subscriptions yet.' \
   "$tmp_dir/invalid-result.json" >/dev/null
 
 node --input-type=module -e \
+  'import path from "node:path";
+   import {readConfigFromDir} from "./cli/Utils.mjs";
+   const configDir = path.resolve("tests/authorization/config");
+   const result = readConfigFromDir(configDir);
+   const config = result.TAG === "Ok" ? result._0 : undefined;
+   if (config?.src !== path.resolve(configDir, "src") ||
+       config?.outputFolder !== path.resolve(configDir, "generated/schema") ||
+       config?.authorization?.manifestPath !== path.resolve(configDir, "generated/authorization-manifest.json")) process.exit(1)'
+
+node --input-type=module -e \
   'import {Authorization} from "./src/res/ResGraph.mjs";
    try { Authorization.raiseForbidden("internal") }
    catch (error) {

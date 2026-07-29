@@ -2,6 +2,6 @@
 type user = {
   @gql.field
   id: string,
-  @gql.field
+  @gql.authorize(Security.canReadUser) @gql.authorize(Security.canReadUser) @gql.field
   secret: string,
 }

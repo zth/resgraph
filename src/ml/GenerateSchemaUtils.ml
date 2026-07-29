@@ -258,7 +258,11 @@ let registerAuthorizationDeclaration ~coordinate
     | Some existing ->
       Hashtbl.replace schemaState.authorizationDeclarations coordinate
         {
-          functions = existing.functions @ declared.functions;
+          functions =
+            existing.functions
+            @ (declared.functions
+              |> List.filter (fun reference ->
+                  not (List.mem reference existing.functions)));
           public =
             (match (existing.public, declared.public) with
             | Some public, _ -> Some public
