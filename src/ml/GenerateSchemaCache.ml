@@ -19,13 +19,15 @@ type t = {
   writeSdlFile: bool;
   debug: bool;
   rescriptRuntime: string option;
+  rescriptProjectConfigCache: bool;
+  rescriptVersion: string option;
   executable: fileSignature;
   inputs: fileSignature list;
   outputs: output list;
 }
 
-let version = 3
-let magic = "RESGRAPH_INCREMENTAL_CACHE_V3\n"
+let version = 4
+let magic = "RESGRAPH_INCREMENTAL_CACHE_V4\n"
 let fileName = ".resgraphIncrementalCache"
 
 let enabled () = Sys.getenv_opt "RESGRAPH_INCREMENTAL_CACHE" <> Some "false"
@@ -46,6 +48,11 @@ let absolute path =
 
 let rescriptRuntime () =
   Sys.getenv_opt "RESCRIPT_RUNTIME" |> Option.map canonicalize
+
+let rescriptProjectConfigCache () =
+  Sys.getenv_opt "RESCRIPT_PROJECT_CONFIG_CACHE" = Some "true"
+
+let rescriptVersion () = Sys.getenv_opt "RESCRIPT_VERSION"
 
 let fromRoot rootPath path =
   if Filename.is_relative path then Filename.concat rootPath path else path
@@ -229,6 +236,28 @@ let configuredDependencyPaths rootPath =
         (dependencyRoot :: configPaths dependencyRoot) @ searchPaths)
   |> List.concat
 
+let rec nearestExistingPath path =
+  if Files.exists path then Some path
+  else
+    let parent = Filename.dirname path in
+    if parent = path then None else nearestExistingPath parent
+
+let configuredCompiledPaths rootPath =
+  match BuildSystem.getLibBs rootPath with
+  | None -> []
+  | Some libBs ->
+    let projectCache = Cache.targetFileFromLibBs libBs in
+    let compiledDirectories =
+      configuredSourceRoots rootPath
+      |> List.map (fun sourceRoot ->
+          Filename.concat libBs (Files.relpath rootPath sourceRoot))
+    in
+    let paths =
+      (libBs :: compiledDirectories)
+      @ if Files.exists projectCache then [projectCache] else []
+    in
+    paths |> List.filter_map nearestExistingPath
+
 let inputPaths (package : SharedTypes.package) =
   let rootPath = canonicalize package.rootPath in
   let moduleFiles =
@@ -253,6 +282,7 @@ let inputPaths (package : SharedTypes.package) =
   let files =
     configPaths rootPath
     @ configuredDependencyPaths rootPath
+    @ configuredCompiledPaths rootPath
     @ dependencyConfigPaths @ moduleFiles
   in
   let paths =
@@ -368,6 +398,10 @@ let canSkipEnabled ~sourceFolder ~outputFolder ~writeStateFile ~writeSdlFile
       else if cache.debug <> debugMode then invalid "debug setting changed"
       else if cache.rescriptRuntime <> rescriptRuntime () then
         invalid "ReScript runtime selection changed"
+      else if cache.rescriptProjectConfigCache <> rescriptProjectConfigCache ()
+      then invalid "ReScript project config cache setting changed"
+      else if cache.rescriptVersion <> rescriptVersion () then
+        invalid "ReScript version selection changed"
       else if signature Sys.executable_name <> Some cache.executable then
         invalid "ResGraph executable changed"
       else if cachedOutputPaths <> outputPaths then
@@ -407,6 +441,8 @@ let update ~(package : SharedTypes.package) ~sourceFolder ~outputFolder
           writeSdlFile;
           debug = debugMode;
           rescriptRuntime = rescriptRuntime ();
+          rescriptProjectConfigCache = rescriptProjectConfigCache ();
+          rescriptVersion = rescriptVersion ();
           executable;
           inputs;
           outputs;

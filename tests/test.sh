@@ -43,6 +43,34 @@ fi
 printf '%b%s%b\n' "$successGreen" \
   '✅ ReScript runtime changes invalidate incremental cache.' "$reset"
 
+projectCacheSettingOutput=$(
+  RESCRIPT_PROJECT_CONFIG_CACHE=true RESGRAPH_INCREMENTAL_DEBUG=1 \
+    ../bin/dev/resgraph.exe generate-schema ./src ./src/__generated__ true 2>&1
+)
+if [[ $projectCacheSettingOutput != *"project config cache setting changed"* ]]; then
+  printf '%b%s\n%s\n%b\n' "$warningYellow" \
+    '⚠️ Project config cache setting did not invalidate incremental cache.' \
+    "$projectCacheSettingOutput" "$reset"
+  exit 1
+fi
+../bin/dev/resgraph.exe generate-schema ./src ./src/__generated__ true >/dev/null
+printf '%b%s%b\n' "$successGreen" \
+  '✅ Project config cache setting changes invalidate incremental cache.' "$reset"
+
+rescriptVersionOutput=$(
+  RESCRIPT_VERSION=99.0 RESGRAPH_INCREMENTAL_DEBUG=1 \
+    ../bin/dev/resgraph.exe generate-schema ./src ./src/__generated__ true 2>&1
+)
+if [[ $rescriptVersionOutput != *"ReScript version selection changed"* ]]; then
+  printf '%b%s\n%s\n%b\n' "$warningYellow" \
+    '⚠️ ReScript version setting did not invalidate incremental cache.' \
+    "$rescriptVersionOutput" "$reset"
+  exit 1
+fi
+../bin/dev/resgraph.exe generate-schema ./src ./src/__generated__ true >/dev/null
+printf '%b%s%b\n' "$successGreen" \
+  '✅ ReScript version changes invalidate incremental cache.' "$reset"
+
 alternateExecutable=$(mktemp)
 cp ../bin/dev/resgraph.exe "$alternateExecutable"
 chmod +x "$alternateExecutable"
@@ -160,6 +188,34 @@ fi
 ../bin/dev/resgraph.exe generate-schema ./src ./src/__generated__ true >/dev/null
 printf '%b%s%b\n' "$successGreen" \
   '✅ Dependencies without visible modules remain tracked.' "$reset"
+
+compiledConfigBackup=$(mktemp)
+cp ./rescript.json "$compiledConfigBackup"
+mkdir ./empty-compiled-src ./lib/bs/empty-compiled-src
+node -e '
+  const fs = require("fs")
+  const config = JSON.parse(fs.readFileSync("rescript.json", "utf8"))
+  config.sources.push("empty-compiled-src")
+  fs.writeFileSync("rescript.json", JSON.stringify(config, null, 2) + "\n")
+'
+../bin/dev/resgraph.exe generate-schema ./src ./src/__generated__ true >/dev/null
+printf 'not a real cmt' >./lib/bs/empty-compiled-src/NewModule.cmt
+compiledDirectoryOutput=$(
+  RESGRAPH_INCREMENTAL_DEBUG=1 ../bin/dev/resgraph.exe generate-schema \
+    ./src ./src/__generated__ true 2>&1
+)
+cp "$compiledConfigBackup" ./rescript.json
+rm -f "$compiledConfigBackup" ./lib/bs/empty-compiled-src/NewModule.cmt
+rmdir ./empty-compiled-src ./lib/bs/empty-compiled-src
+if [[ $compiledDirectoryOutput != *"project input changed"* ]]; then
+  printf '%b%s\n%s\n%b\n' "$warningYellow" \
+    '⚠️ New compiled module did not invalidate incremental cache.' \
+    "$compiledDirectoryOutput" "$reset"
+  exit 1
+fi
+../bin/dev/resgraph.exe generate-schema ./src ./src/__generated__ true >/dev/null
+printf '%b%s%b\n' "$successGreen" \
+  '✅ Compiled directories without discovered modules remain tracked.' "$reset"
 
 sourceBackup=$(mktemp)
 cp ./src/ResGraphContext.res "$sourceBackup"
