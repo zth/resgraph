@@ -166,6 +166,7 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
            let sdlOutputPath = outputFolder ^ "/schema.graphql" in
 
            if schemaState.diagnostics |> List.length > 0 then (
+             GenerateSchemaAuthorization.removeManifest schemaState;
              if printToStdOut then
                Printf.printf
                  "{\n\
