@@ -110,19 +110,39 @@ let with_hooks ~package ~preloaded f =
   res
 
 let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
-    ~outputFolder ~writeSdlFile =
+    ~outputFolder ~writeSdlFile ~authorizationConfig =
+  let cacheEnabled =
+    match authorizationConfig.mode with
+    | AuthorizationOptional -> true
+    | AuthorizationRequired | AuthorizationBaseline -> false
+  in
   if
-    GenerateSchemaCache.canSkip ~sourceFolder ~outputFolder ~writeStateFile
+    cacheEnabled
+    && GenerateSchemaCache.canSkip ~sourceFolder ~outputFolder ~writeStateFile
       ~writeSdlFile ~debug
   then (
     if printToStdOut then
       Printf.printf "{\"status\": \"Success\", \"ok\": true}")
   else
-    match collect_gql_cmts ~sourceFolder with
+    let collection =
+      try collect_gql_cmts ~sourceFolder
+      with exn ->
+        GenerateSchemaAuthorization.prepareManifest ~outputFolder ~writeSdlFile
+          ~additionalOutputPaths:[] authorizationConfig;
+        raise exn
+    in
+    match collection with
     | Error errs ->
+      GenerateSchemaAuthorization.prepareManifest ~outputFolder ~writeSdlFile
+        ~additionalOutputPaths:[] authorizationConfig;
       print_collect_errors errs;
       exit 1
     | Ok (package, loaded) ->
+      GenerateSchemaAuthorization.prepareManifest ~outputFolder ~writeSdlFile
+        ~additionalOutputPaths:
+          (if writeStateFile then [GenerateSchemaUtils.getStateFilePath package]
+           else [])
+        authorizationConfig;
       let preloaded =
         loaded
         |> List.map (fun l ->
@@ -134,7 +154,7 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
             (l.moduleName, file))
       in
       ignore
-        (with_hooks ~package ~preloaded (fun ~loader:_ ->
+        (with_hooks ~package ~preloaded (fun ~loader ->
              let schemaState =
                {
                  types = Hashtbl.create 50;
@@ -144,6 +164,11 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
                  inputUnions = Hashtbl.create 10;
                  interfaces = Hashtbl.create 10;
                  scalars = Hashtbl.create 10;
+                 authorizationConfig;
+                 authorizationDeclarations = Hashtbl.create 50;
+                 authorizationPlans = Hashtbl.create 50;
+                 resolverOutcomes = Hashtbl.create 20;
+                 authorizationExemptions = Hashtbl.create 20;
                  query = None;
                  subscription = None;
                  mutation = None;
@@ -163,6 +188,7 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
              let processedSchema =
                GenerateSchemaUtils.processSchema schemaState
              in
+             GenerateSchemaAuthorization.buildPlans ~loader ~package schemaState;
              let schemaOutputPath = outputFolder ^ "/ResGraphSchema.res" in
              let sdlOutputPath = outputFolder ^ "/schema.graphql" in
 
@@ -215,8 +241,11 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
                in
                GenerateSchemaUtils.writeIfHasChanges resiOutputPath resiContent;
 
-               GenerateSchemaCache.update ~package ~sourceFolder ~outputFolder
-                 ~writeStateFile ~writeSdlFile ~debug;
+               GenerateSchemaAuthorization.writeManifest ~package schemaState;
+
+               if cacheEnabled then
+                 GenerateSchemaCache.update ~package ~sourceFolder ~outputFolder
+                   ~writeStateFile ~writeSdlFile ~debug;
 
                if debug && printToStdOut then schemaCode |> print_endline
                else if printToStdOut then

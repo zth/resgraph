@@ -1,5 +1,9 @@
 # ResGraph Changelog
 
+## Unreleased
+
+- Add opt-in required authorization coverage with typed `.authorize` policies, explicit `.public` dispositions, resolver outcomes, mutation prechecks, interface policy inheritance, custom forbidden handlers, and deterministic audit manifests.
+
 ## 1.3.0
 
 - Speed up schema generation by emitting formatted ReScript and SDL directly through linear, buffer-backed writers instead of reparsing and pretty-printing generated code.

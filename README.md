@@ -147,6 +147,7 @@ ResGraph lets you build _implementation first_ GraphQL servers, where your types
 - [x] Enums
 - [x] Unions
 - [x] Custom scalars (including custom serializers/parsers)
+- [x] [Required authorization coverage](https://zth.github.io/resgraph/docs/authorization)
 - [ ] Directives
 - [x] Relay helpers (coming very soon)
 

@@ -254,6 +254,8 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
               } ) ->
             let id = name in
             let displayName = capitalizeFirstChar id in
+            registerAuthorizationAttributes ~coordinate:displayName
+              ~allowPublic:false ~attributes ~schemaState ~env;
             noticeObjectType id ~displayName ~schemaState ~env
               ?description:
                 (GenerateSchemaUtils.attributesToDocstring attributes)
@@ -263,6 +265,8 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
           | Some ObjectType, {attributes; name; kind = Record fields} ->
             let id = name in
             let displayName = capitalizeFirstChar id in
+            registerAuthorizationAttributes ~coordinate:displayName
+              ~allowPublic:false ~attributes ~schemaState ~env;
             noticeObjectType id ~displayName ~schemaState ~env
               ?description:
                 (GenerateSchemaUtils.attributesToDocstring attributes)
@@ -305,6 +309,8 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
           | Some Interface, {name; kind = Record fields; attributes; decl} ->
             let id = name in
             let displayName = capitalizeFirstChar id in
+            registerAuthorizationAttributes ~coordinate:displayName
+              ~allowPublic:false ~attributes ~schemaState ~env;
             addInterface id ~schemaState ~debug ~makeInterface:(fun () ->
                 {
                   id;
@@ -1014,6 +1020,11 @@ and objectTypeFieldsOfRecordFields ~objectTypeName ~env ~schemaState ~debug
   |> List.filter_map (fun ((field : SharedTypes.field), _attr) ->
       let fieldType = field.typ in
       let name = nameFromAttribute field.attributes ~default:field.fname.txt in
+      registerAuthorizationAttributes
+        ~coordinate:
+          (authorizationCoordinate ~parentTypeName:objectTypeName
+             ~fieldName:name)
+        ~allowPublic:true ~attributes:field.attributes ~schemaState ~env;
       let typ =
         findGraphQLType fieldType ~debug ~loc:field.fname.loc ~full ~env
           ~schemaState
@@ -1058,6 +1069,11 @@ and objectTypeFieldsOfInlineRecordFields ~objectTypeName ~env ~schemaState
   |> List.filter_map (fun (field : SharedTypes.field) ->
       let fieldType = field.typ in
       let name = nameFromAttribute field.attributes ~default:field.fname.txt in
+      registerAuthorizationAttributes
+        ~coordinate:
+          (authorizationCoordinate ~parentTypeName:objectTypeName
+             ~fieldName:name)
+        ~allowPublic:true ~attributes:field.attributes ~schemaState ~env;
       let typ =
         findGraphQLType fieldType ~debug ~loc:field.fname.loc ~full ~env
           ~schemaState
@@ -1096,6 +1112,34 @@ and objectTypeFieldsOfInlineRecordFields ~objectTypeName ~env ~schemaState
             onType = None;
           })
 
+and extractAuthorizationOutcome (typ : Types.type_expr) =
+  let rec unwrap typ =
+    match typ.Types.desc with
+    | Tlink inner | Tsubst inner | Tpoly (inner, []) -> unwrap inner
+    | _ -> typ
+  in
+  let outcomePayload typ =
+    let typ = unwrap typ in
+    match typ.desc with
+    | Tconstr (path, [allowedType; _reasonType], _) -> (
+      match pathIdentToList path |> List.rev with
+      | "outcome" :: "Authorization" :: "ResGraph" :: _
+      | "outcome" :: "ResGraph__Authorization" :: _ ->
+        Some allowedType
+      | _ -> None)
+    | _ -> None
+  in
+  let typ = unwrap typ in
+  match typ.desc with
+  | Tconstr (Path.Pident {name = "promise"}, [outcomeType], _) -> (
+    match outcomePayload outcomeType with
+    | Some allowedType -> Some (allowedType, {isAsync = true})
+    | None -> None)
+  | _ -> (
+    match outcomePayload typ with
+    | Some allowedType -> Some (allowedType, {isAsync = false})
+    | None -> None)
+
 and extractResolverFunctionInfo ~resolverName ~env ?loc
     ~(full : SharedTypes.full) ~(schemaState : schemaState) ~debug
     (typ : Types.type_expr) =
@@ -1118,6 +1162,17 @@ and extractResolverFunctionInfo ~resolverName ~env ?loc
         | GraphQLInterface {displayName} ->
           displayName
         | _ -> ""
+      in
+      let returnType =
+        match extractAuthorizationOutcome returnType with
+        | None -> returnType
+        | Some (allowedType, resolverOutcome) ->
+          let coordinate =
+            authorizationCoordinate ~parentTypeName ~fieldName:resolverName
+          in
+          Hashtbl.replace schemaState.resolverOutcomes coordinate
+            resolverOutcome;
+          allowedType
       in
       match
         findGraphQLType returnType ~debug
@@ -1246,6 +1301,8 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
           (* @gql.type type subscription *)
           let id = item.name in
           let displayName = capitalizeFirstChar item.name in
+          registerAuthorizationAttributes ~coordinate:displayName
+            ~allowPublic:false ~attributes ~schemaState ~env;
           noticeObjectType ~env ~loc:decl.type_loc ~schemaState
             ?description:(attributesToDocstring attributes)
             ~displayName
@@ -1255,6 +1312,8 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
           (* @gql.type type someType = {...} *)
           let id = item.name in
           let displayName = capitalizeFirstChar item.name in
+          registerAuthorizationAttributes ~coordinate:displayName
+            ~allowPublic:false ~attributes ~schemaState ~env;
           noticeObjectType ~env ~loc:decl.type_loc ~schemaState
             ?description:(attributesToDocstring attributes)
             ~displayName ~explicitInterfaces:gqlImplementsAttributes
@@ -1285,6 +1344,8 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
           (* @gql.interface type hasName = {...} *)
           let id = item.name in
           let displayName = capitalizeFirstChar item.name in
+          registerAuthorizationAttributes ~coordinate:displayName
+            ~allowPublic:false ~attributes ~schemaState ~env;
           addInterface id ~schemaState ~debug ~makeInterface:(fun () ->
               {
                 id;
@@ -1472,6 +1533,11 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
           with
           | Some (GraphQLObjectType {id; displayName}, args, returnType) ->
             (* Resolver for object type. *)
+            registerAuthorizationAttributes
+              ~coordinate:
+                (authorizationCoordinate ~parentTypeName:displayName
+                   ~fieldName:item.name)
+              ~allowPublic:true ~attributes ~schemaState ~env;
             let args =
               mapFunctionArgs ~full ~debug ~env ~schemaState ~fnLoc:item.loc
                 ~fieldParentTypeName:displayName ~fieldName:item.name args
@@ -1524,6 +1590,11 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
             addFieldToObjectType ~env ~loc:item.loc ~field ~schemaState id
           | Some (GraphQLInterface {id; displayName}, args, returnType) ->
             (* Resolver for interface type. *)
+            registerAuthorizationAttributes
+              ~coordinate:
+                (authorizationCoordinate ~parentTypeName:displayName
+                   ~fieldName:item.name)
+              ~allowPublic:true ~attributes ~schemaState ~env;
             let args =
               mapFunctionArgs ~full ~debug ~env ~schemaState ~fnLoc:item.loc
                 ~fieldParentTypeName:displayName ~fieldName:item.name args

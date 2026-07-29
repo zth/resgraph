@@ -15,6 +15,22 @@ module Connections = ResGraph__Connections
 
 module Utils = ResGraph__Utils
 
+module Authorization = {
+  type outcome<'value, 'reason> =
+    | Allowed('value)
+    | Forbidden('reason)
+
+  type errorExtensions = {code: string}
+  type errorOptions = {extensions: errorExtensions}
+  type graphqlError = exn
+
+  @module("graphql") @new
+  external makeGraphQLError: (string, ~options: errorOptions) => graphqlError = "GraphQLError"
+
+  let raiseForbidden = (_reason: 'reason): 'value =>
+    throw(makeGraphQLError("Forbidden", ~options={extensions: {code: "FORBIDDEN"}}))
+}
+
 module Execute: {
   type document
 
@@ -170,8 +186,14 @@ module Execute: {
     | None => None
     }
 
-    executeParsed(schema, ~document, ~contextValue, ~variableValues?, ~operationName?, ~rootValue?)
-    ->Promise.thenResolve(executionResultToJson)
+    executeParsed(
+      schema,
+      ~document,
+      ~contextValue,
+      ~variableValues?,
+      ~operationName?,
+      ~rootValue?,
+    )->Promise.thenResolve(executionResultToJson)
   }
 
   let execute = (
