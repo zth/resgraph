@@ -43,6 +43,8 @@ let validAttributes =
     ("gql.scalar", "");
     ("gql.authorize", "Attaches a typed authorization function.");
     ("gql.public", "Marks a field public with a required reason.");
+    ( "gql.authorizationUnchecked",
+      "Temporarily excludes a field from required authorization coverage." );
   ]
 
 let hasGqlAnnotation attributes =
@@ -93,7 +95,10 @@ let extractGqlAttribute ~(schemaState : GenerateSchemaTypes.schemaState)
       | ["gql"; "union"] -> Some Union
       | ["gql"; "inputObject"] -> Some InputObject
       | ["gql"; "inputUnion"] -> Some InputUnion
-      | ["gql"; "authorize"] | ["gql"; "public"] -> None
+      | ["gql"; "authorize"]
+      | ["gql"; "public"]
+      | ["gql"; "authorizationUnchecked"] ->
+        None
       | "gql" :: _ ->
         schemaState
         |> addDiagnostic
@@ -148,7 +153,7 @@ let extractGqlImplementsAttributes
       | _ -> None)
 
 let emptyDeclaredAuthorization : declaredAuthorization =
-  {functions = []; public = None}
+  {functions = []; public = None; unchecked = None}
 
 let authorizationCoordinate ~parentTypeName ~fieldName =
   parentTypeName ^ "." ^ fieldName
@@ -185,8 +190,9 @@ let functionReferenceFromPayload ~schemaState ~(env : SharedTypes.QueryEnv.t)
        `Security.canRead`.";
     None
 
-let publicReasonFromPayload ~schemaState ~(env : SharedTypes.QueryEnv.t)
-    ~attributeLoc (payload : Parsetree.payload) =
+let authorizationReasonFromPayload ~annotation ~example ~schemaState
+    ~(env : SharedTypes.QueryEnv.t) ~attributeLoc (payload : Parsetree.payload)
+    =
   let reason =
     match payload with
     | PStr
@@ -215,12 +221,13 @@ let publicReasonFromPayload ~schemaState ~(env : SharedTypes.QueryEnv.t)
     Some {reason; loc = attributeLoc; fileUri = env.file.uri}
   | _ ->
     addAuthorizationDiagnostic ~schemaState ~env ~loc:attributeLoc
-      "`@gql.public` requires a reason with at least 3 non-whitespace \
-       characters, for example `@gql.public({reason: \"Public profile \
-       data\"})`.";
+      (Printf.sprintf
+         "`@gql.%s` requires a reason with at least 3 non-whitespace \
+          characters, for example `%s`."
+         annotation example);
     None
 
-let extractDeclaredAuthorization ~allowPublic ~schemaState
+let extractDeclaredAuthorization ~allowFieldDispositions ~schemaState
     ~(env : SharedTypes.QueryEnv.t) (attributes : Parsetree.attributes) =
   attributes
   |> List.fold_left
@@ -235,15 +242,16 @@ let extractDeclaredAuthorization ~allowPublic ~schemaState
            | None -> declared
            | Some fn -> {declared with functions = declared.functions @ [fn]})
          | ["gql"; "public"] -> (
-           if not allowPublic then (
+           if not allowFieldDispositions then (
              addAuthorizationDiagnostic ~schemaState ~env ~loc:name.loc
                "`@gql.public` can only be used on output fields or resolver \
                 functions, not on a type.";
              declared)
            else
              match
-               publicReasonFromPayload ~schemaState ~env ~attributeLoc:name.loc
-                 payload
+               authorizationReasonFromPayload ~annotation:"public"
+                 ~example:"`@gql.public({reason: \"Public profile data\"})`"
+                 ~schemaState ~env ~attributeLoc:name.loc payload
              with
              | None -> declared
              | Some public -> (
@@ -253,12 +261,40 @@ let extractDeclaredAuthorization ~allowPublic ~schemaState
                  addAuthorizationDiagnostic ~schemaState ~env ~loc:name.loc
                    "Only one `@gql.public` annotation is allowed per field.";
                  declared))
+         | ["gql"; "authorizationUnchecked"] -> (
+           if not allowFieldDispositions then (
+             addAuthorizationDiagnostic ~schemaState ~env ~loc:name.loc
+               "`@gql.authorizationUnchecked` can only be used on output \
+                fields or resolver functions, not on a type.";
+             declared)
+           else
+             match
+               authorizationReasonFromPayload
+                 ~annotation:"authorizationUnchecked"
+                 ~example:
+                   "`@gql.authorizationUnchecked({reason: \"Authorization \
+                    migration\"})`"
+                 ~schemaState ~env ~attributeLoc:name.loc payload
+             with
+             | None -> declared
+             | Some unchecked -> (
+               match declared.unchecked with
+               | None -> {declared with unchecked = Some unchecked}
+               | Some _ ->
+                 addAuthorizationDiagnostic ~schemaState ~env ~loc:name.loc
+                   "Only one `@gql.authorizationUnchecked` annotation is \
+                    allowed per field.";
+                 declared))
          | _ -> declared)
        emptyDeclaredAuthorization
 
 let registerAuthorizationDeclaration ~coordinate
     (declared : declaredAuthorization) ~(schemaState : schemaState) =
-  if declared.functions = [] && Option.is_none declared.public then ()
+  if
+    declared.functions = []
+    && Option.is_none declared.public
+    && Option.is_none declared.unchecked
+  then ()
   else
     match Hashtbl.find_opt schemaState.authorizationDeclarations coordinate with
     | None ->
@@ -275,12 +311,16 @@ let registerAuthorizationDeclaration ~coordinate
             (match (existing.public, declared.public) with
             | Some public, _ -> Some public
             | None, public -> public);
+          unchecked =
+            (match (existing.unchecked, declared.unchecked) with
+            | Some unchecked, _ -> Some unchecked
+            | None, unchecked -> unchecked);
         }
 
-let registerAuthorizationAttributes ~coordinate ~allowPublic ~attributes
-    ~schemaState ~env =
+let registerAuthorizationAttributes ~coordinate ~allowFieldDispositions
+    ~attributes ~schemaState ~env =
   attributes
-  |> extractDeclaredAuthorization ~allowPublic ~schemaState ~env
+  |> extractDeclaredAuthorization ~allowFieldDispositions ~schemaState ~env
   |> registerAuthorizationDeclaration ~coordinate ~schemaState
 
 let getFieldAttribute gqlAttribute =

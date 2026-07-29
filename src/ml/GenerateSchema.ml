@@ -255,7 +255,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
             let id = name in
             let displayName = capitalizeFirstChar id in
             registerAuthorizationAttributes ~coordinate:displayName
-              ~allowPublic:false ~attributes ~schemaState ~env;
+              ~allowFieldDispositions:false ~attributes ~schemaState ~env;
             noticeObjectType id ~displayName ~schemaState ~env
               ?description:
                 (GenerateSchemaUtils.attributesToDocstring attributes)
@@ -266,7 +266,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
             let id = name in
             let displayName = capitalizeFirstChar id in
             registerAuthorizationAttributes ~coordinate:displayName
-              ~allowPublic:false ~attributes ~schemaState ~env;
+              ~allowFieldDispositions:false ~attributes ~schemaState ~env;
             noticeObjectType id ~displayName ~schemaState ~env
               ?description:
                 (GenerateSchemaUtils.attributesToDocstring attributes)
@@ -283,7 +283,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
             let id = name in
             let displayName = capitalizeFirstChar id in
             registerAuthorizationAttributes ~coordinate:displayName
-              ~allowPublic:false ~attributes ~schemaState ~env;
+              ~allowFieldDispositions:false ~attributes ~schemaState ~env;
             noticeObjectType id ~displayName ~schemaState ~env
               ?description:
                 (GenerateSchemaUtils.attributesToDocstring attributes)
@@ -312,7 +312,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
             let id = name in
             let displayName = capitalizeFirstChar id in
             registerAuthorizationAttributes ~coordinate:displayName
-              ~allowPublic:false ~attributes ~schemaState ~env;
+              ~allowFieldDispositions:false ~attributes ~schemaState ~env;
             addInterface id ~schemaState ~debug ~makeInterface:(fun () ->
                 {
                   id;
@@ -1041,7 +1041,8 @@ and objectTypeFieldsOfRecordFields ~objectTypeName ~env ~schemaState ~debug
         ~coordinate:
           (authorizationCoordinate ~parentTypeName:objectTypeName
              ~fieldName:name)
-        ~allowPublic:true ~attributes:field.attributes ~schemaState ~env;
+        ~allowFieldDispositions:true ~attributes:field.attributes ~schemaState
+        ~env;
       let typ =
         findGraphQLType fieldType ~debug ~loc:field.fname.loc ~full ~env
           ~schemaState
@@ -1091,7 +1092,8 @@ and objectTypeFieldsOfInlineRecordFields ~objectTypeName ~env ~schemaState
         ~coordinate:
           (authorizationCoordinate ~parentTypeName:objectTypeName
              ~fieldName:name)
-        ~allowPublic:true ~attributes:field.attributes ~schemaState ~env;
+        ~allowFieldDispositions:true ~attributes:field.attributes ~schemaState
+        ~env;
       let typ =
         findGraphQLType fieldType ~debug ~loc:field.fname.loc ~full ~env
           ~schemaState
@@ -1318,7 +1320,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
           let id = item.name in
           let displayName = capitalizeFirstChar item.name in
           registerAuthorizationAttributes ~coordinate:displayName
-            ~allowPublic:false ~attributes ~schemaState ~env;
+            ~allowFieldDispositions:false ~attributes ~schemaState ~env;
           noticeObjectType ~env ~loc:decl.type_loc ~schemaState
             ?description:(attributesToDocstring attributes)
             ~displayName
@@ -1329,7 +1331,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
           let id = item.name in
           let displayName = capitalizeFirstChar item.name in
           registerAuthorizationAttributes ~coordinate:displayName
-            ~allowPublic:false ~attributes ~schemaState ~env;
+            ~allowFieldDispositions:false ~attributes ~schemaState ~env;
           noticeObjectType ~env ~loc:decl.type_loc ~schemaState
             ?description:(attributesToDocstring attributes)
             ~displayName ~explicitInterfaces:gqlImplementsAttributes
@@ -1361,7 +1363,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
           let id = item.name in
           let displayName = capitalizeFirstChar item.name in
           registerAuthorizationAttributes ~coordinate:displayName
-            ~allowPublic:false ~attributes ~schemaState ~env;
+            ~allowFieldDispositions:false ~attributes ~schemaState ~env;
           addInterface id ~schemaState ~debug ~makeInterface:(fun () ->
               {
                 id;
@@ -1553,7 +1555,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
               ~coordinate:
                 (authorizationCoordinate ~parentTypeName:displayName
                    ~fieldName:item.name)
-              ~allowPublic:true ~attributes ~schemaState ~env;
+              ~allowFieldDispositions:true ~attributes ~schemaState ~env;
             let args =
               mapFunctionArgs ~full ~debug ~env ~schemaState ~fnLoc:item.loc
                 ~fieldParentTypeName:displayName ~fieldName:item.name args
@@ -1611,7 +1613,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
               ~coordinate:
                 (authorizationCoordinate ~parentTypeName:displayName
                    ~fieldName:item.name)
-              ~allowPublic:true ~attributes ~schemaState ~env;
+              ~allowFieldDispositions:true ~attributes ~schemaState ~env;
             let args =
               mapFunctionArgs ~full ~debug ~env ~schemaState ~fnLoc:item.loc
                 ~fieldParentTypeName:displayName ~fieldName:item.name args

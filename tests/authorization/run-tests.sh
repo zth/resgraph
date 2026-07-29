@@ -93,6 +93,63 @@ grep -F 'has invalid `~ctx`' "$tmp_dir/invalid-result.json" >/dev/null
 grep -F 'Required authorization coverage does not support subscriptions yet.' \
   "$tmp_dir/invalid-result.json" >/dev/null
 
+grep -F '`@gql.authorizationUnchecked` can only be used on output fields or resolver functions' \
+  "$tmp_dir/invalid-result.json" >/dev/null
+grep -F 'is marked `@gql.authorizationUnchecked` but already has an authorization disposition' \
+  "$tmp_dir/invalid-result.json" >/dev/null
+grep -F '`@gql.authorizationUnchecked` requires a reason with at least 3 non-whitespace characters' \
+  "$tmp_dir/invalid-result.json" >/dev/null
+grep -F 'Only one `@gql.authorizationUnchecked` annotation is allowed per field.' \
+  "$tmp_dir/invalid-result.json" >/dev/null
+
+cp -R "$root_dir/tests/authorization/bootstrap" "$tmp_dir/bootstrap-project"
+mkdir -p "$tmp_dir/bootstrap-project/generated/schema"
+(
+  cd "$tmp_dir/bootstrap-project"
+  "$rescript_bin"
+)
+bootstrap_state_file="$tmp_dir/bootstrap-project/lib/.resgraphState.marshal"
+bootstrap_state_before="$(sha256sum "$bootstrap_state_file" | cut -d ' ' -f 1)"
+bootstrap_output="$(
+  cd "$tmp_dir/bootstrap-project"
+  node "$root_dir/cli/Cli.mjs" authorization bootstrap \
+    --reason "Legacy field pending security review"
+)"
+bootstrap_state_after="$(sha256sum "$bootstrap_state_file" | cut -d ' ' -f 1)"
+if [[ "$bootstrap_state_before" != "$bootstrap_state_after" ]]; then
+  echo "Authorization bootstrap modified the compiler state file." >&2
+  exit 1
+fi
+printf '%s' "$bootstrap_output" | \
+  grep -F 'Added @gql.authorizationUnchecked to 4 fields across 3 files.' >/dev/null
+annotation_count="$(
+  grep -R -h -F '@gql.authorizationUnchecked' \
+    "$tmp_dir/bootstrap-project/src" | wc -l | tr -d ' '
+)"
+if [[ "$annotation_count" != "4" ]]; then
+  echo "Authorization bootstrap did not annotate each migration field exactly once." >&2
+  exit 1
+fi
+(
+  cd "$tmp_dir/bootstrap-project"
+  "$rescript_bin"
+  node "$root_dir/cli/Cli.mjs" build >/dev/null
+)
+jq -e '
+  ([.fields[] | select(.disposition == "unchecked")] | length) == 4 and
+  ([.fields[] | select(.disposition == "unchecked") | .unchecked.reason] | unique) ==
+    ["Legacy field pending security review"] and
+  ([.fields[] | select(.coordinate == "Mutation.legacyMutation")][0].resolverOutcome.async == false) and
+  ([.fields[] | select(.coordinate == "Subscription.events")][0].public.reason ==
+    "Existing subscription disposition")
+' "$tmp_dir/bootstrap-project/generated/authorization-manifest.json" >/dev/null
+second_bootstrap_output="$(
+  cd "$tmp_dir/bootstrap-project"
+  node "$root_dir/cli/Cli.mjs" authorization bootstrap
+)"
+printf '%s' "$second_bootstrap_output" | \
+  grep -F 'All executable fields already have authorization coverage.' >/dev/null
+
 cp "$root_dir/tests/authorization/valid/expected-authorization-manifest.json" \
   "$tmp_dir/valid/authorization-manifest.json"
 if "$resgraph_bin" generate-schema \

@@ -48,6 +48,7 @@ let printResolverForField ~parentTypeName ~(schemaState : schemaState)
       {
         functions = [];
         public = None;
+        unchecked = None;
         resolverOutcome =
           Hashtbl.find_opt schemaState.resolverOutcomes coordinate;
         synthetic = Hashtbl.mem schemaState.authorizationExemptions coordinate;

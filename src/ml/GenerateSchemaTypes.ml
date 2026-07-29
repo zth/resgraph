@@ -41,11 +41,15 @@ type authorizationFunctionReference = {
   fileUri: Uri.t;
 }
 
-type publicAuthorization = {reason: string; loc: Location.t; fileUri: Uri.t}
+type authorizationReason = {reason: string; loc: Location.t; fileUri: Uri.t}
+
+type publicAuthorization = authorizationReason
+type uncheckedAuthorization = authorizationReason
 
 type declaredAuthorization = {
   functions: authorizationFunctionReference list;
   public: publicAuthorization option;
+  unchecked: uncheckedAuthorization option;
 }
 
 type authorizationInjection = AuthorizationContext | AuthorizationInfo
@@ -68,6 +72,7 @@ type resolverOutcome = {isAsync: bool}
 type effectiveAuthorizationPlan = {
   functions: authorizationFunction list;
   public: publicAuthorization option;
+  unchecked: uncheckedAuthorization option;
   resolverOutcome: resolverOutcome option;
   synthetic: bool;
 }

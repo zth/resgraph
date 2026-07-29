@@ -21,6 +21,7 @@ Available commands:
 init       | Initializes a new project.
 build      | Builds the project.
 watch      | Builds the project and watches for changes.
+authorization bootstrap [--reason <reason>] | Mark current authorization gaps for migration.
 tools      | Show available ResGraph tools.
 help       | Show this help message.
 `
@@ -79,6 +80,16 @@ let printFindDefinition = (~target, ~jsonOutput) => {
     Console.error("Unexpected response from ResGraph tools command.")
     Process.process->Process.exitWithCode(1)
   }
+}
+
+let runAuthorizationBootstrap = reason => {
+  let config = switch Utils.readConfigFromCwd() {
+  | Error(msg) => panic(msg)
+  | Ok(config) => config
+  }
+
+  validateConfig(config)
+  AuthorizationBootstrap.run(~config, ~reason)
 }
 
 try {
@@ -155,6 +166,9 @@ try {
       ~config,
     )
     Console.log("Watching for changes...")
+  | list{"authorization", "bootstrap"} =>
+    runAuthorizationBootstrap(AuthorizationBootstrap.defaultReason)
+  | list{"authorization", "bootstrap", "--reason", reason} => runAuthorizationBootstrap(reason)
   | list{"lsp", configFilePath} => Lsp.start(~configFilePath, ~mode=Lsp.Stdio)
   | list{"tools", "find-definition", ...rest} =>
     switch parseFindDefinitionArgs(rest) {

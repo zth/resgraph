@@ -4,6 +4,7 @@ let help =
 
 Commands:
   generate-schema <sourceFolder> <outputFolder> [printSdl:boolean]
+  authorization-bootstrap <sourceFolder> <outputFolder>
   completion <path> <line> <col> <currentFile>
   hover <path> <line> <col>
   hover-graphql <path> <hoverHint>
@@ -28,8 +29,16 @@ let run_generate ~sourceFolder ~outputFolder ~writeSdlFile ~authorizationConfig
     ~debug:false ~outputFolder ~writeSdlFile ~printToStdOut:true
     ~authorizationConfig
 
+let run_authorization_bootstrap ~sourceFolder ~outputFolder =
+  GenerateSchemaDirect.generateSchemaDirect ~writeStateFile:false ~sourceFolder
+    ~debug:false ~outputFolder ~writeSdlFile:false ~printToStdOut:true
+    ~authorizationConfig:
+      {mode = AuthorizationRequired; onForbidden = None; manifestPath = None}
+
 let main () =
   match Array.to_list Sys.argv with
+  | [_; "authorization-bootstrap"; sourceFolder; outputFolder] ->
+    run_authorization_bootstrap ~sourceFolder ~outputFolder
   | [
    _;
    "generate-schema";

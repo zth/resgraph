@@ -168,6 +168,26 @@ non-whitespace characters:
 Using `@gql.public` together with `@gql.authorize` on the same effective field
 is an error.
 
+## Incremental adoption
+
+`@gql.authorizationUnchecked({reason})` is a field-only migration disposition.
+It adds no runtime check, is emitted as `unchecked` in the authorization
+manifest, and suppresses required-coverage errors while an application adopts
+real dispositions incrementally. It is invalid on whole object or interface
+types, so new fields cannot inherit the migration exception.
+
+Unchecked coverage conflicts with sufficient real coverage and must be removed
+when a policy, public disposition, or resolver outcome replaces it. An
+outcome-only mutation may remain unchecked until it gains a pre-resolver policy.
+A subscription may combine unchecked coverage with existing disposition
+metadata because subscription enforcement itself remains unsupported.
+
+`resgraph authorization bootstrap [--reason <reason>]` runs an isolated,
+no-state-write authorization analysis and annotates only current coverage gaps.
+It handles uncovered fields, outcome-only mutations, and subscriptions, refuses
+to edit when unrelated schema diagnostics exist, and is idempotent after the
+project is recompiled.
+
 ## Coverage and composition
 
 For each concrete executable field, build an authorization plan in this order:

@@ -267,7 +267,7 @@ let validateFunction ~loader ~(package : SharedTypes.package) ~schemaState
 let declaration schemaState coordinate =
   match Hashtbl.find_opt schemaState.authorizationDeclarations coordinate with
   | Some declaration -> declaration
-  | None -> {functions = []; public = None}
+  | None -> {functions = []; public = None; unchecked = None}
 
 type plannedReference = {
   reference: authorizationFunctionReference;
@@ -319,6 +319,17 @@ let interfacePublic schemaState (typ : gqlObjectType) fieldName =
               ~parentTypeName:intf.displayName ~fieldName))
           .public)
 
+let interfaceUnchecked schemaState (typ : gqlObjectType) fieldName =
+  typ.interfaces
+  |> List.find_map (fun interfaceId ->
+      match Hashtbl.find_opt schemaState.interfaces interfaceId with
+      | None -> None
+      | Some intf ->
+        (declaration schemaState
+           (GenerateSchemaUtils.authorizationCoordinate
+              ~parentTypeName:intf.displayName ~fieldName))
+          .unchecked)
+
 let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
     ~(typ : gqlObjectType) ~(field : gqlField) =
   let coordinate =
@@ -362,6 +373,11 @@ let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
     | Some public -> Some public
     | None -> interfacePublic schemaState typ field.name
   in
+  let unchecked =
+    match fieldDeclaration.unchecked with
+    | Some unchecked -> Some unchecked
+    | None -> interfaceUnchecked schemaState typ field.name
+  in
   let hasPolicies = references <> [] in
   (match public with
   | Some public when hasPolicies || Option.is_some resolverOutcome ->
@@ -379,12 +395,32 @@ let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
                  coordinate;
            }
   | _ -> ());
+  (match unchecked with
+  | Some unchecked
+    when typ.id <> "subscription"
+         && (Option.is_some public || hasPolicies
+            || (Option.is_some resolverOutcome && typ.id <> "mutation")) ->
+    schemaState
+    |> addDiagnostic
+         ~diagnostic:
+           {
+             loc = unchecked.loc;
+             fileUri = unchecked.fileUri;
+             message =
+               Printf.sprintf
+                 "`%s` is marked `@gql.authorizationUnchecked` but already has \
+                  an authorization disposition. Remove the migration \
+                  annotation."
+                 coordinate;
+           }
+  | _ -> ());
   Hashtbl.replace schemaState.authorizationPlans coordinate
-    {functions; public; resolverOutcome; synthetic};
+    {functions; public; unchecked; resolverOutcome; synthetic};
   match schemaState.authorizationConfig.mode with
   | AuthorizationOptional -> ()
   | AuthorizationRequired ->
-    if typ.id = "subscription" then
+    if synthetic || Option.is_some unchecked then ()
+    else if typ.id = "subscription" then
       schemaState
       |> addDiagnostic
            ~diagnostic:
@@ -395,7 +431,6 @@ let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
                  "Required authorization coverage does not support \
                   subscriptions yet.";
              }
-    else if synthetic then ()
     else if
       Option.is_none public && references = [] && Option.is_none resolverOutcome
     then
@@ -409,8 +444,9 @@ let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
                  Printf.sprintf
                    "Field `%s` has no authorization disposition. Add \
                     `@gql.authorize(...)`, return \
-                    `ResGraph.Authorization.outcome`, or declare \
-                    `@gql.public({reason: \"...\"})`."
+                    `ResGraph.Authorization.outcome`, declare \
+                    `@gql.public({reason: \"...\"})`, or temporarily add \
+                    `@gql.authorizationUnchecked({reason: \"...\"})`."
                    coordinate;
              }
     else if typ.id = "mutation" && Option.is_none public && references = [] then
@@ -464,13 +500,18 @@ let manifestPolicy ~package (fn : authorizationFunction) =
 let manifestField ~package coordinate (plan : effectiveAuthorizationPlan) =
   let disposition =
     match
-      (plan.synthetic, plan.public, plan.functions, plan.resolverOutcome)
+      ( plan.synthetic,
+        plan.unchecked,
+        plan.public,
+        plan.functions,
+        plan.resolverOutcome )
     with
-    | true, _, _, _ -> "synthetic"
-    | false, Some _, _, _ -> "public"
-    | false, None, _ :: _, _ -> "policies"
-    | false, None, [], Some _ -> "resolverOutcome"
-    | false, None, [], None -> "uncovered"
+    | true, _, _, _, _ -> "synthetic"
+    | false, Some _, _, _, _ -> "unchecked"
+    | false, None, Some _, _, _ -> "public"
+    | false, None, None, _ :: _, _ -> "policies"
+    | false, None, None, [], Some _ -> "resolverOutcome"
+    | false, None, None, [], None -> "uncovered"
   in
   let publicJson =
     match plan.public with
@@ -481,6 +522,15 @@ let manifestField ~package coordinate (plan : effectiveAuthorizationPlan) =
         (jsonString (relativeSourcePath ~package public.fileUri))
         (jsonString (Loc.toString public.loc))
   in
+  let uncheckedJson =
+    match plan.unchecked with
+    | None -> "null"
+    | Some unchecked ->
+      Printf.sprintf "{\"reason\":%s,\"file\":%s,\"location\":%s}"
+        (jsonString unchecked.reason)
+        (jsonString (relativeSourcePath ~package unchecked.fileUri))
+        (jsonString (Loc.toString unchecked.loc))
+  in
   let resolverOutcomeJson =
     match plan.resolverOutcome with
     | None -> "null"
@@ -488,12 +538,12 @@ let manifestField ~package coordinate (plan : effectiveAuthorizationPlan) =
       Printf.sprintf "{\"async\":%s}" (if isAsync then "true" else "false")
   in
   Printf.sprintf
-    "{\"coordinate\":%s,\"disposition\":%s,\"mutation\":%s,\"policies\":[%s],\"public\":%s,\"resolverOutcome\":%s}"
+    "{\"coordinate\":%s,\"disposition\":%s,\"mutation\":%s,\"policies\":[%s],\"public\":%s,\"unchecked\":%s,\"resolverOutcome\":%s}"
     (jsonString coordinate) (jsonString disposition)
     (if String.starts_with coordinate ~prefix:"Mutation." then "true"
      else "false")
     (plan.functions |> List.map (manifestPolicy ~package) |> String.concat ",")
-    publicJson resolverOutcomeJson
+    publicJson uncheckedJson resolverOutcomeJson
 
 let rec ensureDirectory path =
   if path = "" || path = "." || Sys.file_exists path then ()

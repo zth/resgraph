@@ -1,0 +1,8 @@
+{
+  "src": "./src",
+  "outputFolder": "./generated/schema",
+  "authorization": {
+    "mode": "required",
+    "manifestPath": "./generated/authorization-manifest.json"
+  }
+}

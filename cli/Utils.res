@@ -30,6 +30,7 @@ type privateCliCall =
       dumpSchemaSdl?: bool,
       authorization?: authorizationConfig,
     })
+  | BootstrapAuthorization({src: string, outputFolder: string})
   | Completion({filePath: string, position: LspProtocol.loc, tmpname: string})
   | Hover({filePath: string, position: LspProtocol.loc})
   | HoverGraphQL({filePath: string, hoverHint: string})
@@ -58,6 +59,11 @@ let privateCliCallToArgs = call =>
         authorization.manifestPath->Option.getOr("-"),
       ])
     }
+  | BootstrapAuthorization({src, outputFolder}) => [
+      "authorization-bootstrap",
+      src->resolveRelative,
+      outputFolder,
+    ]
   | Completion({filePath, position, tmpname}) => [
       "completion",
       filePath,

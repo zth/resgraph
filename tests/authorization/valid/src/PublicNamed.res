@@ -1,5 +1,5 @@
 @gql.interface
 type publicNamed = {
-  @gql.public({reason: "Names are public across this interface"}) @gql.field
+  @gql.authorizationUnchecked({reason: "Legacy interface field pending migration"}) @gql.field
   label: string,
 }

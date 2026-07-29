@@ -1,4 +1,6 @@
-@gql.public({reason: "Types cannot be public"}) @gql.type
+@gql.public({reason: "Types cannot be public"})
+@gql.authorizationUnchecked({reason: "Types cannot be unchecked"})
+@gql.type
 type query
 
 @gql.field
@@ -19,7 +21,10 @@ let badReturn = (_: query): string => "bad return"
 @gql.authorize(Security.extraLabel) @gql.field
 let extraLabel = (_: query): string => "extra label"
 
-@gql.public({reason: "Conflicting disposition"}) @gql.authorize(Security.good) @gql.field
+@gql.public({reason: "Conflicting disposition"})
+@gql.authorizationUnchecked({reason: "Migration annotation must be removed"})
+@gql.authorize(Security.good)
+@gql.field
 let publicConflict = (_: query): string => "conflict"
 
 @gql.public({reason: "First"}) @gql.public({reason: "Second"}) @gql.field
@@ -39,3 +44,17 @@ let badContext = (_: query): string => "bad context"
 
 @gql.authorize(Security.nonUnitOutcome) @gql.field
 let nonUnitOutcome = (_: query): string => "bad outcome"
+
+@gql.authorizationUnchecked({reason: "Resolver outcome is already coverage"}) @gql.field
+let uncheckedOutcome = (_: query): ResGraph.Authorization.outcome<
+  string,
+  string,
+> => ResGraph.Authorization.Allowed("covered")
+
+@gql.authorizationUnchecked({reason: "a b"}) @gql.field
+let shortUncheckedReason = (_: query): string => "short"
+
+@gql.authorizationUnchecked({reason: "First migration reason"})
+@gql.authorizationUnchecked({reason: "Second migration reason"})
+@gql.field
+let duplicateUnchecked = (_: query): string => "duplicate"

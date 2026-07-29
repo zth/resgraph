@@ -93,6 +93,43 @@ let health = (_: query) => "ok"
 
 Public coverage cannot be combined with a policy or resolver outcome.
 
+## Incremental adoption
+
+Compile the project, enable required mode, and bootstrap the fields that do not
+have a disposition yet:
+
+```sh
+resgraph authorization bootstrap
+```
+
+Pass `--reason "SEC-123 authorization migration"` to use a project-specific
+reason. The command performs an isolated authorization analysis and adds a
+field-level migration annotation at each current coverage gap:
+
+```rescript
+@gql.authorizationUnchecked({reason: "SEC-123 authorization migration"})
+@gql.field
+let legacyField = (source: legacyType) => source.value
+```
+
+`@gql.authorizationUnchecked` adds no runtime check. It temporarily excludes
+that field from required coverage and records it in the manifest with the
+`unchecked` disposition, reason, and source location. It can also bootstrap
+subscriptions and outcome-only mutations, which required mode otherwise
+rejects. On subscriptions it may coexist with an existing field disposition,
+because the migration gap is subscription enforcement itself.
+
+The annotation is intentionally unavailable on whole object types. Therefore,
+new fields fail required coverage instead of silently inheriting migration
+debt. Replace each annotation with `@gql.authorize`, `@gql.public`, or resolver
+outcome coverage as appropriate. ResGraph reports a conflict if an unchecked
+field acquires sufficient real coverage without removing its migration
+annotation. Running the bootstrap command again is idempotent.
+
+Bootstrap refuses to edit source files when schema generation reports unrelated
+errors. Commit the authorization manifest and track the number of `unchecked`
+dispositions toward zero in CI.
+
 ## Forbidden responses
 
 By default, denial raises a generic GraphQL error with message `Forbidden` and `extensions.code = "FORBIDDEN"`. The typed policy reason is not exposed to clients.
