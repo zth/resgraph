@@ -14,6 +14,7 @@ build: node_modules/.bin/rescript
 
 test: build
 	./test.sh
+	authorization/run-tests.sh
 
 clean:
 	rm -r node_modules lib

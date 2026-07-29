@@ -14,6 +14,8 @@
     {"coordinate":"OutcomeDevice.computed","disposition":"public","mutation":false,"policies":[],"public":{"reason":"Concrete override has its own public disposition","file":"src/OutcomeDevice.res","location":"[12:0->12:11]"},"resolverOutcome":null},
     {"coordinate":"OutcomeDevice.id","disposition":"public","mutation":false,"policies":[],"public":{"reason":"Identifiers are public across this interface","file":"src/OutcomeNamed.res","location":"[2:2->2:13]"},"resolverOutcome":null},
     {"coordinate":"PublicDevice.label","disposition":"public","mutation":false,"policies":[],"public":{"reason":"Names are public across this interface","file":"src/PublicNamed.res","location":"[2:2->2:13]"},"resolverOutcome":null},
+    {"coordinate":"Query.aliasedAsyncOutcome","disposition":"resolverOutcome","mutation":false,"policies":[],"public":null,"resolverOutcome":{"async":true}},
+    {"coordinate":"Query.aliasedOutcome","disposition":"resolverOutcome","mutation":false,"policies":[],"public":null,"resolverOutcome":{"async":false}},
     {"coordinate":"Query.asyncOutcome","disposition":"resolverOutcome","mutation":false,"policies":[],"public":null,"resolverOutcome":{"async":true}},
     {"coordinate":"Query.asyncValue","disposition":"policies","mutation":false,"policies":[{"path":"Security.canLoadAsync","provenance":"field:Query.asyncValue","file":"src/Query.res","location":"[17:0->17:14]","async":true}],"public":null,"resolverOutcome":null},
     {"coordinate":"Query.declared","disposition":"policies","mutation":false,"policies":[{"path":"Security.first","provenance":"field:Query.declared","file":"src/Query.res","location":"[44:0->44:14]","async":false}],"public":null,"resolverOutcome":null},

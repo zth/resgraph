@@ -7,31 +7,14 @@ let addAuthorizationDiagnostic schemaState
   |> addDiagnostic
        ~diagnostic:{loc = reference.loc; fileUri = reference.fileUri; message}
 
-let rec expandTransparentAlias ~env ~package typ =
-  let typ = TypeUtils.unwrapType typ in
-  match typ.desc with
-  | Tconstr (path, typeArgs, _) -> (
-    match References.digConstructor ~env ~package path with
-    | Some
-        ( aliasEnv,
-          {
-            item =
-              {decl = {type_manifest = Some manifest; type_params = typeParams}};
-          } ) ->
-      manifest
-      |> TypeUtils.instantiateType ~typeParams ~typeArgs
-      |> expandTransparentAlias ~env:aliasEnv ~package
-    | _ -> typ)
-  | _ -> typ
-
 let isUnitType ~env ~package typ =
-  match (expandTransparentAlias ~env ~package typ).desc with
+  match (TypeUtils.expandTransparentAlias ~env ~package typ).desc with
   | Tconstr (path, [], _) -> Path.same path Predef.path_unit
   | _ -> false
 
 let objectFieldNames ~env ~package typ =
   let rec fields acc typ =
-    match (expandTransparentAlias ~env ~package typ).desc with
+    match (TypeUtils.expandTransparentAlias ~env ~package typ).desc with
     | Tfield (name, kind, _fieldType, rest) ->
       let acc =
         match Btype.field_kind_repr kind with
@@ -42,7 +25,7 @@ let objectFieldNames ~env ~package typ =
     | Tnil | Tvar _ -> Some (List.rev acc)
     | _ -> None
   in
-  match (expandTransparentAlias ~env ~package typ).desc with
+  match (TypeUtils.expandTransparentAlias ~env ~package typ).desc with
   | Tobject (row, _) -> fields [] row
   | Tvar _ -> Some []
   | _ -> None
@@ -242,7 +225,9 @@ let validateFunction ~loader ~(package : SharedTypes.package) ~schemaState
           ~field typ
     in
     let outcome =
-      match GenerateSchema.extractAuthorizationOutcome returnType with
+      match
+        GenerateSchema.extractAuthorizationOutcome ~env ~package returnType
+      with
       | Some (allowedType, outcome) when isUnitType ~env ~package allowedType ->
         Some outcome
       | _ ->

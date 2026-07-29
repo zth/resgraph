@@ -7,6 +7,8 @@ resgraph_bin="${RESGRAPH_BIN:-$root_dir/_build/default/src/ml/Cli.exe}"
 tmp_dir="$(mktemp -d /tmp/resgraph-authorization-tests.XXXXXX)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
+cd "$root_dir"
+
 if [[ ! -x "$resgraph_bin" ]]; then
   echo "Build the native resgraph CLI first or set RESGRAPH_BIN." >&2
   exit 1
@@ -32,6 +34,9 @@ grep -F '"status": "Success"' "$tmp_dir/valid-result.json" >/dev/null
 grep -F 'let authorizationArgs = %raw(`{}`)' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 grep -F 'switch await Security.canLoadAsync' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 grep -F 'switch await Query.asyncOutcome' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
+grep -F 'switch AliasResolvers.aliasedOutcome' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
+grep -F 'switch await AliasResolvers.aliasedAsyncOutcome' \
+  "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 grep -F 'switch OutcomeNamed.computed' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 grep -F 'OutcomeDevice.computed(src)' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 if grep -F 'switch OutcomeDevice.computed' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null; then

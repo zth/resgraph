@@ -60,3 +60,23 @@ let instantiateType ~typeParams ~typeArgs (t : Types.type_expr) =
       | Rabsent -> Rabsent
     in
     loop t
+
+let rec expandTransparentAliasWithEnv ~env ~package typ =
+  let typ = unwrapType typ in
+  match typ.desc with
+  | Tconstr (path, typeArgs, _) -> (
+    match References.digConstructor ~env ~package path with
+    | Some
+        ( aliasEnv,
+          {
+            item =
+              {decl = {type_manifest = Some manifest; type_params = typeParams}};
+          } ) ->
+      manifest
+      |> instantiateType ~typeParams ~typeArgs
+      |> expandTransparentAliasWithEnv ~env:aliasEnv ~package
+    | _ -> (env, typ))
+  | _ -> (env, typ)
+
+let expandTransparentAlias ~env ~package typ =
+  expandTransparentAliasWithEnv ~env ~package typ |> snd

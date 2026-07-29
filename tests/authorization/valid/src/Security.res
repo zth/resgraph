@@ -8,7 +8,7 @@ let canFindUser = (
   ~args: findArgs,
   ~ctx: ResGraphContext.context,
   ~info: ResGraph.resolveInfo,
-): ResGraph.Authorization.outcome<nothing, reason> => {
+): AuthTypes.authResult<nothing, reason> => {
   let _ = (args["id"], ctx, info)
   ResGraph.Authorization.Allowed()
 }
