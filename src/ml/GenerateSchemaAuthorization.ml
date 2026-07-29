@@ -7,14 +7,31 @@ let addAuthorizationDiagnostic schemaState
   |> addDiagnostic
        ~diagnostic:{loc = reference.loc; fileUri = reference.fileUri; message}
 
-let isUnitType typ =
-  match (TypeUtils.unwrapType typ).desc with
+let rec expandTransparentAlias ~env ~package typ =
+  let typ = TypeUtils.unwrapType typ in
+  match typ.desc with
+  | Tconstr (path, typeArgs, _) -> (
+    match References.digConstructor ~env ~package path with
+    | Some
+        ( aliasEnv,
+          {
+            item =
+              {decl = {type_manifest = Some manifest; type_params = typeParams}};
+          } ) ->
+      manifest
+      |> TypeUtils.instantiateType ~typeParams ~typeArgs
+      |> expandTransparentAlias ~env:aliasEnv ~package
+    | _ -> typ)
+  | _ -> typ
+
+let isUnitType ~env ~package typ =
+  match (expandTransparentAlias ~env ~package typ).desc with
   | Tconstr (path, [], _) -> Path.same path Predef.path_unit
   | _ -> false
 
-let objectFieldNames typ =
+let objectFieldNames ~env ~package typ =
   let rec fields acc typ =
-    match (TypeUtils.unwrapType typ).desc with
+    match (expandTransparentAlias ~env ~package typ).desc with
     | Tfield (name, kind, _fieldType, rest) ->
       let acc =
         match Btype.field_kind_repr kind with
@@ -25,7 +42,7 @@ let objectFieldNames typ =
     | Tnil | Tvar _ -> Some (List.rev acc)
     | _ -> None
   in
-  match (TypeUtils.unwrapType typ).desc with
+  match (expandTransparentAlias ~env ~package typ).desc with
   | Tobject (row, _) -> fields [] row
   | Tvar _ -> Some []
   | _ -> None
@@ -90,9 +107,9 @@ let validateSource ~schemaState ~env ~package ~parentTypeName ~reference typ =
          parentTypeName);
     false
 
-let validateArgsObject ~schemaState ~reference ~parentTypeName
+let validateArgsObject ~env ~package ~schemaState ~reference ~parentTypeName
     ~(field : gqlField) typ =
-  match objectFieldNames typ with
+  match objectFieldNames ~env ~package typ with
   | None ->
     addAuthorizationDiagnostic schemaState reference
       (Printf.sprintf
@@ -221,11 +238,13 @@ let validateFunction ~loader ~(package : SharedTypes.package) ~schemaState
              (GenerateSchemaUtils.authorizationFunctionName reference));
         false
       | Some typ ->
-        validateArgsObject ~schemaState ~reference ~parentTypeName ~field typ
+        validateArgsObject ~env ~package ~schemaState ~reference ~parentTypeName
+          ~field typ
     in
     let outcome =
       match GenerateSchema.extractAuthorizationOutcome returnType with
-      | Some (allowedType, outcome) when isUnitType allowedType -> Some outcome
+      | Some (allowedType, outcome) when isUnitType ~env ~package allowedType ->
+        Some outcome
       | _ ->
         addAuthorizationDiagnostic schemaState reference
           (Printf.sprintf
