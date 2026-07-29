@@ -146,6 +146,34 @@ module Module = struct
   }
 
   and t = Ident of Path.t | Structure of structure | Constraint of t * t
+
+  let rec asStructure = function
+    | Structure structure -> Some structure
+    | Constraint (_, inner) -> asStructure inner
+    | Ident _ -> None
+
+  let rec findValueByPath (structure : structure) path =
+    match path with
+    | [] -> None
+    | [valueName] ->
+      structure.items
+      |> List.find_map (fun (item : item) ->
+          if item.name <> valueName then None
+          else
+            match item.kind with
+            | Value typ -> Some typ
+            | _ -> None)
+    | moduleName :: rest ->
+      structure.items
+      |> List.find_map (fun (item : item) ->
+          if item.name <> moduleName then None
+          else
+            match item.kind with
+            | Module {type_; _} -> (
+              match asStructure type_ with
+              | Some structure -> findValueByPath structure rest
+              | None -> None)
+            | _ -> None)
 end
 
 module Declared = struct

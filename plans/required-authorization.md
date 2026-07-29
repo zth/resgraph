@@ -158,7 +158,8 @@ object is only the GraphQL root. They do not by themselves guarantee that work
 or side effects inside the resolver were authorized before execution.
 
 `@gql.public` is an explicit authorization disposition, not an unchecked
-default. Its structured payload must contain a non-empty reason:
+default. Its structured payload must contain a reason with at least three
+non-whitespace characters:
 
 ```rescript
 @gql.public({reason: "Contains no tenant or user data"})
@@ -225,9 +226,11 @@ switch await OrganizationSecurity.canRead(~args, ~ctx, source) {
       ~documentId=args["documentId"],
       ?includeArchived=args["includeArchived"],
     )
-  | Forbidden(reason) => raise(Security.onForbidden(reason, ~ctx, ~info))
+  | Forbidden(reason) =>
+    ResGraph.Authorization.raiseError(Security.onForbidden(reason, ~ctx, ~info))
   }
-| Forbidden(reason) => raise(Security.onForbidden(reason, ~ctx, ~info))
+| Forbidden(reason) =>
+    ResGraph.Authorization.raiseError(Security.onForbidden(reason, ~ctx, ~info))
 }
 ```
 
@@ -263,7 +266,8 @@ The raw typed `Forbidden(reason)` payload is internal. ResGraph must not expose
 it to clients by default. The configured `onForbidden` handler may log, map, or
 replace the client-safe error, but the default behavior remains a generic
 forbidden error. A configured handler receives `(reason, ~ctx, ~info)` and
-returns the `exn` that generated code throws. Normal ReScript type checking
+returns a client-safe `ResGraph.Authorization.error` value, which generated code
+always raises. Normal ReScript type checking
 verifies that the handler accepts every effective reason type.
 
 ## Authorization manifest
@@ -324,7 +328,8 @@ type outcome<'value, 'reason> =
   | Forbidden('reason)
 ```
 
-The configured `onForbidden` handler is called directly from generated code.
+The configured `onForbidden` handler is called from generated code and its
+returned `ResGraph.Authorization.error` is always raised.
 Normal ReScript type checking therefore verifies its compatibility with every
 effective policy and resolver-outcome reason type.
 
@@ -340,7 +345,7 @@ Required mode must report source-located errors for:
 - An argument required by the `args` object row that the field does not define.
 - An unsupported labelled argument/injection.
 - An invalid authorization return type.
-- `@gql.public` without a non-empty reason.
+- `@gql.public` with a reason shorter than three non-whitespace characters.
 - Conflicting public and authorization annotations.
 - A resolver outcome whose allowed payload is not a valid GraphQL output type.
 - A non-public mutation covered only by a resolver outcome.
@@ -427,7 +432,8 @@ Authorization function `DocumentSecurity.canRead` requires argument
 - Resolver outcomes are unwrapped without changing the emitted GraphQL type.
 - A non-public mutation without a pre-resolver authorization function fails to
   build even if its resolver returns an outcome.
-- Public fields require an auditable non-empty reason.
+- Public fields require an auditable reason of at least three non-whitespace
+  characters.
 - A forbidden pre-resolver policy prevents the resolver, including a mutation,
   from executing.
 - Denial produces a client-safe `FORBIDDEN` error without exposing the raw

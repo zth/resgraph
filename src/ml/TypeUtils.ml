@@ -1,5 +1,15 @@
 (* Only keep the instantiation helpers that schema generation uses. *)
 
+let rec unwrapType (typ : Types.type_expr) =
+  match typ.desc with
+  | Tlink inner | Tsubst inner | Tpoly (inner, []) -> unwrapType inner
+  | _ -> typ
+
+let typeConstructorArgs ~name typ =
+  match (unwrapType typ).desc with
+  | Tconstr (path, args, _) when Path.name path = name -> Some args
+  | _ -> None
+
 let instantiateType ~typeParams ~typeArgs (t : Types.type_expr) =
   if typeParams = [] || typeArgs = [] then t
   else

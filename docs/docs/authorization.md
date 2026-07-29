@@ -9,7 +9,7 @@ ResGraph can require every application-defined GraphQL output field to have an e
   "authorization": {
     "mode": "required",
     "onForbidden": "Security.onForbidden",
-    "manifestPath": "./generated/authorization-manifest.json"
+    "manifestPath": "./src/schema/__generated__/authorization-manifest.json"
   }
 }
 ```
@@ -30,20 +30,29 @@ type user = {
   @gql.field email: string,
 }
 
+type reason = IncludeUnverifiedDenied
+
 let canReadEmail = (
   user: user,
-  ~args: {"includeUnverified": bool},
+  ~args,
   ~ctx: ResGraphContext.context,
   ~info: ResGraph.resolveInfo,
-): ResGraph.Authorization.outcome<unit, reason> => {
-  // Return Allowed() or Forbidden(reason).
+) => {
+  let includeUnverified = args["includeUnverified"]
+  let _ = (ctx, info)
+  // Return ResGraph.Authorization.Allowed() or ResGraph.Authorization.Forbidden(reason).
+  if includeUnverified {
+    ResGraph.Authorization.Forbidden(IncludeUnverifiedDenied)
+  } else {
+    ResGraph.Authorization.Allowed()
+  }
 }
 ```
 
 A policy must have:
 
 - The owning object or interface as its first unlabelled argument.
-- A mandatory `~args` polymorphic object, including `{}` for fields without arguments.
+- A mandatory `~args` polymorphic object (`{}` for fields without arguments).
 - Optional `~ctx` and `~info` injections, which are passed only when declared.
 - An `outcome<unit, 'reason>` return value, optionally wrapped in a promise.
 
@@ -72,7 +81,7 @@ ResGraph uses the `Allowed` payload as the GraphQL return type and unwraps it du
 
 ## Public fields
 
-Use `@gql.public` for intentionally public fields. A non-empty reviewable reason is required:
+Use `@gql.public` for intentionally public fields. A reviewable reason with at least three non-whitespace characters is required:
 
 ```rescript
 @gql.public({reason: "Contains no tenant or user data"})
@@ -86,16 +95,16 @@ Public coverage cannot be combined with a policy or resolver outcome.
 
 By default, denial raises a generic GraphQL error with message `Forbidden` and `extensions.code = "FORBIDDEN"`. The typed policy reason is not exposed to clients.
 
-A configured handler receives the reason plus GraphQL context and resolve info, and returns the exception to raise:
+A configured handler receives the reason plus GraphQL context and resolve info, and returns a client-safe `ResGraph.Authorization.error` value that generated code raises:
 
 ```rescript
 let onForbidden = (
   reason,
   ~ctx: ResGraphContext.context,
   ~info: ResGraph.resolveInfo,
-): exn => {
+) => {
   SecurityAudit.record(reason, ctx)
-  ClientSafeForbidden
+  ResGraph.Authorization.makeError(~message="Not authorized", ~code="FORBIDDEN")
 }
 ```
 

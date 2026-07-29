@@ -1113,13 +1113,8 @@ and objectTypeFieldsOfInlineRecordFields ~objectTypeName ~env ~schemaState
           })
 
 and extractAuthorizationOutcome (typ : Types.type_expr) =
-  let rec unwrap typ =
-    match typ.Types.desc with
-    | Tlink inner | Tsubst inner | Tpoly (inner, []) -> unwrap inner
-    | _ -> typ
-  in
   let outcomePayload typ =
-    let typ = unwrap typ in
+    let typ = TypeUtils.unwrapType typ in
     match typ.desc with
     | Tconstr (path, [allowedType; _reasonType], _) -> (
       match pathIdentToList path |> List.rev with
@@ -1129,14 +1124,13 @@ and extractAuthorizationOutcome (typ : Types.type_expr) =
       | _ -> None)
     | _ -> None
   in
-  let typ = unwrap typ in
-  match typ.desc with
-  | Tconstr (Path.Pident {name = "promise"}, [outcomeType], _) -> (
+  match TypeUtils.typeConstructorArgs ~name:"promise" typ with
+  | Some [outcomeType] -> (
     match outcomePayload outcomeType with
     | Some allowedType -> Some (allowedType, {isAsync = true})
     | None -> None)
   | _ -> (
-    match outcomePayload typ with
+    match outcomePayload (TypeUtils.unwrapType typ) with
     | Some allowedType -> Some (allowedType, {isAsync = false})
     | None -> None)
 

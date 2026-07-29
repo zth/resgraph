@@ -20,6 +20,7 @@ module Authorization = {
     | Allowed('value)
     | Forbidden('reason)
 
+  type error = {message: string, code: string}
   type errorExtensions = {code: string}
   type errorOptions = {extensions: errorExtensions}
   type graphqlError = exn
@@ -27,8 +28,13 @@ module Authorization = {
   @module("graphql") @new
   external makeGraphQLError: (string, ~options: errorOptions) => graphqlError = "GraphQLError"
 
+  let makeError = (~message, ~code): error => {message, code}
+
+  let raiseError = (error: error): 'value =>
+    throw(makeGraphQLError(error.message, ~options={extensions: {code: error.code}}))
+
   let raiseForbidden = (_reason: 'reason): 'value =>
-    throw(makeGraphQLError("Forbidden", ~options={extensions: {code: "FORBIDDEN"}}))
+    raiseError(makeError(~message="Forbidden", ~code="FORBIDDEN"))
 }
 
 module Execute: {
