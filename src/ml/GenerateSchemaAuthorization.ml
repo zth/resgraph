@@ -487,6 +487,11 @@ let rec ensureDirectory path =
     ensureDirectory (Filename.dirname path);
     Unix.mkdir path 0o755)
 
+let removeManifest (schemaState : schemaState) =
+  match schemaState.authorizationConfig.manifestPath with
+  | Some path when Sys.file_exists path -> Sys.remove path
+  | Some _ | None -> ()
+
 let writeManifest ~package (schemaState : schemaState) =
   match schemaState.authorizationConfig.manifestPath with
   | None -> ()

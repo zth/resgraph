@@ -50,8 +50,13 @@ diff -u "$root_dir/tests/authorization/valid/expected-authorization-manifest.jso
 
 "$resgraph_bin" generate-schema \
   "$root_dir/tests/authorization/invalid/src" \
-  "$tmp_dir/invalid" false required - - \
+  "$tmp_dir/invalid" false required - "$tmp_dir/valid/authorization-manifest.json" \
   >"$tmp_dir/invalid-result.json"
+
+if [[ -e "$tmp_dir/valid/authorization-manifest.json" ]]; then
+  echo "Stale authorization manifest survived a failed generation." >&2
+  exit 1
+fi
 
 grep -F 'Field `Query.uncovered` has no authorization disposition.' \
   "$tmp_dir/invalid-result.json" >/dev/null
