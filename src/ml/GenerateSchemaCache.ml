@@ -230,20 +230,18 @@ let rec nearestExistingPath path =
     if parent = path then None else nearestExistingPath parent
 
 let configuredCompiledPaths rootPath =
-  match BuildSystem.getLibBs rootPath with
-  | None -> []
-  | Some libBs ->
-    let projectCache = Cache.targetFileFromLibBs libBs in
-    let compiledDirectories =
-      configuredSourceRoots rootPath
-      |> List.map (fun sourceRoot ->
-          Filename.concat libBs (Files.relpath rootPath sourceRoot))
-    in
-    let paths =
-      (libBs :: compiledDirectories)
-      @ if Files.exists projectCache then [projectCache] else []
-    in
-    paths |> List.filter_map nearestExistingPath
+  let libBs = Filename.concat (Filename.concat rootPath "lib") "bs" in
+  let projectCache = Cache.targetFileFromLibBs libBs in
+  let compiledDirectories =
+    configuredSourceRoots rootPath
+    |> List.map (fun sourceRoot ->
+        Filename.concat libBs (Files.relpath rootPath sourceRoot))
+  in
+  let paths =
+    (libBs :: compiledDirectories)
+    @ if Files.exists projectCache then [projectCache] else []
+  in
+  paths |> List.filter_map nearestExistingPath
 
 let configuredDependencyPaths rootPath =
   configuredDependencyNames rootPath

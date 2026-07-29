@@ -159,7 +159,7 @@ printf '%b%s%b\n' "$successGreen" \
 hiddenDependency=./node_modules/resgraph-hidden-dependency
 hiddenConfigBackup=$(mktemp)
 cp ./rescript.json "$hiddenConfigBackup"
-mkdir -p "$hiddenDependency/src" "$hiddenDependency/lib/bs"
+mkdir -p "$hiddenDependency/src" "$hiddenDependency/lib"
 printf '%s\n' \
   '{"name":"resgraph-hidden-dependency","sources":["src"],"public":[]}' \
   >"$hiddenDependency/rescript.json"
@@ -170,6 +170,7 @@ node -e '
   fs.writeFileSync("rescript.json", JSON.stringify(config, null, 2) + "\n")
 '
 ../bin/dev/resgraph.exe generate-schema ./src ./src/__generated__ true >/dev/null
+mkdir "$hiddenDependency/lib/bs"
 printf 'not a real cmt' >"$hiddenDependency/lib/bs/FirstModule.cmt"
 hiddenDependencyOutput=$(
   RESGRAPH_INCREMENTAL_DEBUG=1 ../bin/dev/resgraph.exe generate-schema \
