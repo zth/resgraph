@@ -196,6 +196,18 @@ fi
 cmp "$tmp_dir/not-generated-baseline.expected.json" \
   "$tmp_dir/not-generated-baseline.json"
 
+printf '%s\n' 'not a directory' >"$tmp_dir/baseline-parent"
+if "$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/baseline/src" "$tmp_dir/baseline-output" \
+  false baseline - "$baseline_manifest_path" \
+  "$tmp_dir/baseline-parent/authorization-baseline.json" \
+  >/dev/null 2>/dev/null; then
+  echo "Baseline generation unexpectedly succeeded after a late write failure." >&2
+  exit 1
+fi
+jq -e '.generatedBy == "resgraph" and .status == "generationFailed"' \
+  "$baseline_manifest_path" >/dev/null
+
 cp "$root_dir/tests/authorization/valid/expected-authorization-manifest.json" \
   "$tmp_dir/valid/authorization-manifest.json"
 if "$resgraph_bin" generate-schema \
