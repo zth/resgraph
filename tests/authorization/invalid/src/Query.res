@@ -25,7 +25,7 @@ let publicConflict = (_: query): string => "conflict"
 @gql.public({reason: "First"}) @gql.public({reason: "Second"}) @gql.field
 let duplicatePublic = (_: query): string => "duplicate"
 
-@gql.public({reason: "x"}) @gql.field
+@gql.public({reason: "a b"}) @gql.field
 let shortPublicReason = (_: query): string => "too short"
 
 @gql.authorize(Security.wrongSource) @gql.field

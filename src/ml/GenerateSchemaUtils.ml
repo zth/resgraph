@@ -202,8 +202,16 @@ let publicReasonFromPayload ~schemaState ~(env : SharedTypes.QueryEnv.t)
                | _ -> None)
     | _ -> None
   in
+  let nonWhitespaceLength reason =
+    reason
+    |> String.fold_left
+         (fun length -> function
+           | ' ' | '\t' | '\r' | '\n' -> length
+           | _ -> length + 1)
+         0
+  in
   match reason with
-  | Some reason when String.length (String.trim reason) >= 3 ->
+  | Some reason when nonWhitespaceLength reason >= 3 ->
     Some {reason; loc = attributeLoc; fileUri = env.file.uri}
   | _ ->
     addAuthorizationDiagnostic ~schemaState ~env ~loc:attributeLoc
