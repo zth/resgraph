@@ -257,18 +257,6 @@ type plannedReference = {
   provenance: authorizationProvenance;
 }
 
-let appendUniqueReferences references additions =
-  additions
-  |> List.fold_left
-       (fun references addition ->
-         if
-           references
-           |> List.exists (fun existing ->
-               existing.reference.path = addition.reference.path)
-         then references
-         else references @ [addition])
-       references
-
 let declaredReferences schemaState ~sourceTypeName ~provenance coordinate =
   (declaration schemaState coordinate).functions
   |> List.map (fun reference -> {reference; sourceTypeName; provenance})
@@ -291,9 +279,7 @@ let interfaceDeclarations schemaState (typ : gqlObjectType) fieldName =
                (GenerateSchemaUtils.authorizationCoordinate
                   ~parentTypeName:intf.displayName ~fieldName)
            in
-           references
-           |> appendUniqueReferences typeReferences
-           |> appendUniqueReferences fieldReferences)
+           references @ typeReferences @ fieldReferences)
        []
 
 let interfaceResolverOutcome schemaState (typ : gqlObjectType) fieldName =
@@ -326,24 +312,21 @@ let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
   let typeDeclaration = declaration schemaState typ.displayName in
   let fieldDeclaration = declaration schemaState coordinate in
   let references =
-    []
-    |> appendUniqueReferences
-         (typeDeclaration.functions
-         |> List.map (fun reference ->
-             {
-               reference;
-               sourceTypeName = typ.displayName;
-               provenance = ObjectTypePolicy typ.displayName;
-             }))
-    |> appendUniqueReferences (interfaceDeclarations schemaState typ field.name)
-    |> appendUniqueReferences
-         (fieldDeclaration.functions
-         |> List.map (fun reference ->
-             {
-               reference;
-               sourceTypeName = typ.displayName;
-               provenance = FieldPolicy coordinate;
-             }))
+    (typeDeclaration.functions
+    |> List.map (fun reference ->
+        {
+          reference;
+          sourceTypeName = typ.displayName;
+          provenance = ObjectTypePolicy typ.displayName;
+        }))
+    @ interfaceDeclarations schemaState typ field.name
+    @ (fieldDeclaration.functions
+      |> List.map (fun reference ->
+          {
+            reference;
+            sourceTypeName = typ.displayName;
+            provenance = FieldPolicy coordinate;
+          }))
   in
   let functions =
     references
@@ -357,6 +340,7 @@ let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
     | Some outcome -> Some outcome
     | None -> interfaceResolverOutcome schemaState typ field.name
   in
+  let synthetic = Hashtbl.mem schemaState.authorizationExemptions coordinate in
   let public =
     match fieldDeclaration.public with
     | Some public -> Some public
@@ -380,7 +364,7 @@ let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
            }
   | _ -> ());
   Hashtbl.replace schemaState.authorizationPlans coordinate
-    {functions; public; resolverOutcome};
+    {functions; public; resolverOutcome; synthetic};
   match schemaState.authorizationConfig.mode with
   | AuthorizationOptional -> ()
   | AuthorizationRequired ->
@@ -395,6 +379,7 @@ let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
                  "Required authorization coverage does not support \
                   subscriptions yet.";
              }
+    else if synthetic then ()
     else if
       Option.is_none public && references = [] && Option.is_none resolverOutcome
     then
@@ -462,11 +447,14 @@ let manifestPolicy ~package (fn : authorizationFunction) =
 
 let manifestField ~package coordinate (plan : effectiveAuthorizationPlan) =
   let disposition =
-    match (plan.public, plan.functions, plan.resolverOutcome) with
-    | Some _, _, _ -> "public"
-    | None, _ :: _, _ -> "policies"
-    | None, [], Some _ -> "resolverOutcome"
-    | None, [], None -> "uncovered"
+    match
+      (plan.synthetic, plan.public, plan.functions, plan.resolverOutcome)
+    with
+    | true, _, _, _ -> "synthetic"
+    | false, Some _, _, _ -> "public"
+    | false, None, _ :: _, _ -> "policies"
+    | false, None, [], Some _ -> "resolverOutcome"
+    | false, None, [], None -> "uncovered"
   in
   let publicJson =
     match plan.public with

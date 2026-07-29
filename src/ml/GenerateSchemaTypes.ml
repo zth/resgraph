@@ -69,6 +69,7 @@ type effectiveAuthorizationPlan = {
   functions: authorizationFunction list;
   public: publicAuthorization option;
   resolverOutcome: resolverOutcome option;
+  synthetic: bool;
 }
 
 type typeLocationLoc = {
@@ -220,6 +221,7 @@ type schemaState = {
   authorizationDeclarations: (string, declaredAuthorization) Hashtbl.t;
   authorizationPlans: (string, effectiveAuthorizationPlan) Hashtbl.t;
   resolverOutcomes: (string, resolverOutcome) Hashtbl.t;
+  authorizationExemptions: (string, unit) Hashtbl.t;
   mutable query: gqlObjectType option;
   mutable subscription: gqlObjectType option;
   mutable mutation: gqlObjectType option;

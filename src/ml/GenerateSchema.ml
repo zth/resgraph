@@ -473,6 +473,10 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
             ~makeFields:(fun () ->
               objectFields
               |> List.map (fun (name, typ) ->
+                  Hashtbl.replace schemaState.authorizationExemptions
+                    (authorizationCoordinate ~parentTypeName:syntheticTypeName
+                       ~fieldName:name)
+                    ();
                   {
                     name;
                     resolverStyle = Property name;

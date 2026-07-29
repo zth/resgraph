@@ -276,7 +276,7 @@ When `manifestPath` is configured, the compiler emits a deterministic manifest
 containing, for every concrete executable field:
 
 - The GraphQL coordinate.
-- Its final disposition: policy plan, resolver outcome, or public.
+- Its final disposition: policy plan, resolver outcome, public, or synthetic.
 - Every effective policy function in execution order and its declaration
   source location.
 - Whether a resolver outcome is also checked.
@@ -286,6 +286,11 @@ containing, for every concrete executable field:
 The manifest contains no runtime identities, arguments, policy results, or
 secrets. Its purpose is to make authorization posture and public-field changes
 visible in code review and CI.
+
+Fields on inferred union payload objects have no source annotation surface.
+Record them with a `synthetic` disposition and exempt them from separate
+coverage checks; they are reachable only after the parent resolver field has passed its
+required disposition.
 
 ## Compiler representation
 
@@ -308,6 +313,7 @@ effectiveAuthorizationPlan
   - ordered effective function list with provenance
   - check resolver outcome
   - optional public reason and source location
+  - synthetic inferred-union field marker
 
 gqlField
   - existing field data

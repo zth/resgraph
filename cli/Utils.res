@@ -247,7 +247,7 @@ let parseOptionalString = (dict, key) =>
   | Some(value) => value->JSON.Decode.string->Option.map(value => Some(value))
   }
 
-let parseAuthorizationConfig = dict =>
+let parseAuthorizationConfig = (dict, ~resolveRelative) =>
   switch dict->Dict.get("authorization") {
   | None => Some(None)
   | Some(value) =>
@@ -272,7 +272,7 @@ let parseAuthorizationConfig = dict =>
     }
   }
 
-let parseConfig = rawConfig => {
+let parseConfig = (rawConfig, ~resolveRelative=resolveRelative) => {
   switch rawConfig->JSON.Decode.object {
   | None => None
   | Some(dict) =>
@@ -285,7 +285,7 @@ let parseConfig = rawConfig => {
       dict->Dict.get("src")->Option.flatMap(JSON.Decode.string),
       dict->Dict.get("outputFolder")->Option.flatMap(JSON.Decode.string),
       dumpSchemaSdl,
-      parseAuthorizationConfig(dict),
+      parseAuthorizationConfig(dict, ~resolveRelative),
     ) {
     | (Some(src), Some(outputFolder), Some(dumpSchemaSdl), Some(authorization)) =>
       Some({
@@ -306,7 +306,7 @@ let readConfigFromDir = dir => {
     ->Fs.readFileSync
     ->Buffer.toStringWithEncoding(StringEncoding.utf8)
     ->JSON.parseOrThrow
-    ->parseConfig
+    ->parseConfig(~resolveRelative=path => Path.resolve([dir, path]))
 
   let res: result<config, string> = switch readConfigResult {
   | None => Error("Could not parse config, something is wrong")
