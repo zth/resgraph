@@ -527,7 +527,7 @@ let isGeneratedManifest path =
       true
     with Not_found -> false)
 
-let prepareManifest ~outputFolder ~writeSdlFile
+let prepareManifest ~outputFolder ~writeSdlFile ~additionalOutputPaths
     (authorizationConfig : authorizationConfig) =
   match authorizationConfig.manifestPath with
   | None -> ()
@@ -537,7 +537,8 @@ let prepareManifest ~outputFolder ~writeSdlFile
         outputFolder ^ "/ResGraphSchema.res";
         outputFolder ^ "/ResGraphSchema.resi";
       ]
-      @ if writeSdlFile then [outputFolder ^ "/schema.graphql"] else []
+      @ (if writeSdlFile then [outputFolder ^ "/schema.graphql"] else [])
+      @ additionalOutputPaths
     in
     let manifestFileName = Filename.basename path |> String.lowercase_ascii in
     let collidesWithInterfaceFile =
