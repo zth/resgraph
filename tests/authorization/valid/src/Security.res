@@ -1,12 +1,14 @@
 type reason = Denied
+type findArgs = {"id": string}
+type nothing = unit
 let canReadUser = (_: User.user, ~args) => ResGraph.Authorization.Allowed()
 
 let canFindUser = (
   _: Query.query,
-  ~args,
+  ~args: findArgs,
   ~ctx: ResGraphContext.context,
   ~info: ResGraph.resolveInfo,
-) => {
+): ResGraph.Authorization.outcome<nothing, reason> => {
   let _ = (args["id"], ctx, info)
   ResGraph.Authorization.Allowed()
 }
