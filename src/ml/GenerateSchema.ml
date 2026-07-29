@@ -282,6 +282,8 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
             when List.length typeArgs > 0 ->
             let id = name in
             let displayName = capitalizeFirstChar id in
+            registerAuthorizationAttributes ~coordinate:displayName
+              ~allowPublic:false ~attributes ~schemaState ~env;
             noticeObjectType id ~displayName ~schemaState ~env
               ?description:
                 (GenerateSchemaUtils.attributesToDocstring attributes)
