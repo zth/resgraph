@@ -111,10 +111,12 @@ let with_hooks ~package ~preloaded f =
 
 let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
     ~outputFolder ~writeSdlFile ~authorizationConfig =
+  GenerateSchemaAuthorization.validateBaselineOutputPath ~outputFolder
+    ~writeSdlFile ~additionalOutputPaths:[] authorizationConfig;
   let cacheEnabled =
     match authorizationConfig.mode with
     | AuthorizationOptional -> true
-    | AuthorizationRequired -> false
+    | AuthorizationRequired | AuthorizationBaseline -> false
   in
   if
     cacheEnabled
@@ -138,11 +140,14 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
       print_collect_errors errs;
       exit 1
     | Ok (package, loaded) ->
+      let additionalOutputPaths =
+        if writeStateFile then [GenerateSchemaUtils.getStateFilePath package]
+        else []
+      in
+      GenerateSchemaAuthorization.validateBaselineOutputPath ~outputFolder
+        ~writeSdlFile ~additionalOutputPaths authorizationConfig;
       GenerateSchemaAuthorization.prepareManifest ~outputFolder ~writeSdlFile
-        ~additionalOutputPaths:
-          (if writeStateFile then [GenerateSchemaUtils.getStateFilePath package]
-           else [])
-        authorizationConfig;
+        ~additionalOutputPaths authorizationConfig;
       let preloaded =
         loaded
         |> List.map (fun l ->
@@ -169,6 +174,7 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
                  authorizationPlans = Hashtbl.create 50;
                  resolverOutcomes = Hashtbl.create 20;
                  authorizationExemptions = Hashtbl.create 20;
+                 authorizationGaps = [];
                  query = None;
                  subscription = None;
                  mutation = None;
@@ -241,6 +247,7 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
                in
                GenerateSchemaUtils.writeIfHasChanges resiOutputPath resiContent;
 
+               GenerateSchemaAuthorization.writeBaseline schemaState;
                GenerateSchemaAuthorization.writeManifest ~package schemaState;
 
                if cacheEnabled then

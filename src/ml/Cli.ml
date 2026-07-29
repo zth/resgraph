@@ -3,7 +3,7 @@ let help =
 **Private CLI For ResGraph**
 
 Commands:
-  generate-schema <sourceFolder> <outputFolder> [printSdl:boolean]
+  generate-schema <sourceFolder> <outputFolder> [printSdl:boolean] [authorizationMode onForbidden manifestPath baselinePath]
   completion <path> <line> <col> <currentFile>
   hover <path> <line> <col>
   hover-graphql <path> <hoverHint>
@@ -20,6 +20,7 @@ let optional_authorization_config =
     GenerateSchemaTypes.mode = AuthorizationOptional;
     onForbidden = None;
     manifestPath = None;
+    baselinePath = None;
   }
 
 let run_generate ~sourceFolder ~outputFolder ~writeSdlFile ~authorizationConfig
@@ -30,6 +31,28 @@ let run_generate ~sourceFolder ~outputFolder ~writeSdlFile ~authorizationConfig
 
 let main () =
   match Array.to_list Sys.argv with
+  | [
+   _;
+   "generate-schema";
+   sourceFolder;
+   outputFolder;
+   (("true" | "false") as writeSdlFile);
+   (("required" | "baseline") as authorizationMode);
+   onForbidden;
+   manifestPath;
+   baselinePath;
+  ] ->
+    run_generate ~sourceFolder ~outputFolder
+      ~writeSdlFile:(writeSdlFile = "true")
+      ~authorizationConfig:
+        {
+          mode =
+            (if authorizationMode = "baseline" then AuthorizationBaseline
+             else AuthorizationRequired);
+          onForbidden = optional_arg onForbidden;
+          manifestPath = optional_arg manifestPath;
+          baselinePath = optional_arg baselinePath;
+        }
   | [
    _;
    "generate-schema";
@@ -47,6 +70,7 @@ let main () =
           mode = AuthorizationRequired;
           onForbidden = optional_arg onForbidden;
           manifestPath = optional_arg manifestPath;
+          baselinePath = None;
         }
   | [_; "generate-schema"; sourceFolder; outputFolder; "true"] ->
     run_generate ~sourceFolder ~outputFolder ~writeSdlFile:true

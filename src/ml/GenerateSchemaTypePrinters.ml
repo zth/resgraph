@@ -51,6 +51,7 @@ let printResolverForField ~parentTypeName ~(schemaState : schemaState)
         resolverOutcome =
           Hashtbl.find_opt schemaState.resolverOutcomes coordinate;
         synthetic = Hashtbl.mem schemaState.authorizationExemptions coordinate;
+        baselineGap = None;
       }
   in
   let usesAuthorizationArgs = plan.functions <> [] in

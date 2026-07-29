@@ -5,7 +5,6 @@ external argv: array<option<string>> = "process.argv"
 
 module Console = Stdlib.Console
 module JsExn = Js.Exn
-
 let args = argv->Array.slice(~start=2)->Array.keepSome
 let argsList = args->List.fromArray
 
@@ -20,6 +19,7 @@ Available commands:
 
 init       | Initializes a new project.
 build      | Builds the project.
+authorization baseline | Creates or updates the required-authorization baseline.
 watch      | Builds the project and watches for changes.
 tools      | Show available ResGraph tools.
 help       | Show this help message.
@@ -81,6 +81,45 @@ let printFindDefinition = (~target, ~jsonOutput) => {
   }
 }
 
+let generateAuthorizationBaseline = () => {
+  let config = switch Utils.readConfigFromCwd() {
+  | Error(msg) => panic(msg)
+  | Ok(config) => config
+  }
+
+  validateConfig(config)
+
+  switch config.authorization {
+  | None =>
+    Console.error("Required authorization must be configured before creating a baseline.")
+    Process.process->Process.exitWithCode(1)
+  | Some(authorization) =>
+    switch authorization.baselinePath {
+    | None =>
+      Console.error("Set `authorization.baselinePath` in resgraph.json before creating a baseline.")
+      Process.process->Process.exitWithCode(1)
+    | Some(baselinePath) =>
+      let baselineAuthorization = {...authorization, mode: Baseline}
+      switch Utils.callPrivateCli(
+        GenerateSchema({
+          src: config.src,
+          outputFolder: config.outputFolder,
+          dumpSchemaSdl: config.dumpSchemaSdl,
+          authorization: baselineAuthorization,
+        }),
+      ) {
+      | Success(_) => Console.log(`Authorization baseline written to ${baselinePath}.`)
+      | Error({errors}) =>
+        ErrorPrinter.printErrors(errors)
+        Process.process->Process.exitWithCode(1)
+      | _ =>
+        Console.error("Unexpected response while creating the authorization baseline.")
+        Process.process->Process.exitWithCode(1)
+      }
+    }
+  }
+}
+
 try {
   switch argsList {
   | list{"init"} =>
@@ -98,6 +137,7 @@ try {
       Process.process->Process.exitWithCode(0)
     }
 
+  | list{"authorization", "baseline"} => generateAuthorizationBaseline()
   | list{"build"} =>
     let config = switch Utils.readConfigFromCwd() {
     | Error(msg) => panic(msg)
