@@ -98,6 +98,22 @@ if [[ -e "$tmp_dir/valid/authorization-manifest.json" ]]; then
   exit 1
 fi
 
+cp "$root_dir/tests/authorization/valid/expected-authorization-manifest.json" \
+  "$tmp_dir/output-is-a-file"
+cp "$root_dir/tests/authorization/valid/expected-authorization-manifest.json" \
+  "$tmp_dir/late-failure-manifest.json"
+if "$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/valid/src" "$tmp_dir/output-is-a-file" \
+  false required Security.onForbidden "$tmp_dir/late-failure-manifest.json" \
+  >/dev/null 2>/dev/null; then
+  echo "Generation unexpectedly succeeded with an invalid output folder." >&2
+  exit 1
+fi
+if [[ -e "$tmp_dir/late-failure-manifest.json" ]]; then
+  echo "Authorization manifest was written before generation completed." >&2
+  exit 1
+fi
+
 node --input-type=module -e \
   'import path from "node:path";
    import {readConfigFromDir} from "./cli/Utils.mjs";
