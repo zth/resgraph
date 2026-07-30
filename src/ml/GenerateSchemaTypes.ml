@@ -27,12 +27,16 @@ type fieldResolverStyle =
   | Resolver of {moduleName: string; fnName: string; pathToFn: string list}
   | Property of string
 
-type authorizationMode = AuthorizationOptional | AuthorizationRequired
+type authorizationMode =
+  | AuthorizationOptional
+  | AuthorizationRequired
+  | AuthorizationBaseline
 
 type authorizationConfig = {
   mode: authorizationMode;
   onForbidden: string option;
   manifestPath: string option;
+  baselinePath: string option;
 }
 
 type authorizationFunctionReference = {
@@ -65,11 +69,17 @@ type authorizationFunction = {
 
 type resolverOutcome = {isAsync: bool}
 
+type authorizationGapKind =
+  | UncoveredField
+  | MutationPreResolverPolicy
+  | UnsupportedSubscription
+
 type effectiveAuthorizationPlan = {
   functions: authorizationFunction list;
   public: publicAuthorization option;
   resolverOutcome: resolverOutcome option;
   synthetic: bool;
+  baselineGap: authorizationGapKind option;
 }
 
 type typeLocationLoc = {
@@ -224,6 +234,7 @@ type schemaState = {
   authorizationPlans: (string, effectiveAuthorizationPlan) Hashtbl.t;
   resolverOutcomes: (string, resolverOutcome) Hashtbl.t;
   authorizationExemptions: (string, unit) Hashtbl.t;
+  mutable authorizationGaps: (string * authorizationGapKind) list;
   mutable query: gqlObjectType option;
   mutable subscription: gqlObjectType option;
   mutable mutation: gqlObjectType option;

@@ -6,12 +6,13 @@ type url = {pathname: string}
 @val external currentFileUrl: string = "import.meta.url"
 // End URL bindings
 
-type authorizationMode = Required
+type authorizationMode = Required | Baseline
 
 type authorizationConfig = {
   mode: authorizationMode,
   onForbidden?: string,
   manifestPath?: string,
+  baselinePath?: string,
 }
 
 type config = {
@@ -53,9 +54,13 @@ let privateCliCallToArgs = call =>
     | None => args
     | Some(authorization) =>
       args->Array.concat([
-        "required",
+        switch authorization.mode {
+        | Required => "required"
+        | Baseline => "baseline"
+        },
         authorization.onForbidden->Option.getOr("-"),
         authorization.manifestPath->Option.getOr("-"),
+        authorization.baselinePath->Option.getOr("-"),
       ])
     }
   | Completion({filePath, position, tmpname}) => [
@@ -258,13 +263,15 @@ let parseAuthorizationConfig = (dict, ~resolveRelative) =>
         authorization->Dict.get("mode")->Option.flatMap(JSON.Decode.string),
         parseOptionalString(authorization, "onForbidden"),
         parseOptionalString(authorization, "manifestPath"),
+        parseOptionalString(authorization, "baselinePath"),
       ) {
-      | (Some("required"), Some(onForbidden), Some(manifestPath)) =>
+      | (Some("required"), Some(onForbidden), Some(manifestPath), Some(baselinePath)) =>
         Some(
           Some({
             mode: Required,
             ?onForbidden,
             manifestPath: ?(manifestPath->Option.map(resolveRelative)),
+            baselinePath: ?(baselinePath->Option.map(resolveRelative)),
           }),
         )
       | _ => None

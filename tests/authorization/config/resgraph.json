@@ -3,6 +3,7 @@
   "outputFolder": "./generated/schema",
   "authorization": {
     "mode": "required",
-    "manifestPath": "./generated/authorization-manifest.json"
+    "manifestPath": "./generated/authorization-manifest.json",
+    "baselinePath": "./generated/authorization-baseline.json"
   }
 }

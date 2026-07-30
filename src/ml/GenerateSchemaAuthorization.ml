@@ -319,8 +319,123 @@ let interfacePublic schemaState (typ : gqlObjectType) fieldName =
               ~parentTypeName:intf.displayName ~fieldName))
           .public)
 
+module BaselineEntry = struct
+  type t = string * authorizationGapKind
+
+  let compare = Stdlib.compare
+end
+
+module BaselineEntries = Set.Make (BaselineEntry)
+
+let authorizationGapKindToString = function
+  | UncoveredField -> "uncoveredField"
+  | MutationPreResolverPolicy -> "mutationPreResolverPolicy"
+  | UnsupportedSubscription -> "unsupportedSubscription"
+
+let authorizationGapKindFromString = function
+  | "uncoveredField" -> Some UncoveredField
+  | "mutationPreResolverPolicy" -> Some MutationPreResolverPolicy
+  | "unsupportedSubscription" -> Some UnsupportedSubscription
+  | _ -> None
+
+let invalidBaseline path message =
+  failwith
+    (Printf.sprintf "Invalid authorization baseline `%s`: %s" path message)
+
+let loadBaseline path =
+  let json =
+    match Files.readFile path with
+    | None ->
+      failwith
+        (Printf.sprintf
+           "Authorization baseline `%s` does not exist. Run `resgraph \
+            authorization baseline` to create it."
+           path)
+    | Some contents -> (
+      match Json.parse contents with
+      | Some json -> json
+      | None -> invalidBaseline path "expected valid JSON.")
+  in
+  let stringProperty name = Option.bind (Json.get name json) Json.string in
+  let numberProperty name = Option.bind (Json.get name json) Json.number in
+  let gaps = Option.bind (Json.get "gaps" json) Json.array in
+  if stringProperty "generatedBy" <> Some "resgraph" then
+    invalidBaseline path "missing the ResGraph generated-file marker."
+  else if stringProperty "kind" <> Some "authorizationBaseline" then
+    invalidBaseline path "expected kind `authorizationBaseline`."
+  else if numberProperty "version" <> Some 1. then
+    invalidBaseline path "expected version 1."
+  else
+    match gaps with
+    | None -> invalidBaseline path "expected a `gaps` array."
+    | Some gaps ->
+      gaps
+      |> List.fold_left
+           (fun entries gap ->
+             let coordinate =
+               Option.bind (Json.get "coordinate" gap) Json.string
+             in
+             let kind =
+               Option.bind (Json.get "kind" gap) Json.string |> fun kind ->
+               Option.bind kind authorizationGapKindFromString
+             in
+             match (coordinate, kind) with
+             | Some coordinate, Some kind ->
+               let entry = (coordinate, kind) in
+               if BaselineEntries.mem entry entries then
+                 invalidBaseline path
+                   (Printf.sprintf "duplicate gap `%s` (`%s`)." coordinate
+                      (authorizationGapKindToString kind))
+               else BaselineEntries.add entry entries
+             | _ ->
+               invalidBaseline path
+                 "every gap must have a string `coordinate` and a supported \
+                  `kind`.")
+           BaselineEntries.empty
+
+let gapForField ~(typ : gqlObjectType) ~(field : gqlField) ~synthetic ~public
+    ~references ~resolverOutcome =
+  let coordinate =
+    GenerateSchemaUtils.authorizationCoordinate ~parentTypeName:typ.displayName
+      ~fieldName:field.name
+  in
+  if typ.id = "subscription" then Some (coordinate, UnsupportedSubscription)
+  else if synthetic then None
+  else if
+    Option.is_none public && references = [] && Option.is_none resolverOutcome
+  then Some (coordinate, UncoveredField)
+  else if typ.id = "mutation" && Option.is_none public && references = [] then
+    Some (coordinate, MutationPreResolverPolicy)
+  else None
+
+let addGapDiagnostic schemaState ~(field : gqlField) (coordinate, kind) =
+  let message =
+    match kind with
+    | UnsupportedSubscription ->
+      Printf.sprintf
+        "Required authorization coverage does not support subscription field \
+         `%s` yet."
+        coordinate
+    | UncoveredField ->
+      Printf.sprintf
+        "Field `%s` has no authorization disposition. Add \
+         `@gql.authorize(...)`, return `ResGraph.Authorization.outcome`, or \
+         declare `@gql.public({reason: \"...\"})`."
+        coordinate
+    | MutationPreResolverPolicy ->
+      Printf.sprintf
+        "Mutation field `%s` requires at least one pre-resolver \
+         `@gql.authorize(...)` policy. Resolver-outcome coverage alone runs \
+         after mutation side effects."
+        coordinate
+  in
+  schemaState
+  |> addDiagnostic
+       ~diagnostic:{loc = field.loc; fileUri = field.fileUri; message}
+
 let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
-    ~(typ : gqlObjectType) ~(field : gqlField) =
+    ~baselineEntries ~skipGapDiagnostics ~(typ : gqlObjectType)
+    ~(field : gqlField) =
   let coordinate =
     GenerateSchemaUtils.authorizationCoordinate ~parentTypeName:typ.displayName
       ~fieldName:field.name
@@ -379,62 +494,76 @@ let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
                  coordinate;
            }
   | _ -> ());
+  let gap =
+    gapForField ~typ ~field ~synthetic ~public ~references ~resolverOutcome
+  in
+  let baselineGap =
+    match (schemaState.authorizationConfig.mode, gap, baselineEntries) with
+    | AuthorizationBaseline, Some (_, kind), _ -> Some kind
+    | _, Some entry, Some entries when BaselineEntries.mem entry entries ->
+      let _, kind = entry in
+      Some kind
+    | _ -> None
+  in
   Hashtbl.replace schemaState.authorizationPlans coordinate
-    {functions; public; resolverOutcome; synthetic};
+    {functions; public; resolverOutcome; synthetic; baselineGap};
+  (match gap with
+  | Some entry ->
+    schemaState.authorizationGaps <- entry :: schemaState.authorizationGaps
+  | None -> ());
   match schemaState.authorizationConfig.mode with
-  | AuthorizationOptional -> ()
-  | AuthorizationRequired ->
-    if typ.id = "subscription" then
+  | AuthorizationOptional | AuthorizationBaseline -> ()
+  | AuthorizationRequired -> (
+    if not skipGapDiagnostics then
+      match (gap, baselineGap) with
+      | Some entry, None -> addGapDiagnostic schemaState ~field entry
+      | _ -> ())
+
+let addStaleBaselineDiagnostics schemaState ~path ~baselineEntries =
+  let actualEntries = BaselineEntries.of_list schemaState.authorizationGaps in
+  BaselineEntries.diff baselineEntries actualEntries
+  |> BaselineEntries.iter (fun (coordinate, kind) ->
       schemaState
       |> addDiagnostic
            ~diagnostic:
              {
-               loc = field.loc;
-               fileUri = field.fileUri;
-               message =
-                 "Required authorization coverage does not support \
-                  subscriptions yet.";
-             }
-    else if synthetic then ()
-    else if
-      Option.is_none public && references = [] && Option.is_none resolverOutcome
-    then
-      schemaState
-      |> addDiagnostic
-           ~diagnostic:
-             {
-               loc = field.loc;
-               fileUri = field.fileUri;
+               loc = Location.none;
+               fileUri = Uri.fromPath path;
                message =
                  Printf.sprintf
-                   "Field `%s` has no authorization disposition. Add \
-                    `@gql.authorize(...)`, return \
-                    `ResGraph.Authorization.outcome`, or declare \
-                    `@gql.public({reason: \"...\"})`."
-                   coordinate;
-             }
-    else if typ.id = "mutation" && Option.is_none public && references = [] then
-      schemaState
-      |> addDiagnostic
-           ~diagnostic:
-             {
-               loc = field.loc;
-               fileUri = field.fileUri;
-               message =
-                 Printf.sprintf
-                   "Mutation field `%s` requires at least one pre-resolver \
-                    `@gql.authorize(...)` policy. Resolver-outcome coverage \
-                    alone runs after mutation side effects."
-                   coordinate;
-             }
+                   "Authorization baseline entry `%s` (`%s`) is stale. Remove \
+                    it from the baseline."
+                   coordinate
+                   (authorizationGapKindToString kind);
+             })
 
 let buildPlans ~loader ~package (schemaState : schemaState) =
+  let baselineEntries, baselineLoadFailed =
+    match
+      ( schemaState.authorizationConfig.mode,
+        schemaState.authorizationConfig.baselinePath )
+    with
+    | AuthorizationRequired, Some path -> (
+      try (Some (loadBaseline path), false)
+      with Failure message ->
+        schemaState
+        |> addDiagnostic
+             ~diagnostic:
+               {loc = Location.none; fileUri = Uri.fromPath path; message};
+        (None, true))
+    | _ -> (None, false)
+  in
   schemaState.types
   |> GenerateSchemaUtils.iterHashtblAlphabetically
        (fun _ (typ : gqlObjectType) ->
          typ.fields
          |> List.iter (fun field ->
-             buildFieldPlan ~loader ~package ~schemaState ~typ ~field))
+             buildFieldPlan ~loader ~package ~schemaState ~baselineEntries
+               ~skipGapDiagnostics:baselineLoadFailed ~typ ~field));
+  match (baselineEntries, schemaState.authorizationConfig.baselinePath) with
+  | Some entries, Some path ->
+    addStaleBaselineDiagnostics schemaState ~path ~baselineEntries:entries
+  | _ -> ()
 
 let jsonString value = Printf.sprintf "\"%s\"" (Json.escape value)
 
@@ -464,13 +593,18 @@ let manifestPolicy ~package (fn : authorizationFunction) =
 let manifestField ~package coordinate (plan : effectiveAuthorizationPlan) =
   let disposition =
     match
-      (plan.synthetic, plan.public, plan.functions, plan.resolverOutcome)
+      ( plan.baselineGap,
+        plan.synthetic,
+        plan.public,
+        plan.functions,
+        plan.resolverOutcome )
     with
-    | true, _, _, _ -> "synthetic"
-    | false, Some _, _, _ -> "public"
-    | false, None, _ :: _, _ -> "policies"
-    | false, None, [], Some _ -> "resolverOutcome"
-    | false, None, [], None -> "uncovered"
+    | Some _, _, _, _, _ -> "baseline"
+    | None, true, _, _, _ -> "synthetic"
+    | None, false, Some _, _, _ -> "public"
+    | None, false, None, _ :: _, _ -> "policies"
+    | None, false, None, [], Some _ -> "resolverOutcome"
+    | None, false, None, [], None -> "uncovered"
   in
   let publicJson =
     match plan.public with
@@ -527,6 +661,122 @@ let isGeneratedManifest path =
       true
     with Not_found -> false)
 
+let isGeneratedBaseline path =
+  match Files.readFile path with
+  | None -> false
+  | Some contents -> (
+    match Json.parse contents with
+    | None -> false
+    | Some json ->
+      Option.bind (Json.get "generatedBy" json) Json.string = Some "resgraph"
+      && Option.bind (Json.get "kind" json) Json.string
+         = Some "authorizationBaseline"
+      && Option.bind (Json.get "version" json) Json.number = Some 1.)
+
+let isInterfaceArtifactFileName fileName =
+  let fileName = String.lowercase_ascii fileName in
+  String.starts_with fileName ~prefix:"interface_"
+  && Filename.check_suffix fileName ".res"
+
+let collidesWithInterfaceArtifact ~outputFolder path =
+  Files.sameFile (Filename.dirname path) outputFolder
+  && isInterfaceArtifactFileName (Filename.basename path)
+  ||
+    try
+      Sys.readdir outputFolder
+      |> Array.exists (fun fileName ->
+          isInterfaceArtifactFileName fileName
+          && Files.sameFile path (Filename.concat outputFolder fileName))
+    with Sys_error _ -> false
+
+let validateBaselineOutputPath ~outputFolder ~writeSdlFile
+    ~additionalOutputPaths (authorizationConfig : authorizationConfig) =
+  (match
+     (authorizationConfig.baselinePath, authorizationConfig.manifestPath)
+   with
+  | Some baselinePath, Some manifestPath
+    when Files.sameFile baselinePath manifestPath ->
+    failwith
+      (Printf.sprintf
+         "Authorization baseline path `%s` collides with the authorization \
+          manifest path."
+         baselinePath)
+  | _ -> ());
+  match (authorizationConfig.mode, authorizationConfig.baselinePath) with
+  | AuthorizationBaseline, None ->
+    failwith
+      "`authorization.baselinePath` must be configured before running \
+       `resgraph authorization baseline`."
+  | ((AuthorizationBaseline | AuthorizationRequired) as mode), Some path ->
+    let generatedOutputPaths =
+      [
+        outputFolder ^ "/ResGraphSchema.res";
+        outputFolder ^ "/ResGraphSchema.resi";
+      ]
+      @ (if writeSdlFile then [outputFolder ^ "/schema.graphql"] else [])
+      @ additionalOutputPaths
+      @
+      match authorizationConfig.manifestPath with
+      | Some manifestPath -> [manifestPath]
+      | None -> []
+    in
+    let collidesWithInterfaceFile =
+      collidesWithInterfaceArtifact ~outputFolder path
+    in
+    if
+      List.exists
+        (fun generatedPath -> Files.sameFile path generatedPath)
+        generatedOutputPaths
+      || collidesWithInterfaceFile
+    then
+      failwith
+        (Printf.sprintf
+           "Authorization baseline path `%s` collides with a generated schema \
+            artifact."
+           path)
+    else if
+      mode = AuthorizationBaseline
+      && Sys.file_exists path
+      && not (isGeneratedBaseline path)
+    then
+      failwith
+        (Printf.sprintf
+           "Refusing to overwrite authorization baseline path `%s` because it \
+            contains a file not generated by ResGraph."
+           path)
+  | AuthorizationOptional, _ | AuthorizationRequired, None -> ()
+
+let generatedBaseline gaps =
+  let gaps =
+    gaps
+    |> List.sort_uniq Stdlib.compare
+    |> List.map (fun (coordinate, kind) ->
+        Printf.sprintf "{\"coordinate\":%s,\"kind\":%s}" (jsonString coordinate)
+          (jsonString (authorizationGapKindToString kind)))
+    |> String.concat ",\n    "
+  in
+  Printf.sprintf
+    "{\n\
+    \  \"generatedBy\": \"resgraph\",\n\
+    \  \"kind\": \"authorizationBaseline\",\n\
+    \  \"version\": 1,\n\
+    \  \"gaps\": [\n\
+    \    %s\n\
+    \  ]\n\
+     }\n"
+    gaps
+
+let writeBaseline (schemaState : schemaState) =
+  match
+    ( schemaState.authorizationConfig.mode,
+      schemaState.authorizationConfig.baselinePath )
+  with
+  | AuthorizationBaseline, Some path ->
+    ensureDirectory (Filename.dirname path);
+    GenerateSchemaUtils.writeIfHasChanges path
+      (generatedBaseline schemaState.authorizationGaps)
+  | _ -> ()
+
 let prepareManifest ~outputFolder ~writeSdlFile ~additionalOutputPaths
     (authorizationConfig : authorizationConfig) =
   match authorizationConfig.manifestPath with
@@ -540,15 +790,12 @@ let prepareManifest ~outputFolder ~writeSdlFile ~additionalOutputPaths
       @ (if writeSdlFile then [outputFolder ^ "/schema.graphql"] else [])
       @ additionalOutputPaths
     in
-    let manifestFileName = Filename.basename path |> String.lowercase_ascii in
     let collidesWithInterfaceFile =
-      Files.pathEq (Filename.dirname path) outputFolder
-      && String.starts_with manifestFileName ~prefix:"interface_"
-      && Filename.check_suffix manifestFileName ".res"
+      collidesWithInterfaceArtifact ~outputFolder path
     in
     if
       List.exists
-        (fun generatedPath -> Files.pathEq path generatedPath)
+        (fun generatedPath -> Files.sameFile path generatedPath)
         generatedOutputPaths
       || collidesWithInterfaceFile
     then

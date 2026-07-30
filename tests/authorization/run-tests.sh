@@ -22,7 +22,10 @@ fi
   cd "$root_dir/tests/authorization/invalid"
   "$rescript_bin"
 )
-
+(
+  cd "$root_dir/tests/authorization/baseline"
+  "$rescript_bin"
+)
 mkdir -p "$tmp_dir/valid" "$tmp_dir/invalid"
 "$resgraph_bin" generate-schema \
   "$root_dir/tests/authorization/valid/src" \
@@ -103,8 +106,210 @@ grep -F 'has source type `Mutation`, but it is applied to `Query`' \
 grep -F 'must declare `~args` as a ReScript polymorphic object' \
   "$tmp_dir/invalid-result.json" >/dev/null
 grep -F 'has invalid `~ctx`' "$tmp_dir/invalid-result.json" >/dev/null
-grep -F 'Required authorization coverage does not support subscriptions yet.' \
+grep -F 'Required authorization coverage does not support subscription field `Subscription.events` yet.' \
   "$tmp_dir/invalid-result.json" >/dev/null
+
+mkdir -p "$tmp_dir/baseline-output"
+baseline_path="$tmp_dir/authorization-baseline.json"
+baseline_manifest_path="$tmp_dir/baseline-manifest.json"
+"$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/baseline/src" "$tmp_dir/baseline-output" \
+  false baseline - "$baseline_manifest_path" "$baseline_path" \
+  >"$tmp_dir/baseline-create-result.json"
+
+jq -e '
+  .generatedBy == "resgraph" and
+  .kind == "authorizationBaseline" and
+  .version == 1 and
+  .gaps == [
+    {"coordinate":"Mutation.outcomeOnly","kind":"mutationPreResolverPolicy"},
+    {"coordinate":"Query.legacy","kind":"uncoveredField"},
+    {"coordinate":"Query.newField","kind":"uncoveredField"},
+    {"coordinate":"Subscription.events","kind":"unsupportedSubscription"}
+  ]' "$baseline_path" >/dev/null
+baseline_checksum_before="$(sha256sum "$baseline_path" | cut -d ' ' -f 1)"
+
+"$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/baseline/src" "$tmp_dir/baseline-output" \
+  false baseline - "$baseline_manifest_path" "$baseline_path" \
+  >"$tmp_dir/baseline-recreate-result.json"
+baseline_checksum_after="$(sha256sum "$baseline_path" | cut -d ' ' -f 1)"
+if [[ "$baseline_checksum_before" != "$baseline_checksum_after" ]]; then
+  echo "Authorization baseline generation was not deterministic." >&2
+  exit 1
+fi
+
+"$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/baseline/src" "$tmp_dir/baseline-output" \
+  false required - "$baseline_manifest_path" "$baseline_path" \
+  >"$tmp_dir/baseline-required-result.json"
+grep -F '"status": "Success"' "$tmp_dir/baseline-required-result.json" >/dev/null
+jq -e '[.fields[] | select(.disposition == "baseline")] | length == 4' \
+  "$baseline_manifest_path" >/dev/null
+
+cp "$baseline_path" "$tmp_dir/baseline-before-collision.json"
+if "$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/baseline/src" "$tmp_dir/baseline-output" \
+  false required - "$baseline_path" "$baseline_path" \
+  >/dev/null 2>/dev/null; then
+  echo "Required mode accepted a manifest/baseline path collision." >&2
+  exit 1
+fi
+cmp "$tmp_dir/baseline-before-collision.json" "$baseline_path"
+
+if "$resgraph_bin" generate-schema \
+  "$tmp_dir/missing-project/src" "$tmp_dir/missing-project/output" \
+  false required - "$baseline_path" "$baseline_path" \
+  >/dev/null 2>/dev/null; then
+  echo "Early project collection accepted a manifest/baseline collision." >&2
+  exit 1
+fi
+cmp "$tmp_dir/baseline-before-collision.json" "$baseline_path"
+
+required_artifact_output="$tmp_dir/required-artifact-output"
+mkdir -p "$required_artifact_output"
+cp "$baseline_path" "$required_artifact_output/ResGraphSchema.res"
+cp "$baseline_path" "$tmp_dir/schema-baseline.expected.json"
+if "$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/baseline/src" "$required_artifact_output" \
+  false required - - "$required_artifact_output/ResGraphSchema.res" \
+  >/dev/null 2>/dev/null; then
+  echo "Required mode accepted a baseline/schema artifact collision." >&2
+  exit 1
+fi
+cmp "$tmp_dir/schema-baseline.expected.json" \
+  "$required_artifact_output/ResGraphSchema.res"
+
+symlink_artifact_output="$tmp_dir/symlink-artifact-output"
+symlink_baseline_path="$tmp_dir/symlink-authorization-baseline.json"
+mkdir -p "$symlink_artifact_output"
+cp "$baseline_path" "$symlink_baseline_path"
+cp "$baseline_path" "$tmp_dir/symlink-baseline.expected.json"
+ln -s "$symlink_baseline_path" "$symlink_artifact_output/ResGraphSchema.res"
+if "$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/baseline/src" "$symlink_artifact_output" \
+  false required - - "$symlink_baseline_path" \
+  >/dev/null 2>/dev/null; then
+  echo "Required mode accepted a symlinked baseline/schema collision." >&2
+  exit 1
+fi
+cmp "$tmp_dir/symlink-baseline.expected.json" "$symlink_baseline_path"
+if [[ ! -L "$symlink_artifact_output/ResGraphSchema.res" ]]; then
+  echo "Schema generation replaced the colliding symlink." >&2
+  exit 1
+fi
+
+dangling_artifact_output="$tmp_dir/dangling-artifact-output"
+dangling_baseline_path="$tmp_dir/dangling-authorization-baseline.json"
+mkdir -p "$dangling_artifact_output"
+ln -s "$dangling_artifact_output/ResGraphSchema.res" "$dangling_baseline_path"
+if "$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/baseline/src" "$dangling_artifact_output" \
+  false baseline - - "$dangling_baseline_path" \
+  >/dev/null 2>/dev/null; then
+  echo "Baseline generation accepted a dangling symlink to the schema output." >&2
+  exit 1
+fi
+if [[ ! -L "$dangling_baseline_path" || \
+      -e "$dangling_artifact_output/ResGraphSchema.res" ]]; then
+  echo "Baseline generation modified a dangling artifact collision." >&2
+  exit 1
+fi
+
+cp "$baseline_path" "$required_artifact_output/interface_legacy.res"
+cp "$baseline_path" "$tmp_dir/interface-baseline.expected.json"
+if "$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/baseline/src" "$required_artifact_output" \
+  false required - - "$required_artifact_output/interface_legacy.res" \
+  >/dev/null 2>/dev/null; then
+  echo "Required mode accepted a baseline/interface artifact collision." >&2
+  exit 1
+fi
+cmp "$tmp_dir/interface-baseline.expected.json" \
+  "$required_artifact_output/interface_legacy.res"
+
+state_collision_project="$tmp_dir/required-state-collision-project"
+mkdir -p "$state_collision_project/src" "$state_collision_project/output"
+cp "$root_dir/tests/authorization/baseline/rescript.json" \
+  "$state_collision_project/rescript.json"
+cp "$root_dir/tests/authorization/baseline/src/"*.res \
+  "$state_collision_project/src/"
+(
+  cd "$state_collision_project"
+  "$rescript_bin"
+)
+state_baseline_path="$state_collision_project/lib/.resgraphState.marshal"
+cp "$baseline_path" "$state_baseline_path"
+cp "$baseline_path" "$tmp_dir/state-baseline.expected.json"
+if "$resgraph_bin" generate-schema \
+  "$state_collision_project/src" "$state_collision_project/output" \
+  false required - - "$state_baseline_path" \
+  >/dev/null 2>/dev/null; then
+  echo "Required mode accepted a baseline/state artifact collision." >&2
+  exit 1
+fi
+cmp "$tmp_dir/state-baseline.expected.json" "$state_baseline_path"
+
+"$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/baseline/src" "$tmp_dir/baseline-output" \
+  false required - - "$tmp_dir/missing-baseline.json" \
+  >"$tmp_dir/missing-baseline-result.json"
+jq -e '.status == "Error" and (.errors | length) == 1' \
+  "$tmp_dir/missing-baseline-result.json" >/dev/null
+grep -F 'Run `resgraph authorization baseline` to create it.' \
+  "$tmp_dir/missing-baseline-result.json" >/dev/null
+
+printf '%s\n' '{"generatedBy":"resgraph","kind":"authorizationBaseline"' \
+  >"$tmp_dir/malformed-baseline.json"
+"$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/baseline/src" "$tmp_dir/baseline-output" \
+  false required - - "$tmp_dir/malformed-baseline.json" \
+  >"$tmp_dir/malformed-baseline-result.json"
+jq -e '.status == "Error" and (.errors | length) == 1' \
+  "$tmp_dir/malformed-baseline-result.json" >/dev/null
+grep -F 'expected valid JSON' "$tmp_dir/malformed-baseline-result.json" >/dev/null
+
+jq 'del(.gaps[] | select(.coordinate == "Query.newField"))' \
+  "$baseline_path" >"$tmp_dir/missing-gap-baseline.json"
+"$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/baseline/src" "$tmp_dir/baseline-output" \
+  false required - - "$tmp_dir/missing-gap-baseline.json" \
+  >"$tmp_dir/missing-gap-result.json"
+grep -F 'Field `Query.newField` has no authorization disposition.' \
+  "$tmp_dir/missing-gap-result.json" >/dev/null
+
+jq '.gaps += [{"coordinate":"Query.removed","kind":"uncoveredField"}]' \
+  "$baseline_path" >"$tmp_dir/stale-baseline.json"
+"$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/baseline/src" "$tmp_dir/baseline-output" \
+  false required - - "$tmp_dir/stale-baseline.json" \
+  >"$tmp_dir/stale-baseline-result.json"
+grep -F 'Authorization baseline entry `Query.removed` (`uncoveredField`) is stale.' \
+  "$tmp_dir/stale-baseline-result.json" >/dev/null
+
+printf '%s\n' '{"ownedBy":"application"}' >"$tmp_dir/not-generated-baseline.json"
+cp "$tmp_dir/not-generated-baseline.json" "$tmp_dir/not-generated-baseline.expected.json"
+if "$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/baseline/src" "$tmp_dir/baseline-output" \
+  false baseline - - "$tmp_dir/not-generated-baseline.json" \
+  >/dev/null 2>/dev/null; then
+  echo "Baseline generation unexpectedly overwrote an application-owned file." >&2
+  exit 1
+fi
+cmp "$tmp_dir/not-generated-baseline.expected.json" \
+  "$tmp_dir/not-generated-baseline.json"
+
+printf '%s\n' 'not a directory' >"$tmp_dir/baseline-parent"
+if "$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/baseline/src" "$tmp_dir/baseline-output" \
+  false baseline - "$baseline_manifest_path" \
+  "$tmp_dir/baseline-parent/authorization-baseline.json" \
+  >/dev/null 2>/dev/null; then
+  echo "Baseline generation unexpectedly succeeded after a late write failure." >&2
+  exit 1
+fi
+jq -e '.generatedBy == "resgraph" and .status == "generationFailed"' \
+  "$baseline_manifest_path" >/dev/null
 
 cp "$root_dir/tests/authorization/valid/expected-authorization-manifest.json" \
   "$tmp_dir/valid/authorization-manifest.json"
@@ -202,6 +407,46 @@ fi
 cmp "$tmp_dir/cli-project/generated/authorization-manifest.expected.json" \
   "$tmp_dir/cli-project/generated/authorization-manifest.json"
 
+cli_baseline_project="$tmp_dir/cli-baseline-project"
+mkdir -p "$cli_baseline_project/src" "$cli_baseline_project/generated/schema"
+cp "$root_dir/tests/authorization/baseline/rescript.json" \
+  "$cli_baseline_project/rescript.json"
+cp "$root_dir/tests/authorization/baseline/src/"*.res \
+  "$cli_baseline_project/src/"
+(
+  cd "$cli_baseline_project"
+  "$rescript_bin"
+)
+node --input-type=module -e \
+  'import fs from "node:fs";
+   import path from "node:path";
+   const project = process.argv[1];
+   fs.writeFileSync(path.join(project, "resgraph.json"), JSON.stringify({
+     src: "./src",
+     outputFolder: "./generated/schema",
+     authorization: {
+       mode: "required",
+       manifestPath: "./generated/authorization-manifest.json",
+       baselinePath: "./generated/authorization-baseline.json"
+     }
+   }, null, 2) + "\n");' "$cli_baseline_project"
+(
+  cd "$cli_baseline_project"
+  node "$root_dir/cli/Cli.mjs" authorization baseline
+  node "$root_dir/cli/Cli.mjs" build
+) >"$tmp_dir/cli-baseline-output.txt" 2>&1
+grep -F 'Authorization baseline written to' "$tmp_dir/cli-baseline-output.txt" >/dev/null
+grep -F 'Build succeeded' "$tmp_dir/cli-baseline-output.txt" >/dev/null
+warning_count="$(grep -Fc 'Authorization baseline active:' "$tmp_dir/cli-baseline-output.txt")"
+if [[ "$warning_count" -ne 2 ]]; then
+  echo "Expected baseline warnings after baseline generation and required build." >&2
+  exit 1
+fi
+grep -F 'are not protected by required authorization coverage.' \
+  "$tmp_dir/cli-baseline-output.txt" >/dev/null
+jq -e '.kind == "authorizationBaseline" and (.gaps | length) == 4' \
+  "$cli_baseline_project/generated/authorization-baseline.json" >/dev/null
+
 node --input-type=module -e \
   'import path from "node:path";
    import {readConfigFromDir} from "./cli/Utils.mjs";
@@ -210,7 +455,8 @@ node --input-type=module -e \
    const config = result.TAG === "Ok" ? result._0 : undefined;
    if (config?.src !== path.resolve(configDir, "src") ||
        config?.outputFolder !== path.resolve(configDir, "generated/schema") ||
-       config?.authorization?.manifestPath !== path.resolve(configDir, "generated/authorization-manifest.json")) process.exit(1)'
+       config?.authorization?.manifestPath !== path.resolve(configDir, "generated/authorization-manifest.json") ||
+       config?.authorization?.baselinePath !== path.resolve(configDir, "generated/authorization-baseline.json")) process.exit(1)'
 
 node --input-type=module -e \
   'import {Authorization} from "./src/res/ResGraph.mjs";

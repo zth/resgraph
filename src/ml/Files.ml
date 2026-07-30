@@ -41,7 +41,44 @@ let relpath base path =
     |> removeExtraDots
 
 let maybeStat path =
-  try Some (Unix.stat path) with Unix.Unix_error (Unix.ENOENT, _, _) -> None
+  try Some (Unix.stat path)
+  with Unix.Unix_error ((Unix.ENOENT | Unix.ENOTDIR), _, _) -> None
+
+let canonicalPath path =
+  let rec resolve remaining path =
+    if remaining = 0 then None
+    else
+      try Some (Unix.realpath path)
+      with _ -> (
+        try
+          let target = Unix.readlink path in
+          let target =
+            if Filename.is_relative target then
+              Filename.concat (Filename.dirname path) target
+            else target
+          in
+          resolve (remaining - 1) target
+        with _ -> (
+          try
+            Some
+              (Filename.concat
+                 (Unix.realpath (Filename.dirname path))
+                 (Filename.basename path))
+          with _ -> None))
+  in
+  resolve 40 path
+
+let sameFile first second =
+  pathEq first second
+  ||
+  match (canonicalPath first, canonicalPath second) with
+  | Some first, Some second when pathEq first second -> true
+  | _ -> (
+    match (maybeStat first, maybeStat second) with
+    | Some first, Some second ->
+      first.Unix.st_dev = second.Unix.st_dev
+      && first.Unix.st_ino = second.Unix.st_ino
+    | _ -> false)
 
 let readFile filename =
   try

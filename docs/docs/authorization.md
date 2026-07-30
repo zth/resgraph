@@ -9,12 +9,35 @@ ResGraph can require every application-defined GraphQL output field to have an e
   "authorization": {
     "mode": "required",
     "onForbidden": "Security.onForbidden",
-    "manifestPath": "./src/schema/__generated__/authorization-manifest.json"
+    "manifestPath": "./src/schema/__generated__/authorization-manifest.json",
+    "baselinePath": "./src/schema/__generated__/authorization-baseline.json"
   }
 }
 ```
 
-`onForbidden` and `manifestPath` are optional. Manifest paths resolve relative to `resgraph.json`. During generation, the manifest has a `generationFailed` status and empty fields; it changes to `success` only after every schema artifact is written. ResGraph refuses to overwrite an existing file that lacks its generated-manifest marker. Introspection fields are outside this check, and required mode currently rejects subscriptions.
+`onForbidden`, `manifestPath`, and `baselinePath` are optional. Manifest and baseline paths resolve relative to `resgraph.json`. During generation, the manifest has a `generationFailed` status and empty fields; it changes to `success` only after every schema artifact is written. ResGraph refuses to overwrite an existing file that lacks its generated-manifest marker. Introspection fields are outside this check. Subscription fields require an `unsupportedSubscription` baseline entry until their authorization execution semantics are supported.
+
+## Incremental adoption with a baseline
+
+A baseline lets an existing codebase enable required mode immediately without adding suppression annotations to application source. Set `baselinePath`, compile the project, and snapshot the current gaps:
+
+```sh
+resgraph authorization baseline
+```
+
+The generated JSON records exact field coordinates and the kind of gap at each coordinate. Commit it and run ordinary `resgraph build` commands in CI. A required build then:
+
+- Allows only the gaps already present in the baseline.
+- Rejects every new uncovered field or new mutation/subscription gap.
+- Rejects stale entries after a field is covered or removed, so the baseline must shrink as adoption progresses.
+
+Whenever `baselinePath` is configured, each successful compilation prints a warning that fields listed in the baseline are outside required authorization coverage.
+
+Add `@gql.authorize`, `@gql.public`, or an appropriate resolver outcome one field at a time, then remove the corresponding stale entry. This makes the migration a ratchet: normal builds cannot silently grow the exception set.
+
+Run `resgraph authorization baseline` again only when intentionally refreshing the snapshot. The command can add current gaps, so review its diff like any other security-policy change. It refuses to overwrite files that are not marked as ResGraph-generated and keeps entries sorted for stable diffs.
+
+The audit manifest reports an allowed legacy gap with the `baseline` disposition. Baseline gap kinds distinguish uncovered fields, outcome-only mutations that lack a pre-resolver policy, and subscriptions whose authorization execution semantics are not yet supported.
 
 ## Authorization policies
 
