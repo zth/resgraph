@@ -6,7 +6,12 @@
         "../src/public"
       ],
       "outputFolder": "../src/generated/public",
-      "moduleName": "FirstSchema"
+      "moduleName": "FirstSchema",
+      "authorization": {
+        "mode": "required",
+        "manifestPath": "../src/generated/shared-authorization-manifest.json",
+        "baselinePath": "../src/generated/shared-authorization-baseline.json"
+      }
     },
     "second": {
       "projectRoot": "..",
@@ -14,7 +19,12 @@
         "../src/admin"
       ],
       "outputFolder": "../src/generated/public",
-      "moduleName": "SecondSchema"
+      "moduleName": "SecondSchema",
+      "authorization": {
+        "mode": "required",
+        "manifestPath": "../src/generated/shared-authorization-manifest.json",
+        "baselinePath": "../src/generated/shared-authorization-baseline.json"
+      }
     },
     "third": {
       "projectRoot": "../src",

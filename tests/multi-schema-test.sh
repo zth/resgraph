@@ -315,6 +315,7 @@ validation_status=$?
 set -e
 [[ $validation_status -ne 0 ]]
 [[ "$validation_output" == *'use the same outputFolder'* ]]
+[[ "$validation_output" == *'use the same authorization manifest or baseline path'* ]]
 [[ "$validation_output" == *'use moduleName "CollidingSchema" in the same ReScript package'* ]]
 
 set +e
@@ -359,6 +360,7 @@ rm -f "$output_alias"
 trap - EXIT
 [[ $output_alias_status -ne 0 ]]
 [[ "$output_alias_output" == *'use the same outputFolder'* ]]
+[[ "$output_alias_output" == *'use the same authorization manifest or baseline path'* ]]
 
 project_alias="$fixture_dir/project-alias"
 ln -s . "$project_alias"

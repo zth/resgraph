@@ -6,6 +6,11 @@ type projectIssues =
   | IncludePathDoesNotExist({schemaName: string, path: string})
   | ExcludePathDoesNotExist({schemaName: string, path: string})
   | DuplicateOutputFolder({firstSchema: string, secondSchema: string, path: string})
+  | DuplicateAuthorizationArtifactPath({
+      firstSchema: string,
+      secondSchema: string,
+      path: string,
+    })
   | DuplicateModuleName({firstSchema: string, secondSchema: string, moduleName: string})
   | DuplicateSchemaStateName({firstSchema: string, secondSchema: string})
   | DefaultSchemaDoesNotExist({schemaName: string})
@@ -46,6 +51,17 @@ let compilerRoot = projectRoot =>
   projectRoot
   ->Utils.findCompilerRoot
   ->Option.getOr(projectRoot)
+  ->Utils.portableFilesystemIdentity
+
+let authorizationArtifactPaths = (schema: Utils.schemaConfig) =>
+  switch schema.authorization {
+  | None => []
+  | Some(authorization) =>
+    [authorization.manifestPath, authorization.baselinePath]->Array.keepSome
+  }
+
+let artifactFilesystemIdentity = path =>
+  Path.join([Path.dirname(path)->Utils.canonicalPath, Path.basename(path)])
   ->Utils.portableFilesystemIdentity
 
 let validateConfig = (config: Utils.config, ~issues) => {
@@ -112,6 +128,25 @@ let validateConfig = (config: Utils.config, ~issues) => {
             path: schema.outputFolder,
           }),
         )
+      }
+      if otherIndex > index {
+        let otherAuthorizationPaths = otherSchema->authorizationArtifactPaths
+        switch schema->authorizationArtifactPaths->Array.find(path =>
+          otherAuthorizationPaths->Array.some(
+            otherPath =>
+              path->artifactFilesystemIdentity === otherPath->artifactFilesystemIdentity,
+          )
+        ) {
+        | Some(path) =>
+          issues->Array.push(
+            DuplicateAuthorizationArtifactPath({
+              firstSchema: schema.name,
+              secondSchema: otherSchema.name,
+              path,
+            }),
+          )
+        | None => ()
+        }
       }
       if (
         otherIndex > index &&
@@ -192,6 +227,10 @@ let printProjectIssues = issues => {
     | DuplicateOutputFolder({firstSchema, secondSchema, path}) =>
       Console.error(
         `- 🚫 Schemas "${firstSchema}" and "${secondSchema}" use the same outputFolder "${path}".`,
+      )
+    | DuplicateAuthorizationArtifactPath({firstSchema, secondSchema, path}) =>
+      Console.error(
+        `- 🚫 Schemas "${firstSchema}" and "${secondSchema}" use the same authorization manifest or baseline path "${path}".`,
       )
     | DuplicateModuleName({firstSchema, secondSchema, moduleName}) =>
       Console.error(
