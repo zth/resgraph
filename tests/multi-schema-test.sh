@@ -118,6 +118,46 @@ restore_config
 trap - EXIT
 (cd "$fixture_dir" && node "$cli" build admin >/dev/null)
 
+transfer_fixture="$fixture_dir/ownership-transfer"
+transfer_config_backup=$(mktemp /tmp/resgraph-transfer-config.XXXXXX)
+cp "$transfer_fixture/resgraph.json" "$transfer_config_backup"
+restore_transfer_fixture() {
+  cp "$transfer_config_backup" "$transfer_fixture/resgraph.json"
+  rm -f "$transfer_config_backup"
+  rm -rf "$transfer_fixture/lib"
+  find "$fixture_dir/src/generated/transfer-a" -type f ! -name .gitkeep -delete
+  find "$fixture_dir/src/generated/transfer-b" -type f ! -name .gitkeep -delete
+}
+trap restore_transfer_fixture EXIT
+(cd "$transfer_fixture" && node "$cli" build >/dev/null)
+test -f "$fixture_dir/src/generated/transfer-a/FirstSchema.res"
+test -f "$fixture_dir/src/generated/transfer-b/SecondSchema.res"
+cp "$transfer_fixture/resgraph.transferred.json" "$transfer_fixture/resgraph.json"
+(cd "$transfer_fixture" && node "$cli" build first >/dev/null)
+test -f "$fixture_dir/src/generated/transfer-a/SecondSchema.res"
+test ! -e "$fixture_dir/src/generated/transfer-a/FirstSchema.res"
+test ! -e "$fixture_dir/src/generated/transfer-b/SecondSchema.res"
+test ! -e "$fixture_dir/src/generated/transfer-b/ThirdSchema.res"
+restore_transfer_fixture
+trap - EXIT
+
+config_backup=$(mktemp /tmp/resgraph-config.XXXXXX)
+cp "$fixture_dir/resgraph.json" "$config_backup"
+trap restore_config EXIT
+cp "$fixture_dir/resgraph.public-no-sdl.json" "$fixture_dir/resgraph.json"
+rm -rf "$fixture_dir/lib/resgraph"
+(cd "$fixture_dir" && node "$cli" build public >/dev/null)
+test ! -e "$fixture_dir/src/generated/public/schema.graphql"
+test -f "$fixture_dir/src/generated/admin/schema.graphql"
+printf 'type UserOwned { id: ID! }\n' >"$fixture_dir/src/generated/public/schema.graphql"
+(cd "$fixture_dir" && node "$cli" build public >/dev/null)
+assert_contains "$fixture_dir/src/generated/public/schema.graphql" 'type UserOwned'
+rm -f "$fixture_dir/src/generated/public/schema.graphql"
+restore_config
+trap - EXIT
+(cd "$fixture_dir" && node "$cli" build >/dev/null)
+test -f "$fixture_dir/src/generated/public/schema.graphql"
+
 removed_schema_backup=$(mktemp -d /tmp/resgraph-removed-schema.XXXXXX)
 cp "$fixture_dir/resgraph.json" "$removed_schema_backup/resgraph.json"
 for generated_file in \

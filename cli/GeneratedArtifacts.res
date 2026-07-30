@@ -131,8 +131,7 @@ let sameOwnership = (left, right) =>
   left.name === right.name &&
   left.compilerRoot === right.compilerRoot &&
   left.outputFolder === right.outputFolder &&
-  left.moduleName === right.moduleName &&
-  left.dumpSchemaSdl === right.dumpSchemaSdl
+  left.moduleName === right.moduleName
 
 let writeManifest = (path, schemas) => {
   let temporaryPath = path ++ "." ++ Process.process->Process.pid->Int.toString ++ ".tmp"
@@ -151,6 +150,11 @@ let writeManifest = (path, schemas) => {
 
 let sameSchemaSlot = (left, right) =>
   left.compilerRoot === right.compilerRoot && left.outputFolder === right.outputFolder
+
+let sameCompilerModule = (left, right) =>
+  left.compilerRoot->Utils.portableFilesystemIdentity ===
+    right.compilerRoot->Utils.portableFilesystemIdentity &&
+    left.moduleName->String.toLowerCase === right.moduleName->String.toLowerCase
 
 let sync = (config: Utils.config, ~selectedSchemas: array<Utils.schemaConfig>, ~configDir) => {
   let path = manifestPath(configDir)
@@ -176,6 +180,12 @@ let sync = (config: Utils.config, ~selectedSchemas: array<Utils.schemaConfig>, ~
         sameSchemaSlot(previousOwnership, currentOwnership)
       ),
     )
+  let ownershipClaimedBySelectedSchema = previousOwnership =>
+    current->Array.some(currentOwnership =>
+      currentOwnership.name !== previousOwnership.name &&
+      selectedNames->Array.includes(currentOwnership.name) &&
+      sameCompilerModule(previousOwnership, currentOwnership)
+    )
 
   previous->Array.forEach(previousOwnership => {
     let successor =
@@ -190,8 +200,9 @@ let sync = (config: Utils.config, ~selectedSchemas: array<Utils.schemaConfig>, ~
     | None => cleanOwnership(previousOwnership)
     | Some(currentOwnership) =>
       if (
-        !sameOwnership(previousOwnership, currentOwnership) &&
-        selectedNames->Array.includes(currentOwnership.name)
+        (!sameOwnership(previousOwnership, currentOwnership) &&
+        selectedNames->Array.includes(currentOwnership.name)) ||
+          ownershipClaimedBySelectedSchema(previousOwnership)
       ) {
         cleanOwnership(previousOwnership)
       }
@@ -202,7 +213,8 @@ let sync = (config: Utils.config, ~selectedSchemas: array<Utils.schemaConfig>, ~
     switch previousForCurrent(currentOwnership) {
     | Some(previousOwnership)
       if !sameOwnership(previousOwnership, currentOwnership) &&
-      !(selectedNames->Array.includes(currentOwnership.name)) => previousOwnership
+      !(selectedNames->Array.includes(currentOwnership.name)) &&
+      !ownershipClaimedBySelectedSchema(previousOwnership) => previousOwnership
     | _ => currentOwnership
     }
   )

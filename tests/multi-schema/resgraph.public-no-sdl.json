@@ -1,0 +1,20 @@
+{
+  "defaultSchema": "public",
+  "schemas": {
+    "public": {
+      "projectRoot": ".",
+      "include": ["src/shared", "src/public"],
+      "exclude": ["src/public/experimental"],
+      "outputFolder": "src/generated/public",
+      "contextType": "PublicContext.context",
+      "dumpSchemaSdl": false
+    },
+    "admin": {
+      "projectRoot": ".",
+      "include": ["src/shared", "src/admin"],
+      "outputFolder": "src/generated/admin",
+      "contextType": "AdminContext.context",
+      "dumpSchemaSdl": true
+    }
+  }
+}

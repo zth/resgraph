@@ -1,0 +1,21 @@
+{
+  "defaultSchema": "first",
+  "schemas": {
+    "first": {
+      "projectRoot": "..",
+      "include": ["../src/shared", "../src/public"],
+      "exclude": ["../src/public/experimental", "../src/public/PublicInterface.res"],
+      "outputFolder": "../src/generated/transfer-a",
+      "moduleName": "SecondSchema",
+      "contextType": "PublicContext.context"
+    },
+    "second": {
+      "projectRoot": "..",
+      "include": ["../src/shared", "../src/admin"],
+      "exclude": ["../src/admin/AdminInterface.res"],
+      "outputFolder": "../src/generated/transfer-b",
+      "moduleName": "ThirdSchema",
+      "contextType": "AdminContext.context"
+    }
+  }
+}

@@ -255,7 +255,9 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
              (match schemaName with
              | Some _ ->
                GenerateSchemaTypePrinters.cleanNamedSchemaFiles ~outputFolder
-                 ~moduleName
+                 ~moduleName;
+               if not writeSdlFile then
+                 GenerateSchemaTypePrinters.cleanNamedSchemaSdl ~outputFolder
              | None -> ());
 
              if schemaState.diagnostics |> List.length > 0 then (
