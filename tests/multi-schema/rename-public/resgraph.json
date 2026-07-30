@@ -1,0 +1,19 @@
+{
+  "defaultSchema": "public",
+  "schemas": {
+    "public": {
+      "projectRoot": "..",
+      "include": [
+        "../src/shared",
+        "../src/public"
+      ],
+      "outputFolder": "../src/generated/public",
+      "moduleName": "RenamedPublicSchema",
+      "contextType": "PublicContext.context",
+      "dumpSchemaSdl": true,
+      "exclude": [
+        "../src/public/experimental"
+      ]
+    }
+  }
+}

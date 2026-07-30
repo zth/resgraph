@@ -17,6 +17,8 @@ ResGraph can require every application-defined GraphQL output field to have an e
 
 `onForbidden`, `manifestPath`, and `baselinePath` are optional. Manifest and baseline paths resolve relative to `resgraph.json`. During generation, the manifest has a `generationFailed` status and empty fields; it changes to `success` only after every schema artifact is written. ResGraph refuses to overwrite an existing file that lacks its generated-manifest marker. Introspection fields are outside this check. Subscription fields require an `unsupportedSubscription` baseline entry until their authorization execution semantics are supported.
 
+With [multiple named schemas](multiple-schemas), put `authorization` inside each schema that requires coverage. Use distinct manifest and baseline paths for every schema. `resgraph authorization baseline <schema>` refreshes a named schema; omitting the name uses `defaultSchema`.
+
 ## Incremental adoption with a baseline
 
 A baseline lets an existing codebase enable required mode immediately without adding suppression annotations to application source. Set `baselinePath`, compile the project, and snapshot the current gaps:

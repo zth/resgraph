@@ -1297,26 +1297,77 @@ let writeIfHasChanges path contents =
         path;
       exit 1
 
-let getStateFilePath (package : SharedTypes.package) =
-  package.rootPath ^ "/lib/.resgraphState.marshal"
+type persistedSchemaState = {
+  version: int;
+  schemaName: string;
+  schemaState: schemaState;
+  processedSchema: processedSchema;
+}
 
-let stateFileExists (package : SharedTypes.package) =
-  Files.exists (getStateFilePath package)
+type persistedLegacySchemaState = {
+  version: int;
+  schemaState: schemaState;
+  processedSchema: processedSchema;
+}
 
-let writeStateFile ~package ~schemaState ~processedSchema =
-  let s = Marshal.to_bytes (schemaState, processedSchema) [Compat_32] in
-  let ch = open_out_bin (getStateFilePath package) in
-  output_bytes ch s;
+let stateFileMagic = "RESGRAPH_STATE\000"
+let stateFileVersion = 1
+
+let validStateName schemaName =
+  Str.string_match (Str.regexp "^[A-Za-z0-9_-]+$") schemaName 0
+
+let getStateFilePath ?schemaName (package : SharedTypes.package) =
+  match schemaName with
+  | None -> package.rootPath ^ "/lib/.resgraphState.marshal"
+  | Some schemaName when validStateName schemaName ->
+    package.rootPath ^ "/lib/resgraph/" ^ schemaName ^ ".state.marshal"
+  | Some _ -> invalid_arg "Invalid ResGraph schema state name"
+
+let stateFileExists ?schemaName (package : SharedTypes.package) =
+  Files.exists (getStateFilePath ?schemaName package)
+
+let ensureStateDirectory (package : SharedTypes.package) =
+  let directory = package.rootPath ^ "/lib/resgraph" in
+  if not (Files.exists directory) then Unix.mkdir directory 0o755
+
+let writeStateFile ?schemaName ~package ~schemaState ~processedSchema () =
+  (match schemaName with
+  | None -> ()
+  | Some _ -> ensureStateDirectory package);
+  let ch = open_out_bin (getStateFilePath ?schemaName package) in
+  output_string ch stateFileMagic;
+  (match schemaName with
+  | None ->
+    Marshal.to_channel ch
+      {version = stateFileVersion; schemaState; processedSchema}
+      [Compat_32]
+  | Some schemaName ->
+    Marshal.to_channel ch
+      {version = stateFileVersion; schemaName; schemaState; processedSchema}
+      [Compat_32]);
   close_out ch
 
-let readStateFile ~package =
-  let ch = open_in_bin (getStateFilePath package) in
-  let s : GenerateSchemaTypes.schemaState * GenerateSchemaTypes.processedSchema
-      =
-    Marshal.from_channel ch
-  in
-  close_in ch;
-  s
+let readStateFile ?schemaName ~package () =
+  let ch = open_in_bin (getStateFilePath ?schemaName package) in
+  Fun.protect
+    (fun () ->
+      let magic = really_input_string ch (String.length stateFileMagic) in
+      if magic <> stateFileMagic then
+        failwith "Incompatible ResGraph schema state file";
+      match schemaName with
+      | None ->
+        let persisted : persistedLegacySchemaState = Marshal.from_channel ch in
+        if persisted.version <> stateFileVersion then
+          failwith "Incompatible ResGraph schema state file"
+        else (persisted.schemaState, persisted.processedSchema)
+      | Some expectedSchemaName ->
+        let persisted : persistedSchemaState = Marshal.from_channel ch in
+        if
+          persisted.version <> stateFileVersion
+          || persisted.schemaName <> expectedSchemaName
+        then failwith "Incompatible ResGraph schema state file"
+        else (persisted.schemaState, persisted.processedSchema))
+    ~finally:(fun () -> close_in_noerr ch)
 
 type scalarValidationResult = DoesNotNeedParsing | NeedsParsing
 let rec validateCustomScalar ~env ~package (typ : Types.type_expr) =
@@ -1365,7 +1416,7 @@ let lastModuleInPath modulePath =
   in
   loop modulePath ""
 
-let makeSnippets ~path =
+let makeSnippets ~path ~schemaName =
   let baseSnippets =
     [
       ( "gql.type snippet - simple connection",
@@ -1425,48 +1476,58 @@ let ${1:fieldName} = async (${2:entity}: ${2:entity}) => {
   let extendedSnippets =
     match Packages.getPackage ~uri:(Uri.fromPath path) with
     | None -> []
-    | Some package ->
+    | Some package -> (
       let moduleName =
         path |> Filename.basename |> Filename.remove_extension
         |> capitalizeFirstChar
       in
-      let schemaState, _ = readStateFile ~package in
-      let snippets = ref [] in
-      (match schemaState.query with
-      | Some {typeLocation = Some (Concrete typeLocation)} ->
-        snippets :=
-          !snippets
-          @ [
-              ( "gql.field snippet - query field",
-                "Boilerplate for adding a new field to the root query.",
-                Printf.sprintf
-                  {|gql.field
-let ${1:fieldName} = async (_: %s, ~ctx: ResGraphContext.context) => {
+      let schemaState =
+        try Some (readStateFile ?schemaName ~package () |> fst)
+        with Sys_error _ | End_of_file | Failure _ | Invalid_argument _ ->
+          None
+      in
+      match schemaState with
+      | None -> []
+      | Some schemaState ->
+        let contextType = String.concat "." schemaState.contextTypePath in
+        let snippets = ref [] in
+        (match schemaState.query with
+        | Some {typeLocation = Some (Concrete typeLocation)} ->
+          snippets :=
+            !snippets
+            @ [
+                ( "gql.field snippet - query field",
+                  "Boilerplate for adding a new field to the root query.",
+                  Printf.sprintf
+                    {|gql.field
+let ${1:fieldName} = async (_: %s, ~ctx: %s) => {
   ${0:Some(entity.prop)}
 }|}
-                  (if typeLocation.fileName = moduleName then "query"
-                   else typeLocationToAccessor typeLocation) );
-            ]
-      | _ -> ());
-      (match schemaState.mutation with
-      | Some {typeLocation = Some (Concrete typeLocation)} ->
-        snippets :=
-          !snippets
-          @ [
-              ( "gql.field snippet - full mutation",
-                "Boilerplate for adding a new mutation the mutation type.",
-                Printf.sprintf
-                  {|gql.union
+                    (if typeLocation.fileName = moduleName then "query"
+                     else typeLocationToAccessor typeLocation)
+                    contextType );
+              ]
+        | _ -> ());
+        (match schemaState.mutation with
+        | Some {typeLocation = Some (Concrete typeLocation)} ->
+          snippets :=
+            !snippets
+            @ [
+                ( "gql.field snippet - full mutation",
+                  "Boilerplate for adding a new mutation the mutation type.",
+                  Printf.sprintf
+                    {|gql.union
 type ${1:mutationName}Result = Success({ok: bool}) | Error({reason: string})
 
 @gql.field
-let ${1:mutationName} = async (_: %s, ~ctx: ResGraphContext.context) => {
+let ${1:mutationName} = async (_: %s, ~ctx: %s) => {
   Success({ok: true})
 }|}
-                  (if typeLocation.fileName = moduleName then "mutation"
-                   else typeLocationToAccessor typeLocation) );
-            ]
-      | _ -> ());
-      !snippets
+                    (if typeLocation.fileName = moduleName then "mutation"
+                     else typeLocationToAccessor typeLocation)
+                    contextType );
+              ]
+        | _ -> ());
+        !snippets)
   in
   baseSnippets @ extendedSnippets

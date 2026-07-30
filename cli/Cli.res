@@ -5,11 +5,21 @@ external argv: array<option<string>> = "process.argv"
 
 module Console = Stdlib.Console
 module JsExn = Js.Exn
+
+open PerfHooks.Performance
+
 let args = argv->Array.slice(~start=2)->Array.keepSome
 let argsList = args->List.fromArray
 
-let printBuildTime = buildDuration => {
-  Console.log(`Build succeeded in ${(buildDuration /. 1000.)->Float.toFixed(~digits=2)} seconds.`)
+let printBuildTime = (schema: Utils.schemaConfig, buildDuration, ~showSchemaName) => {
+  let prefix = if showSchemaName {
+    `[${schema.name}] `
+  } else {
+    ""
+  }
+  Console.log(
+    `${prefix}Build succeeded in ${(buildDuration /. 1000.)->Float.toFixed(~digits=2)} seconds.`,
+  )
 }
 
 let printAuthorizationBaselineWarning = (authorization: option<Utils.authorizationConfig>) =>
@@ -23,38 +33,62 @@ let printAuthorizationBaselineWarning = (authorization: option<Utils.authorizati
 
 let helpText = `
 **ResGraph v0.1.0 CLI**
-This is the CLI of ResGraph. All available configuration is made via adding a \`resgraph.json\` file in the root of your project.
+This is the CLI of ResGraph. All configuration is read from \`resgraph.json\`.
 Available commands:
 
-init                   | Initializes a new project.
-build                  | Builds the project.
-authorization baseline | Creates or updates the required-authorization baseline.
-watch                  | Builds the project and watches for changes.
-tools                  | Show available ResGraph tools.
-help                   | Show this help message.
+init                            | Validate the project configuration.
+build [schema]                  | Build all schemas, or one named schema.
+authorization baseline [schema] | Create or update a schema's authorization baseline.
+watch [schema]                  | Watch all schemas, or one named schema.
+tools                           | Show available ResGraph tools.
+help                            | Show this help message.
 `
 
 let toolsHelpText = `
 Tools commands:
 
-find-definition <TypeName[.fieldName]> [--json]
-
-# Useful for finding the location of where a type or field is defined in the source code.
-# By default, the output is a human-readable string. 
-# With the \`--json\` flag, the output is a JSON string with the file path and location of the definition.
+find-definition <TypeName[.fieldName]> [--schema <schema>] [--json]
 `
 
-let parseFindDefinitionArgs = args =>
-  switch args {
-  | list{target} => Some((target, false))
-  | list{target, "--json"} => Some((target, true))
-  | list{"--json", target} => Some((target, true))
-  | _ => None
+type findDefinitionArgs = {target: string, jsonOutput: bool, schemaName: option<string>}
+type findDefinitionParseState = {
+  target: option<string>,
+  jsonOutput: bool,
+  schemaName: option<string>,
+}
+
+let parseFindDefinitionArgs = args => {
+  let rec loop = (remaining, state: findDefinitionParseState) =>
+    switch remaining {
+    | list{} =>
+      state.target->Option.map(target => {
+        let result: findDefinitionArgs = {
+          target,
+          jsonOutput: state.jsonOutput,
+          schemaName: state.schemaName,
+        }
+        result
+      })
+    | list{"--json", ...rest} if !state.jsonOutput => loop(rest, {...state, jsonOutput: true})
+    | list{"--schema", schemaName, ...rest} if state.schemaName->Option.isNone =>
+      loop(rest, {...state, schemaName: Some(schemaName)})
+    | list{target, ...rest} if state.target->Option.isNone && !(target->String.startsWith("--")) =>
+      loop(rest, {...state, target: Some(target)})
+    | _ => None
+    }
+
+  loop(args, {target: None, jsonOutput: false, schemaName: None})
+}
+
+let readConfig = () =>
+  switch Utils.readConfigFromCwd() {
+  | Error(msg) => panic(msg)
+  | Ok(config) => config
   }
 
 let validateConfig = config => {
   let issues = []
-  config->InitProject.validateConfig(~issues)
+  config->InitProject.validateConfig(~issues, ~configDir=Process.process->Process.cwd)
 
   if issues->Array.length > 0 {
     issues->InitProject.printProjectIssues
@@ -62,45 +96,106 @@ let validateConfig = config => {
   }
 }
 
-let printFindDefinition = (~target, ~jsonOutput) => {
-  let config = switch Utils.readConfigFromCwd() {
-  | Error(msg) => panic(msg)
-  | Ok(config) => config
+let selectSchemas = (config: Utils.config, schemaName) =>
+  switch schemaName {
+  | None => config.schemas
+  | Some(schemaName) =>
+    switch config->Utils.findSchema(schemaName) {
+    | Some(schema) => [schema]
+    | None =>
+      Console.error(`Unknown ResGraph schema "${schemaName}".`)
+      Process.process->Process.exitWithCode(1)
+      []
+    }
   }
 
+let printFindDefinition = (~target, ~jsonOutput, ~schemaName) => {
+  let config = readConfig()
   validateConfig(config)
 
-  switch Utils.callPrivateCli(FindDefinition({filePath: config.src, definitionHint: target})) {
-  | FindDefinition({item: Some(item), error: None}) =>
-    if jsonOutput {
-      Console.log(item->Utils.stringifyFindDefinitionJson)
-    } else {
-      Console.log(item->Utils.formatFindDefinitionText)
-    }
-  | FindDefinition({item: None, error: Some(error)}) =>
-    if jsonOutput {
-      Console.log(Utils.stringifyFindDefinitionError(error))
-    } else {
-      Console.error(error)
-    }
+  let schema = switch schemaName {
+  | Some(schemaName) => config->Utils.findSchema(schemaName)
+  | None => config->Utils.defaultSchema
+  }
+
+  switch schema {
+  | None =>
+    Console.error("Could not select a ResGraph schema.")
     Process.process->Process.exitWithCode(1)
-  | _ =>
-    Console.error("Unexpected response from ResGraph tools command.")
+  | Some(schema) =>
+    let stateName = schema.stateName
+    switch Utils.callPrivateCli(
+      FindDefinition({filePath: schema.projectRoot, definitionHint: target, ?stateName}),
+    ) {
+    | FindDefinition({item: Some(item), error: None}) =>
+      if jsonOutput {
+        Console.log(item->Utils.stringifyFindDefinitionJson)
+      } else {
+        Console.log(item->Utils.formatFindDefinitionText)
+      }
+    | FindDefinition({item: None, error: Some(error)}) =>
+      if jsonOutput {
+        Console.log(Utils.stringifyFindDefinitionError(error))
+      } else {
+        Console.error(error)
+      }
+      Process.process->Process.exitWithCode(1)
+    | _ =>
+      Console.error("Unexpected response from ResGraph tools command.")
+      Process.process->Process.exitWithCode(1)
+    }
+  }
+}
+
+let buildSchemas = (config: Utils.config, schemas: array<Utils.schemaConfig>) => {
+  let showSchemaName = !config.legacy || schemas->Array.length > 1
+  let hadError = ref(false)
+
+  schemas->Array.forEach(schema => {
+    let timeStart = performance->now
+    try {
+      switch Utils.callPrivateCli(GenerateSchema(schema)) {
+      | Completion(_) | Hover(_) | Definition(_) | FindDefinition(_) | NotInitialized => ()
+      | Success(_) =>
+        printBuildTime(schema, performance->now -. timeStart, ~showSchemaName)
+        printAuthorizationBaselineWarning(schema.authorization)
+      | Error({errors}) =>
+        if showSchemaName {
+          Console.error(`[${schema.name}] Schema generation failed.`)
+        }
+        ErrorPrinter.printErrors(errors)
+        hadError := true
+      }
+    } catch {
+    | Exn.Error(error) =>
+      Console.error(`[${schema.name}] Generator process failed.`)
+      Console.error(error)
+      hadError := true
+    | _ =>
+      Console.error(`[${schema.name}] Generator process failed.`)
+      hadError := true
+    }
+  })
+
+  if hadError.contents {
     Process.process->Process.exitWithCode(1)
   }
 }
 
-let generateAuthorizationBaseline = () => {
-  let config = switch Utils.readConfigFromCwd() {
-  | Error(msg) => panic(msg)
-  | Ok(config) => config
-  }
-
+let generateAuthorizationBaseline = schemaName => {
+  let config = readConfig()
   validateConfig(config)
+  let schema = switch schemaName {
+  | None => config->Utils.defaultSchema
+  | Some(schemaName) => config->Utils.findSchema(schemaName)
+  }
+  let schema = schema->Option.getOrThrow(~message="Could not select a ResGraph schema.")
 
-  switch config.authorization {
+  switch schema.authorization {
   | None =>
-    Console.error("Required authorization must be configured before creating a baseline.")
+    Console.error(
+      `Required authorization must be configured for schema "${schema.name}" before creating a baseline.`,
+    )
     Process.process->Process.exitWithCode(1)
   | Some(authorization) =>
     switch authorization.baselinePath {
@@ -109,14 +204,13 @@ let generateAuthorizationBaseline = () => {
       Process.process->Process.exitWithCode(1)
     | Some(baselinePath) =>
       let baselineAuthorization = {...authorization, mode: Baseline}
-      switch Utils.callPrivateCli(
-        GenerateSchema({
-          src: config.src,
-          outputFolder: config.outputFolder,
-          dumpSchemaSdl: config.dumpSchemaSdl,
-          authorization: baselineAuthorization,
-        }),
-      ) {
+      let baselineSchema = {...schema, authorization: baselineAuthorization}
+      GeneratedArtifacts.sync(
+        config,
+        ~selectedSchemas=[baselineSchema],
+        ~configDir=Process.process->Process.cwd,
+      )
+      switch Utils.callPrivateCli(GenerateSchema(baselineSchema)) {
       | Success(_) =>
         Console.log(`Authorization baseline written to ${baselinePath}.`)
         printAuthorizationBaselineWarning(Some(baselineAuthorization))
@@ -134,97 +228,101 @@ let generateAuthorizationBaseline = () => {
 try {
   switch argsList {
   | list{"init"} =>
-    let projectDir = Process.process->Process.cwd
-
-    Console.log("Initializing ResGraph project...\n")
-
-    let issues = InitProject.validateProject(projectDir)
-
+    let issues = InitProject.validateProject(Process.process->Process.cwd)
     if issues->Array.length > 0 {
       issues->InitProject.printProjectIssues
       Process.process->Process.exitWithCode(1)
     } else {
       Console.log("✅ Project already set up correctly.")
-      Process.process->Process.exitWithCode(0)
     }
-
-  | list{"authorization", "baseline"} => generateAuthorizationBaseline()
+  | list{"authorization", "baseline"} => generateAuthorizationBaseline(None)
+  | list{"authorization", "baseline", schemaName} => generateAuthorizationBaseline(Some(schemaName))
   | list{"build"} =>
-    let config = switch Utils.readConfigFromCwd() {
-    | Error(msg) => panic(msg)
-    | Ok(config) => config
-    }
-
+    let config = readConfig()
     validateConfig(config)
-
-    open PerfHooks.Performance
-    let timeStart = performance->now
-
-    let res = Utils.callPrivateCli(
-      GenerateSchema({
-        src: config.src,
-        outputFolder: config.outputFolder,
-        dumpSchemaSdl: config.dumpSchemaSdl,
-        authorization: ?config.authorization,
-      }),
+    let schemas = config->selectSchemas(None)
+    GeneratedArtifacts.sync(
+      config,
+      ~selectedSchemas=schemas,
+      ~configDir=Process.process->Process.cwd,
     )
-    switch res {
-    | Completion(_) | Hover(_) | Definition(_) | FindDefinition(_) | NotInitialized => ()
-    | Success(_) =>
-      let buildDuration = performance->now -. timeStart
-      printBuildTime(buildDuration)
-      printAuthorizationBaselineWarning(config.authorization)
-    | Error({errors}) =>
-      ErrorPrinter.printErrors(errors)
-      Process.process->Process.exitWithCode(1)
-    }
-  | list{"watch"} =>
-    let config = switch Utils.readConfigFromCwd() {
-    | Error(msg) => panic(msg)
-    | Ok(config) => config
-    }
-
+    buildSchemas(config, schemas)
+  | list{"build", schemaName} =>
+    let config = readConfig()
     validateConfig(config)
-
-    open PerfHooks.Performance
-    let timeStart = ref(0.)
-
-    let _watcher = Utils.setupWatcher(
-      ~onResult=res => {
-        let buildDuration = performance->now -. timeStart.contents
-        printBuildTime(buildDuration)
-
-        switch res {
-        | Error({errors}) => ErrorPrinter.printErrors(errors)
-        | Success(_) => printAuthorizationBaselineWarning(config.authorization)
-        | _ => ()
-        }
-      },
-      ~onStartRebuild=() => {
-        Console.clear()
-        Console.log("Rebuilding.")
-        timeStart := performance->now
-      },
-      ~config,
+    let schemas = config->selectSchemas(Some(schemaName))
+    GeneratedArtifacts.sync(
+      config,
+      ~selectedSchemas=schemas,
+      ~configDir=Process.process->Process.cwd,
+    )
+    buildSchemas(config, schemas)
+  | list{"watch"} | list{"watch", _} =>
+    let config = readConfig()
+    validateConfig(config)
+    let schemaName = switch argsList {
+    | list{"watch", schemaName} => Some(schemaName)
+    | _ => None
+    }
+    let schemas = config->selectSchemas(schemaName)
+    GeneratedArtifacts.sync(
+      config,
+      ~selectedSchemas=schemas,
+      ~configDir=Process.process->Process.cwd,
+    )
+    let showSchemaName = !config.legacy || schemas->Array.length > 1
+    let timeStarts: Dict.t<float> = dict{}
+    let _watchers = schemas->Array.map(schema =>
+      Utils.setupWatcher(
+        ~onResult=(schema, res) => {
+          switch timeStarts->Dict.get(schema.name) {
+          | Some(timeStart) =>
+            switch res {
+            | Utils.GeneratorProcessFailure => ()
+            | Utils.GeneratorResult(Error({errors})) =>
+              if showSchemaName {
+                Console.error(`[${schema.name}] Schema generation failed.`)
+              }
+              ErrorPrinter.printErrors(errors)
+            | Utils.GeneratorResult(Success(_)) =>
+              printBuildTime(schema, performance->now -. timeStart, ~showSchemaName)
+              printAuthorizationBaselineWarning(schema.authorization)
+            | Utils.GeneratorResult(_) =>
+              Console.error(`[${schema.name}] Unexpected generator response.`)
+            }
+          | None => ()
+          }
+        },
+        ~onStartRebuild=schema => {
+          timeStarts->Dict.set(schema.name, performance->now)
+          if showSchemaName {
+            Console.log(`[${schema.name}] Rebuilding.`)
+          } else {
+            Console.log("Rebuilding.")
+          }
+        },
+        ~config=schema,
+      )
     )
     Console.log("Watching for changes...")
   | list{"lsp", configFilePath} => Lsp.start(~configFilePath, ~mode=Lsp.Stdio)
   | list{"tools", "find-definition", ...rest} =>
     switch parseFindDefinitionArgs(rest) {
-    | Some((target, jsonOutput)) => printFindDefinition(~target, ~jsonOutput)
+    | Some({target, jsonOutput, schemaName}) =>
+      printFindDefinition(~target, ~jsonOutput, ~schemaName)
     | None =>
       Console.error("Invalid tools arguments.")
       Console.log(toolsHelpText)
       Process.process->Process.exitWithCode(1)
     }
   | list{"help"} => Console.log(helpText)
-  | v =>
-    Console.log("Invalid command: " ++ v->List.toArray->Array.join(" "))
+  | value =>
+    Console.log("Invalid command: " ++ value->List.toArray->Array.join(" "))
     Console.log(helpText)
   }
 } catch {
-| Exn.Error(_) =>
-  Console.error("Error")
+| Exn.Error(error) =>
+  Console.error(error)
   Process.process->Process.exitWithCode(1)
 | _ =>
   Console.error("Error!")

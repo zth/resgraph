@@ -75,10 +75,18 @@ type typeContext =
   | ObjectField of {objectTypeName: string; fieldName: string}
   | UnionMember of {parentUnionName: string; constructorName: string}
 
-let intfNameRegexp = Str.regexp "^Interface_\\(.*\\)$"
+let intfNameRegexp = Str.regexp "^\\(.*__\\)?Interface_\\(.*\\)$"
 let extractInterfaceName str =
-  if Str.string_match intfNameRegexp str 0 then Some (Str.matched_group 1 str)
+  if Str.string_match intfNameRegexp str 0 then Some (Str.matched_group 2 str)
   else None
+
+let interfaceHelperModuleForId helperModule interfaceId =
+  let prefix =
+    if Str.string_match intfNameRegexp helperModule 0 then
+      try Str.matched_group 1 helperModule with Not_found -> ""
+    else ""
+  in
+  prefix ^ "Interface_" ^ interfaceId
 
 (* Extracts valid GraphQL types from type exprs *)
 let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
@@ -177,15 +185,18 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
     | Tconstr (Path.Pident {name = "float"}, [], _) -> Some (Scalar Float)
     | Tconstr (path, typeArgs, _) -> (
       match pathIdentToList path with
-      | [intfFilename; "ImplementedBy"; "t"]
-        when Utils.startsWith intfFilename "Interface_" -> (
+      | [intfFilename; "ImplementedBy"; "t"] -> (
         let interfaceName = extractInterfaceName intfFilename in
         match interfaceName with
         | None -> None
-        | Some interfaceName -> Some (InjectInterfaceTypename interfaceName))
+        | Some interfaceId ->
+          Some
+            (InjectInterfaceTypename {interfaceId; helperModule = intfFilename})
+        )
       | ["ResGraph"; "id"] -> Some (Scalar ID)
       | ["ResGraph"; "resolveInfo"] -> Some InjectInfo
-      | ["ResGraphContext"; "context"] -> Some InjectContext
+      | contextTypePath when contextTypePath = schemaState.contextTypePath ->
+        Some InjectContext
       | _ when isRescriptNullablePath path -> (
         match typeArgs with
         | [typeArg] -> (
@@ -1622,11 +1633,11 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                args
                |> List.find_map (fun (arg : gqlArg) ->
                    match arg.typ with
-                   | InjectInterfaceTypename targetIntfId ->
-                     Some (targetIntfId, arg)
+                   | InjectInterfaceTypename {interfaceId; helperModule} ->
+                     Some (interfaceId, helperModule, arg)
                    | _ -> None)
              with
-            | Some (targetIntfId, arg) when targetIntfId <> id ->
+            | Some (targetIntfId, helperModule, arg) when targetIntfId <> id ->
               schemaState
               |> addDiagnostic
                    ~diagnostic:
@@ -1638,8 +1649,9 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                            "Argument \"%s\" is trying to inject a interface \
                             typename, but it's targeting the wrong interface \
                             (\"%s\" vs wanted \"%s\"). Please change the type \
-                            annotation to \"Interface_%s.ImplementedBy.t\"."
-                           arg.name targetIntfId id id;
+                            annotation to \"%s.ImplementedBy.t\"."
+                           arg.name targetIntfId id
+                           (interfaceHelperModuleForId helperModule id);
                      }
             | _ -> ());
             let field =

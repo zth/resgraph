@@ -674,7 +674,8 @@ let isGeneratedBaseline path =
 
 let isInterfaceArtifactFileName fileName =
   let fileName = String.lowercase_ascii fileName in
-  String.starts_with fileName ~prefix:"interface_"
+  (String.starts_with fileName ~prefix:"interface_"
+  || Str.string_match (Str.regexp ".*__interface_.*\\.res$") fileName 0)
   && Filename.check_suffix fileName ".res"
 
 let collidesWithInterfaceArtifact ~outputFolder path =

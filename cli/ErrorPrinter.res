@@ -41,13 +41,13 @@ let prettyPrintDiagnostic = (~lines, ~diagnostic: Utils.generateError) => {
         index >= diagnostic.range.start.line && index <= diagnostic.range.end_.line
 
       if highlightOnThisLine {
-        let highlightStartOffset = if index == diagnostic.range.start.line {
+        let highlightStartOffset = if index === diagnostic.range.start.line {
           diagnostic.range.start.character
         } else {
           0
         }
 
-        let highlightEndOffset = if index == diagnostic.range.end_.line {
+        let highlightEndOffset = if index === diagnostic.range.end_.line {
           diagnostic.range.end_.character
         } else {
           line->String.length
@@ -81,11 +81,14 @@ let printErrors = (errors: array<Utils.generateError>) => {
     let fileContentLines = switch fileContentCache->Dict.get(error.file) {
     | Some(content) => content
     | None =>
-      let contents =
+      let contents = try {
         error.file
         ->Fs.readFileSync
         ->Buffer.toStringWithEncoding(StringEncoding.utf8)
         ->String.split(Os.eol)
+      } catch {
+      | _ => []
+      }
       fileContentCache->Dict.set(error.file, contents)
       contents
     }

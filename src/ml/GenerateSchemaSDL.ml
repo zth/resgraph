@@ -26,7 +26,7 @@ let rec graphqlTypeToString ?(nullable = false) (t : graphqlType) =
   | GraphQLInterface {displayName}
   | GraphQLScalar {displayName} ->
     Printf.sprintf "%s%s" displayName nullableSuffix
-  | InjectInterfaceTypename intfId ->
+  | InjectInterfaceTypename {interfaceId = intfId} ->
     Printf.sprintf "%s%s" (capitalizeFirstChar intfId) nullableSuffix
   | InjectContext | InjectInfo -> "Unknown"
 

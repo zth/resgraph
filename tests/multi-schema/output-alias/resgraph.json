@@ -1,0 +1,26 @@
+{
+  "schemas": {
+    "direct": {
+      "projectRoot": "..",
+      "include": ["../src/public"],
+      "outputFolder": "../src/generated/public",
+      "moduleName": "DirectSchema",
+      "authorization": {
+        "mode": "required",
+        "manifestPath": "../src/generated/public/AliasedSchema.res",
+        "baselinePath": "../src/generated/public/authorization-baseline.json"
+      }
+    },
+    "aliased": {
+      "projectRoot": "..",
+      "include": ["../src/admin"],
+      "outputFolder": "../src/generated/public-alias",
+      "moduleName": "AliasedSchema",
+      "authorization": {
+        "mode": "required",
+        "manifestPath": "../src/generated/public-alias/authorization-manifest.json",
+        "baselinePath": "../src/generated/public-alias/authorization-baseline.json"
+      }
+    }
+  }
+}

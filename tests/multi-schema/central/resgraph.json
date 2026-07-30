@@ -1,0 +1,23 @@
+{
+  "schemas": {
+    "package-a": {
+      "projectRoot": "../package-a",
+      "include": [
+        "../package-a/src"
+      ],
+      "outputFolder": "../package-a/src/generated",
+      "contextType": "ContextA.context",
+      "dumpSchemaSdl": true
+    },
+    "packageB": {
+      "projectRoot": "../package-b",
+      "include": [
+        "../package-b/src"
+      ],
+      "outputFolder": "../package-b/src/generated",
+      "moduleName": "PackageBSchema",
+      "contextType": "ContextB.context",
+      "dumpSchemaSdl": true
+    }
+  }
+}

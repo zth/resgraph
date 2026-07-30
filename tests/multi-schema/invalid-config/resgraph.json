@@ -1,0 +1,50 @@
+{
+  "schemas": {
+    "first": {
+      "projectRoot": "..",
+      "include": [
+        "../src/public"
+      ],
+      "outputFolder": "../src/generated/public",
+      "moduleName": "FirstSchema",
+      "authorization": {
+        "mode": "required",
+        "manifestPath": "../src/generated/admin/CollidingSchema.res",
+        "baselinePath": "../src/generated/shared-authorization-baseline.json"
+      }
+    },
+    "second": {
+      "projectRoot": "..",
+      "include": [
+        "../src/admin"
+      ],
+      "outputFolder": "../src/generated/public",
+      "moduleName": "SecondSchema",
+      "authorization": {
+        "mode": "required",
+        "manifestPath": "../src/generated/shared-authorization-manifest.json",
+        "baselinePath": "../src/generated/shared-authorization-baseline.json"
+      }
+    },
+    "third": {
+      "projectRoot": "../src",
+      "include": [
+        "../src/admin"
+      ],
+      "outputFolder": "../src/generated/admin",
+      "moduleName": "CollidingSchema",
+      "authorization": {
+        "mode": "required",
+        "manifestPath": "lib/resgraph/.configured-schemas.json"
+      }
+    },
+    "fourth": {
+      "projectRoot": "../src/public",
+      "include": [
+        "../src/public"
+      ],
+      "outputFolder": "../src/generated/broken",
+      "moduleName": "CollidingSchema"
+    }
+  }
+}

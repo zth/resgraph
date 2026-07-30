@@ -1,0 +1,12 @@
+{
+  "schemas": {
+    "empty": {
+      "projectRoot": "..",
+      "include": [
+        "../src/public/PublicContext.res"
+      ],
+      "outputFolder": "../src/generated/empty",
+      "contextType": "PublicContext.context"
+    }
+  }
+}

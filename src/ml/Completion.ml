@@ -76,7 +76,7 @@ let getCompletions ~debug ~path ~pos ~currentFile =
   | None | Some "" -> None
   | Some text -> completionWithParser ~debug ~path ~pos ~currentFile ~text
 
-let completion ~debug ~path ~pos ~currentFile =
+let completion ~debug ~path ~pos ~currentFile ~schemaName =
   let completions =
     match getCompletions ~debug ~path ~pos ~currentFile with
     | None -> []
@@ -101,7 +101,7 @@ let completion ~debug ~path ~pos ~currentFile =
               in
               Some completionItem
             else None))
-        @ (GenerateSchemaUtils.makeSnippets ~path
+        @ (GenerateSchemaUtils.makeSnippets ~path ~schemaName
           |> List.filter_map (fun (attrName, desc, snippetText) ->
               if Utils.startsWith attrName label then
                 let completionItem : Protocol.completionItem =

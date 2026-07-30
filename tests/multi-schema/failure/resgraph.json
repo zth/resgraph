@@ -1,0 +1,33 @@
+{
+  "schemas": {
+    "uncompiled": {
+      "projectRoot": "../uncompiled",
+      "include": [
+        "../uncompiled/src"
+      ],
+      "outputFolder": "../uncompiled/src/generated",
+      "contextType": "ResGraphContext.context"
+    },
+    "broken": {
+      "projectRoot": "..",
+      "include": [
+        "../src/broken"
+      ],
+      "outputFolder": "../src/generated/broken",
+      "moduleName": "BrokenSchema",
+      "contextType": "BrokenContext.context",
+      "dumpSchemaSdl": true
+    },
+    "admin": {
+      "projectRoot": "..",
+      "include": [
+        "../src/shared",
+        "../src/admin"
+      ],
+      "outputFolder": "../src/generated/admin",
+      "moduleName": "AdminSchema",
+      "contextType": "AdminContext.context",
+      "dumpSchemaSdl": true
+    }
+  }
+}

@@ -1,0 +1,158 @@
+---
+sidebar_position: 2
+---
+
+# Multiple schemas
+
+A repository can build several independent ResGraph schemas from one `resgraph.json`. Schemas may belong to the same ReScript package or to different packages in a monorepo.
+
+## Configuration
+
+Use the named `schemas` form:
+
+```json
+{
+  "defaultSchema": "public",
+  "schemas": {
+    "public": {
+      "projectRoot": ".",
+      "include": ["src/graphql/shared", "src/graphql/public"],
+      "outputFolder": "src/graphql/__generated__/public",
+      "contextType": "PublicContext.context",
+      "dumpSchemaSdl": true
+    },
+    "admin": {
+      "projectRoot": ".",
+      "include": ["src/graphql/shared", "src/graphql/admin"],
+      "exclude": ["src/graphql/admin/experimental"],
+      "outputFolder": "src/graphql/__generated__/admin",
+      "moduleName": "AdminSchema",
+      "contextType": "AdminContext.context",
+      "dumpSchemaSdl": true,
+      "authorization": {
+        "mode": "required",
+        "manifestPath": "src/graphql/__generated__/admin/authorization-manifest.json"
+      }
+    }
+  }
+}
+```
+
+Each schema supports:
+
+- `projectRoot`: the directory containing its `rescript.json` or `bsconfig.json`. It defaults to the directory containing `resgraph.json`.
+- `include`: source files or directories belonging to this schema. An empty or omitted array includes all project modules. Paths must stay inside `projectRoot`.
+- `exclude`: optional source files or directories removed after applying `include`.
+- `outputFolder`: an existing directory for generated files. Every schema must have a different output folder.
+- `moduleName`: the generated schema module. It defaults from the schema name: `public` becomes `PublicSchema` and `internal-api` becomes `InternalApiSchema`.
+- `contextType`: the qualified context type injected into this schema's resolvers. It defaults to `ResGraphContext.context`.
+- `dumpSchemaSdl`: whether to write `schema.graphql` in this schema's output folder.
+- `authorization`: optional [required authorization coverage](authorization) settings for this schema. Give each schema its own manifest and baseline paths.
+
+All paths are relative to the directory containing `resgraph.json`. Configured project, include, exclude, and output paths must exist. Include paths must resolve inside `projectRoot`; symlink aliases are resolved before membership and collision checks.
+
+Schema names may contain letters, digits, `_`, and `-`. Within one ReScript package, schema names and generated module names must remain unique even on case-insensitive filesystems. Output folders must identify different physical directories; using two symlink aliases for one directory is rejected.
+
+## Generated artifacts
+
+Named schemas keep their generated outputs isolated:
+
+- `<outputFolder>/<moduleName>.res` and `.resi` contain the executable schema.
+- `<outputFolder>/<moduleName>__Interface_<name>.res` contains each generated interface helper.
+- `<outputFolder>/schema.graphql` is written only when `dumpSchemaSdl` is enabled.
+- `<compilerRoot>/lib/resgraph/<schema>.state.marshal` stores editor and definition state.
+- `<compilerRoot>/lib/resgraph/<schema>.incremental-cache` stores that schema's generation cache.
+
+For example, the `public` schema emits `PublicSchema__Interface_node.res`. Use `PublicSchema__Interface_node.Resolver.t` when a resolver explicitly returns that interface for the public schema. The module prefix matters when two schemas expose an interface with the same GraphQL name.
+
+ResGraph tracks generated-file ownership. Renaming or removing a schema or module cleans marker-owned stale modules, interfaces, and SDL without deleting user-owned files. Switching from the original single-schema configuration also removes obsolete legacy generated modules on the next named build.
+
+## Sharing modules
+
+Include the same directory in several schemas to share GraphQL types and fields:
+
+```json
+"include": ["src/graphql/shared", "src/graphql/public"]
+```
+
+Membership is explicit. Referencing a ReScript type from another module does not automatically include every `@gql.field` resolver declared in that module. Add the resolver module's file or directory to `include` when it should contribute fields.
+
+ResGraph always excludes each schema's output folder from discovery, so generated interface helpers cannot feed back into the next schema build.
+
+## Building and watching
+
+Build or watch every configured schema:
+
+```bash
+npx resgraph build
+npx resgraph watch
+```
+
+Select one schema by name:
+
+```bash
+npx resgraph build public
+npx resgraph watch admin
+```
+
+A failure in one schema does not prevent the remaining schemas from generating, but the overall build exits with a non-zero status.
+
+A targeted build leaves unchanged, unselected schemas in place. If the selected schema takes over a generated module name previously owned by another schema, ResGraph removes the conflicting stale module so the ReScript package cannot contain duplicate generated modules. Run a full build after coordinated configuration renames when every renamed schema should be regenerated immediately.
+
+Watch mode watches only the selected schema when a name is provided. Without a name it watches every configured schema.
+
+## Tools and editor behavior
+
+Select the state used by `find-definition` with `--schema`:
+
+```bash
+npx resgraph tools find-definition Query.currentUser --schema public
+```
+
+ResGraph persists independent state and incremental caches per schema. If state was produced by an incompatible ResGraph version, tooling asks you to run `resgraph build` again instead of reading it unsafely.
+
+For schema-specific authorization baselines, pass the schema name after `baseline`:
+
+```bash
+npx resgraph authorization baseline admin
+```
+
+Without a name, the command uses `defaultSchema`.
+
+The LSP builds and reports diagnostics for every configured schema. A generated `schema.graphql` is matched to its owning output folder. For source files shared by several schemas, schema-dependent editor operations use `defaultSchema`; if it is omitted, the first configured schema is the default.
+
+## Multiple ReScript packages
+
+A central config can point schemas at different packages:
+
+```json
+{
+  "schemas": {
+    "storefront": {
+      "projectRoot": "apps/storefront",
+      "include": ["apps/storefront/src"],
+      "outputFolder": "apps/storefront/src/generated"
+    },
+    "backoffice": {
+      "projectRoot": "apps/backoffice",
+      "include": ["apps/backoffice/src"],
+      "outputFolder": "apps/backoffice/src/generated"
+    }
+  }
+}
+```
+
+Compile each ReScript package before running ResGraph. Watch mode observes the compiler log for every distinct `projectRoot`.
+
+## Existing configuration
+
+The original single-schema configuration remains supported:
+
+```json
+{
+  "src": "./src",
+  "outputFolder": "./src/schema/__generated__"
+}
+```
+
+It continues to emit `ResGraphSchema`, `Interface_*`, and `lib/.resgraphState.marshal`. In this legacy form, `src` locates the ReScript package; ResGraph scans all GraphQL modules in that package. Top-level `authorization` settings also remain supported. Use the named form when source membership must define separate schemas.

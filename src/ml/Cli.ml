@@ -3,12 +3,12 @@ let help =
 **Private CLI For ResGraph**
 
 Commands:
-  generate-schema <sourceFolder> <outputFolder> [printSdl:boolean] [authorizationMode onForbidden manifestPath baselinePath]
+  generate-schema <projectRoot> <outputFolder> <printSdl:boolean> [options]
   completion <path> <line> <col> <currentFile>
-  hover <path> <line> <col>
-  hover-graphql <path> <hoverHint>
-  definition-graphql <path> <definitionHint>
-  find-definition <path> <definitionHint>
+  hover <path> <line> <col> [schema]
+  hover-graphql <path> <hoverHint> [schema]
+  definition-graphql <path> <definitionHint> [schema]
+  find-definition <path> <definitionHint> [schema]
 |}
 
 let optional_arg = function
@@ -23,74 +23,156 @@ let optional_authorization_config =
     baselinePath = None;
   }
 
-let run_generate ~sourceFolder ~outputFolder ~writeSdlFile ~authorizationConfig
-    =
+type generate_options = {
+  schemaName: string option;
+  moduleName: string;
+  contextType: string;
+  includePaths: string list;
+  excludePaths: string list;
+  authorizationConfig: GenerateSchemaTypes.authorizationConfig;
+}
+
+let default_generate_options =
+  {
+    schemaName = None;
+    moduleName = "ResGraphSchema";
+    contextType = "ResGraphContext.context";
+    includePaths = [];
+    excludePaths = [];
+    authorizationConfig = optional_authorization_config;
+  }
+
+let parse_authorization_options options args =
+  match args with
+  | (("required" | "baseline") as mode)
+    :: onForbidden :: manifestPath :: baselinePath :: rest
+    when not (String.starts_with baselinePath ~prefix:"--") ->
+    Some
+      ( {
+          options with
+          authorizationConfig =
+            {
+              mode =
+                (if mode = "baseline" then AuthorizationBaseline
+                 else AuthorizationRequired);
+              onForbidden = optional_arg onForbidden;
+              manifestPath = optional_arg manifestPath;
+              baselinePath = optional_arg baselinePath;
+            };
+        },
+        rest )
+  | "required" :: onForbidden :: manifestPath :: rest ->
+    Some
+      ( {
+          options with
+          authorizationConfig =
+            {
+              mode = AuthorizationRequired;
+              onForbidden = optional_arg onForbidden;
+              manifestPath = optional_arg manifestPath;
+              baselinePath = None;
+            };
+        },
+        rest )
+  | ("required" | "baseline") :: _ -> None
+  | _ -> Some (options, args)
+
+let rec parse_generate_options options args =
+  match args with
+  | [] -> Some options
+  | "--schema" :: schemaName :: rest ->
+    parse_generate_options {options with schemaName = Some schemaName} rest
+  | "--module" :: moduleName :: rest ->
+    parse_generate_options {options with moduleName} rest
+  | "--context" :: contextType :: rest ->
+    parse_generate_options {options with contextType} rest
+  | "--include" :: path :: rest ->
+    parse_generate_options
+      {options with includePaths = path :: options.includePaths}
+      rest
+  | "--exclude" :: path :: rest ->
+    parse_generate_options
+      {options with excludePaths = path :: options.excludePaths}
+      rest
+  | _ -> None
+
+let matches pattern value = Str.string_match (Str.regexp pattern) value 0
+
+let valid_generate_options options =
+  (match options.schemaName with
+    | None -> true
+    | Some schemaName -> matches "^[A-Za-z0-9_-]+$" schemaName)
+  && matches "^[A-Z][A-Za-z0-9_]*$" options.moduleName
+  && matches "^[A-Z][A-Za-z0-9_]*\\(\\.[A-Za-z_][A-Za-z0-9_]*\\)+$"
+       options.contextType
+
+let run_generate ~sourceFolder ~outputFolder ~writeSdlFile options =
   GenerateSchemaDirect.generateSchemaDirect ~writeStateFile:true ~sourceFolder
     ~debug:false ~outputFolder ~writeSdlFile ~printToStdOut:true
-    ~authorizationConfig
+    ~schemaName:options.schemaName ~moduleName:options.moduleName
+    ~contextType:options.contextType
+    ~includePaths:(List.rev options.includePaths)
+    ~excludePaths:(List.rev options.excludePaths)
+    ~authorizationConfig:options.authorizationConfig
+
+let schema_name = function
+  | [] -> Some None
+  | [schemaName] -> Some (Some schemaName)
+  | _ -> None
 
 let main () =
   match Array.to_list Sys.argv with
-  | [
-   _;
-   "generate-schema";
-   sourceFolder;
-   outputFolder;
-   (("true" | "false") as writeSdlFile);
-   (("required" | "baseline") as authorizationMode);
-   onForbidden;
-   manifestPath;
-   baselinePath;
-  ] ->
-    run_generate ~sourceFolder ~outputFolder
-      ~writeSdlFile:(writeSdlFile = "true")
-      ~authorizationConfig:
-        {
-          mode =
-            (if authorizationMode = "baseline" then AuthorizationBaseline
-             else AuthorizationRequired);
-          onForbidden = optional_arg onForbidden;
-          manifestPath = optional_arg manifestPath;
-          baselinePath = optional_arg baselinePath;
-        }
-  | [
-   _;
-   "generate-schema";
-   sourceFolder;
-   outputFolder;
-   (("true" | "false") as writeSdlFile);
-   "required";
-   onForbidden;
-   manifestPath;
-  ] ->
-    run_generate ~sourceFolder ~outputFolder
-      ~writeSdlFile:(writeSdlFile = "true")
-      ~authorizationConfig:
-        {
-          mode = AuthorizationRequired;
-          onForbidden = optional_arg onForbidden;
-          manifestPath = optional_arg manifestPath;
-          baselinePath = None;
-        }
-  | [_; "generate-schema"; sourceFolder; outputFolder; "true"] ->
-    run_generate ~sourceFolder ~outputFolder ~writeSdlFile:true
-      ~authorizationConfig:optional_authorization_config
-  | [_; "generate-schema"; sourceFolder; outputFolder; "false"]
-  | [_; "generate-schema"; sourceFolder; outputFolder] ->
-    run_generate ~sourceFolder ~outputFolder ~writeSdlFile:false
-      ~authorizationConfig:optional_authorization_config
-  | [_; "completion"; path; line; col; currentFile] ->
-    Completion.completion ~debug:false ~path
-      ~pos:(int_of_string line, int_of_string col)
-      ~currentFile
-  | [_; "hover"; path; line; col] ->
-    Hover.hover ~path ~pos:(int_of_string line, int_of_string col) ~debug:false
-  | [_; "hover-graphql"; path; hoverHint] ->
-    Hover.hoverGraphQL ~path ~hoverHint |> print_endline
-  | [_; "definition-graphql"; path; definitionHint] ->
-    Hover.definitionGraphQL ~path ~definitionHint |> print_endline
-  | [_; "find-definition"; path; definitionHint] ->
-    Analyze.findDefinition ~path ~definitionHint |> print_endline
+  | _ :: "generate-schema" :: sourceFolder :: outputFolder :: writeSdl :: rest
+    -> (
+    match
+      Option.bind (parse_authorization_options default_generate_options rest)
+        (fun (options, rest) -> parse_generate_options options rest)
+    with
+    | Some options when valid_generate_options options ->
+      run_generate ~sourceFolder ~outputFolder ~writeSdlFile:(writeSdl = "true")
+        options
+    | Some _ | None ->
+      prerr_endline help;
+      exit 1)
+  | _ :: "completion" :: path :: line :: col :: currentFile :: rest -> (
+    match schema_name rest with
+    | Some schemaName ->
+      Completion.completion ~debug:false ~path
+        ~pos:(int_of_string line, int_of_string col)
+        ~currentFile ~schemaName
+    | None ->
+      prerr_endline help;
+      exit 1)
+  | _ :: "hover" :: path :: line :: col :: rest -> (
+    match schema_name rest with
+    | Some _ ->
+      Hover.hover ~path
+        ~pos:(int_of_string line, int_of_string col)
+        ~debug:false
+    | None ->
+      prerr_endline help;
+      exit 1)
+  | _ :: "hover-graphql" :: path :: hoverHint :: rest -> (
+    match schema_name rest with
+    | Some schemaName ->
+      Hover.hoverGraphQL ~path ~hoverHint ~schemaName |> print_endline
+    | None ->
+      prerr_endline help;
+      exit 1)
+  | _ :: "definition-graphql" :: path :: definitionHint :: rest -> (
+    match schema_name rest with
+    | Some schemaName ->
+      Hover.definitionGraphQL ~path ~definitionHint ~schemaName |> print_endline
+    | None ->
+      prerr_endline help;
+      exit 1)
+  | _ :: "find-definition" :: path :: definitionHint :: rest -> (
+    match schema_name rest with
+    | Some schemaName ->
+      Analyze.findDefinition ~path ~definitionHint ~schemaName |> print_endline
+    | None ->
+      prerr_endline help;
+      exit 1)
   | args when List.mem "-h" args || List.mem "--help" args -> prerr_endline help
   | _ ->
     prerr_endline help;

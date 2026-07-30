@@ -131,7 +131,7 @@ let findLookupValue = token => {
   }
 }
 
-let hoverAtPos = (~path, ~pos: LspProtocol.loc) => {
+let hoverAtPos = (~path, ~pos: LspProtocol.loc, ~stateName) => {
   try {
     let fileContents = Fs.readFileSync(path)->Buffer.toStringWithEncoding(StringEncoding.utf8)
 
@@ -141,13 +141,13 @@ let hoverAtPos = (~path, ~pos: LspProtocol.loc) => {
     )->findLookupValue {
     | None => None
     | Some(Typename(typename)) =>
-      switch Utils.callPrivateCli(HoverGraphQL({filePath: path, hoverHint: typename})) {
+      switch Utils.callPrivateCli(HoverGraphQL({filePath: path, hoverHint: typename, ?stateName})) {
       | Hover({item}) => Some(item)
       | _ => None
       }
     | Some(Field({ownerTypeName, fieldName})) =>
       switch Utils.callPrivateCli(
-        HoverGraphQL({filePath: path, hoverHint: `${ownerTypeName}.${fieldName}`}),
+        HoverGraphQL({filePath: path, hoverHint: `${ownerTypeName}.${fieldName}`, ?stateName}),
       ) {
       | Hover({item}) => Some(item)
       | _ => None
@@ -160,7 +160,7 @@ let hoverAtPos = (~path, ~pos: LspProtocol.loc) => {
   }
 }
 
-let definitionAtPos = (~path, ~pos: LspProtocol.loc) => {
+let definitionAtPos = (~path, ~pos: LspProtocol.loc, ~stateName) => {
   try {
     let fileContents = Fs.readFileSync(path)->Buffer.toStringWithEncoding(StringEncoding.utf8)
 
@@ -170,13 +170,15 @@ let definitionAtPos = (~path, ~pos: LspProtocol.loc) => {
     )->findLookupValue {
     | None => None
     | Some(Typename(typename)) =>
-      switch Utils.callPrivateCli(Definition({filePath: path, definitionHint: typename})) {
+      switch Utils.callPrivateCli(
+        Definition({filePath: path, definitionHint: typename, ?stateName}),
+      ) {
       | Definition({item}) => Some(item)
       | _ => None
       }
     | Some(Field({ownerTypeName, fieldName})) =>
       switch Utils.callPrivateCli(
-        Definition({filePath: path, definitionHint: `${ownerTypeName}.${fieldName}`}),
+        Definition({filePath: path, definitionHint: `${ownerTypeName}.${fieldName}`, ?stateName}),
       ) {
       | Definition({item}) => Some(item)
       | _ => None

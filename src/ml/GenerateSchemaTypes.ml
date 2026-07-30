@@ -9,7 +9,7 @@ type graphqlType =
       (** Used to represent empty payloads, like constructor-less unions. *)
   | InjectContext
   | InjectInfo
-  | InjectInterfaceTypename of string  (** ID of interface *)
+  | InjectInterfaceTypename of {interfaceId: string; helperModule: string}
   | GraphQLObjectType of {id: string; displayName: string}
   | GraphQLInputObject of {id: string; displayName: string}
   | GraphQLInputUnion of {
@@ -221,6 +221,8 @@ type gqlInputUnionType = {
 }
 
 type schemaState = {
+  contextTypePath: string list;
+  rootFileUri: Uri.t;
   types: (string, gqlObjectType) Hashtbl.t;
   inputObjects: (string, gqlInputObjectType) Hashtbl.t;
   inputUnions: (string, gqlInputUnionType) Hashtbl.t;
