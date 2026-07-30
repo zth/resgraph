@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Add opt-in required authorization coverage with typed `.authorize` policies, explicit `.public` dispositions, resolver outcomes, mutation prechecks, interface policy inheritance, custom forbidden handlers, and deterministic audit manifests.
+- Add incremental required-authorization adoption with `resgraph authorization baseline`, using a generated ratchet that allows existing gaps while rejecting new or stale entries and protecting authorization artifacts from path collisions.
 
 ## 1.3.0
 
