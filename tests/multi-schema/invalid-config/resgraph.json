@@ -9,7 +9,7 @@
       "moduleName": "FirstSchema",
       "authorization": {
         "mode": "required",
-        "manifestPath": "../src/generated/shared-authorization-manifest.json",
+        "manifestPath": "../src/generated/admin/CollidingSchema.res",
         "baselinePath": "../src/generated/shared-authorization-baseline.json"
       }
     },

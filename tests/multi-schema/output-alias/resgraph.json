@@ -7,7 +7,8 @@
       "moduleName": "DirectSchema",
       "authorization": {
         "mode": "required",
-        "manifestPath": "../src/generated/public/authorization-manifest.json"
+        "manifestPath": "../src/generated/public/AliasedSchema.res",
+        "baselinePath": "../src/generated/public/authorization-baseline.json"
       }
     },
     "aliased": {
@@ -17,7 +18,8 @@
       "moduleName": "AliasedSchema",
       "authorization": {
         "mode": "required",
-        "manifestPath": "../src/generated/public-alias/authorization-manifest.json"
+        "manifestPath": "../src/generated/public-alias/authorization-manifest.json",
+        "baselinePath": "../src/generated/public-alias/authorization-baseline.json"
       }
     }
   }

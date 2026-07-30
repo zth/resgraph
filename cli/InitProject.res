@@ -11,6 +11,11 @@ type projectIssues =
       secondSchema: string,
       path: string,
     })
+  | AuthorizationPathCollidesWithGeneratedArtifact({
+      authorizationSchema: string,
+      generatedSchema: string,
+      path: string,
+    })
   | DuplicateModuleName({firstSchema: string, secondSchema: string, moduleName: string})
   | DuplicateSchemaStateName({firstSchema: string, secondSchema: string})
   | DefaultSchemaDoesNotExist({schemaName: string})
@@ -63,6 +68,30 @@ let authorizationArtifactPaths = (schema: Utils.schemaConfig) =>
 let artifactFilesystemIdentity = path =>
   Path.join([Path.dirname(path)->Utils.canonicalPath, Path.basename(path)])
   ->Utils.portableFilesystemIdentity
+
+let pathIsGeneratedBySchema = (path, schema: Utils.schemaConfig) => {
+  let pathIdentity = path->artifactFilesystemIdentity
+  let outputFolderIdentity = schema.outputFolder->Utils.portableFilesystemIdentity
+  let fileName = Path.basename(path)
+  let interfacePrefix = (schema.moduleName ++ "__Interface_")->String.toLowerCase
+  let isInterface =
+    Path.dirname(path)->Utils.portableFilesystemIdentity === outputFolderIdentity &&
+    fileName->String.toLowerCase->String.startsWith(interfacePrefix) &&
+    fileName->String.toLowerCase->String.endsWith(".res")
+  let compilerRoot =
+    schema.projectRoot->Utils.findCompilerRoot->Option.getOr(schema.projectRoot)
+  let generatedPaths = [
+    Path.resolve([schema.outputFolder, schema.moduleName ++ ".res"]),
+    Path.resolve([schema.outputFolder, schema.moduleName ++ ".resi"]),
+    Path.resolve([schema.outputFolder, "schema.graphql"]),
+    Path.resolve([compilerRoot, "lib", "resgraph", schema.name ++ ".state.marshal"]),
+    Path.resolve([compilerRoot, "lib", "resgraph", schema.name ++ ".incremental-cache"]),
+  ]
+  isInterface ||
+  generatedPaths->Array.some(generatedPath =>
+    generatedPath->artifactFilesystemIdentity === pathIdentity
+  )
+}
 
 let validateConfig = (config: Utils.config, ~issues) => {
   if config->Utils.findSchema(config.defaultSchema)->Option.isNone {
@@ -147,6 +176,29 @@ let validateConfig = (config: Utils.config, ~issues) => {
           )
         | None => ()
         }
+
+        schema->authorizationArtifactPaths->Array.forEach(path => {
+          if path->pathIsGeneratedBySchema(otherSchema) {
+            issues->Array.push(
+              AuthorizationPathCollidesWithGeneratedArtifact({
+                authorizationSchema: schema.name,
+                generatedSchema: otherSchema.name,
+                path,
+              }),
+            )
+          }
+        })
+        otherSchema->authorizationArtifactPaths->Array.forEach(path => {
+          if path->pathIsGeneratedBySchema(schema) {
+            issues->Array.push(
+              AuthorizationPathCollidesWithGeneratedArtifact({
+                authorizationSchema: otherSchema.name,
+                generatedSchema: schema.name,
+                path,
+              }),
+            )
+          }
+        })
       }
       if (
         otherIndex > index &&
@@ -231,6 +283,14 @@ let printProjectIssues = issues => {
     | DuplicateAuthorizationArtifactPath({firstSchema, secondSchema, path}) =>
       Console.error(
         `- 🚫 Schemas "${firstSchema}" and "${secondSchema}" use the same authorization manifest or baseline path "${path}".`,
+      )
+    | AuthorizationPathCollidesWithGeneratedArtifact({
+        authorizationSchema,
+        generatedSchema,
+        path,
+      }) =>
+      Console.error(
+        `- 🚫 Schemas "${authorizationSchema}" and "${generatedSchema}" configure authorization and generated artifacts at the same path "${path}".`,
       )
     | DuplicateModuleName({firstSchema, secondSchema, moduleName}) =>
       Console.error(
