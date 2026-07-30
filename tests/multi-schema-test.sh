@@ -322,6 +322,7 @@ set -e
 [[ "$validation_output" == *'use the same outputFolder'* ]]
 [[ "$validation_output" == *'use the same authorization manifest or baseline path'* ]]
 [[ "$validation_output" == *'configure authorization and generated artifacts at the same path'* ]]
+[[ "$validation_output" == *'reserved schema ownership manifest path'* ]]
 [[ "$validation_output" == *'use moduleName "CollidingSchema" in the same ReScript package'* ]]
 
 set +e

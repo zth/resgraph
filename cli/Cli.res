@@ -88,7 +88,7 @@ let readConfig = () =>
 
 let validateConfig = config => {
   let issues = []
-  config->InitProject.validateConfig(~issues)
+  config->InitProject.validateConfig(~issues, ~configDir=Process.process->Process.cwd)
 
   if issues->Array.length > 0 {
     issues->InitProject.printProjectIssues

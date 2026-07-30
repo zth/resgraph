@@ -32,7 +32,11 @@
         "../src/admin"
       ],
       "outputFolder": "../src/generated/admin",
-      "moduleName": "CollidingSchema"
+      "moduleName": "CollidingSchema",
+      "authorization": {
+        "mode": "required",
+        "manifestPath": "lib/resgraph/.configured-schemas.json"
+      }
     },
     "fourth": {
       "projectRoot": "../src/public",

@@ -16,6 +16,7 @@ type projectIssues =
       generatedSchema: string,
       path: string,
     })
+  | AuthorizationPathCollidesWithOwnershipManifest({schemaName: string, path: string})
   | DuplicateModuleName({firstSchema: string, secondSchema: string, moduleName: string})
   | DuplicateSchemaStateName({firstSchema: string, secondSchema: string})
   | DefaultSchemaDoesNotExist({schemaName: string})
@@ -93,7 +94,9 @@ let pathIsGeneratedBySchema = (path, schema: Utils.schemaConfig) => {
   )
 }
 
-let validateConfig = (config: Utils.config, ~issues) => {
+let validateConfig = (config: Utils.config, ~issues, ~configDir) => {
+  let ownershipManifestIdentity =
+    GeneratedArtifacts.manifestPath(configDir)->artifactFilesystemIdentity
   if config->Utils.findSchema(config.defaultSchema)->Option.isNone {
     issues->Array.push(DefaultSchemaDoesNotExist({schemaName: config.defaultSchema}))
   }
@@ -139,6 +142,13 @@ let validateConfig = (config: Utils.config, ~issues) => {
     schema.excludePaths->Array.forEach(path => {
       if !Fs.existsSync(path) {
         issues->Array.push(ExcludePathDoesNotExist({schemaName: schema.name, path}))
+      }
+    })
+    schema->authorizationArtifactPaths->Array.forEach(path => {
+      if path->artifactFilesystemIdentity === ownershipManifestIdentity {
+        issues->Array.push(
+          AuthorizationPathCollidesWithOwnershipManifest({schemaName: schema.name, path}),
+        )
       }
     })
   })
@@ -241,7 +251,7 @@ let validateProject = dir => {
 
     switch config {
     | None => issues->Array.push(ConfigFileIssue)
-    | Some(config) => config->validateConfig(~issues)
+    | Some(config) => config->validateConfig(~issues, ~configDir=dir)
     }
   }
 
@@ -291,6 +301,10 @@ let printProjectIssues = issues => {
       }) =>
       Console.error(
         `- 🚫 Schemas "${authorizationSchema}" and "${generatedSchema}" configure authorization and generated artifacts at the same path "${path}".`,
+      )
+    | AuthorizationPathCollidesWithOwnershipManifest({schemaName, path}) =>
+      Console.error(
+        `- 🚫 Schema "${schemaName}" configures an authorization artifact at the reserved schema ownership manifest path "${path}".`,
       )
     | DuplicateModuleName({firstSchema, secondSchema, moduleName}) =>
       Console.error(

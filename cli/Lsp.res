@@ -337,7 +337,7 @@ let start = (~mode, ~configFilePath) => {
   }
 
   let configIssues = []
-  config->InitProject.validateConfig(~issues=configIssues)
+  config->InitProject.validateConfig(~issues=configIssues, ~configDir=configFilePath)
   if configIssues->Array.length > 0 {
     configIssues->InitProject.printProjectIssues
     panic("Invalid ResGraph configuration.")
