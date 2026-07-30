@@ -334,6 +334,32 @@ legacy_output=$(cd "$fixture_dir/package-a" && node "$cli" build)
 test -f "$fixture_dir/package-a/src/generated/ResGraphSchema.res"
 test -f "$fixture_dir/package-a/lib/.resgraphState.marshal"
 assert_contains "$fixture_dir/package-a/src/generated/ResGraphSchema.resi" 'ResGraph.schema<ResGraphContext.context>'
+legacy_state="$fixture_dir/package-a/lib/.resgraphState.marshal"
+legacy_state_backup=$(mktemp /tmp/resgraph-legacy-state.XXXXXX)
+cp "$legacy_state" "$legacy_state_backup"
+restore_legacy_state() {
+  cp "$legacy_state_backup" "$legacy_state"
+  rm -f "$legacy_state_backup"
+}
+trap restore_legacy_state EXIT
+# OCaml Marshal payload with the old `(schemaState, processedSchema)` shape.
+node -e "require('fs').writeFileSync(process.argv[1], Buffer.from(process.argv[2], 'hex'))" \
+  "$legacy_state" \
+  '8495a6be00000013000000020000001000000010a0080000330040404040404040404040404040'
+set +e
+old_state_definition=$(cd "$fixture_dir/package-a" && \
+  node "$cli" tools find-definition Query --json)
+old_state_definition_status=$?
+set -e
+[[ $old_state_definition_status -ne 0 ]]
+[[ "$old_state_definition" == *'could not read the generated schema state'* ]]
+[[ "$old_state_definition" == *'Run `resgraph build` again.'* ]]
+restore_legacy_state
+trap - EXIT
+legacy_definition=$(cd "$fixture_dir/package-a" && \
+  node "$cli" tools find-definition Query --json)
+[[ "$legacy_definition" == *'"path":"Query"'* ]]
+[[ "$legacy_definition" == *'"kind":"objectType"'* ]]
 capture_watch_output "$fixture_dir/package-a" 'Build succeeded'
 [[ "$watch_output" == *'Build succeeded in '* ]]
 (cd "$fixture_dir/package-b" && "$rescript_bin")

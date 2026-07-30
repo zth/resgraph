@@ -1304,6 +1304,15 @@ type persistedSchemaState = {
   processedSchema: processedSchema;
 }
 
+type persistedLegacySchemaState = {
+  version: int;
+  schemaState: schemaState;
+  processedSchema: processedSchema;
+}
+
+let stateFileMagic = "RESGRAPH_STATE\000"
+let stateFileVersion = 1
+
 let validStateName schemaName =
   Str.string_match (Str.regexp "^[A-Za-z0-9_-]+$") schemaName 0
 
@@ -1325,29 +1334,37 @@ let writeStateFile ?schemaName ~package ~schemaState ~processedSchema () =
   (match schemaName with
   | None -> ()
   | Some _ -> ensureStateDirectory package);
-  let s =
-    match schemaName with
-    | None -> Marshal.to_bytes (schemaState, processedSchema) [Compat_32]
-    | Some schemaName ->
-      Marshal.to_bytes
-        {version = 1; schemaName; schemaState; processedSchema}
-        [Compat_32]
-  in
   let ch = open_out_bin (getStateFilePath ?schemaName package) in
-  output_bytes ch s;
+  output_string ch stateFileMagic;
+  (match schemaName with
+  | None ->
+    Marshal.to_channel ch
+      {version = stateFileVersion; schemaState; processedSchema}
+      [Compat_32]
+  | Some schemaName ->
+    Marshal.to_channel ch
+      {version = stateFileVersion; schemaName; schemaState; processedSchema}
+      [Compat_32]);
   close_out ch
 
 let readStateFile ?schemaName ~package () =
   let ch = open_in_bin (getStateFilePath ?schemaName package) in
   Fun.protect
     (fun () ->
+      let magic = really_input_string ch (String.length stateFileMagic) in
+      if magic <> stateFileMagic then
+        failwith "Incompatible ResGraph schema state file";
       match schemaName with
       | None ->
-        let state : schemaState * processedSchema = Marshal.from_channel ch in
-        state
+        let persisted : persistedLegacySchemaState = Marshal.from_channel ch in
+        if persisted.version <> stateFileVersion then
+          failwith "Incompatible ResGraph schema state file"
+        else (persisted.schemaState, persisted.processedSchema)
       | Some expectedSchemaName ->
         let persisted : persistedSchemaState = Marshal.from_channel ch in
-        if persisted.version <> 1 || persisted.schemaName <> expectedSchemaName
+        if
+          persisted.version <> stateFileVersion
+          || persisted.schemaName <> expectedSchemaName
         then failwith "Incompatible ResGraph schema state file"
         else (persisted.schemaState, persisted.processedSchema))
     ~finally:(fun () -> close_in_noerr ch)
