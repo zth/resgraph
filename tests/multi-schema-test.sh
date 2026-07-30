@@ -267,6 +267,18 @@ set -e
 [[ $case_collision_status -ne 0 ]]
 [[ "$case_collision_output" == *'collide on case-insensitive filesystems'* ]]
 
+output_alias="$fixture_dir/src/generated/public-alias"
+ln -s public "$output_alias"
+trap 'rm -f "$output_alias"' EXIT
+set +e
+output_alias_output=$(cd "$fixture_dir/output-alias" && node "$cli" build 2>&1)
+output_alias_status=$?
+set -e
+rm -f "$output_alias"
+trap - EXIT
+[[ $output_alias_status -ne 0 ]]
+[[ "$output_alias_output" == *'use the same outputFolder'* ]]
+
 (cd "$fixture_dir/package-a" && "$rescript_bin")
 legacy_output=$(cd "$fixture_dir/package-a" && node "$cli" build)
 [[ "$legacy_output" == 'Build succeeded in '* ]]

@@ -16,6 +16,8 @@ type projectIssues =
 module Console = Stdlib.Console
 module JsExn = Js.Exn
 
+@module("node:fs") external realpathSync: string => string = "realpathSync"
+
 type readFileError = FileDoesNotExist | FileCouldNotBeRead(option<string>)
 let readFile = (relativePath, ~dir) => {
   let path = Path.resolve([dir, relativePath])
@@ -37,7 +39,17 @@ let validContextType: string => bool = %raw(`value => /^[A-Z][A-Za-z0-9_]*(\.[A-
 
 let pathIsWithin = (path, root) => path === root || path->String.startsWith(root ++ Path.sep)
 
-let compilerRoot = projectRoot => projectRoot->Utils.findCompilerRoot->Option.getOr(projectRoot)
+let filesystemIdentity = path => {
+  let canonical = try {
+    realpathSync(path)
+  } catch {
+  | _ => path
+  }
+  canonical->String.toLowerCase
+}
+
+let compilerRoot = projectRoot =>
+  projectRoot->Utils.findCompilerRoot->Option.getOr(projectRoot)->filesystemIdentity
 
 let validateConfig = (config: Utils.config, ~issues) => {
   if config->Utils.findSchema(config.defaultSchema)->Option.isNone {
@@ -86,7 +98,10 @@ let validateConfig = (config: Utils.config, ~issues) => {
 
   config.schemas->Array.forEachWithIndex((schema, index) =>
     config.schemas->Array.forEachWithIndex((otherSchema, otherIndex) => {
-      if otherIndex > index && schema.outputFolder === otherSchema.outputFolder {
+      if (
+        otherIndex > index &&
+          schema.outputFolder->filesystemIdentity === otherSchema.outputFolder->filesystemIdentity
+      ) {
         issues->Array.push(
           DuplicateOutputFolder({
             firstSchema: schema.name,
