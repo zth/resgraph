@@ -4,6 +4,7 @@ type projectIssues =
   | OutputFolderDoesNotExist({schemaName: string, path: string})
   | ProjectRootDoesNotExist({schemaName: string, path: string})
   | IncludePathDoesNotExist({schemaName: string, path: string})
+  | ExcludePathDoesNotExist({schemaName: string, path: string})
   | DuplicateOutputFolder({firstSchema: string, secondSchema: string, path: string})
   | DuplicateModuleName({firstSchema: string, secondSchema: string, moduleName: string})
   | DuplicateSchemaStateName({firstSchema: string, secondSchema: string})
@@ -94,6 +95,11 @@ let validateConfig = (config: Utils.config, ~issues) => {
         )
       }
     })
+    schema.excludePaths->Array.forEach(path => {
+      if !Fs.existsSync(path) {
+        issues->Array.push(ExcludePathDoesNotExist({schemaName: schema.name, path}))
+      }
+    })
   })
 
   config.schemas->Array.forEachWithIndex((schema, index) =>
@@ -181,6 +187,10 @@ let printProjectIssues = issues => {
     | IncludePathDoesNotExist({schemaName, path}) =>
       Console.error(
         `- 🚫 Schema "${schemaName}" include path "${path}" does not exist or cannot be accessed.`,
+      )
+    | ExcludePathDoesNotExist({schemaName, path}) =>
+      Console.error(
+        `- 🚫 Schema "${schemaName}" exclude path "${path}" does not exist or cannot be accessed.`,
       )
     | DuplicateOutputFolder({firstSchema, secondSchema, path}) =>
       Console.error(

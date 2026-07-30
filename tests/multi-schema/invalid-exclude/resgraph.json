@@ -1,0 +1,11 @@
+{
+  "schemas": {
+    "invalid-exclude": {
+      "projectRoot": "..",
+      "include": ["../src/public"],
+      "exclude": ["../src/does-not-exist"],
+      "outputFolder": "../src/generated/public",
+      "moduleName": "InvalidExcludeSchema"
+    }
+  }
+}

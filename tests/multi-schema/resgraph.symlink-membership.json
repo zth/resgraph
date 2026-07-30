@@ -1,0 +1,12 @@
+{
+  "schemas": {
+    "public": {
+      "projectRoot": ".",
+      "include": ["src/shared", "src/public-alias"],
+      "exclude": ["src/public-alias/experimental"],
+      "outputFolder": "src/generated/public",
+      "contextType": "PublicContext.context",
+      "dumpSchemaSdl": true
+    }
+  }
+}

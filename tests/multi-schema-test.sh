@@ -278,6 +278,30 @@ set -e
 [[ "$validation_output" == *'use moduleName "CollidingSchema" in the same ReScript package'* ]]
 
 set +e
+invalid_exclude_output=$(cd "$fixture_dir/invalid-exclude" && node "$cli" build 2>&1)
+invalid_exclude_status=$?
+set -e
+[[ $invalid_exclude_status -ne 0 ]]
+[[ "$invalid_exclude_output" == *'exclude path'*'does not exist'* ]]
+
+membership_alias="$fixture_dir/src/public-alias"
+ln -s public "$membership_alias"
+membership_config_backup=$(mktemp /tmp/resgraph-membership-config.XXXXXX)
+cp "$fixture_dir/resgraph.json" "$membership_config_backup"
+restore_membership_config() {
+  cp "$membership_config_backup" "$fixture_dir/resgraph.json"
+  rm -f "$membership_config_backup" "$membership_alias"
+}
+trap restore_membership_config EXIT
+cp "$fixture_dir/resgraph.symlink-membership.json" "$fixture_dir/resgraph.json"
+(cd "$fixture_dir" && node "$cli" build public >/dev/null)
+assert_contains "$public_sdl" 'publicValue: String!'
+assert_not_contains "$public_sdl" 'experimentalValue'
+restore_membership_config
+trap - EXIT
+(cd "$fixture_dir" && node "$cli" build public >/dev/null)
+
+set +e
 case_collision_output=$(cd "$fixture_dir/case-collision" && node "$cli" build 2>&1)
 case_collision_status=$?
 set -e
