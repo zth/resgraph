@@ -320,6 +320,14 @@ trap - EXIT
 [[ $output_alias_status -ne 0 ]]
 [[ "$output_alias_output" == *'use the same outputFolder'* ]]
 
+project_alias="$fixture_dir/project-alias"
+ln -s . "$project_alias"
+trap 'rm -f "$project_alias"' EXIT
+project_alias_output=$(cd "$fixture_dir/project-root-alias" && node "$cli" init)
+rm -f "$project_alias"
+trap - EXIT
+[[ "$project_alias_output" == *'Project already set up correctly.'* ]]
+
 (cd "$fixture_dir/package-a" && "$rescript_bin")
 legacy_output=$(cd "$fixture_dir/package-a" && node "$cli" build)
 [[ "$legacy_output" == 'Build succeeded in '* ]]

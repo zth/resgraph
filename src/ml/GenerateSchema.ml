@@ -80,6 +80,14 @@ let extractInterfaceName str =
   if Str.string_match intfNameRegexp str 0 then Some (Str.matched_group 2 str)
   else None
 
+let interfaceHelperModuleForId helperModule interfaceId =
+  let prefix =
+    if Str.string_match intfNameRegexp helperModule 0 then
+      try Str.matched_group 1 helperModule with Not_found -> ""
+    else ""
+  in
+  prefix ^ "Interface_" ^ interfaceId
+
 (* Extracts valid GraphQL types from type exprs *)
 let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
     ?(isSubscription = false) ?(typeContext = Default) ~debug ?loc ~schemaState
@@ -181,7 +189,10 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
         let interfaceName = extractInterfaceName intfFilename in
         match interfaceName with
         | None -> None
-        | Some interfaceName -> Some (InjectInterfaceTypename interfaceName))
+        | Some interfaceId ->
+          Some
+            (InjectInterfaceTypename {interfaceId; helperModule = intfFilename})
+        )
       | ["ResGraph"; "id"] -> Some (Scalar ID)
       | ["ResGraph"; "resolveInfo"] -> Some InjectInfo
       | contextTypePath when contextTypePath = schemaState.contextTypePath ->
@@ -1622,11 +1633,11 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                args
                |> List.find_map (fun (arg : gqlArg) ->
                    match arg.typ with
-                   | InjectInterfaceTypename targetIntfId ->
-                     Some (targetIntfId, arg)
+                   | InjectInterfaceTypename {interfaceId; helperModule} ->
+                     Some (interfaceId, helperModule, arg)
                    | _ -> None)
              with
-            | Some (targetIntfId, arg) when targetIntfId <> id ->
+            | Some (targetIntfId, helperModule, arg) when targetIntfId <> id ->
               schemaState
               |> addDiagnostic
                    ~diagnostic:
@@ -1638,8 +1649,9 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                            "Argument \"%s\" is trying to inject a interface \
                             typename, but it's targeting the wrong interface \
                             (\"%s\" vs wanted \"%s\"). Please change the type \
-                            annotation to \"Interface_%s.ImplementedBy.t\"."
-                           arg.name targetIntfId id id;
+                            annotation to \"%s.ImplementedBy.t\"."
+                           arg.name targetIntfId id
+                           (interfaceHelperModuleForId helperModule id);
                      }
             | _ -> ());
             let field =

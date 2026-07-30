@@ -89,7 +89,7 @@ let rec graphqlTypeToString ?(nullable = false) (typ : graphqlType) =
   | EmptyPayload -> graphqlTypeToString ~nullable:true (Scalar Boolean)
   | InjectContext -> "<context>"
   | InjectInfo -> "<info>"
-  | InjectInterfaceTypename intfId -> intfId ^ nullableSuffix
+  | InjectInterfaceTypename {interfaceId = intfId} -> intfId ^ nullableSuffix
   | GraphQLObjectType {displayName}
   | GraphQLInputObject {displayName}
   | GraphQLInputUnion {displayName}
@@ -115,7 +115,8 @@ let rec sameGraphQLType left right =
     | Scalar left, Scalar right -> left = right
     | InjectContext, InjectContext -> true
     | InjectInfo, InjectInfo -> true
-    | InjectInterfaceTypename left, InjectInterfaceTypename right ->
+    | ( InjectInterfaceTypename {interfaceId = left},
+        InjectInterfaceTypename {interfaceId = right} ) ->
       left = right
     | GraphQLObjectType left, GraphQLObjectType right -> left.id = right.id
     | GraphQLInputObject left, GraphQLInputObject right -> left.id = right.id

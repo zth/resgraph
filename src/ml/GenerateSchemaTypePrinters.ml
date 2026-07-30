@@ -177,7 +177,7 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
   | GraphQLInterface {displayName} ->
     Printf.sprintf "get_%s()->GraphQLInterfaceType.toGraphQLType%s" displayName
       nullablePostfix
-  | InjectInterfaceTypename intfId ->
+  | InjectInterfaceTypename {interfaceId = intfId} ->
     (* TODO: Kill in refactor. This is weird and shouldn't be needed. *)
     Printf.sprintf "get_%s()->GraphQLInterfaceType.toGraphQLType%s"
       (capitalizeFirstChar intfId)

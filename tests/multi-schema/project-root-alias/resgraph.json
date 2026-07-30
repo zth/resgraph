@@ -1,0 +1,10 @@
+{
+  "schemas": {
+    "aliased-root": {
+      "projectRoot": "../project-alias",
+      "include": ["../src/public"],
+      "outputFolder": "../src/generated/public",
+      "moduleName": "AliasedRootSchema"
+    }
+  }
+}
