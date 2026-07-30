@@ -3,22 +3,24 @@
 @@warning("-27-34-37")
 
 module Resolver = {
-  @gql.interfaceResolver("node") type t = Thing(Thing.thing)
+  @gql.interfaceResolver("node")
+  type t = Thing(Thing.thing)
 }
 
 module ImplementedBy = {
   type t = Thing
 
-  let decode = (str: string) =>
-    switch str {
+  let decode = (str: string) => switch str {
     | "Thing" => Some(Thing)
     | _ => None
-    }
+  }
 
   external toString: t => string = "%identity"
 }
 
-type typeMap<'a> = {@as("Thing") thing: 'a}
+type typeMap<'a> = {
+  @as("Thing") thing: 'a,
+}
 
 module TypeMap: {
   type t<'value>

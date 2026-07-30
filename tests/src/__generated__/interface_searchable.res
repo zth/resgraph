@@ -10,11 +10,10 @@ module Resolver = {
 module ImplementedBy = {
   type t = ExplicitSearchResult
 
-  let decode = (str: string) =>
-    switch str {
+  let decode = (str: string) => switch str {
     | "ExplicitSearchResult" => Some(ExplicitSearchResult)
     | _ => None
-    }
+  }
 
   external toString: t => string = "%identity"
 }

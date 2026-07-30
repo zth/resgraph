@@ -152,23 +152,6 @@ let getFieldAttribute gqlAttribute =
 let getFieldAttributeFromRawAttributes ~env ~schemaState attributes =
   attributes |> extractGqlAttribute ~env ~schemaState |> getFieldAttribute
 
-let formatCode ~debug code =
-  let {Res_driver.parsetree = structure; comments; diagnostics} =
-    Res_driver.parse_implementation_from_source ~for_printer:true ~source:code
-      ~display_filename:"Schema.res"
-  in
-  let printed =
-    Res_printer.print_implementation ~width:100 ~comments structure
-  in
-  if List.length diagnostics > 0 then
-    if debug then
-      "\n\n== SYNTAX ERRORS ==\n"
-      ^ "Schema generation failed due to syntax errors (Diagnostics printing \
-         removed)." ^ "\n\n== RAW CODE ==\n" ^ code ^ "\n\n === END ==\n"
-      ^ printed
-    else "/* Code had syntax errors. This is an internal ResGraph error. */"
-  else printed
-
 type expectedType =
   | ObjectType
   | InputObject
@@ -560,35 +543,41 @@ let rec generateConverter lastValue (graphqlType : graphqlType) =
       |> String.concat ", ")
   | _ -> lastValue
 
-let printInputObjectAssets (inputObject : gqlInputObjectType) =
-  Printf.sprintf "input_%s_conversionInstructions->Array.pushMany([%s]);"
-    inputObject.displayName
-    (inputObject.fields
+let printConversionInstructions name fields =
+  let conversions =
+    fields
     |> List.filter_map (fun (field : gqlField) ->
         let converter = generateConverter "v" field.typ in
-        if converter = "v" then None
-        else
-          Some
-            (Printf.sprintf
-               "(\"%s\", makeInputObjectFieldConverterFn((v) => %s))" field.name
-               converter))
-    |> String.concat ", ")
+        if converter = "v" then None else Some (field.name, converter))
+  in
+  let writer = CodeWriter.create 512 in
+  if List.length conversions = 0 then
+    CodeWriter.add writer (name ^ "->Array.pushMany([])")
+  else (
+    CodeWriter.line writer (name ^ "->Array.pushMany([");
+    CodeWriter.indented writer (fun () ->
+        conversions
+        |> List.iter (fun (fieldName, converter) ->
+            CodeWriter.line writer "(";
+            CodeWriter.indented writer (fun () ->
+                CodeWriter.line writer (Printf.sprintf "\"%s\"," fieldName);
+                CodeWriter.line writer
+                  (Printf.sprintf "makeInputObjectFieldConverterFn((v) => %s)"
+                     converter));
+            CodeWriter.line writer "),"));
+    CodeWriter.add writer "])");
+  CodeWriter.contents writer
 
-(* TODO: Unify with above *)
+let printInputObjectAssets (inputObject : gqlInputObjectType) =
+  printConversionInstructions
+    ("input_" ^ inputObject.displayName ^ "_conversionInstructions")
+    inputObject.fields
+
 let printInputUnionAssets (inputUnion : gqlInputUnionType) =
   let inputObject = inputUnionToInputObj inputUnion in
-  Printf.sprintf "inputUnion_%s_conversionInstructions->Array.pushMany([%s]);"
-    inputObject.displayName
-    (inputObject.fields
-    |> List.filter_map (fun (field : gqlField) ->
-        let converter = generateConverter "v" field.typ in
-        if converter = "v" then None
-        else
-          Some
-            (Printf.sprintf
-               "(\"%s\", makeInputObjectFieldConverterFn((v) => %s))" field.name
-               converter))
-    |> String.concat ", ")
+  printConversionInstructions
+    ("inputUnion_" ^ inputObject.displayName ^ "_conversionInstructions")
+    inputObject.fields
 
 let printDiagnostic (diagnostic : diagnostic) =
   Printf.sprintf
@@ -1168,7 +1157,8 @@ let stateFileExists (package : SharedTypes.package) =
 let writeStateFile ~package ~schemaState ~processedSchema =
   let s = Marshal.to_bytes (schemaState, processedSchema) [Compat_32] in
   let ch = open_out_bin (getStateFilePath package) in
-  output_bytes ch s
+  output_bytes ch s;
+  close_out ch
 
 let readStateFile ~package =
   let ch = open_in_bin (getStateFilePath package) in
@@ -1176,6 +1166,7 @@ let readStateFile ~package =
       =
     Marshal.from_channel ch
   in
+  close_in ch;
   s
 
 type scalarValidationResult = DoesNotNeedParsing | NeedsParsing

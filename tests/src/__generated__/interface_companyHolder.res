@@ -10,11 +10,10 @@ module Resolver = {
 module ImplementedBy = {
   type t = ExplicitCompanyHolder
 
-  let decode = (str: string) =>
-    switch str {
+  let decode = (str: string) => switch str {
     | "ExplicitCompanyHolder" => Some(ExplicitCompanyHolder)
     | _ => None
-    }
+  }
 
   external toString: t => string = "%identity"
 }
