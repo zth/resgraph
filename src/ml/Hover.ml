@@ -52,11 +52,13 @@ let makeTypeHoverText ~typename ~(typeLocation : typeLocationLoc) =
 let hover ~path:_ ~pos:_ ~debug:_ =
   Printf.printf "{\"status\": \"Hover\", \"item\": %s}" Protocol.null
 
-let hoverGraphQL ~path ~hoverHint =
+let hoverGraphQL ~path ~hoverHint ~schemaName =
   match Packages.getPackage ~uri:(Uri.fromPath path) with
   | None -> Protocol.null
   | Some package ->
-    let schemaState, _ = GenerateSchemaUtils.readStateFile ~package in
+    let schemaState, _ =
+      GenerateSchemaUtils.readStateFile ?schemaName ~package ()
+    in
     let hoverStr =
       match hoverHint |> String.split_on_char '.' with
       | [typename] -> (
@@ -118,11 +120,13 @@ let hoverGraphQL ~path ~hoverHint =
     in
     Printf.sprintf "{\"status\": \"Hover\", \"item\": %s}" hoverStr
 
-let definitionGraphQL ~path ~definitionHint =
+let definitionGraphQL ~path ~definitionHint ~schemaName =
   match Packages.getPackage ~uri:(Uri.fromPath path) with
   | None -> Protocol.null
   | Some package ->
-    let schemaState, _ = GenerateSchemaUtils.readStateFile ~package in
+    let schemaState, _ =
+      GenerateSchemaUtils.readStateFile ?schemaName ~package ()
+    in
     let definitionLoc =
       match definitionHint |> String.split_on_char '.' with
       | [typename] -> (

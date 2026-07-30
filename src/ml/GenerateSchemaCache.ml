@@ -18,6 +18,11 @@ type t = {
   writeStateFile: bool;
   writeSdlFile: bool;
   debug: bool;
+  schemaName: string option;
+  moduleName: string;
+  contextType: string;
+  includePaths: string list;
+  excludePaths: string list;
   rescriptRuntime: string option;
   rescriptProjectConfigCache: bool;
   rescriptVersion: string option;
@@ -26,8 +31,8 @@ type t = {
   outputs: output list;
 }
 
-let version = 4
-let magic = "RESGRAPH_INCREMENTAL_CACHE_V4\n"
+let version = 5
+let magic = "RESGRAPH_INCREMENTAL_CACHE_V5\n"
 let fileName = ".resgraphIncrementalCache"
 
 let enabled () = Sys.getenv_opt "RESGRAPH_INCREMENTAL_CACHE" <> Some "false"
@@ -57,8 +62,14 @@ let rescriptVersion () = Sys.getenv_opt "RESCRIPT_VERSION"
 let fromRoot rootPath path =
   if Filename.is_relative path then Filename.concat rootPath path else path
 
-let cachePath rootPath =
-  Filename.concat (Filename.concat rootPath "lib") fileName
+let cachePath rootPath schemaName =
+  let libPath = Filename.concat rootPath "lib" in
+  match schemaName with
+  | None -> Filename.concat libPath fileName
+  | Some schemaName ->
+    Filename.concat
+      (Filename.concat libPath "resgraph")
+      (schemaName ^ ".incremental-cache")
 
 let signatureCanonical path =
   try
@@ -300,26 +311,44 @@ let inputPaths (package : SharedTypes.package) =
   |> List.fold_left (fun paths path -> addPath path paths) paths
   |> StringSet.elements
 
-let isInterfaceFile name =
-  String.starts_with name ~prefix:"interface_"
-  && Filename.check_suffix name ".res"
+let isInterfaceFile ~moduleName ~schemaName name =
+  Filename.check_suffix name ".res"
+  &&
+  match schemaName with
+  | None -> String.starts_with name ~prefix:"interface_"
+  | Some _ -> String.starts_with name ~prefix:(moduleName ^ "__Interface_")
 
-let generatedOutputPaths ~rootPath ~outputFolder ~writeStateFile ~writeSdlFile =
+let generatedOutputPaths ~rootPath ~outputFolder ~writeStateFile ~writeSdlFile
+    ~schemaName ~moduleName =
   let files = try Sys.readdir outputFolder |> Array.to_list with _ -> [] in
+  let schemaSource = moduleName ^ ".res" in
+  let schemaInterface = schemaSource ^ "i" in
   let generated =
     files
     |> List.filter (fun name ->
-        name = "ResGraphSchema.res"
-        || name = "ResGraphSchema.resi"
+        name = schemaSource || name = schemaInterface
         || (writeSdlFile && name = "schema.graphql")
-        || isInterfaceFile name)
+        || isInterfaceFile ~moduleName ~schemaName name)
     |> List.map (Filename.concat outputFolder)
   in
   (if writeStateFile then
-     Filename.concat (Filename.concat rootPath "lib") ".resgraphState.marshal"
-     :: generated
+     let statePath =
+       match schemaName with
+       | None ->
+         Filename.concat
+           (Filename.concat rootPath "lib")
+           ".resgraphState.marshal"
+       | Some schemaName ->
+         Filename.concat
+           (Filename.concat (Filename.concat rootPath "lib") "resgraph")
+           (schemaName ^ ".state.marshal")
+     in
+     statePath :: generated
    else generated)
   |> List.map canonicalize |> List.sort String.compare
+
+let canonicalPaths paths =
+  paths |> List.map canonicalize |> List.sort_uniq String.compare
 
 let collectSignatures paths =
   let rec loop collected = function
@@ -370,17 +399,18 @@ let invalid reason =
   false
 
 let canSkipEnabled ~sourceFolder ~outputFolder ~writeStateFile ~writeSdlFile
-    ~debug:debugMode =
+    ~debug:debugMode ~schemaName ~moduleName ~contextType ~includePaths
+    ~excludePaths =
   match findRoot (canonicalize sourceFolder) with
   | None -> invalid "project root was not found"
   | Some rootPath -> (
-    let path = cachePath rootPath in
+    let path = cachePath rootPath schemaName in
     match read path with
     | None -> invalid "cache was not found or could not be read"
     | Some cache -> (
       let outputPaths =
         generatedOutputPaths ~rootPath ~outputFolder ~writeStateFile
-          ~writeSdlFile
+          ~writeSdlFile ~schemaName ~moduleName
       in
       let cachedOutputPaths =
         cache.outputs
@@ -397,6 +427,14 @@ let canSkipEnabled ~sourceFolder ~outputFolder ~writeStateFile ~writeSdlFile
       else if cache.writeSdlFile <> writeSdlFile then
         invalid "SDL setting changed"
       else if cache.debug <> debugMode then invalid "debug setting changed"
+      else if cache.schemaName <> schemaName then invalid "schema name changed"
+      else if cache.moduleName <> moduleName then invalid "module name changed"
+      else if cache.contextType <> contextType then
+        invalid "context type changed"
+      else if cache.includePaths <> canonicalPaths includePaths then
+        invalid "included source paths changed"
+      else if cache.excludePaths <> canonicalPaths excludePaths then
+        invalid "excluded source paths changed"
       else if cache.rescriptRuntime <> rescriptRuntime () then
         invalid "ReScript runtime selection changed"
       else if cache.rescriptProjectConfigCache <> rescriptProjectConfigCache ()
@@ -417,23 +455,32 @@ let canSkipEnabled ~sourceFolder ~outputFolder ~writeStateFile ~writeSdlFile
           log "Incremental cache hit";
           true))
 
-let canSkip ~sourceFolder ~outputFolder ~writeStateFile ~writeSdlFile ~debug =
+let canSkip ~sourceFolder ~outputFolder ~writeStateFile ~writeSdlFile ~debug
+    ~schemaName ~moduleName ~contextType ~includePaths ~excludePaths =
   enabled ()
   && canSkipEnabled ~sourceFolder ~outputFolder ~writeStateFile ~writeSdlFile
-       ~debug
+       ~debug ~schemaName ~moduleName ~contextType ~includePaths ~excludePaths
+
+let ensureCacheDirectory path =
+  let directory = Filename.dirname path in
+  if not (Files.exists directory) then Unix.mkdir directory 0o755
 
 let update ~(package : SharedTypes.package) ~sourceFolder ~outputFolder
-    ~writeStateFile ~writeSdlFile ~debug:debugMode =
+    ~writeStateFile ~writeSdlFile ~debug:debugMode ~schemaName ~moduleName
+    ~contextType ~includePaths ~excludePaths =
   if enabled () then
     let rootPath = canonicalize package.rootPath in
     let inputs = collectSignatures (inputPaths package) in
     let outputPaths =
       generatedOutputPaths ~rootPath ~outputFolder ~writeStateFile ~writeSdlFile
+        ~schemaName ~moduleName
     in
     let outputs = collectOutputs outputPaths in
     match (signature Sys.executable_name, inputs, outputs) with
     | Some executable, Some inputs, Some outputs ->
-      write (cachePath rootPath)
+      let path = cachePath rootPath schemaName in
+      ensureCacheDirectory path;
+      write path
         {
           version;
           sourceFolder = canonicalize sourceFolder;
@@ -441,6 +488,11 @@ let update ~(package : SharedTypes.package) ~sourceFolder ~outputFolder
           writeStateFile;
           writeSdlFile;
           debug = debugMode;
+          schemaName;
+          moduleName;
+          contextType;
+          includePaths = canonicalPaths includePaths;
+          excludePaths = canonicalPaths excludePaths;
           rescriptRuntime = rescriptRuntime ();
           rescriptProjectConfigCache = rescriptProjectConfigCache ();
           rescriptVersion = rescriptVersion ();

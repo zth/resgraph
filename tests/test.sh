@@ -272,3 +272,5 @@ printf '%b%s%b\n' "$successGreen" \
 
 node ./runtime-interface-returns.mjs
 ./invalid-interface-implements.sh
+
+./multi-schema-test.sh

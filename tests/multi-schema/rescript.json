@@ -1,0 +1,23 @@
+{
+  "name": "resgraph-multi-schema-tests",
+  "uncurried": true,
+  "package-specs": {
+    "in-source": true,
+    "module": "esmodule",
+    "suffix": ".mjs"
+  },
+  "sources": [
+    {
+      "dir": "src",
+      "subdirs": true
+    }
+  ],
+  "compiler-flags": [
+    "-w -33-44"
+  ],
+  "dependencies": [
+    "resgraph",
+    "@glennsl/rescript-fetch",
+    "rescript-nodejs"
+  ]
+}

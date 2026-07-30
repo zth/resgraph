@@ -28,7 +28,27 @@ let load_cmt ~package ~moduleName ~sourcePath =
         {file = cmtPath; message = "Unable to read cmt/cmt[i] file for module."}
     | Some cmt -> Ok (cmtPath, cmt))
 
-let collect_gql_cmts ~sourceFolder =
+let canonicalize_path path =
+  let path = try Unix.realpath path with _ -> path in
+  if Sys.win32 then String.lowercase_ascii path else path
+
+let path_is_within ~root path =
+  path = root || Files.pathStartsWith path (root ^ Filename.dir_sep)
+
+let source_is_selected ~includePaths ~excludePaths sourcePath =
+  let sourcePath = canonicalize_path sourcePath in
+  let included =
+    includePaths = []
+    || List.exists (fun root -> path_is_within ~root sourcePath) includePaths
+  in
+  let excluded =
+    List.exists (fun root -> path_is_within ~root sourcePath) excludePaths
+  in
+  included && not excluded
+
+let collect_gql_cmts ~sourceFolder ~includePaths ~excludePaths =
+  let includePaths = List.map canonicalize_path includePaths in
+  let excludePaths = List.map canonicalize_path excludePaths in
   match Packages.getPackage ~uri:(Uri.fromPath sourceFolder) with
   | None ->
     Error
@@ -52,8 +72,10 @@ let collect_gql_cmts ~sourceFolder =
           List.iter
             (fun sourcePath ->
               let hasAttr =
-                try GenerateSchemaUtils.fileHasGqlAttribute sourcePath
-                with _ -> false
+                source_is_selected ~includePaths ~excludePaths sourcePath
+                &&
+                  try GenerateSchemaUtils.fileHasGqlAttribute sourcePath
+                  with _ -> false
               in
               if hasAttr then
                 let moduleName =
@@ -110,9 +132,16 @@ let with_hooks ~package ~preloaded f =
   res
 
 let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
-    ~outputFolder ~writeSdlFile ~authorizationConfig =
+    ~outputFolder ~writeSdlFile ~schemaName ~moduleName ~contextType
+    ~includePaths ~excludePaths ~authorizationConfig =
+  let moduleOutputPaths =
+    [
+      outputFolder ^ "/" ^ moduleName ^ ".res";
+      outputFolder ^ "/" ^ moduleName ^ ".resi";
+    ]
+  in
   GenerateSchemaAuthorization.validateBaselineOutputPath ~outputFolder
-    ~writeSdlFile ~additionalOutputPaths:[] authorizationConfig;
+    ~writeSdlFile ~additionalOutputPaths:moduleOutputPaths authorizationConfig;
   let cacheEnabled =
     match authorizationConfig.mode with
     | AuthorizationOptional -> true
@@ -121,27 +150,31 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
   if
     cacheEnabled
     && GenerateSchemaCache.canSkip ~sourceFolder ~outputFolder ~writeStateFile
-         ~writeSdlFile ~debug
+         ~writeSdlFile ~debug ~schemaName ~moduleName ~contextType ~includePaths
+         ~excludePaths
   then (
     if printToStdOut then
       Printf.printf "{\"status\": \"Success\", \"ok\": true}")
   else
     let collection =
-      try collect_gql_cmts ~sourceFolder
+      try collect_gql_cmts ~sourceFolder ~includePaths ~excludePaths
       with exn ->
         GenerateSchemaAuthorization.prepareManifest ~outputFolder ~writeSdlFile
-          ~additionalOutputPaths:[] authorizationConfig;
+          ~additionalOutputPaths:moduleOutputPaths authorizationConfig;
         raise exn
     in
     match collection with
     | Error errs ->
       GenerateSchemaAuthorization.prepareManifest ~outputFolder ~writeSdlFile
-        ~additionalOutputPaths:[] authorizationConfig;
+        ~additionalOutputPaths:moduleOutputPaths authorizationConfig;
       print_collect_errors errs;
       exit 1
     | Ok (package, loaded) ->
       let additionalOutputPaths =
-        if writeStateFile then [GenerateSchemaUtils.getStateFilePath package]
+        moduleOutputPaths
+        @
+        if writeStateFile then
+          [GenerateSchemaUtils.getStateFilePath ?schemaName package]
         else []
       in
       GenerateSchemaAuthorization.validateBaselineOutputPath ~outputFolder
@@ -160,8 +193,15 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
       in
       ignore
         (with_hooks ~package ~preloaded (fun ~loader ->
+             let projectConfigPath =
+               let rescriptJson = package.rootPath ^ "/rescript.json" in
+               if Files.exists rescriptJson then rescriptJson
+               else package.rootPath ^ "/bsconfig.json"
+             in
              let schemaState =
                {
+                 contextTypePath = String.split_on_char '.' contextType;
+                 rootFileUri = Uri.fromPath projectConfigPath;
                  types = Hashtbl.create 50;
                  enums = Hashtbl.create 10;
                  unions = Hashtbl.create 10;
@@ -195,8 +235,28 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
                GenerateSchemaUtils.processSchema schemaState
              in
              GenerateSchemaAuthorization.buildPlans ~loader ~package schemaState;
-             let schemaOutputPath = outputFolder ^ "/ResGraphSchema.res" in
+             let markNamedSchemaFile contents =
+               match schemaName with
+               | Some _ ->
+                 GenerateSchemaTypePrinters.markNamedSchemaFile contents
+               | None -> contents
+             in
+             let schemaOutputPath = outputFolder ^ "/" ^ moduleName ^ ".res" in
+             let resiOutputPath = schemaOutputPath ^ "i" in
+             let resiContent =
+               Printf.sprintf "let schema: ResGraph.schema<%s>\n" contextType
+               |> markNamedSchemaFile
+             in
              let sdlOutputPath = outputFolder ^ "/schema.graphql" in
+             let interfaceModulePrefix =
+               Option.map (fun _ -> moduleName) schemaName
+             in
+
+             (match schemaName with
+             | Some _ ->
+               GenerateSchemaTypePrinters.cleanNamedSchemaFiles ~outputFolder
+                 ~moduleName
+             | None -> ());
 
              if schemaState.diagnostics |> List.length > 0 then (
                if printToStdOut then
@@ -215,36 +275,39 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
 
                (* Write an empty schema just to avoid type errors in the generated code. *)
                GenerateSchemaUtils.writeIfHasChanges schemaOutputPath
-                 "let schema = \
-                  ResGraph__GraphQLJs.GraphQLSchemaType.make(Obj.magic())\n")
+                 (Printf.sprintf
+                    "let schema: ResGraph.schema<%s> = \
+                     ResGraph__GraphQLJs.GraphQLSchemaType.make(Obj.magic())\n"
+                    contextType
+                 |> markNamedSchemaFile);
+               GenerateSchemaUtils.writeIfHasChanges resiOutputPath resiContent)
              else
                let schemaCode =
                  GenerateSchemaTypePrinters.printSchemaJsFile schemaState
-                   processedSchema
+                   processedSchema ~interfaceModulePrefix
+                 |> markNamedSchemaFile
                in
 
                GenerateSchemaTypePrinters.cleanInterfaceFiles schemaState
-                 ~outputFolder;
+                 ~outputFolder ~interfaceModulePrefix;
                GenerateSchemaTypePrinters.printInterfaceFiles schemaState
-                 ~processedSchema ~outputFolder;
+                 ~processedSchema ~outputFolder ~interfaceModulePrefix;
 
-               (* TODO: Do this in parallell in some fancy way *)
                if writeStateFile then
-                 GenerateSchemaUtils.writeStateFile ~package ~schemaState
-                   ~processedSchema;
+                 GenerateSchemaUtils.writeStateFile ?schemaName ~package
+                   ~schemaState ~processedSchema ();
 
                (if writeSdlFile then
                   let sdl = GenerateSchemaSDL.printSchemaSDL schemaState in
+                  let sdl =
+                    match schemaName with
+                    | Some _ ->
+                      "# @generated by ResGraph named schema\n\n" ^ sdl
+                    | None -> sdl
+                  in
                   GenerateSchemaUtils.writeIfHasChanges sdlOutputPath sdl);
 
-               (* Write generated schema *)
                GenerateSchemaUtils.writeIfHasChanges schemaOutputPath schemaCode;
-
-               (* Write resi file *)
-               let resiOutputPath = schemaOutputPath ^ "i" in
-               let resiContent =
-                 "let schema: ResGraph.schema<ResGraphContext.context>\n"
-               in
                GenerateSchemaUtils.writeIfHasChanges resiOutputPath resiContent;
 
                GenerateSchemaAuthorization.writeBaseline schemaState;
@@ -252,7 +315,8 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
 
                if cacheEnabled then
                  GenerateSchemaCache.update ~package ~sourceFolder ~outputFolder
-                   ~writeStateFile ~writeSdlFile ~debug;
+                   ~writeStateFile ~writeSdlFile ~debug ~schemaName ~moduleName
+                   ~contextType ~includePaths ~excludePaths;
 
                if debug && printToStdOut then schemaCode |> print_endline
                else if printToStdOut then

@@ -1,0 +1,14 @@
+interface Entity {
+  id: String!
+}
+
+type Query {
+  entity: Entity!
+  sharedItem: SharedItem!
+  publicValue: String!
+}
+
+type SharedItem implements Entity {
+  id: String!
+  label: String!
+}

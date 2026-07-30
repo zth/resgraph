@@ -1,0 +1,20 @@
+{
+  "name": "resgraph-multi-package-b",
+  "uncurried": true,
+  "package-specs": {
+    "in-source": true,
+    "module": "esmodule",
+    "suffix": ".mjs"
+  },
+  "sources": [
+    {
+      "dir": "src",
+      "subdirs": true
+    }
+  ],
+  "dependencies": [
+    "resgraph",
+    "@glennsl/rescript-fetch",
+    "rescript-nodejs"
+  ]
+}

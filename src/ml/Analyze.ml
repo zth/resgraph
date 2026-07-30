@@ -46,18 +46,18 @@ let make_definition ~path ~kind ~fileUri ~loc =
 
 let location_is_available (loc : Location.t) = loc <> Location.none
 
-let load_schema_state ~path =
+let load_schema_state ~path ~schemaName =
   match Packages.getPackage ~uri:(Uri.fromPath path) with
   | None ->
     Error (Printf.sprintf "Path \"%s\" is not inside a ReScript project." path)
   | Some package -> (
-    if not (GenerateSchemaUtils.stateFileExists package) then
+    if not (GenerateSchemaUtils.stateFileExists ?schemaName package) then
       Error
         (Printf.sprintf
            "No ResGraph state file was found for this project. Run `resgraph \
             build` first.")
     else
-      try Ok (GenerateSchemaUtils.readStateFile ~package |> fst)
+      try Ok (GenerateSchemaUtils.readStateFile ?schemaName ~package () |> fst)
       with _ ->
         Error
           "ResGraph could not read the generated schema state. Run `resgraph \
@@ -128,9 +128,9 @@ let resolve_field_definition ~schemaState ~definitionHint typename fieldName =
     Error (Printf.sprintf "GraphQL type `%s` does not expose fields." typename)
   | None -> Error (Printf.sprintf "Could not find GraphQL type `%s`." typename)
 
-let findDefinition ~path ~definitionHint =
+let findDefinition ~path ~definitionHint ~schemaName =
   try
-    match load_schema_state ~path with
+    match load_schema_state ~path ~schemaName with
     | Error error -> stringify_response ~error ()
     | Ok schemaState -> (
       match definitionHint |> String.split_on_char '.' with

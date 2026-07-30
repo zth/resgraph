@@ -336,7 +336,14 @@ let start = (~mode, ~configFilePath) => {
   | Ok(config) => config
   }
 
-  let currentResult = ref(Utils.NotInitialized)
+  let configIssues = []
+  config->InitProject.validateConfig(~issues=configIssues)
+  if configIssues->Array.length > 0 {
+    configIssues->InitProject.printProjectIssues
+    panic("Invalid ResGraph configuration.")
+  }
+
+  let currentResults: Dict.t<Utils.callResult> = dict{}
 
   let resFilesCache: Dict.t<string> = Dict.make()
 
@@ -344,51 +351,62 @@ let start = (~mode, ~configFilePath) => {
 
   let publishDiagnostics = () => {
     let filesWithDiagnosticsAtLastPublish = filesWithDiagnostics.contents->Array.copy
-    let currentFilesWithDiagnostics = []
-    let currentErrors = switch currentResult.contents {
-    | Error({errors}) => errors
-    | _ => []
-    }
+    let errorsByFile: Dict.t<array<Utils.generateError>> = dict{}
 
-    currentErrors->Array.forEach(error => {
-      currentFilesWithDiagnostics->Array.push(error.file)
+    config.schemas->Array.forEach(schema =>
+      switch currentResults->Dict.get(schema.name) {
+      | Some(Error({errors})) =>
+        errors->Array.forEach(error => {
+          let errorsForFile = errorsByFile->Dict.get(error.file)->Option.getOr([])
+          errorsByFile->Dict.set(error.file, errorsForFile->Array.concat([error]))
+        })
+      | _ => ()
+      }
+    )
 
-      PublishDiagnostics({
-        uri: error.file,
-        diagnostics: [
-          {
-            range: error.range,
-            message: error.message,
-            source: "ResGraph",
-          },
-        ],
+    let currentFilesWithDiagnostics =
+      errorsByFile
+      ->Dict.toArray
+      ->Array.map(((file, errors)) => {
+        PublishDiagnostics({
+          uri: file,
+          diagnostics: errors->Array.map(error => {
+            let diagnostic: LspProtocol.diagnostic = {
+              range: error.range,
+              message: error.message,
+              source: "ResGraph",
+            }
+            diagnostic
+          }),
+        })
+        ->Message.Notification.asMessage
+        ->send
+        file
       })
-      ->Message.Notification.asMessage
-      ->send
-    })
 
     filesWithDiagnostics := currentFilesWithDiagnostics
 
-    // Delete diagnostics from files that no longer have them
     filesWithDiagnosticsAtLastPublish->Array.forEach(fileName => {
       if !(currentFilesWithDiagnostics->Array.includes(fileName)) {
-        PublishDiagnostics({
-          uri: fileName,
-          diagnostics: [],
-        })
+        PublishDiagnostics({uri: fileName, diagnostics: []})
         ->Message.Notification.asMessage
         ->send
       }
     })
   }
 
-  let watcher = Utils.setupWatcher(
-    ~onStartRebuild=() => (),
-    ~onResult=res => {
-      currentResult := res
-      publishDiagnostics()
-    },
-    ~config,
+  let watchers = config.schemas->Array.map(schema =>
+    Utils.setupWatcher(
+      ~onStartRebuild=_schema => (),
+      ~onResult=(schema, result) =>
+        switch result {
+        | Utils.GeneratorResult(res) =>
+          currentResults->Dict.set(schema.name, res)
+          publishDiagnostics()
+        | Utils.GeneratorProcessFailure => ()
+        },
+      ~config=schema,
+    )
   )
 
   let openedFile = (uri, text) => {
@@ -400,7 +418,7 @@ let start = (~mode, ~configFilePath) => {
   }
 
   let updateOpenedFile = (uri, text) => {
-    if uri->Path.extname == ".res" {
+    if uri->Path.extname === ".res" {
       switch resFilesCache->Dict.get(uri)->Option.isSome {
       | true => resFilesCache->Dict.set(uri, text)
       | false => ()
@@ -447,7 +465,7 @@ let start = (~mode, ~configFilePath) => {
         ->send
       }
       switch (initialized.contents, msg->Message.getMethod) {
-      | (false, method) if method != #initialize =>
+      | (false, method) if method !== #initialize =>
         Message.Response.make(
           ~id=msg->Message.getId,
           ~error=Message.Error.make(~code=ServerNotInitialized, ~message=`Server not initialized.`),
@@ -488,7 +506,9 @@ let start = (~mode, ~configFilePath) => {
             ->send
           } else {
             shutdownRequestAlreadyReceived := true
-            watcher->Bindings.Chokidar.Watcher.close->Promise.ignore
+            watchers->Array.forEach(watcher =>
+              watcher->Bindings.Chokidar.Watcher.close->Promise.ignore
+            )
             Message.Response.make(~id=msg->Message.getId, ~result=Message.Result.null(), ())
             ->Message.Response.asMessage
             ->send
@@ -499,9 +519,14 @@ let start = (~mode, ~configFilePath) => {
             let filePath = params.textDocument.uri->fileURLToPath
             switch params.textDocument.uri->Path.extname {
             | ".graphql" =>
+              let stateName =
+                config
+                ->Utils.schemaForGraphqlFile(filePath)
+                ->Option.flatMap(schema => schema.stateName)
               let result = switch LspCompleteGraphQL.hoverAtPos(
                 ~path=filePath,
                 ~pos=params.position,
+                ~stateName,
               ) {
               | Some(hover) => hover->Message.Result.fromHover
               | None => Message.Result.null()
@@ -525,9 +550,14 @@ let start = (~mode, ~configFilePath) => {
             let filePath = params.textDocument.uri->fileURLToPath
             switch params.textDocument.uri->Path.extname {
             | ".graphql" =>
+              let stateName =
+                config
+                ->Utils.schemaForGraphqlFile(filePath)
+                ->Option.flatMap(schema => schema.stateName)
               let result = switch LspCompleteGraphQL.definitionAtPos(
                 ~path=filePath,
                 ~pos=params.position,
+                ~stateName,
               ) {
               | Some(definition) => definition->Message.Result.fromDefinition
               | None => Message.Result.null()
@@ -553,8 +583,12 @@ let start = (~mode, ~configFilePath) => {
                 let filePath = params.textDocument.uri->fileURLToPath
                 let tmpname = Utils.createFileInTempDir()
                 Fs.writeFileSyncWith(tmpname, Buffer.fromString(code), {encoding: "utf-8"})
+                let stateName =
+                  config
+                  ->Utils.schemaForFile(filePath)
+                  ->Option.flatMap(schema => schema.stateName)
                 let result = switch Utils.callPrivateCli(
-                  Completion({filePath, position: params.position, tmpname}),
+                  Completion({filePath, position: params.position, tmpname, ?stateName}),
                 ) {
                 | Completion({items}) => Message.Result.fromCompletionItems(items)
                 | _ => Message.Result.null()

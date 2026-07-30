@@ -75,9 +75,9 @@ type typeContext =
   | ObjectField of {objectTypeName: string; fieldName: string}
   | UnionMember of {parentUnionName: string; constructorName: string}
 
-let intfNameRegexp = Str.regexp "^Interface_\\(.*\\)$"
+let intfNameRegexp = Str.regexp "^\\(.*__\\)?Interface_\\(.*\\)$"
 let extractInterfaceName str =
-  if Str.string_match intfNameRegexp str 0 then Some (Str.matched_group 1 str)
+  if Str.string_match intfNameRegexp str 0 then Some (Str.matched_group 2 str)
   else None
 
 (* Extracts valid GraphQL types from type exprs *)
@@ -177,15 +177,15 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
     | Tconstr (Path.Pident {name = "float"}, [], _) -> Some (Scalar Float)
     | Tconstr (path, typeArgs, _) -> (
       match pathIdentToList path with
-      | [intfFilename; "ImplementedBy"; "t"]
-        when Utils.startsWith intfFilename "Interface_" -> (
+      | [intfFilename; "ImplementedBy"; "t"] -> (
         let interfaceName = extractInterfaceName intfFilename in
         match interfaceName with
         | None -> None
         | Some interfaceName -> Some (InjectInterfaceTypename interfaceName))
       | ["ResGraph"; "id"] -> Some (Scalar ID)
       | ["ResGraph"; "resolveInfo"] -> Some InjectInfo
-      | ["ResGraphContext"; "context"] -> Some InjectContext
+      | contextTypePath when contextTypePath = schemaState.contextTypePath ->
+        Some InjectContext
       | _ when isRescriptNullablePath path -> (
         match typeArgs with
         | [typeArg] -> (

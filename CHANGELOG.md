@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Add opt-in required authorization coverage with typed `.authorize` policies, explicit `.public` dispositions, resolver outcomes, mutation prechecks, interface policy inheritance, custom forbidden handlers, and deterministic audit manifests.
+- Add named multi-schema configuration with explicit source membership, separate generated modules and contexts, per-schema state, build/watch selection, tooling and LSP support, and compatibility with the existing single-schema configuration.
 
 ## 1.3.0
 

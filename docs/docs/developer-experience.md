@@ -36,7 +36,11 @@ npx resgraph tools find-definition User
 npx resgraph tools find-definition User.name
 ```
 
-The command reads the generated ResGraph state, so you need to have run `resgraph build` or `resgraph watch` first.
+The command reads the generated ResGraph state, so you need to have run `resgraph build` or `resgraph watch` first. With [multiple schemas](multiple-schemas), choose one explicitly:
+
+```bash
+npx resgraph tools find-definition Query.currentTime --schema public
+```
 
 The default output is plain text:
 

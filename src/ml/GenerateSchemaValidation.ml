@@ -279,7 +279,7 @@ let validateRootTypes (schemaState : schemaState) =
          ~diagnostic:
            {
              loc = emptyLoc;
-             fileUri = Uri.fromPath "<root>";
+             fileUri = schemaState.rootFileUri;
              message = "You must define at least a `query` type in your schema.";
            }
   | Some _ -> ()

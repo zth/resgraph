@@ -51,6 +51,8 @@ Add a `resgraph.json` file in the root of your ReScript project, and paste this 
 - `outputFolder` is where you want ResGraph to output the files it generates. **Ensure that this folder exists**. Create it if you don't already have it.
 - Add `"dumpSchemaSdl": true` if you want ResGraph to emit `schema.graphql`. By default, it stays off.
 
+To build several independent schemas in this repository, use the [named schemas configuration](multiple-schemas).
+
 ### `ResGraphContext.res`
 
 Create a `ResGraphContext.res` file anywhere in your project, and add a `context` type in there. The `context` can have anything you'd like in it:

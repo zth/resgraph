@@ -221,6 +221,8 @@ type gqlInputUnionType = {
 }
 
 type schemaState = {
+  contextTypePath: string list;
+  rootFileUri: Uri.t;
   types: (string, gqlObjectType) Hashtbl.t;
   inputObjects: (string, gqlInputObjectType) Hashtbl.t;
   inputUnions: (string, gqlInputUnionType) Hashtbl.t;

@@ -5,20 +5,20 @@ open ResGraph__GraphQLJs
 let typeUnwrapper: ('src) => 'return = %raw(`function typeUnwrapper(src) { if (src == null) return null; if (typeof src === 'object' && src.hasOwnProperty('_0')) return src['_0']; if (typeof src === 'object' && src.hasOwnProperty('VAL')) return src['VAL']; return src;}`)
 let inputUnionUnwrapper: ('src, array<string>, array<string>) => 'return = %raw(`function inputUnionUnwrapper(src, inlineRecordTypenames, emptyPayloadTypenames) {
       if (src == null) return null;
-    
+
       let targetKey = null;
       let targetValue = null;
-    
+
       Object.entries(src).forEach(([key, value]) => {
         if (value != null) {
           targetKey = key;
           targetValue = value;
         }
       });
-    
+
       if (targetKey != null && targetValue != null) {
         let tagName = targetKey.slice(0, 1).toUpperCase() + targetKey.slice(1);
-    
+
         if (inlineRecordTypenames.includes(tagName)) {
           return Object.assign({ TAG: tagName }, targetValue);
         }
@@ -26,13 +26,13 @@ let inputUnionUnwrapper: ('src, array<string>, array<string>) => 'return = %raw(
         if (emptyPayloadTypenames.includes(tagName)) {
           return tagName;
         }
-    
+
         return {
           TAG: tagName,
           _0: targetValue,
         };
       }
-    
+
       return null;
     }
     `)

@@ -1,0 +1,36 @@
+{
+  "schemas": {
+    "first": {
+      "projectRoot": "..",
+      "include": [
+        "../src/public"
+      ],
+      "outputFolder": "../src/generated/public",
+      "moduleName": "FirstSchema"
+    },
+    "second": {
+      "projectRoot": "..",
+      "include": [
+        "../src/admin"
+      ],
+      "outputFolder": "../src/generated/public",
+      "moduleName": "SecondSchema"
+    },
+    "third": {
+      "projectRoot": "../src",
+      "include": [
+        "../src/admin"
+      ],
+      "outputFolder": "../src/generated/admin",
+      "moduleName": "CollidingSchema"
+    },
+    "fourth": {
+      "projectRoot": "../src/public",
+      "include": [
+        "../src/public"
+      ],
+      "outputFolder": "../src/generated/broken",
+      "moduleName": "CollidingSchema"
+    }
+  }
+}
