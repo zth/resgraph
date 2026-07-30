@@ -470,7 +470,8 @@ let printInterfaceType ~(schemaState : schemaState) (typ : gqlInterface) =
                  (GenerateSchemaUtils.capitalizeFirstChar id))
            |> String.concat ", "));
       CodeWriter.add writer "fields: () => ";
-      CodeWriter.add writer (printFields ~context:CtxInterface ~parentTypeName:typ.displayName
+      CodeWriter.add writer
+        (printFields ~context:CtxInterface ~parentTypeName:typ.displayName
            ~schemaState typ.fields);
       CodeWriter.line writer ",";
       CodeWriter.line writer
@@ -863,7 +864,8 @@ let printSchemaJsFile schemaState processSchema =
   |> iterHashtblAlphabetically (fun _name (typ : gqlObjectType) ->
       addWithNewLine
         (Printf.sprintf "t_%s.contents = GraphQLObjectType.make(%s)"
-           typ.displayName (typ |> printObjectType ~schemaState)));
+           typ.displayName
+           (typ |> printObjectType ~schemaState)));
 
   schemaState.inputObjects
   |> iterHashtblAlphabetically (fun _name (typ : gqlInputObjectType) ->

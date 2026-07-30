@@ -48,15 +48,28 @@ if grep -F 'switch PlainNamed.computed' "$tmp_dir/valid/ResGraphSchema.res" >/de
   echo "Inherited resolver used outcome metadata from a different interface." >&2
   exit 1
 fi
-grep -F 'Security.canFindUser(Obj.magic(src), ~args=authorizationArgs, ~ctx, ~info)' \
+grep -F 'Security.canFindUser(Obj.magic(src), ~args=authorizationArgs, ~ctx=ctx, ~info=info)' \
   "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
-grep -F 'ResGraph.Authorization.raiseError(Security.onForbidden(reason, ~ctx, ~info))' \
+grep -F 'ResGraph.Authorization.raiseError(Security.onForbidden(reason, ~ctx=ctx, ~info=info))' \
   "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 grep -F 'switch Security.canReadNamed(Obj.magic(src)' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 grep -F 'switch Security.first' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 grep -F 'switch Security.Alias.second' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 diff -u "$root_dir/tests/authorization/valid/expected-authorization-manifest.json" \
   "$tmp_dir/valid/authorization-manifest.json"
+
+mkdir -p "$tmp_dir/cache-bypass"
+"$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/invalid/src" \
+  "$tmp_dir/cache-bypass" false \
+  >"$tmp_dir/cache-bypass-optional-result.json"
+"$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/invalid/src" \
+  "$tmp_dir/cache-bypass" false required - \
+  "$tmp_dir/cache-bypass/authorization-manifest.json" \
+  >"$tmp_dir/cache-bypass-required-result.json"
+grep -F 'Field `Query.uncovered` has no authorization disposition.' \
+  "$tmp_dir/cache-bypass-required-result.json" >/dev/null
 
 "$resgraph_bin" generate-schema \
   "$root_dir/tests/authorization/invalid/src" \

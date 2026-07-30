@@ -114,12 +114,12 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
   let cacheEnabled =
     match authorizationConfig.mode with
     | AuthorizationOptional -> true
-    | AuthorizationRequired | AuthorizationBaseline -> false
+    | AuthorizationRequired -> false
   in
   if
     cacheEnabled
     && GenerateSchemaCache.canSkip ~sourceFolder ~outputFolder ~writeStateFile
-      ~writeSdlFile ~debug
+         ~writeSdlFile ~debug
   then (
     if printToStdOut then
       Printf.printf "{\"status\": \"Success\", \"ok\": true}")
