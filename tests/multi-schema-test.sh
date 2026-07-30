@@ -120,10 +120,14 @@ trap - EXIT
 
 transfer_fixture="$fixture_dir/ownership-transfer"
 transfer_config_backup=$(mktemp /tmp/resgraph-transfer-config.XXXXXX)
+transfer_compiler_log="$fixture_dir/lib/bs/.compiler.log"
+transfer_compiler_log_backup=$(mktemp /tmp/resgraph-transfer-compiler-log.XXXXXX)
 cp "$transfer_fixture/resgraph.json" "$transfer_config_backup"
+cp "$transfer_compiler_log" "$transfer_compiler_log_backup"
 restore_transfer_fixture() {
   cp "$transfer_config_backup" "$transfer_fixture/resgraph.json"
-  rm -f "$transfer_config_backup"
+  cp "$transfer_compiler_log_backup" "$transfer_compiler_log"
+  rm -f "$transfer_config_backup" "$transfer_compiler_log_backup"
   rm -rf "$transfer_fixture/lib"
   find "$fixture_dir/src/generated/transfer-a" -type f ! -name .gitkeep -delete
   find "$fixture_dir/src/generated/transfer-b" -type f ! -name .gitkeep -delete
@@ -132,8 +136,9 @@ trap restore_transfer_fixture EXIT
 (cd "$transfer_fixture" && node "$cli" build >/dev/null)
 test -f "$fixture_dir/src/generated/transfer-a/FirstSchema.res"
 test -f "$fixture_dir/src/generated/transfer-b/SecondSchema.res"
+printf '#Error\n' >"$transfer_compiler_log"
 cp "$transfer_fixture/resgraph.transferred.json" "$transfer_fixture/resgraph.json"
-(cd "$transfer_fixture" && node "$cli" build first >/dev/null)
+capture_watch_output "$transfer_fixture" '[first] Build succeeded' first
 test -f "$fixture_dir/src/generated/transfer-a/SecondSchema.res"
 test ! -e "$fixture_dir/src/generated/transfer-a/FirstSchema.res"
 test ! -e "$fixture_dir/src/generated/transfer-b/SecondSchema.res"

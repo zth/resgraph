@@ -312,16 +312,25 @@ let setupWatcher = (~onResult, ~onStartRebuild, ~config: schemaConfig) => {
     }
   }
 
-  generateSchema->runIfCompilerDone(~compilerLogPath, ~lastCompletedBuild)
+  lastCompletedBuild := try {
+    getLastBuiltFromCompilerLog(compilerLogPath)
+  } catch {
+  | _ => None
+  }
 
-  watcher
-  ->watch(compilerLogPath)
-  ->Watcher.onChange(compilerLogPath => {
-    generateSchema->runIfCompilerDone(~compilerLogPath, ~lastCompletedBuild)
-  })
-  ->Watcher.onUnlink(compilerLogPath => {
-    generateSchema->runIfCompilerDone(~compilerLogPath, ~lastCompletedBuild)
-  })
+  let compilerWatcher =
+    watcher
+    ->watch(compilerLogPath)
+    ->Watcher.onChange(compilerLogPath => {
+      generateSchema->runIfCompilerDone(~compilerLogPath, ~lastCompletedBuild)
+    })
+    ->Watcher.onUnlink(compilerLogPath => {
+      generateSchema->runIfCompilerDone(~compilerLogPath, ~lastCompletedBuild)
+    })
+
+  generateSchema()
+  generateSchema->runIfCompilerDone(~compilerLogPath, ~lastCompletedBuild)
+  compilerWatcher
 }
 
 let tempFilePrefix = "resgraph_support_file_" ++ Process.process->Process.pid->Int.toString ++ "_"
