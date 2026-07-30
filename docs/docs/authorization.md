@@ -31,6 +31,8 @@ The generated JSON records exact field coordinates and the kind of gap at each c
 - Rejects every new uncovered field or new mutation/subscription gap.
 - Rejects stale entries after a field is covered or removed, so the baseline must shrink as adoption progresses.
 
+Whenever `baselinePath` is configured, each successful compilation prints a warning that fields listed in the baseline are outside required authorization coverage.
+
 Add `@gql.authorize`, `@gql.public`, or an appropriate resolver outcome one field at a time, then remove the corresponding stale entry. This makes the migration a ratchet: normal builds cannot silently grow the exception set.
 
 Run `resgraph authorization baseline` again only when intentionally refreshing the snapshot. The command can add current gaps, so review its diff like any other security-policy change. It refuses to overwrite files that are not marked as ResGraph-generated and keeps entries sorted for stable diffs.

@@ -434,9 +434,16 @@ node --input-type=module -e \
   cd "$cli_baseline_project"
   node "$root_dir/cli/Cli.mjs" authorization baseline
   node "$root_dir/cli/Cli.mjs" build
-) >"$tmp_dir/cli-baseline-output.txt"
+) >"$tmp_dir/cli-baseline-output.txt" 2>&1
 grep -F 'Authorization baseline written to' "$tmp_dir/cli-baseline-output.txt" >/dev/null
 grep -F 'Build succeeded' "$tmp_dir/cli-baseline-output.txt" >/dev/null
+warning_count="$(grep -Fc 'Authorization baseline active:' "$tmp_dir/cli-baseline-output.txt")"
+if [[ "$warning_count" -ne 2 ]]; then
+  echo "Expected baseline warnings after baseline generation and required build." >&2
+  exit 1
+fi
+grep -F 'are not protected by required authorization coverage.' \
+  "$tmp_dir/cli-baseline-output.txt" >/dev/null
 jq -e '.kind == "authorizationBaseline" and (.gaps | length) == 4' \
   "$cli_baseline_project/generated/authorization-baseline.json" >/dev/null
 

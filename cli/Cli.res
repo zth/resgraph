@@ -12,17 +12,26 @@ let printBuildTime = buildDuration => {
   Console.log(`Build succeeded in ${(buildDuration /. 1000.)->Float.toFixed(~digits=2)} seconds.`)
 }
 
+let printAuthorizationBaselineWarning = (authorization: option<Utils.authorizationConfig>) =>
+  switch authorization->Option.flatMap(authorization => authorization.baselinePath) {
+  | None => ()
+  | Some(baselinePath) =>
+    Console.warn(
+      `⚠️ Authorization baseline active: fields listed in ${baselinePath} are not protected by required authorization coverage.`,
+    )
+  }
+
 let helpText = `
 **ResGraph v0.1.0 CLI**
 This is the CLI of ResGraph. All available configuration is made via adding a \`resgraph.json\` file in the root of your project.
 Available commands:
 
-init       | Initializes a new project.
-build      | Builds the project.
+init                   | Initializes a new project.
+build                  | Builds the project.
 authorization baseline | Creates or updates the required-authorization baseline.
-watch      | Builds the project and watches for changes.
-tools      | Show available ResGraph tools.
-help       | Show this help message.
+watch                  | Builds the project and watches for changes.
+tools                  | Show available ResGraph tools.
+help                   | Show this help message.
 `
 
 let toolsHelpText = `
@@ -108,7 +117,9 @@ let generateAuthorizationBaseline = () => {
           authorization: baselineAuthorization,
         }),
       ) {
-      | Success(_) => Console.log(`Authorization baseline written to ${baselinePath}.`)
+      | Success(_) =>
+        Console.log(`Authorization baseline written to ${baselinePath}.`)
+        printAuthorizationBaselineWarning(Some(baselineAuthorization))
       | Error({errors}) =>
         ErrorPrinter.printErrors(errors)
         Process.process->Process.exitWithCode(1)
@@ -162,6 +173,7 @@ try {
     | Success(_) =>
       let buildDuration = performance->now -. timeStart
       printBuildTime(buildDuration)
+      printAuthorizationBaselineWarning(config.authorization)
     | Error({errors}) =>
       ErrorPrinter.printErrors(errors)
       Process.process->Process.exitWithCode(1)
@@ -184,6 +196,7 @@ try {
 
         switch res {
         | Error({errors}) => ErrorPrinter.printErrors(errors)
+        | Success(_) => printAuthorizationBaselineWarning(config.authorization)
         | _ => ()
         }
       },
