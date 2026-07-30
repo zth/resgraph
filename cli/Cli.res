@@ -232,16 +232,17 @@ try {
   | list{"build"} =>
     let config = readConfig()
     validateConfig(config)
-    let schemas = config->selectSchemas(None)
-    buildSchemas(config, schemas)
+    GeneratedArtifacts.sync(config)
+    buildSchemas(config, config->selectSchemas(None))
   | list{"build", schemaName} =>
     let config = readConfig()
     validateConfig(config)
-    let schemas = config->selectSchemas(Some(schemaName))
-    buildSchemas(config, schemas)
+    GeneratedArtifacts.sync(config)
+    buildSchemas(config, config->selectSchemas(Some(schemaName)))
   | list{"watch"} | list{"watch", _} =>
     let config = readConfig()
     validateConfig(config)
+    GeneratedArtifacts.sync(config)
     let schemaName = switch argsList {
     | list{"watch", schemaName} => Some(schemaName)
     | _ => None

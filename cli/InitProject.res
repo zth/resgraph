@@ -6,6 +6,7 @@ type projectIssues =
   | IncludePathDoesNotExist({schemaName: string, path: string})
   | DuplicateOutputFolder({firstSchema: string, secondSchema: string, path: string})
   | DuplicateModuleName({firstSchema: string, secondSchema: string, moduleName: string})
+  | DuplicateSchemaStateName({firstSchema: string, secondSchema: string})
   | DefaultSchemaDoesNotExist({schemaName: string})
   | InvalidSchemaName({schemaName: string})
   | InvalidModuleName({schemaName: string, moduleName: string})
@@ -97,13 +98,25 @@ let validateConfig = (config: Utils.config, ~issues) => {
       if (
         otherIndex > index &&
         schema.projectRoot->compilerRoot === otherSchema.projectRoot->compilerRoot &&
-        schema.moduleName === otherSchema.moduleName
+        schema.moduleName->String.toLowerCase === otherSchema.moduleName->String.toLowerCase
       ) {
         issues->Array.push(
           DuplicateModuleName({
             firstSchema: schema.name,
             secondSchema: otherSchema.name,
             moduleName: schema.moduleName,
+          }),
+        )
+      }
+      if (
+        otherIndex > index &&
+        schema.projectRoot->compilerRoot === otherSchema.projectRoot->compilerRoot &&
+        schema.name->String.toLowerCase === otherSchema.name->String.toLowerCase
+      ) {
+        issues->Array.push(
+          DuplicateSchemaStateName({
+            firstSchema: schema.name,
+            secondSchema: otherSchema.name,
           }),
         )
       }
@@ -161,6 +174,10 @@ let printProjectIssues = issues => {
     | DuplicateModuleName({firstSchema, secondSchema, moduleName}) =>
       Console.error(
         `- 🚫 Schemas "${firstSchema}" and "${secondSchema}" use moduleName "${moduleName}" in the same ReScript package.`,
+      )
+    | DuplicateSchemaStateName({firstSchema, secondSchema}) =>
+      Console.error(
+        `- 🚫 Schemas "${firstSchema}" and "${secondSchema}" have names that collide on case-insensitive filesystems in the same ReScript package.`,
       )
     | DefaultSchemaDoesNotExist({schemaName}) =>
       Console.error(`- 🚫 defaultSchema "${schemaName}" does not name a configured schema.`)

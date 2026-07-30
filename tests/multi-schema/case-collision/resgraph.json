@@ -1,0 +1,16 @@
+{
+  "schemas": {
+    "api": {
+      "projectRoot": "..",
+      "include": ["../src/public"],
+      "outputFolder": "../src/generated/public",
+      "moduleName": "ApiSchema"
+    },
+    "API": {
+      "projectRoot": "..",
+      "include": ["../src/admin"],
+      "outputFolder": "../src/generated/admin",
+      "moduleName": "APISCHEMA"
+    }
+  }
+}

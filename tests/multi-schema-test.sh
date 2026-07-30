@@ -101,6 +101,43 @@ admin_cache_output=$(cd "$fixture_dir" && RESGRAPH_INCREMENTAL_DEBUG=1 node "$cl
 [[ "$public_cache_output" == *'Incremental cache hit'* ]]
 [[ "$admin_cache_output" == *'Incremental cache hit'* ]]
 
+removed_schema_backup=$(mktemp -d /tmp/resgraph-removed-schema.XXXXXX)
+cp "$fixture_dir/resgraph.json" "$removed_schema_backup/resgraph.json"
+for generated_file in \
+  AdminSchema.res \
+  AdminSchema.resi \
+  AdminSchema__Interface_entity.res \
+  schema.graphql; do
+  cp "$fixture_dir/src/generated/admin/$generated_file" \
+    "$removed_schema_backup/$generated_file"
+done
+restore_removed_schema() {
+  cp "$removed_schema_backup/resgraph.json" "$fixture_dir/resgraph.json"
+  for generated_file in \
+    AdminSchema.res \
+    AdminSchema.resi \
+    AdminSchema__Interface_entity.res \
+    schema.graphql; do
+    cp "$removed_schema_backup/$generated_file" \
+      "$fixture_dir/src/generated/admin/$generated_file"
+  done
+  rm -f "$fixture_dir/src/generated/admin/AdminSchema__Interface_custom.res"
+  rm -rf "$removed_schema_backup"
+}
+trap restore_removed_schema EXIT
+printf 'let preserved = true\n' \
+  >"$fixture_dir/src/generated/admin/AdminSchema__Interface_custom.res"
+cp "$fixture_dir/resgraph.public-only.json" "$fixture_dir/resgraph.json"
+(cd "$fixture_dir" && node "$cli" build public >/dev/null)
+test ! -e "$fixture_dir/src/generated/admin/AdminSchema.res"
+test ! -e "$fixture_dir/src/generated/admin/AdminSchema.resi"
+test ! -e "$fixture_dir/src/generated/admin/AdminSchema__Interface_entity.res"
+test ! -e "$fixture_dir/src/generated/admin/schema.graphql"
+test -f "$fixture_dir/src/generated/admin/AdminSchema__Interface_custom.res"
+restore_removed_schema
+trap - EXIT
+(cd "$fixture_dir" && node "$cli" build admin >/dev/null)
+
 public_state="$fixture_dir/lib/resgraph/public.state.marshal"
 mv "$public_state" "$public_state.bak"
 set +e
@@ -222,6 +259,13 @@ set -e
 [[ $validation_status -ne 0 ]]
 [[ "$validation_output" == *'use the same outputFolder'* ]]
 [[ "$validation_output" == *'use moduleName "CollidingSchema" in the same ReScript package'* ]]
+
+set +e
+case_collision_output=$(cd "$fixture_dir/case-collision" && node "$cli" build 2>&1)
+case_collision_status=$?
+set -e
+[[ $case_collision_status -ne 0 ]]
+[[ "$case_collision_output" == *'collide on case-insensitive filesystems'* ]]
 
 (cd "$fixture_dir/package-a" && "$rescript_bin")
 legacy_output=$(cd "$fixture_dir/package-a" && node "$cli" build)
