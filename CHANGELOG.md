@@ -1,5 +1,10 @@
 # ResGraph Changelog
 
+## 1.3.0
+
+- Speed up schema generation by emitting formatted ReScript and SDL directly through linear, buffer-backed writers instead of reparsing and pretty-printing generated code.
+- Add a conservative persistent incremental cache that safely skips unchanged schema generation across separate ResGraph invocations.
+
 ## 1.2.2
 
 - Include compiled ReScript metadata in the package tarball so schema generation can inspect ResGraph-provided types when installed from a release tarball.
