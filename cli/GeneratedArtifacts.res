@@ -49,8 +49,8 @@ let decodeManifest = raw =>
     }
   )
 
-let manifestPath = () =>
-  Path.resolve([Process.process->Process.cwd, "lib", "resgraph", ".configured-schemas.json"])
+let manifestPath = configDir =>
+  Path.resolve([configDir, "lib", "resgraph", ".configured-schemas.json"])
 
 let readManifest = path =>
   if Fs.existsSync(path) {
@@ -149,8 +149,12 @@ let writeManifest = (path, schemas) => {
   }
 }
 
-let sync = (config: Utils.config) => {
-  let path = manifestPath()
+let sameSchemaSlot = (left, right) =>
+  left.compilerRoot === right.compilerRoot && left.outputFolder === right.outputFolder
+
+let sync = (config: Utils.config, ~selectedSchemas: array<Utils.schemaConfig>, ~configDir) => {
+  let path = manifestPath(configDir)
+  let selectedNames = selectedSchemas->Array.map(schema => schema.name)
   let current = if config.legacy {
     []
   } else {
@@ -163,17 +167,44 @@ let sync = (config: Utils.config) => {
     })
   }
 
-  switch path->readManifest {
-  | None => ()
-  | Some(previous) =>
-    previous.schemas->Array.forEach(previousOwnership => {
-      let retained =
-        current->Array.some(currentOwnership => sameOwnership(previousOwnership, currentOwnership))
-      if !retained {
+  let previous = path->readManifest->Option.map(manifest => manifest.schemas)->Option.getOr([])
+  let previousForCurrent = currentOwnership =>
+    previous
+    ->Array.find(previousOwnership => previousOwnership.name === currentOwnership.name)
+    ->Option.orElse(
+      previous->Array.find(previousOwnership =>
+        sameSchemaSlot(previousOwnership, currentOwnership)
+      ),
+    )
+
+  previous->Array.forEach(previousOwnership => {
+    let successor =
+      current
+      ->Array.find(currentOwnership => currentOwnership.name === previousOwnership.name)
+      ->Option.orElse(
+        current->Array.find(currentOwnership =>
+          sameSchemaSlot(previousOwnership, currentOwnership)
+        ),
+      )
+    switch successor {
+    | None => cleanOwnership(previousOwnership)
+    | Some(currentOwnership) =>
+      if (
+        !sameOwnership(previousOwnership, currentOwnership) &&
+        selectedNames->Array.includes(currentOwnership.name)
+      ) {
         cleanOwnership(previousOwnership)
       }
-    })
-  }
+    }
+  })
 
-  writeManifest(path, current)
+  let next = current->Array.map(currentOwnership =>
+    switch previousForCurrent(currentOwnership) {
+    | Some(previousOwnership)
+      if !sameOwnership(previousOwnership, currentOwnership) &&
+      !(selectedNames->Array.includes(currentOwnership.name)) => previousOwnership
+    | _ => currentOwnership
+    }
+  )
+  writeManifest(path, next)
 }

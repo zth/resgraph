@@ -101,6 +101,23 @@ admin_cache_output=$(cd "$fixture_dir" && RESGRAPH_INCREMENTAL_DEBUG=1 node "$cl
 [[ "$public_cache_output" == *'Incremental cache hit'* ]]
 [[ "$admin_cache_output" == *'Incremental cache hit'* ]]
 
+config_backup=$(mktemp /tmp/resgraph-config.XXXXXX)
+cp "$fixture_dir/resgraph.json" "$config_backup"
+restore_config() {
+  cp "$config_backup" "$fixture_dir/resgraph.json"
+  rm -f "$config_backup"
+}
+trap restore_config EXIT
+cp "$fixture_dir/resgraph.admin-module-changed.json" "$fixture_dir/resgraph.json"
+(cd "$fixture_dir" && node "$cli" build public >/dev/null)
+test -f "$fixture_dir/src/generated/admin/AdminSchema.res"
+test -f "$fixture_dir/src/generated/admin/AdminSchema.resi"
+test -f "$fixture_dir/src/generated/admin/AdminSchema__Interface_entity.res"
+test ! -e "$fixture_dir/src/generated/admin/ChangedAdminSchema.res"
+restore_config
+trap - EXIT
+(cd "$fixture_dir" && node "$cli" build admin >/dev/null)
+
 removed_schema_backup=$(mktemp -d /tmp/resgraph-removed-schema.XXXXXX)
 cp "$fixture_dir/resgraph.json" "$removed_schema_backup/resgraph.json"
 for generated_file in \

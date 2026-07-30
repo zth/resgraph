@@ -1,0 +1,21 @@
+{
+  "defaultSchema": "public",
+  "schemas": {
+    "public": {
+      "projectRoot": ".",
+      "include": ["src/shared", "src/public"],
+      "exclude": ["src/public/experimental"],
+      "outputFolder": "src/generated/public",
+      "contextType": "PublicContext.context",
+      "dumpSchemaSdl": true
+    },
+    "admin": {
+      "projectRoot": ".",
+      "include": ["src/shared", "src/admin"],
+      "outputFolder": "src/generated/admin",
+      "moduleName": "ChangedAdminSchema",
+      "contextType": "AdminContext.context",
+      "dumpSchemaSdl": true
+    }
+  }
+}

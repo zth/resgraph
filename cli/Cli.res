@@ -232,22 +232,36 @@ try {
   | list{"build"} =>
     let config = readConfig()
     validateConfig(config)
-    GeneratedArtifacts.sync(config)
-    buildSchemas(config, config->selectSchemas(None))
+    let schemas = config->selectSchemas(None)
+    GeneratedArtifacts.sync(
+      config,
+      ~selectedSchemas=schemas,
+      ~configDir=Process.process->Process.cwd,
+    )
+    buildSchemas(config, schemas)
   | list{"build", schemaName} =>
     let config = readConfig()
     validateConfig(config)
-    GeneratedArtifacts.sync(config)
-    buildSchemas(config, config->selectSchemas(Some(schemaName)))
+    let schemas = config->selectSchemas(Some(schemaName))
+    GeneratedArtifacts.sync(
+      config,
+      ~selectedSchemas=schemas,
+      ~configDir=Process.process->Process.cwd,
+    )
+    buildSchemas(config, schemas)
   | list{"watch"} | list{"watch", _} =>
     let config = readConfig()
     validateConfig(config)
-    GeneratedArtifacts.sync(config)
     let schemaName = switch argsList {
     | list{"watch", schemaName} => Some(schemaName)
     | _ => None
     }
     let schemas = config->selectSchemas(schemaName)
+    GeneratedArtifacts.sync(
+      config,
+      ~selectedSchemas=schemas,
+      ~configDir=Process.process->Process.cwd,
+    )
     let showSchemaName = !config.legacy || schemas->Array.length > 1
     let timeStarts: Dict.t<float> = dict{}
     let _watchers = schemas->Array.map(schema =>

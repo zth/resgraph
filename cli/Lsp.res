@@ -343,6 +343,8 @@ let start = (~mode, ~configFilePath) => {
     panic("Invalid ResGraph configuration.")
   }
 
+  GeneratedArtifacts.sync(config, ~selectedSchemas=config.schemas, ~configDir=configFilePath)
+
   let currentResults: Dict.t<Utils.callResult> = dict{}
 
   let resFilesCache: Dict.t<string> = Dict.make()
