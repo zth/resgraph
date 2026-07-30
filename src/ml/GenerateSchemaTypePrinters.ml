@@ -614,8 +614,17 @@ let markNamedSchemaFile contents =
 
 let namedInterfaceFileRegexp = Str.regexp "^.*__Interface_.*\\.res$"
 
+let isLegacySchemaFile fileName =
+  fileName = "ResGraphSchema.res" || fileName = "ResGraphSchema.resi"
+
+let isGeneratedInterfaceFile fileName =
+  (String.starts_with fileName ~prefix:"interface_"
+  || Str.string_match namedInterfaceFileRegexp fileName 0)
+  && Filename.check_suffix fileName ".res"
+
 let isNamedSchemaGeneratedFile ~outputFolder fileName =
-  if
+  if isLegacySchemaFile fileName then true
+  else if
     not
       (Filename.check_suffix fileName ".res"
       || Filename.check_suffix fileName ".resi")
@@ -625,7 +634,7 @@ let isNamedSchemaGeneratedFile ~outputFolder fileName =
     | None -> false
     | Some contents ->
       String.starts_with contents ~prefix:namedSchemaGeneratedHeader
-      || Str.string_match namedInterfaceFileRegexp fileName 0
+      || isGeneratedInterfaceFile fileName
          && String.starts_with contents ~prefix:"/* @generated */"
 
 let cleanNamedSchemaFiles ~outputFolder ~moduleName =

@@ -232,7 +232,31 @@ assert_contains "$fixture_dir/package-a/src/generated/ResGraphSchema.resi" 'ResG
 capture_watch_output "$fixture_dir/package-a" 'Build succeeded'
 [[ "$watch_output" == *'Build succeeded in '* ]]
 (cd "$fixture_dir/package-b" && "$rescript_bin")
+legacy_generated_backup=$(mktemp -d /tmp/resgraph-legacy-generated.XXXXXX)
+cp "$fixture_dir/package-a/src/generated/ResGraphSchema.res" \
+  "$legacy_generated_backup/ResGraphSchema.res"
+cp "$fixture_dir/package-a/src/generated/ResGraphSchema.resi" \
+  "$legacy_generated_backup/ResGraphSchema.resi"
+restore_legacy_generated() {
+  cp "$legacy_generated_backup/ResGraphSchema.res" \
+    "$fixture_dir/package-a/src/generated/ResGraphSchema.res"
+  cp "$legacy_generated_backup/ResGraphSchema.resi" \
+    "$fixture_dir/package-a/src/generated/ResGraphSchema.resi"
+  rm -f "$fixture_dir/package-a/src/generated/interface_obsolete.res"
+  rm -f "$fixture_dir/package-a/src/generated/interface_custom.res"
+  rm -rf "$legacy_generated_backup"
+}
+trap restore_legacy_generated EXIT
+printf '/* @generated */\n' >"$fixture_dir/package-a/src/generated/interface_obsolete.res"
+printf 'let preserved = true\n' >"$fixture_dir/package-a/src/generated/interface_custom.res"
+rm -f "$fixture_dir/package-a/lib/resgraph/package-a.incremental-cache"
 (cd "$fixture_dir/central" && node "$cli" build)
+test ! -e "$fixture_dir/package-a/src/generated/ResGraphSchema.res"
+test ! -e "$fixture_dir/package-a/src/generated/ResGraphSchema.resi"
+test ! -e "$fixture_dir/package-a/src/generated/interface_obsolete.res"
+test -f "$fixture_dir/package-a/src/generated/interface_custom.res"
+restore_legacy_generated
+trap - EXIT
 (cd "$fixture_dir/package-a" && "$rescript_bin")
 (cd "$fixture_dir/package-b" && "$rescript_bin")
 assert_contains "$fixture_dir/package-a/src/generated/schema.graphql" 'valueA: String!'
