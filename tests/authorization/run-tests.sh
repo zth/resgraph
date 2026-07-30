@@ -462,6 +462,38 @@ jq -e '.kind == "authorizationBaseline" and (.gaps | length) == 4' \
   "$cli_baseline_project/generated/authorization-baseline.json" >/dev/null
 
 node --input-type=module -e \
+  'import fs from "node:fs";
+   import path from "node:path";
+   const project = process.argv[1];
+   fs.writeFileSync(path.join(project, "resgraph.json"), JSON.stringify({
+     defaultSchema: "secure",
+     schemas: {
+       secure: {
+         projectRoot: ".",
+         include: ["src"],
+         outputFolder: "./generated/schema",
+         authorization: {
+           mode: "required",
+           manifestPath: "./generated/authorization-manifest.json",
+           baselinePath: "./generated/authorization-baseline.json"
+         }
+       }
+     }
+   }, null, 2) + "\n");' "$cli_baseline_project"
+(
+  cd "$cli_baseline_project"
+  node "$root_dir/cli/Cli.mjs" authorization baseline secure
+  node "$root_dir/cli/Cli.mjs" build secure
+) >"$tmp_dir/named-cli-baseline-output.txt" 2>&1
+grep -F 'Authorization baseline written to' \
+  "$tmp_dir/named-cli-baseline-output.txt" >/dev/null
+grep -F '[secure] Build succeeded' "$tmp_dir/named-cli-baseline-output.txt" >/dev/null
+test -f "$cli_baseline_project/generated/schema/SecureSchema.res"
+test ! -e "$cli_baseline_project/generated/schema/ResGraphSchema.res"
+jq -e '.kind == "authorizationBaseline" and (.gaps | length) == 4' \
+  "$cli_baseline_project/generated/authorization-baseline.json" >/dev/null
+
+node --input-type=module -e \
   'import path from "node:path";
    import {readConfigFromDir} from "./cli/Utils.mjs";
    const configDir = path.resolve("tests/authorization/config");

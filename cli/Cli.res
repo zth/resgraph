@@ -185,8 +185,11 @@ let buildSchemas = (config: Utils.config, schemas: array<Utils.schemaConfig>) =>
 let generateAuthorizationBaseline = schemaName => {
   let config = readConfig()
   validateConfig(config)
-  let schemas = config->selectSchemas(schemaName)
-  let schema = schemas[0]->Option.getOrThrow(~message="Could not select a ResGraph schema.")
+  let schema = switch schemaName {
+  | None => config->Utils.defaultSchema
+  | Some(schemaName) => config->Utils.findSchema(schemaName)
+  }
+  let schema = schema->Option.getOrThrow(~message="Could not select a ResGraph schema.")
 
   switch schema.authorization {
   | None =>
@@ -202,6 +205,11 @@ let generateAuthorizationBaseline = schemaName => {
     | Some(baselinePath) =>
       let baselineAuthorization = {...authorization, mode: Baseline}
       let baselineSchema = {...schema, authorization: baselineAuthorization}
+      GeneratedArtifacts.sync(
+        config,
+        ~selectedSchemas=[baselineSchema],
+        ~configDir=Process.process->Process.cwd,
+      )
       switch Utils.callPrivateCli(GenerateSchema(baselineSchema)) {
       | Success(_) =>
         Console.log(`Authorization baseline written to ${baselinePath}.`)

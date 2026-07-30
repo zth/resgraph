@@ -50,6 +50,10 @@ type config = {
   schemas: array<schemaConfig>,
   defaultSchema: string,
   legacy: bool,
+  src: string,
+  outputFolder: string,
+  dumpSchemaSdl: bool,
+  authorization?: authorizationConfig,
 }
 
 let resolveRelative = (path, ~baseDir) => Path.resolve([baseDir, path])
@@ -473,7 +477,20 @@ let parseConfig = (rawConfig, ~baseDir=Process.process->Process.cwd) => {
           | Some(value) => value->JSON.Decode.string
           | None => schemas->Array.get(0)->Option.map(schema => schema.name)
           }
-          defaultSchema->Option.map(defaultSchema => {schemas, defaultSchema, legacy: false})
+          defaultSchema->Option.flatMap(defaultSchema =>
+            schemas->Array.find(schema => schema.name === defaultSchema)->Option.map(schema => {
+              let authorization = schema.authorization
+              {
+                schemas,
+                defaultSchema,
+                legacy: false,
+                src: schema.projectRoot,
+                outputFolder: schema.outputFolder,
+                dumpSchemaSdl: schema.dumpSchemaSdl,
+                ?authorization,
+              }
+            })
+          )
         }
       }
     | None =>
@@ -487,7 +504,16 @@ let parseConfig = (rawConfig, ~baseDir=Process.process->Process.cwd) => {
           ~stateName=None,
         )->Option.map(schema => {
           let schema = {...schema, moduleName: "ResGraphSchema"}
-          {schemas: [schema], defaultSchema: "default", legacy: true}
+          let authorization = schema.authorization
+          {
+            schemas: [schema],
+            defaultSchema: "default",
+            legacy: true,
+            src: schema.projectRoot,
+            outputFolder: schema.outputFolder,
+            dumpSchemaSdl: schema.dumpSchemaSdl,
+            ?authorization,
+          }
         })
       | None => None
       }

@@ -28,7 +28,11 @@ Use the named `schemas` form:
       "outputFolder": "src/graphql/__generated__/admin",
       "moduleName": "AdminSchema",
       "contextType": "AdminContext.context",
-      "dumpSchemaSdl": true
+      "dumpSchemaSdl": true,
+      "authorization": {
+        "mode": "required",
+        "manifestPath": "src/graphql/__generated__/admin/authorization-manifest.json"
+      }
     }
   }
 }
@@ -43,10 +47,25 @@ Each schema supports:
 - `moduleName`: the generated schema module. It defaults from the schema name: `public` becomes `PublicSchema` and `internal-api` becomes `InternalApiSchema`.
 - `contextType`: the qualified context type injected into this schema's resolvers. It defaults to `ResGraphContext.context`.
 - `dumpSchemaSdl`: whether to write `schema.graphql` in this schema's output folder.
+- `authorization`: optional [required authorization coverage](authorization) settings for this schema. Give each schema its own manifest and baseline paths.
 
-All paths are relative to the directory containing `resgraph.json`.
+All paths are relative to the directory containing `resgraph.json`. Configured project, include, exclude, and output paths must exist. Include paths must resolve inside `projectRoot`; symlink aliases are resolved before membership and collision checks.
 
-The generated interface helpers are also schema-specific. For example, the `public` schema emits `PublicSchema__Interface_node.res`. Use that module when a resolver explicitly returns an interface resolver type for the public schema.
+Schema names may contain letters, digits, `_`, and `-`. Within one ReScript package, schema names and generated module names must remain unique even on case-insensitive filesystems. Output folders must identify different physical directories; using two symlink aliases for one directory is rejected.
+
+## Generated artifacts
+
+Named schemas keep their generated outputs isolated:
+
+- `<outputFolder>/<moduleName>.res` and `.resi` contain the executable schema.
+- `<outputFolder>/<moduleName>__Interface_<name>.res` contains each generated interface helper.
+- `<outputFolder>/schema.graphql` is written only when `dumpSchemaSdl` is enabled.
+- `<compilerRoot>/lib/resgraph/<schema>.state.marshal` stores editor and definition state.
+- `<compilerRoot>/lib/resgraph/<schema>.incremental-cache` stores that schema's generation cache.
+
+For example, the `public` schema emits `PublicSchema__Interface_node.res`. Use `PublicSchema__Interface_node.Resolver.t` when a resolver explicitly returns that interface for the public schema. The module prefix matters when two schemas expose an interface with the same GraphQL name.
+
+ResGraph tracks generated-file ownership. Renaming or removing a schema or module cleans marker-owned stale modules, interfaces, and SDL without deleting user-owned files. Switching from the original single-schema configuration also removes obsolete legacy generated modules on the next named build.
 
 ## Sharing modules
 
@@ -78,6 +97,10 @@ npx resgraph watch admin
 
 A failure in one schema does not prevent the remaining schemas from generating, but the overall build exits with a non-zero status.
 
+A targeted build leaves unchanged, unselected schemas in place. If the selected schema takes over a generated module name previously owned by another schema, ResGraph removes the conflicting stale module so the ReScript package cannot contain duplicate generated modules. Run a full build after coordinated configuration renames when every renamed schema should be regenerated immediately.
+
+Watch mode watches only the selected schema when a name is provided. Without a name it watches every configured schema.
+
 ## Tools and editor behavior
 
 Select the state used by `find-definition` with `--schema`:
@@ -86,7 +109,15 @@ Select the state used by `find-definition` with `--schema`:
 npx resgraph tools find-definition Query.currentUser --schema public
 ```
 
-ResGraph persists independent state under `lib/resgraph/<schema>.state.marshal`.
+ResGraph persists independent state and incremental caches per schema. If state was produced by an incompatible ResGraph version, tooling asks you to run `resgraph build` again instead of reading it unsafely.
+
+For schema-specific authorization baselines, pass the schema name after `baseline`:
+
+```bash
+npx resgraph authorization baseline admin
+```
+
+Without a name, the command uses `defaultSchema`.
 
 The LSP builds and reports diagnostics for every configured schema. A generated `schema.graphql` is matched to its owning output folder. For source files shared by several schemas, schema-dependent editor operations use `defaultSchema`; if it is omitted, the first configured schema is the default.
 
@@ -124,4 +155,4 @@ The original single-schema configuration remains supported:
 }
 ```
 
-It continues to emit `ResGraphSchema`, `Interface_*`, and `lib/.resgraphState.marshal`. In this legacy form, `src` locates the ReScript package; ResGraph scans all GraphQL modules in that package. Use the named form when source membership must define separate schemas.
+It continues to emit `ResGraphSchema`, `Interface_*`, and `lib/.resgraphState.marshal`. In this legacy form, `src` locates the ReScript package; ResGraph scans all GraphQL modules in that package. Top-level `authorization` settings also remain supported. Use the named form when source membership must define separate schemas.
