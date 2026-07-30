@@ -348,6 +348,20 @@ if "$resgraph_bin" generate-schema \
 fi
 cmp "$tmp_dir/manifest-collision.expected.json" "$tmp_dir/manifest-collision.json"
 
+printf '%s\n' '{"generatedBy":"resgraph","ownedBy":"application"}' \
+  >"$tmp_dir/marker-only-manifest.json"
+cp "$tmp_dir/marker-only-manifest.json" \
+  "$tmp_dir/marker-only-manifest.expected.json"
+if "$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/valid/src" "$tmp_dir/marker-only-output" \
+  false required Security.onForbidden "$tmp_dir/marker-only-manifest.json" \
+  >/dev/null 2>/dev/null; then
+  echo "Generation unexpectedly trusted a marker-only application file." >&2
+  exit 1
+fi
+cmp "$tmp_dir/marker-only-manifest.expected.json" \
+  "$tmp_dir/marker-only-manifest.json"
+
 mkdir -p "$tmp_dir/artifact-output"
 if "$resgraph_bin" generate-schema \
   "$root_dir/tests/authorization/valid/src" "$tmp_dir/artifact-output" \

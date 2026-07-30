@@ -635,8 +635,6 @@ let rec ensureDirectory path =
     ensureDirectory (Filename.dirname path);
     Unix.mkdir path 0o755)
 
-let generatedManifestMarker = "\"generatedBy\": \"resgraph\""
-
 let generatedManifest ~status ~fields =
   Printf.sprintf
     "{\n\
@@ -653,13 +651,14 @@ let isGeneratedManifest path =
   match Files.readFile path with
   | None -> false
   | Some contents -> (
-    try
-      ignore
-        (Str.search_forward
-           (Str.regexp_string generatedManifestMarker)
-           contents 0);
-      true
-    with Not_found -> false)
+    match Json.parse contents with
+    | None -> false
+    | Some json ->
+      let status = Option.bind (Json.get "status" json) Json.string in
+      Option.bind (Json.get "generatedBy" json) Json.string = Some "resgraph"
+      && Option.bind (Json.get "version" json) Json.number = Some 1.
+      && (status = Some "generationFailed" || status = Some "success")
+      && Option.is_some (Option.bind (Json.get "fields" json) Json.array))
 
 let isGeneratedBaseline path =
   match Files.readFile path with
