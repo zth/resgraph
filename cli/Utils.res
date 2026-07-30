@@ -6,16 +6,31 @@ type url = {pathname: string}
 @val external currentFileUrl: string = "import.meta.url"
 // End URL bindings
 
+type authorizationMode = Required | Baseline
+
+type authorizationConfig = {
+  mode: authorizationMode,
+  onForbidden?: string,
+  manifestPath?: string,
+  baselinePath?: string,
+}
+
 type config = {
   src: string,
   outputFolder: string,
   dumpSchemaSdl: bool,
+  authorization?: authorizationConfig,
 }
 
 let resolveRelative = path => Path.resolve([Process.process->Process.cwd, path])
 
 type privateCliCall =
-  | GenerateSchema({src: string, outputFolder: string, dumpSchemaSdl?: bool})
+  | GenerateSchema({
+      src: string,
+      outputFolder: string,
+      dumpSchemaSdl?: bool,
+      authorization?: authorizationConfig,
+    })
   | Completion({filePath: string, position: LspProtocol.loc, tmpname: string})
   | Hover({filePath: string, position: LspProtocol.loc})
   | HoverGraphQL({filePath: string, hoverHint: string})
@@ -24,16 +39,30 @@ type privateCliCall =
 
 let privateCliCallToArgs = call =>
   switch call {
-  | GenerateSchema({src, outputFolder, ?dumpSchemaSdl}) =>
-    [
+  | GenerateSchema({src, outputFolder, ?dumpSchemaSdl, ?authorization}) =>
+    let args = [
       "generate-schema",
       src->resolveRelative,
       outputFolder->resolveRelative,
       switch dumpSchemaSdl {
       | Some(true) => "true"
-      | Some(false) | None => ""
+      | Some(false) | None => "false"
       },
-    ]->Array.filter(s => s != "")
+    ]
+
+    switch authorization {
+    | None => args
+    | Some(authorization) =>
+      args->Array.concat([
+        switch authorization.mode {
+        | Required => "required"
+        | Baseline => "baseline"
+        },
+        authorization.onForbidden->Option.getOr("-"),
+        authorization.manifestPath->Option.getOr("-"),
+        authorization.baselinePath->Option.getOr("-"),
+      ])
+    }
   | Completion({filePath, position, tmpname}) => [
       "completion",
       filePath,
@@ -170,7 +199,7 @@ let runIfCompilerDone = (fn, ~compilerLogPath, ~lastCompletedBuild) => {
     | None => ()
     | Some(buildMarker) =>
       switch lastCompletedBuild.contents {
-      | Some(lastBuildMarker) when lastBuildMarker == buildMarker => ()
+      | Some(lastBuildMarker) if lastBuildMarker == buildMarker => ()
       | _ =>
         lastCompletedBuild := Some(buildMarker)
         fn()
@@ -182,14 +211,17 @@ let runIfCompilerDone = (fn, ~compilerLogPath, ~lastCompletedBuild) => {
 }
 
 let setupWatcher = (~onResult, ~onStartRebuild, ~config) => {
-  let {src, outputFolder, dumpSchemaSdl} = config
+  let src = config.src
+  let outputFolder = config.outputFolder
+  let dumpSchemaSdl = config.dumpSchemaSdl
+  let authorization = config.authorization
   let compilerLogPath = Path.resolve([Process.process->Process.cwd, "./lib/bs/.compiler.log"])
   let lastCompletedBuild = ref(None)
   open Bindings.Chokidar
 
   let generateSchema = () => {
     onStartRebuild()
-    let res = callPrivateCli(GenerateSchema({src, outputFolder, dumpSchemaSdl}))
+    let res = callPrivateCli(GenerateSchema({src, outputFolder, dumpSchemaSdl, ?authorization}))
     onResult(res)
   }
 
@@ -214,26 +246,60 @@ let createFileInTempDir = (~extension="") => {
   Path.join([Os.tmpdir(), tempFileName])
 }
 
-let parseConfig = rawConfig => {
+let parseOptionalString = (dict, key) =>
+  switch dict->Dict.get(key) {
+  | None => Some(None)
+  | Some(value) => value->JSON.Decode.string->Option.map(value => Some(value))
+  }
+
+let parseAuthorizationConfig = (dict, ~resolveRelative) =>
+  switch dict->Dict.get("authorization") {
+  | None => Some(None)
+  | Some(value) =>
+    switch value->JSON.Decode.object {
+    | None => None
+    | Some(authorization) =>
+      switch (
+        authorization->Dict.get("mode")->Option.flatMap(JSON.Decode.string),
+        parseOptionalString(authorization, "onForbidden"),
+        parseOptionalString(authorization, "manifestPath"),
+        parseOptionalString(authorization, "baselinePath"),
+      ) {
+      | (Some("required"), Some(onForbidden), Some(manifestPath), Some(baselinePath)) =>
+        Some(
+          Some({
+            mode: Required,
+            ?onForbidden,
+            manifestPath: ?(manifestPath->Option.map(resolveRelative)),
+            baselinePath: ?(baselinePath->Option.map(resolveRelative)),
+          }),
+        )
+      | _ => None
+      }
+    }
+  }
+
+let parseConfig = (rawConfig, ~resolveRelative=resolveRelative) => {
   switch rawConfig->JSON.Decode.object {
   | None => None
   | Some(dict) =>
-    let dumpSchemaSdl =
-      switch dict->Dict.get("dumpSchemaSdl") {
-      | None => Some(false)
-      | Some(value) => value->JSON.Decode.bool
-      }
+    let dumpSchemaSdl = switch dict->Dict.get("dumpSchemaSdl") {
+    | None => Some(false)
+    | Some(value) => value->JSON.Decode.bool
+    }
 
     switch (
       dict->Dict.get("src")->Option.flatMap(JSON.Decode.string),
       dict->Dict.get("outputFolder")->Option.flatMap(JSON.Decode.string),
       dumpSchemaSdl,
+      parseAuthorizationConfig(dict, ~resolveRelative),
     ) {
-    | (Some(src), Some(outputFolder), Some(dumpSchemaSdl)) =>
+    | (Some(src), Some(outputFolder), Some(dumpSchemaSdl), Some(authorization)) =>
       Some({
         src: src->resolveRelative,
         outputFolder: outputFolder->resolveRelative,
         dumpSchemaSdl,
+        ?authorization,
       })
     | _ => None
     }
@@ -245,9 +311,9 @@ let readConfigFromDir = dir => {
     [dir, "./resgraph.json"]
     ->Path.resolve
     ->Fs.readFileSync
-  ->Buffer.toStringWithEncoding(StringEncoding.utf8)
-  ->JSON.parseOrThrow
-  ->parseConfig
+    ->Buffer.toStringWithEncoding(StringEncoding.utf8)
+    ->JSON.parseOrThrow
+    ->parseConfig(~resolveRelative=path => Path.resolve([dir, path]))
 
   let res: result<config, string> = switch readConfigResult {
   | None => Error("Could not parse config, something is wrong")

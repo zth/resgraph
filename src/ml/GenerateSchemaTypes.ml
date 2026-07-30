@@ -27,6 +27,61 @@ type fieldResolverStyle =
   | Resolver of {moduleName: string; fnName: string; pathToFn: string list}
   | Property of string
 
+type authorizationMode =
+  | AuthorizationOptional
+  | AuthorizationRequired
+  | AuthorizationBaseline
+
+type authorizationConfig = {
+  mode: authorizationMode;
+  onForbidden: string option;
+  manifestPath: string option;
+  baselinePath: string option;
+}
+
+type authorizationFunctionReference = {
+  path: string list;
+  loc: Location.t;
+  fileUri: Uri.t;
+}
+
+type publicAuthorization = {reason: string; loc: Location.t; fileUri: Uri.t}
+
+type declaredAuthorization = {
+  functions: authorizationFunctionReference list;
+  public: publicAuthorization option;
+}
+
+type authorizationInjection = AuthorizationContext | AuthorizationInfo
+
+type authorizationProvenance =
+  | ObjectTypePolicy of string
+  | InterfaceTypePolicy of string
+  | InterfaceFieldPolicy of string
+  | FieldPolicy of string
+
+type authorizationFunction = {
+  reference: authorizationFunctionReference;
+  isAsync: bool;
+  injections: authorizationInjection list;
+  provenance: authorizationProvenance;
+}
+
+type resolverOutcome = {isAsync: bool}
+
+type authorizationGapKind =
+  | UncoveredField
+  | MutationPreResolverPolicy
+  | UnsupportedSubscription
+
+type effectiveAuthorizationPlan = {
+  functions: authorizationFunction list;
+  public: publicAuthorization option;
+  resolverOutcome: resolverOutcome option;
+  synthetic: bool;
+  baselineGap: authorizationGapKind option;
+}
+
 type typeLocationLoc = {
   fileName: string;
   fileUri: Uri.t;
@@ -113,6 +168,8 @@ type gqlField = {
   fileUri: Uri.t;
   onType: string option;
       (** The type this field is on, if that information is needed *)
+  inheritedFromInterface: string option;
+      (** The interface that supplied an inherited resolver field. *)
 }
 
 type syntheticTypeLocation = {fileUri: Uri.t; loc: Location.t}
@@ -172,6 +229,12 @@ type schemaState = {
   interfaces: (string, gqlInterface) Hashtbl.t;
   scalars: (string, gqlScalar) Hashtbl.t;
   processedFiles: (string, bool) Hashtbl.t;
+  authorizationConfig: authorizationConfig;
+  authorizationDeclarations: (string, declaredAuthorization) Hashtbl.t;
+  authorizationPlans: (string, effectiveAuthorizationPlan) Hashtbl.t;
+  resolverOutcomes: (string, resolverOutcome) Hashtbl.t;
+  authorizationExemptions: (string, unit) Hashtbl.t;
+  mutable authorizationGaps: (string * authorizationGapKind) list;
   mutable query: gqlObjectType option;
   mutable subscription: gqlObjectType option;
   mutable mutation: gqlObjectType option;

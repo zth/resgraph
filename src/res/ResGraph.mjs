@@ -4,6 +4,34 @@ import * as Graphql from "graphql";
 import * as Nodecrypto from "node:crypto";
 import * as Primitive_option from "@rescript/runtime/lib/es6/Primitive_option.js";
 
+function makeError(message, code) {
+  return {
+    message: message,
+    code: code
+  };
+}
+
+function raiseError(error) {
+  throw new Graphql.GraphQLError(error.message, {
+    extensions: {
+      code: error.code
+    }
+  });
+}
+
+function raiseForbidden(_reason) {
+  return raiseError({
+    message: "Forbidden",
+    code: "FORBIDDEN"
+  });
+}
+
+let Authorization = {
+  makeError: makeError,
+  raiseError: raiseError,
+  raiseForbidden: raiseForbidden
+};
+
 function hashQuery(query) {
   return Nodecrypto.createHash("sha256").update(query).digest("hex");
 }
@@ -106,6 +134,7 @@ export {
   GraphQLJSON,
   Connections,
   Utils,
+  Authorization,
   Execute,
   ResolveInfo,
 }
