@@ -2,11 +2,10 @@
 
 ## Unreleased
 
-- Add opt-in required authorization coverage with typed `.authorize` policies, explicit `.public` dispositions, resolver outcomes, mutation prechecks, interface policy inheritance, custom forbidden handlers, and deterministic audit manifests.
-- Add named multi-schema configuration with explicit source membership, separate generated modules, contexts, authorization settings, state and caches, targeted build/watch and tooling selection, LSP routing, and safe stale-artifact cleanup while preserving the original single-schema configuration.
-
 ## 1.3.0
 
+- Add opt-in required authorization coverage with typed `.authorize` policies, explicit `.public` dispositions, resolver outcomes, mutation prechecks, interface policy inheritance, custom forbidden handlers, and deterministic audit manifests.
+- Add named multi-schema configuration with explicit source membership, separate generated modules, contexts, authorization settings, state and caches, targeted build/watch and tooling selection, LSP routing, and safe stale-artifact cleanup while preserving the original single-schema configuration.
 - Speed up schema generation by emitting formatted ReScript and SDL directly through linear, buffer-backed writers instead of reparsing and pretty-printing generated code.
 - Add a conservative persistent incremental cache that safely skips unchanged schema generation across separate ResGraph invocations.
 
