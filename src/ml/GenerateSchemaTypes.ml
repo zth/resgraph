@@ -241,6 +241,7 @@ type gqlField = {
   resolverStyle: fieldResolverStyle;
   typ: graphqlType;
   args: gqlArg list;
+  defaultValue: gqlConstValue option;
   deprecationReason: string option;
   description: string option;
   loc: Location.t;

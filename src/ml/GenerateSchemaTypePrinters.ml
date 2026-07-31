@@ -515,6 +515,11 @@ let printInputObjectField ~schemaState ~parentTypeName (field : gqlField) =
       CodeWriter.line writer
         (Printf.sprintf "description: %s,"
            (field.description |> descriptionAsString));
+      (match field.defaultValue with
+      | None -> ()
+      | Some value ->
+        CodeWriter.line writer
+          (Printf.sprintf "defaultValue: %s," (printConstValue value)));
       CodeWriter.line writer
         (Printf.sprintf "deprecationReason: %s,"
            (field.deprecationReason |> undefinedOrValueAsString));

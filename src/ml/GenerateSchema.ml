@@ -502,6 +502,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
                     fileName = env.file.moduleName;
                     fileUri = env.file.uri;
                     args = [];
+                    defaultValue = None;
                     description = None;
                     deprecationReason = None;
                     loc = Location.none;
@@ -866,6 +867,8 @@ and inputObjectFieldsOfRecordFields ~objectTypeName ~env ~debug ~schemaState
             fileName = env.file.moduleName;
             fileUri = env.file.uri;
             args = [];
+            defaultValue =
+              field.attributes |> defaultValueFromAttributes ~schemaState ~env;
             description = field.attributes |> attributesToDocstring;
             deprecationReason = field.deprecated;
             loc = field.fname.loc;
@@ -1162,6 +1165,7 @@ and objectTypeFieldsOfRecordFields ~objectTypeName ~env ~schemaState ~debug
             fileName = env.file.moduleName;
             fileUri = env.file.uri;
             args = [];
+            defaultValue = None;
             description = field.attributes |> attributesToDocstring;
             deprecationReason = field.deprecated;
             loc = field.fname.loc;
@@ -1217,6 +1221,7 @@ and objectTypeFieldsOfInlineRecordFields ~objectTypeName ~env ~schemaState
             fileName = env.file.moduleName;
             fileUri = env.file.uri;
             args = [];
+            defaultValue = None;
             description = field.attributes |> attributesToDocstring;
             deprecationReason = field.deprecated;
             loc = field.fname.loc;
@@ -1761,6 +1766,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                     };
                 typ = returnType;
                 args;
+                defaultValue = None;
                 onType = None;
                 inheritedFromInterface = None;
               }
@@ -1827,6 +1833,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                     };
                 typ = returnType;
                 args;
+                defaultValue = None;
                 onType = None;
                 inheritedFromInterface = None;
               }

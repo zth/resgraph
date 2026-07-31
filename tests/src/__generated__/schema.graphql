@@ -29,6 +29,7 @@ input Res12InputInline {
 
 input DirectiveInput @tag(name: "input") {
   value: String! @tag(name: "input-field")
+  label: String! = "fallback"
 }
 
 input ReservedWordInput {
@@ -245,6 +246,7 @@ type Query {
   explicitSearchResult: ExplicitSearchResult!
   explicitCompanyHolder: ExplicitCompanyHolder!
   explicitCompany: ExplicitCompany!
+  directiveInputDefault(input: DirectiveInput!): String!
   directiveExample(input: DirectiveInput!): DirectiveExample!
   getScalarHolder: ScalarHolder!
   nestedConnection: StringConnection!

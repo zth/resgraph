@@ -805,6 +805,15 @@ t_Query.contents = GraphQLObjectType.make({
       }->makeArgsDict,
       resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppDirectives.directiveExample(src, ~input=args["input"]->applyConversionToInputObject(input_DirectiveInput_conversionInstructions))})
     },
+    "directiveInputDefault": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      args: dict{
+        "input": ({typ: get_DirectiveInput()->GraphQLInputObjectType.toGraphQLType->nonNull}: arg)
+      }->makeArgsDict,
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppDirectives.directiveInputDefault(src, ~input=args["input"]->applyConversionToInputObject(input_DirectiveInput_conversionInstructions))})
+    },
     "explicitCompany": {
       typ: get_ExplicitCompany()->GraphQLObjectType.toGraphQLType->nonNull,
       description: ?(None),
@@ -1232,6 +1241,12 @@ input_DirectiveInput.contents = GraphQLInputObjectType.make({
   name: "DirectiveInput",
   description: ?(None),
   fields: () => {
+    "label": {
+      GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      defaultValue: GraphQLLiteralValue.String("fallback"),
+      deprecationReason: ?(None),
+    },
     "value": {
       GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
       description: ?(None),

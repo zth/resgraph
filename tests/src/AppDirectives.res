@@ -29,6 +29,8 @@ type tag = {name: string}
 type directiveInput = {
   @gql.annotate({name: "tag", args: {name: "input-field"}})
   value: string,
+  @gql.default("fallback")
+  label: string,
 }
 
 @gql.annotate({name: "tag", args: {name: "enum"}})
@@ -54,3 +56,6 @@ let directiveExample = (_: Query.query, ~input: directiveInput): directiveExampl
   value: input.value,
   status: Active,
 }
+
+@gql.field
+let directiveInputDefault = (_: Query.query, ~input: directiveInput) => input.label

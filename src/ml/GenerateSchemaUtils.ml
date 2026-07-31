@@ -951,6 +951,7 @@ let inputUnionToInputObj (inputUnion : gqlInputUnionType) : gqlInputObjectType =
             resolverStyle = Property iu.fieldName;
             typ = Nullable iu.typ;
             args = [];
+            defaultValue = None;
             deprecationReason = None;
             description = iu.description;
             loc = iu.loc;

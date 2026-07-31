@@ -155,6 +155,7 @@ let rec validateConstValue ~(schemaState : schemaState) typ value =
           inputObject.fields
           |> List.find_opt (fun (field : gqlField) ->
               (not (isNullableType field.typ))
+              && Option.is_none field.defaultValue
               && fields |> List.mem_assoc field.name |> not)
         in
         match missingRequiredField with
@@ -219,6 +220,46 @@ let rec validateConstValue ~(schemaState : schemaState) typ value =
       _ ) ->
     expected ()
   | _ -> expected ()
+
+let validateInputFields ~schemaState ~(parentTypeName : string)
+    (fields : gqlField list) =
+  validateFields ~schemaState ~parentTypeName fields;
+  fields
+  |> List.iter (fun (field : gqlField) ->
+      (match field.defaultValue with
+      | None -> ()
+      | Some value -> (
+        match validateConstValue ~schemaState field.typ value with
+        | None -> ()
+        | Some message ->
+          schemaState
+          |> addDiagnostic
+               ~diagnostic:
+                 {
+                   loc = field.loc;
+                   fileUri = field.fileUri;
+                   message =
+                     Printf.sprintf
+                       "Invalid default for input field `%s.%s`: %s"
+                       parentTypeName field.name message;
+                 }));
+      if
+        Option.is_some field.deprecationReason
+        && (not (isNullableType field.typ))
+        && Option.is_none field.defaultValue
+      then
+        schemaState
+        |> addDiagnostic
+             ~diagnostic:
+               {
+                 loc = field.loc;
+                 fileUri = field.fileUri;
+                 message =
+                   Printf.sprintf
+                     "Required input field `%s.%s` cannot be deprecated \
+                      without a default value."
+                     parentTypeName field.name;
+               })
 
 let validateDirectiveDefinitions (schemaState : schemaState) =
   let reservedNames =
@@ -648,7 +689,8 @@ let validateSchema (schemaState : schemaState) =
 
   schemaState.inputObjects
   |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
-      validateFields ~schemaState ~parentTypeName:typ.displayName typ.fields);
+      validateInputFields ~schemaState ~parentTypeName:typ.displayName
+        typ.fields);
 
   schemaState.enums
   |> Hashtbl.iter (fun _name (typ : gqlEnum) ->

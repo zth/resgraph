@@ -133,7 +133,13 @@ let printFields ~schemaState ~parentTypeName ~input fields =
                  Printf.sprintf "%s: %s" arg.name (graphqlTypeToString arg.typ))
              |> String.concat ", ")
          else "")
-        (graphqlTypeToString f.typ)
+        (graphqlTypeToString f.typ
+        ^
+        if input then
+          match f.defaultValue with
+          | None -> ""
+          | Some value -> " = " ^ constValueToString value
+        else "")
         (printDeprecatedDirective f.deprecationReason
         ^ printDirectiveApplications schemaState
             (if input then

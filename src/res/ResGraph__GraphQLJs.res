@@ -155,6 +155,7 @@ module GraphQLInputObjectType = {
 
   type inputObjectField = {
     @as("type") typ: graphqlType,
+    defaultValue?: GraphQLLiteralValue.t,
     description?: string,
     deprecationReason?: string,
     extensions?: directiveExtensions,

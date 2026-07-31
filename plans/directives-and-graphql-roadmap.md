@@ -544,7 +544,7 @@ advantages and should remain central; they are not Grats gaps to copy.
 | Runtime access to applied directives | Standard GraphQL Tools map and exact ordered ResGraph projection implemented | Add transformation recipes and expand multi-schema coverage | Delivered/P1 docs |
 | Argument defaults | `gqlArg` explicitly has a TODO and no default slot | Parse resolver source defaults into shared input-value IR | P0 |
 | Argument descriptions/deprecations/directives | `gqlArg` only carries name/type/optional-label | Source-AST parameter metadata plus enriched input-value IR | P0 |
-| Input-field defaults | Shared constant-value parsing exists, but `gqlField` has no default slot yet | Add `@gql.default(const)` to the input-field IR, SDL, and runtime config | P1 |
+| Input-field defaults | `@gql.default(const)` is validated and emitted in SDL/runtime input-field configs | Expand source tooling and nested-cycle diagnostics with the validation backstop | Delivered/P1 tooling |
 | `@specifiedBy` | Native `@specifiedBy("...")` emits SDL and `specifiedByURL` | Consider normalization through the generic annotation path | Delivered/P2 |
 | Standard OneOf | Native `isOneOf`, SDL, introspection, and coercion on `graphql@^16.11 || ^17`; no plugin required | Keep floor/latest compatibility coverage current | Delivered |
 | Schema definition metadata | No schema description, directives, or custom root mapping source | Add optional `@gql.schema` marker; custom roots can follow | P1 |

@@ -135,3 +135,19 @@ run_fixture "invalid-location" 'is not a GraphQL directive location' <<'RES'
 @gql.directive({locations: ["OBJECTISH"]})
 type invalidLocation
 RES
+
+run_fixture "invalid-input-default" 'Invalid default for input field `Broken.count`' <<'RES'
+@gql.inputObject
+type broken = {
+  @gql.default("not-an-int")
+  count: int,
+}
+RES
+
+run_fixture "deprecated-required-input" 'Required input field `Broken.value` cannot be deprecated without a default value' <<'RES'
+@gql.inputObject
+type broken = {
+  @deprecated("Use the replacement field.")
+  value: string,
+}
+RES

@@ -47,6 +47,9 @@ const uuid = schema.getType("Uuid");
 assert.equal(uuid.specifiedByURL, "https://example.com/specifiedBy/uuid");
 assert.deepEqual(plain(getDirective(schema, uuid, "tag")), [{ name: "scalar" }]);
 
+const directiveInput = schema.getType("DirectiveInput");
+assert.equal(directiveInput.getFields().label.defaultValue, "fallback");
+
 const result = await execute({
   schema,
   document: parse(`
@@ -63,6 +66,21 @@ const result = await execute({
 assert.equal(result.errors, undefined);
 assert.deepEqual(plain(result.data), {
   directiveExample: { value: "directives work", status: "Active" },
+});
+
+const defaultResult = await execute({
+  schema,
+  document: parse(`
+    query DirectiveInputDefault($input: DirectiveInput!) {
+      directiveInputDefault(input: $input)
+    }
+  `),
+  variableValues: { input: { value: "provided" } },
+});
+
+assert.equal(defaultResult.errors, undefined);
+assert.deepEqual(plain(defaultResult.data), {
+  directiveInputDefault: "fallback",
 });
 
 console.log("✅ Directive definitions, metadata, ordering, and execution work.");
