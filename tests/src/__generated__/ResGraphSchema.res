@@ -86,6 +86,17 @@ let applyConversionToInputObject: ('a, array<(string, inputObjectFieldConverterF
   return newObj;
 }`)
 
+let scalar_LiteralText = GraphQLScalar.make({
+  let config: GraphQLScalar.config<AppCustomScalars.LiteralText.t> = {
+    name: "LiteralText",
+    description: "Text scalar with explicit literal coercion.",
+    specifiedByURL: ?(None),
+    parseValue: AppCustomScalars.LiteralText.parseValue,
+    parseLiteral: AppCustomScalars.LiteralText.parseLiteral,
+    serialize: AppCustomScalars.LiteralText.serialize,
+  }
+  config
+})
 let scalar_Uuid = GraphQLScalar.make({name: "Uuid", description: "Custom scalar with specifiedByUrl coverage.", specifiedByURL: "https://example.com/specifiedBy/uuid", extensions: {directives: dict{"tag": [dict{"name": GraphQLLiteralValue.String("scalar")}]}, resgraph: {appliedDirectives: [{name: "tag", args: dict{"name": GraphQLLiteralValue.String("scalar")}}]}}})
 
 let enum_DirectiveStatus = GraphQLEnumType.make({
@@ -934,6 +945,15 @@ t_Query.contents = GraphQLObjectType.make({
       description: ?(None),
       deprecationReason: ?(None),
       resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppInterfaceReturnRegression.labelledWrapper(src)})
+    },
+    "literalText": {
+      typ: scalar_LiteralText->GraphQLScalar.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      args: dict{
+        "value": ({typ: scalar_LiteralText->GraphQLScalar.toGraphQLType->nonNull}: arg)
+      }->makeArgsDict,
+      resolve: makeResolveFn((_src, args, ctx, info) => {AppCustomScalars.literalText(~value=args["value"])})
     },
     "nestedConnection": {
       typ: get_StringConnection()->GraphQLObjectType.toGraphQLType->nonNull,

@@ -140,4 +140,25 @@ assert.deepEqual(plain(shorthandMutationResult.data), {
   shorthandIncrement: 3,
 });
 
+const scalarLiteralResult = await execute({
+  schema,
+  document: parse(`{ literalText(value: "literal") }`),
+});
+
+assert.equal(scalarLiteralResult.errors, undefined);
+assert.deepEqual(plain(scalarLiteralResult.data), {
+  literalText: "literal",
+});
+
+const scalarVariableResult = await execute({
+  schema,
+  document: parse(`query($value: LiteralText!) { literalText(value: $value) }`),
+  variableValues: {value: "variable"},
+});
+
+assert.equal(scalarVariableResult.errors, undefined);
+assert.deepEqual(plain(scalarVariableResult.data), {
+  literalText: "variable",
+});
+
 console.log("✅ Directive definitions, metadata, ordering, and execution work.");

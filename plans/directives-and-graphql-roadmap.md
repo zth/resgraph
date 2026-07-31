@@ -552,7 +552,7 @@ advantages and should remain central; they are not Grats gaps to copy.
 | Type-system extensions | Field functions compose object/interface fields inside one ResGraph schema, but no general schema/scalar/union/enum/input extension model or external target | Model explicit/external extensions only when driven by migration/Federation use cases | P1/P2 |
 | Full schema validation | Targeted native checks are backed by `graphql-js` SDL construction and validation in fixtures and CLI builds that emit SDL | Preserve validation for non-dumped SDL and translate SDL coordinates to author sources | P0 in progress |
 | SDL fidelity | Generated fixtures are parsed and constructed by `graphql-js`; unsupported union-member descriptions are no longer emitted | Centralize escaping and expand fixture coverage | P0 in progress |
-| Scalar coercion surface | Local magic `parseValue`/`serialize`; no explicit `parseLiteral` or per-schema configuration | Add `parseLiteral` and an explicit typed scalar-config option while preserving the ergonomic module convention | P1 |
+| Scalar coercion surface | Module convention supports `parseValue`, `parseLiteral`, `serialize`, and `specifiedByURL` with typed value-node conversion | Add an explicit scalar-config escape hatch only when a concrete integration needs it | Delivered/P2 escape hatch |
 | Custom root type names | `@gql.schema` maps query, mutation, and subscription to any authored object type | Add multi-schema fixtures and editor completion for mapping names | Delivered/P1 tooling |
 
 ### Gaps relative to Grats
@@ -566,7 +566,7 @@ advantages and should remain central; they are not Grats gaps to copy.
 | Non-subscription `AsyncIterable<T>` for `@stream` | Resolver return values map to `[T]` while retaining the async iterable for `graphql-js` execution | Add an incremental-delivery server integration fixture | Delivered/P1 integration |
 | Root-field shorthand | `@gql.query`, `@gql.mutation`, and `@gql.subscription` synthesize conventional roots and omit the source argument | Extend editor snippets/completion and named-schema fixtures | Delivered/P1 tooling |
 | Nullable-by-default and semantic non-null mode | Nullability maps directly from ReScript `option`/nullable types | Do not copy blindly: ReScript is more sound than TypeScript. Revisit after generic directives, as an opt-in policy with runtime checks | P2/experimental |
-| Full scalar schema config (`serialize`, `parseValue`, `parseLiteral`) | Module-name convention supports two hooks | Add missing hook and explicit config escape hatch; retain zero-config inference | P1 |
+| Full scalar schema config (`serialize`, `parseValue`, `parseLiteral`) | Module-name convention supports all three hooks and typed AST-to-literal conversion | Consider an explicit config escape hatch; retain zero-config inference | Delivered/P2 escape hatch |
 | Incremental schema migration | Possible via `mergeSchemas`, but current guide requires duplicated types and a copy-pasted compatibility plugin | Ship/test the compatibility transform or emit a resolver map/external-type model; make field-level migration a supported path | P1 |
 | Resolver-map output | No equivalent | Consider after migration requirements are concrete; executable schema remains the default | P2 |
 | Emitted metadata | ResGraph already emits state/definition and authorization metadata | Extend the existing state format with directives/arguments/source coordinates instead of adding a parallel artifact | P1 |

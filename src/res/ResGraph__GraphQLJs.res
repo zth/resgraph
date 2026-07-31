@@ -12,6 +12,12 @@ module GraphQLLiteralValue = {
     | Array(array<t>)
 }
 
+module GraphQLValueNode = {
+  type t
+
+  @module("graphql") external toLiteralValue: t => GraphQLLiteralValue.t = "valueFromASTUntyped"
+}
+
 type directiveArguments = Dict.t<GraphQLLiteralValue.t>
 type directiveMap = Dict.t<array<directiveArguments>>
 type appliedDirective = {name: string, args: directiveArguments}
@@ -125,6 +131,7 @@ module GraphQLScalar = {
     name: string,
     description?: string,
     parseValue?: GraphQLLiteralValue.t => option<'t>,
+    parseLiteral?: GraphQLValueNode.t => option<'t>,
     serialize?: 't => GraphQLLiteralValue.t,
     specifiedByURL?: string,
     extensions?: directiveExtensions,

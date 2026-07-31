@@ -22,6 +22,10 @@ schema @tag(name: "schema") {
 }
 
 
+"""Text scalar with explicit literal coercion."""
+scalar LiteralText
+
+
 """Custom scalar with specifiedByUrl coverage."""
 scalar Uuid @specifiedBy(url: "https://example.com/specifiedBy/uuid") @tag(name: "scalar")
 
@@ -274,6 +278,7 @@ type Query {
   ): Int!
   directiveInputDefault(input: DirectiveInput!): String!
   directiveExample(input: DirectiveInput!): DirectiveExample!
+  literalText(value: LiteralText!): LiteralText!
   getScalarHolder: ScalarHolder!
   nestedConnection: StringConnection!
   userConnection(first: Int, after: String): UserConnection!

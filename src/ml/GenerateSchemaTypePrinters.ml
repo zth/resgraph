@@ -681,6 +681,11 @@ let printScalar ~schemaState (typ : gqlScalar) =
             CodeWriter.line writer
               (Printf.sprintf "parseValue: %s,"
                  (typeLocationModuleToAccesor encoderDecoderLoc ["parseValue"]));
+            if typ.hasParseLiteral then
+              CodeWriter.line writer
+                (Printf.sprintf "parseLiteral: %s,"
+                   (typeLocationModuleToAccesor encoderDecoderLoc
+                      ["parseLiteral"]));
             CodeWriter.line writer
               (Printf.sprintf "serialize: %s,"
                  (typeLocationModuleToAccesor encoderDecoderLoc ["serialize"])));

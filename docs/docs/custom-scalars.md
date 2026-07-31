@@ -134,6 +134,7 @@ module Datetime: {
   type t
 
   let parseValue: ResGraph.GraphQLLiteralValue.t => option<t>
+  let parseLiteral: ResGraph.GraphQLValueNode.t => option<t>
   let serialize: t => ResGraph.GraphQLLiteralValue.t
 } = {
   type t = Date.t
@@ -146,6 +147,9 @@ module Datetime: {
     | Number(timestamp) => Some(Date.fromTime(timestamp))
     | _ => None
     }
+
+  let parseLiteral = node =>
+    node->ResGraph.GraphQLValueNode.toLiteralValue->parseValue
 
   let serialize = d => d->Date.toJSON->Option.getExn->String
 }
@@ -161,8 +165,9 @@ scalar Datetime
 Let's distill what's going on here:
 
 - `Datetime.t` is opaque, and the underlying type is `Date.t`, which isn't a [valid GraphQL type](valid-graphql-types).
-- We define `parseValue: ResGraph.GraphQLLiteralValue.t => option<t>` and `serialize: t => ResGraph.GraphQLLiteralValue.t`. These need to be defined _exactly_ like this, as in be called those names, and use `GraphQLLiteralValue.t` + the local `t` type.
+- We define `parseValue: ResGraph.GraphQLLiteralValue.t => option<t>` and `serialize: t => ResGraph.GraphQLLiteralValue.t`. These need to be named exactly as shown and use `GraphQLLiteralValue.t` plus the local `t` type.
 - `parseValue` is responsible for parsing the value GraphQL gives you at runtime, into your local `t`.
+- The optional `parseLiteral` hook handles values written directly in an operation. `GraphQLValueNode.toLiteralValue` lets it share coercion logic with `parseValue`. Without this hook, `graphql-js` falls back to `parseValue` for simple scalar literals, but an explicit hook is useful for AST-sensitive coercion.
 - `serialize` is responsible for turning your `t` into a literal value that can be transferred to the client.
 
 With this, your custom scalar can now be serialized and parsed even if it isn't backed by a valid GraphQL type.

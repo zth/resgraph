@@ -1003,7 +1003,7 @@ let addInputUnion id ~(makeInputUnion : unit -> gqlInputUnionType) ~debug
     Hashtbl.replace schemaState.inputUnions id (makeInputUnion ()))
 
 let addScalar ~debug ~schemaState ?description ?specifiedByUrl ~typeLocation
-    ?encoderDecoderLoc id =
+    ?encoderDecoderLoc ?(hasParseLiteral = false) id =
   if Hashtbl.mem schemaState.scalars id then ()
   else (
     if debug then Printf.printf "Adding scalar %s\n" id;
@@ -1015,6 +1015,7 @@ let addScalar ~debug ~schemaState ?description ?specifiedByUrl ~typeLocation
         typeLocation;
         specifiedByUrl;
         encoderDecoderLoc;
+        hasParseLiteral;
       })
 
 let addInterface id ~(makeInterface : unit -> gqlInterface) ~debug ~schemaState

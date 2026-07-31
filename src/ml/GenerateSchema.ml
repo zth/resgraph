@@ -1780,6 +1780,13 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                 | {name = "serialize"; kind = Value _} -> true
                 | _ -> false)
           in
+          let hasParseLiteralFn =
+            structure.items
+            |> List.exists (fun (i : SharedTypes.Module.item) ->
+                match i with
+                | {name = "parseLiteral"; kind = Value _} -> true
+                | _ -> false)
+          in
           (* Look up the implemented type if it's behind an interface. *)
           let implementedType =
             match implStructure with
@@ -1808,7 +1815,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
             addScalar typeName
               ?description:(attributes |> attributesToDocstring)
               ?specifiedByUrl ~encoderDecoderLoc:typeLoc ~typeLocation:typeLoc
-              ~schemaState ~debug
+              ~hasParseLiteral:hasParseLiteralFn ~schemaState ~debug
           | true, false, true | true, true, false | true, false, false ->
             (* Needs parsing, but missing one of the assets *)
             schemaState

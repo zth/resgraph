@@ -127,6 +127,8 @@ let GraphQLLiteralValue;
 
 let GraphQLJSON;
 
+let GraphQLValueNode;
+
 let Connections;
 
 let Utils;
@@ -135,6 +137,7 @@ export {
   AsyncIterable,
   GraphQLLiteralValue,
   GraphQLJSON,
+  GraphQLValueNode,
   Connections,
   Utils,
   Authorization,

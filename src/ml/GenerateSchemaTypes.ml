@@ -254,6 +254,7 @@ type gqlScalar = {
   typeLocation: typeLocationLoc;
   specifiedByUrl: string option;
   encoderDecoderLoc: typeLocationLoc option;
+  hasParseLiteral: bool;
 }
 
 (* TODO: Can this be thinned out for some cases? Should be split up. *)

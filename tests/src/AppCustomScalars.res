@@ -13,3 +13,22 @@ type scalarHolder = {
 @gql.field
 let getScalarHolder = (_: Query.query): scalarHolder => {id: "abc"}
 // ^hov
+
+module LiteralText = {
+  /** Text scalar with explicit literal coercion. */
+  @gql.scalar
+  type t = string
+
+  let parseValue = value =>
+    switch value {
+    | ResGraph.GraphQLLiteralValue.String(value) => Some(value)
+    | _ => None
+    }
+
+  let parseLiteral = node => node->ResGraph.GraphQLValueNode.toLiteralValue->parseValue
+
+  let serialize = value => ResGraph.GraphQLLiteralValue.String(value)
+}
+
+@gql.query
+let literalText = (~value: LiteralText.t): LiteralText.t => value

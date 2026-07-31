@@ -14,6 +14,7 @@ module AsyncIterable = {
 
 module GraphQLLiteralValue = ResGraph__GraphQLJs.GraphQLLiteralValue
 module GraphQLJSON = ResGraph__GraphQLJs.GraphQLLiteralValue
+module GraphQLValueNode = ResGraph__GraphQLJs.GraphQLValueNode
 
 module Connections = ResGraph__Connections
 
