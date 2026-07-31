@@ -196,7 +196,10 @@ t_Query.contents = GraphQLObjectType.make({
       description: ?(None),
       deprecationReason: ?(None),
       args: dict{
-        "format": ({typ: enum_TimestampFormat->GraphQLEnumType.toGraphQLType}: arg)
+        "format": ({
+          typ: enum_TimestampFormat->GraphQLEnumType.toGraphQLType,
+          defaultValue: GraphQLLiteralValue.String("Timestamp"),
+        }: arg)
       }->makeArgsDict,
       resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); GraphQLSchema.currentTimeFloat(src, ~format=?((args["format"]->Nullable.toOption)))})
     },
