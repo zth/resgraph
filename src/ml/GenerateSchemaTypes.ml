@@ -24,8 +24,15 @@ type graphqlType =
   | GraphQLScalar of {id: string; displayName: string}
 
 type fieldResolverStyle =
-  | Resolver of {moduleName: string; fnName: string; pathToFn: string list}
+  | Resolver of {
+      moduleName: string;
+      fnName: string;
+      pathToFn: string list;
+      callStyle: resolverCallStyle;
+    }
   | Property of string
+
+and resolverCallStyle = ResolverSource | ResolverUnit | ResolverLabelled
 
 type authorizationMode =
   | AuthorizationOptional
@@ -359,6 +366,9 @@ type gqlAttributes =
   | InputObject
   | InputUnion
   | Field
+  | QueryField
+  | MutationField
+  | SubscriptionField
   | Enum
   | Union
   | Scalar

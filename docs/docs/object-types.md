@@ -123,6 +123,29 @@ Notice a few things:
 
 This is likely going to be the main way you add fields to your object types. Let's dive in to how to do a few more things:
 
+### Defining root fields without a source argument
+
+Root fields can omit the otherwise-unused source argument by using
+`@gql.query`, `@gql.mutation`, or `@gql.subscription`:
+
+```rescript
+@gql.query
+let greeting = () => "hello"
+
+@gql.query
+let search = (~term: string, ~ctx: ResGraphContext.context) =>
+  Search.find(~term, ~ctx)
+
+@gql.mutation
+let increment = (~value: int) => value + 1
+```
+
+The root type is synthesized when it has not been declared explicitly. A
+zero-argument root resolver takes `unit`; a resolver with inputs can use only
+labelled arguments. Defaults, descriptions, deprecations, directives, context,
+`resolveInfo`, authorization, and subscription return validation work exactly
+as they do for `@gql.field` resolvers.
+
 ### Adding arguments to your fields
 
 Using arguments for your field is as easy as adding a labelled argument to your function:

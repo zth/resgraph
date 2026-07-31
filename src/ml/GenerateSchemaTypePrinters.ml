@@ -58,52 +58,56 @@ let printResolverForField ~parentTypeName ~(schemaState : schemaState)
   let resolverCall =
     match field.resolverStyle with
     | Property name -> Printf.sprintf "src[\"%s\"]" name
-    | Resolver {moduleName; fnName; pathToFn} ->
+    | Resolver {moduleName; fnName; pathToFn; callStyle} ->
       let ctxArgName = findContextArgName field.args in
       let hasCtxArg = Option.is_some ctxArgName in
       let infoArgName = findInfoArgName field.args in
       let hasInfoArg = Option.is_some infoArgName in
       let intfTypeArgName = findInterfaceTypeArgName field.args in
       let hasIntTypeArg = Option.is_some intfTypeArgName in
-      Printf.sprintf "%s(src%s)"
+      let positionalArgument =
+        match callStyle with
+        | ResolverSource -> Some "src"
+        | ResolverUnit -> Some "()"
+        | ResolverLabelled -> None
+      in
+      let labelledArguments =
+        field.args
+        |> List.sort (fun (a1 : gqlArg) a2 -> String.compare a1.name a2.name)
+        |> List.filter_map (fun (arg : gqlArg) ->
+            if hasInfoArg && Some arg.name = infoArgName then
+              Some
+                (Printf.sprintf "%s=info"
+                   (printLabelledArg (Option.get infoArgName)))
+            else if hasCtxArg && Some arg.name = ctxArgName then
+              Some
+                (Printf.sprintf "%s=ctx"
+                   (printLabelledArg (Option.get ctxArgName)))
+            else if hasIntTypeArg && Some arg.name = intfTypeArgName then
+              field.onType
+              |> Option.map (fun name ->
+                  Printf.sprintf "%s=%s"
+                    (printLabelledArg (Option.get intfTypeArgName))
+                    name)
+            else
+              let argsText =
+                if usesAuthorizationArgs then
+                  Printf.sprintf "authorizationArgs[\"%s\"]" arg.name
+                else
+                  generateConverter
+                    (Printf.sprintf "args[\"%s\"]" arg.name)
+                    arg.typ
+              in
+              Some
+                (Printf.sprintf "%s=%s"
+                   (printLabelledArg arg.name)
+                   (if arg.isOptionLabelled then Printf.sprintf "?(%s)" argsText
+                    else argsText)))
+      in
+      Printf.sprintf "%s(%s)"
         ([moduleName] @ pathToFn @ [fnName] |> String.concat ".")
-        (if field.args = [] then ""
-         else
-           ", "
-           ^ (field.args
-             |> List.sort (fun (a1 : gqlArg) a2 ->
-                 String.compare a1.name a2.name)
-             |> List.filter_map (fun (arg : gqlArg) ->
-                 if hasInfoArg && Some arg.name = infoArgName then
-                   Some
-                     (Printf.sprintf "%s=info"
-                        (printLabelledArg (Option.get infoArgName)))
-                 else if hasCtxArg && Some arg.name = ctxArgName then
-                   Some
-                     (Printf.sprintf "%s=ctx"
-                        (printLabelledArg (Option.get ctxArgName)))
-                 else if hasIntTypeArg && Some arg.name = intfTypeArgName then
-                   field.onType
-                   |> Option.map (fun name ->
-                       Printf.sprintf "%s=%s"
-                         (printLabelledArg (Option.get intfTypeArgName))
-                         name)
-                 else
-                   let argsText =
-                     if usesAuthorizationArgs then
-                       Printf.sprintf "authorizationArgs[\"%s\"]" arg.name
-                     else
-                       generateConverter
-                         (Printf.sprintf "args[\"%s\"]" arg.name)
-                         arg.typ
-                   in
-                   Some
-                     (Printf.sprintf "%s=%s"
-                        (printLabelledArg arg.name)
-                        (if arg.isOptionLabelled then
-                           Printf.sprintf "?(%s)" argsText
-                         else argsText)))
-             |> String.concat ", "))
+        (String.concat ", "
+           ((positionalArgument |> Option.to_list) @ labelledArguments))
   in
   let resolverBody =
     match plan.resolverOutcome with
@@ -134,14 +138,24 @@ let printResolverForField ~parentTypeName ~(schemaState : schemaState)
     | Some {isAsync = true} -> true
     | _ -> false
   in
+  let needsSource =
+    plan.functions <> []
+    ||
+    match field.resolverStyle with
+    | Property _ | Resolver {callStyle = ResolverSource} -> true
+    | Resolver {callStyle = ResolverUnit | ResolverLabelled} -> false
+  in
   let resolverArguments =
     match (field.resolverStyle, plan.functions, plan.resolverOutcome) with
     | Property _, [], None -> "(src, _args, _ctx, _info)"
-    | _ -> "(src, args, ctx, info)"
+    | _ ->
+      Printf.sprintf "(%s, args, ctx, info)"
+        (if needsSource then "src" else "_src")
   in
-  Printf.sprintf "%s%s => {let src = typeUnwrapper(src); %s%s}"
+  Printf.sprintf "%s%s => {%s%s%s}"
     (if isAsync then "async " else "")
     resolverArguments
+    (if needsSource then "let src = typeUnwrapper(src); " else "")
     (if usesAuthorizationArgs then
        Printf.sprintf "let authorizationArgs = %s; "
          (printAuthorizationArgs field)

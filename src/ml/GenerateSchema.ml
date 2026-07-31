@@ -1304,6 +1304,76 @@ and extractResolverFunctionInfo ~resolverName ~env ?loc
     | _ -> None)
   | _ -> None
 
+and extractRootResolverFunctionInfo ~resolverName ~rootDisplayName
+    ~isSubscription ~env ?loc ~(full : SharedTypes.full)
+    ~(schemaState : schemaState) ~debug (typ : Types.type_expr) =
+  let args, returnType = extractFunctionType ~env ~package:full.package typ in
+  let rec isUnitType typ =
+    match typ.Types.desc with
+    | Tlink typ | Tsubst typ | Tpoly (typ, []) -> isUnitType typ
+    | Tconstr (path, [], _) -> Path.same path Predef.path_unit
+    | _ -> false
+  in
+  let callStyleAndArgs =
+    match args with
+    | [] ->
+      schemaState
+      |> addDiagnostic
+           ~diagnostic:
+             {
+               loc = Option.value loc ~default:Location.none;
+               fileUri = env.file.uri;
+               message =
+                 "This let binding uses a root-field annotation, but is not a \
+                  function. Only functions can represent GraphQL root fields.";
+             };
+      None
+    | (Asttypes.Nolabel, typ) :: rest when isUnitType typ ->
+      Some (ResolverUnit, rest)
+    | args
+      when args
+           |> List.for_all (fun (label, _) ->
+               match label with
+               | Asttypes.Labelled _ | Optional _ -> true
+               | Nolabel -> false) ->
+      Some (ResolverLabelled, args)
+    | _ ->
+      schemaState
+      |> addDiagnostic
+           ~diagnostic:
+             {
+               loc = Option.value loc ~default:Location.none;
+               fileUri = env.file.uri;
+               message =
+                 Printf.sprintf
+                   "Root resolver `%s` must take either `unit` followed by \
+                    labelled arguments, or labelled arguments only."
+                   resolverName;
+             };
+      None
+  in
+  match callStyleAndArgs with
+  | None -> None
+  | Some (callStyle, args) ->
+    let returnType =
+      match
+        extractAuthorizationOutcome ~env ~package:full.package returnType
+      with
+      | None -> returnType
+      | Some (allowedType, resolverOutcome) ->
+        let coordinate =
+          authorizationCoordinate ~parentTypeName:rootDisplayName
+            ~fieldName:resolverName
+        in
+        Hashtbl.replace schemaState.resolverOutcomes coordinate resolverOutcome;
+        allowedType
+    in
+    findGraphQLType returnType ~debug ~isSubscription
+      ~typeContext:
+        (ReturnType {parentTypeName = rootDisplayName; fieldName = resolverName})
+      ?loc ~env ~full ~schemaState
+    |> Option.map (fun returnType -> (args, returnType, callStyle))
+
 and mapFunctionArgs ~full ~env ~debug ~schemaState ~fnLoc ~fieldParentTypeName
     ~fieldName ~parameters (args : SharedTypes.typedFnArg list) =
   let parameterForName name =
@@ -1799,6 +1869,72 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                           `@gql.scalar`, and a `parseValue` and `serialize` \
                           function. Better explanation and docs coming soon.";
                    })
+        | ( Value typ,
+            Some ((QueryField | MutationField | SubscriptionField) as rootField)
+          ) -> (
+          let id, displayName, isSubscription =
+            match rootField with
+            | QueryField -> ("query", "Query", false)
+            | MutationField -> ("mutation", "Mutation", false)
+            | SubscriptionField -> ("subscription", "Subscription", true)
+            | _ -> assert false
+          in
+          noticeObjectType id ~displayName ~ignoreTypeLocation:true
+            ~syntheticTypeLocation:{fileUri = env.file.uri; loc = item.loc}
+            ~schemaState ~env
+            ~makeFields:(fun () -> [])
+            ~loc:item.loc;
+          let parameters =
+            resolverParametersFromSource ~env ~resolverName:item.name
+              ~resolverLoc:item.loc
+          in
+          match
+            extractRootResolverFunctionInfo ~resolverName:item.name
+              ~rootDisplayName:displayName ~isSubscription ~loc:item.loc ~env
+              ~full ~schemaState ~debug typ
+          with
+          | None -> ()
+          | Some (args, returnType, callStyle) ->
+            registerAuthorizationAttributes
+              ~coordinate:
+                (authorizationCoordinate ~parentTypeName:displayName
+                   ~fieldName:item.name)
+              ~allowPublic:true ~attributes ~schemaState ~env;
+            let args =
+              mapFunctionArgs ~full ~debug ~env ~schemaState ~fnLoc:item.loc
+                ~fieldParentTypeName:displayName ~fieldName:item.name
+                ~parameters args
+            in
+            registerDirectiveApplications
+              ~target:
+                (DirectiveFieldDefinition
+                   {parentTypeName = displayName; fieldName = item.name})
+              ~attributes ~schemaState ~env;
+            let field =
+              {
+                loc = item.loc;
+                name = item.name;
+                fileName = env.file.moduleName;
+                fileUri = env.file.uri;
+                description = attributes |> attributesToDocstring;
+                deprecationReason =
+                  attributes |> ProcessAttributes.findDeprecatedAttribute;
+                resolverStyle =
+                  Resolver
+                    {
+                      moduleName = env.file.moduleName;
+                      fnName = item.name;
+                      pathToFn = modulePath;
+                      callStyle;
+                    };
+                typ = returnType;
+                args;
+                defaultValue = None;
+                onType = None;
+                inheritedFromInterface = None;
+              }
+            in
+            addFieldToObjectType ~env ~loc:item.loc ~field ~schemaState id)
         | Value typ, Some Field -> (
           let parameters =
             resolverParametersFromSource ~env ~resolverName:item.name
@@ -1865,6 +2001,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                       moduleName = env.file.moduleName;
                       fnName = item.name;
                       pathToFn = modulePath;
+                      callStyle = ResolverSource;
                     };
                 typ = returnType;
                 args;
@@ -1933,6 +2070,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                       moduleName = env.file.moduleName;
                       fnName = item.name;
                       pathToFn = modulePath;
+                      callStyle = ResolverSource;
                     };
                 typ = returnType;
                 args;
@@ -1981,6 +2119,16 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                       "This let binding is annotated with @gql.field, but is \
                        not a function. Only functions can represent GraphQL \
                        field resolvers.";
+                }
+          | Some (QueryField | MutationField | SubscriptionField) ->
+            add
+              ~diagnostic:
+                {
+                  baseDiagnostic with
+                  message =
+                    "This let binding uses a root-field annotation, but is not \
+                     a function. Only functions can represent GraphQL root \
+                     fields.";
                 }
           | Some ObjectType ->
             add

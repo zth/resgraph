@@ -36,6 +36,11 @@ let validAttributes =
        GraphQL interface." );
     ("gql.interfaceResolver", "");
     ("gql.field", "");
+    ("gql.query", "Defines a field on the query root without a source argument.");
+    ( "gql.mutation",
+      "Defines a field on the mutation root without a source argument." );
+    ( "gql.subscription",
+      "Defines a field on the subscription root without a source argument." );
     ("gql.enum", "");
     ("gql.union", "");
     ("gql.inputObject", "");
@@ -94,6 +99,9 @@ let extractGqlAttribute ~(schemaState : GenerateSchemaTypes.schemaState)
                  };
           None)
       | ["gql"; "field"] -> Some Field
+      | ["gql"; "query"] -> Some QueryField
+      | ["gql"; "mutation"] -> Some MutationField
+      | ["gql"; "subscription"] -> Some SubscriptionField
       | ["gql"; "enum"] -> Some Enum
       | ["gql"; "union"] -> Some Union
       | ["gql"; "inputObject"] -> Some InputObject

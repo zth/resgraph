@@ -736,6 +736,15 @@ t_Mutation.contents = GraphQLObjectType.make({
   description: ?(None),
   interfaces: [],
   fields: () => {
+    "shorthandIncrement": {
+      typ: Scalars.int->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      args: dict{
+        "value": ({typ: Scalars.int->Scalars.toGraphQLType->nonNull}: arg)
+      }->makeArgsDict,
+      resolve: makeResolveFn((_src, args, ctx, info) => {AppRootShorthand.shorthandIncrement(~value=args["value"])})
+    },
     "updateThing": {
       typ: get_Thing()->GraphQLObjectType.toGraphQLType,
       description: ?(None),
@@ -984,6 +993,27 @@ t_Query.contents = GraphQLObjectType.make({
       deprecationReason: ?(None),
       resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppReScript12.reservedWordRecord(src)})
     },
+    "shorthandContext": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((_src, args, ctx, info) => {AppRootShorthand.shorthandContext(~ctx=ctx)})
+    },
+    "shorthandEcho": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      args: dict{
+        "message": ({typ: Scalars.string->Scalars.toGraphQLType->nonNull}: arg)
+      }->makeArgsDict,
+      resolve: makeResolveFn((_src, args, ctx, info) => {AppRootShorthand.shorthandEcho(~message=args["message"])})
+    },
+    "shorthandGreeting": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: "A root query without an unused source argument.",
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((_src, args, ctx, info) => {AppRootShorthand.shorthandGreeting(())})
+    },
     "userConnection": {
       typ: get_UserConnection()->GraphQLObjectType.toGraphQLType->nonNull,
       description: ?(None),
@@ -1138,6 +1168,13 @@ t_Subscription.contents = GraphQLObjectType.make({
       deprecationReason: ?(None),
       resolve: makeResolveFn((v, _, _, _) => v),
       subscribe: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppSubscription.latestMessage(src, ~ctx=ctx)})
+    },
+    "shorthandLatest": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((v, _, _, _) => v),
+      subscribe: makeResolveFn((_src, args, ctx, info) => {AppRootShorthand.shorthandLatest(())})
     }
   }->makeFields
 })

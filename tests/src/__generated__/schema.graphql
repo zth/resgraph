@@ -213,6 +213,7 @@ type LabelledWrapper {
 
 type Mutation {
   updateThing(thingId: ID!, input: UpdateThingInput!): Thing
+  shorthandIncrement(value: Int!): Int!
 }
 
 type NullableInterop {
@@ -246,6 +247,11 @@ type Query {
   node(id: ID!): Node
   functionFieldRegression: FunctionFieldRegression!
   userDefinedNullable: T!
+  shorthandContext: String!
+  shorthandEcho(message: String!): String!
+
+  """A root query without an unused source argument."""
+  shorthandGreeting: String!
   reservedWordArgumentEcho(constraint: String!): String!
   reservedWordInputEcho(input: ReservedWordInput!): String!
   reservedWordRecord: ReservedWordRecord!
@@ -314,6 +320,7 @@ type StringEdge {
 
 type Subscription {
   latestMessage: String!
+  shorthandLatest: String!
 }
 
 type T {

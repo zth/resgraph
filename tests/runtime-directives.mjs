@@ -113,4 +113,31 @@ assert.equal(asyncValuesField.type.toString(), "[String!]!");
 const asyncValues = await asyncValuesField.resolve(undefined, {}, {}, {});
 assert.equal(typeof asyncValues[Symbol.asyncIterator], "function");
 
+const shorthandQueryResult = await execute({
+  schema,
+  document: parse(`{
+    shorthandGreeting
+    shorthandEcho(message: "echo")
+    shorthandContext
+  }`),
+  contextValue: {},
+});
+
+assert.equal(shorthandQueryResult.errors, undefined);
+assert.deepEqual(plain(shorthandQueryResult.data), {
+  shorthandGreeting: "hello",
+  shorthandEcho: "echo",
+  shorthandContext: "context",
+});
+
+const shorthandMutationResult = await execute({
+  schema,
+  document: parse(`mutation { shorthandIncrement(value: 2) }`),
+});
+
+assert.equal(shorthandMutationResult.errors, undefined);
+assert.deepEqual(plain(shorthandMutationResult.data), {
+  shorthandIncrement: 3,
+});
+
 console.log("✅ Directive definitions, metadata, ordering, and execution work.");

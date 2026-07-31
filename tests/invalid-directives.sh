@@ -207,3 +207,13 @@ run_fixture "invalid-schema-marker" 'schema marker must be declared as an abstra
 @gql.schema
 type schemaMarker = {value: string}
 RES
+
+run_fixture "root-shorthand-positional-argument" 'must take either `unit` followed by labelled arguments' <<'RES'
+@gql.query
+let broken = (value: string) => value
+RES
+
+run_fixture "root-shorthand-not-function" 'root-field annotation, but is not a function' <<'RES'
+@gql.query
+let broken = "value"
+RES
