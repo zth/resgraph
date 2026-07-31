@@ -156,9 +156,32 @@ type User {
   """
   The full name of the user.
   """
-  fullName(includeInitials: Boolean): String
+  fullName(includeInitials: Boolean = false): String
 }
 ```
+
+The ReScript default expression is the GraphQL default and must be a GraphQL
+constant. ResGraph validates it against the inferred argument type and the
+generated resolver receives the coerced value.
+
+Parameter attributes add the rest of GraphQL's argument metadata:
+
+```rescript
+@gql.field
+let users = (
+  _: query,
+  @gql.description("Maximum number of users to return.")
+  @gql.annotate({name: "cost", args: {credits: 2}})
+  @deprecated("Use pageSize instead.")
+  ~limit: int=20,
+) => {
+  loadUsers(~limit)
+}
+```
+
+This emits the description, default, deprecation, and directive on the
+`Query.users(limit:)` argument. ReScript does not accept doc comments directly
+on function parameters, so argument descriptions use `@gql.description`.
 
 Arguments can also be [input objects](input-objects), [custom scalars](custom-scalars) and so on.
 

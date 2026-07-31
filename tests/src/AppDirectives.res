@@ -15,6 +15,7 @@ type cacheControl = {
     "SCALAR",
     "OBJECT",
     "FIELD_DEFINITION",
+    "ARGUMENT_DEFINITION",
     "ENUM",
     "ENUM_VALUE",
     "INPUT_OBJECT",
@@ -59,3 +60,12 @@ let directiveExample = (_: Query.query, ~input: directiveInput): directiveExampl
 
 @gql.field
 let directiveInputDefault = (_: Query.query, ~input: directiveInput) => input.label
+
+@gql.field
+let directiveArgumentMetadata = (
+  _: Query.query,
+  @gql.description("Maximum number of results.")
+  @gql.annotate({name: "tag", args: {name: "argument"}})
+  @deprecated("Use pageSize instead.")
+  ~limit: int=25,
+) => limit

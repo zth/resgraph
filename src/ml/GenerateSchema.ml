@@ -1300,7 +1300,14 @@ and extractResolverFunctionInfo ~resolverName ~env ?loc
   | _ -> None
 
 and mapFunctionArgs ~full ~env ~debug ~schemaState ~fnLoc ~fieldParentTypeName
-    ~fieldName (args : SharedTypes.typedFnArg list) =
+    ~fieldName ~parameters (args : SharedTypes.typedFnArg list) =
+  let parameterForName name =
+    parameters
+    |> List.find_opt (fun (parameter : resolverSourceParameter) ->
+        match parameter.label with
+        | Asttypes.Labelled {txt} | Optional {txt} -> txt = name
+        | Nolabel -> false)
+  in
   args
   |> List.filter_map (fun (label, typExpr) ->
       match
@@ -1337,6 +1344,49 @@ and mapFunctionArgs ~full ~env ~debug ~schemaState ~fnLoc ~fieldParentTypeName
         match label with
         | Asttypes.Nolabel -> None
         | Labelled {txt = name} | Optional {txt = name} ->
+          let parameter = parameterForName name in
+          let attributes =
+            parameter
+            |> Option.map (fun (parameter : resolverSourceParameter) ->
+                parameter.attributes)
+            |> Option.value ~default:[]
+          in
+          let loc =
+            parameter
+            |> Option.map (fun (parameter : resolverSourceParameter) ->
+                parameter.loc)
+            |> Option.value ~default:fnLoc
+          in
+          let defaultValue =
+            match parameter with
+            | None | Some {defaultValue = None; _} -> None
+            | Some {defaultValue = Some defaultExpression; _} -> (
+              match constValueFromExpression defaultExpression with
+              | Ok value -> Some value
+              | Error message ->
+                schemaState
+                |> addDiagnostic
+                     ~diagnostic:
+                       {
+                         fileUri = env.file.uri;
+                         loc = defaultExpression.pexp_loc;
+                         message =
+                           Printf.sprintf
+                             "Invalid default for resolver argument \
+                              `%s.%s(%s:)`: %s"
+                             fieldParentTypeName fieldName name message;
+                       };
+                None)
+          in
+          registerDirectiveApplications
+            ~target:
+              (DirectiveArgumentDefinition
+                 {
+                   parentTypeName = fieldParentTypeName;
+                   fieldName;
+                   argumentName = name;
+                 })
+            ~attributes ~schemaState ~env;
           Some
             {
               name;
@@ -1345,6 +1395,15 @@ and mapFunctionArgs ~full ~env ~debug ~schemaState ~fnLoc ~fieldParentTypeName
                 | Optional _ -> true
                 | _ -> false);
               typ;
+              defaultValue;
+              description =
+                (match attributesToDocstring attributes with
+                | Some description -> Some description
+                | None -> descriptionFromAttributes ~schemaState ~env attributes);
+              deprecationReason =
+                ProcessAttributes.findDeprecatedAttribute attributes;
+              loc;
+              fileUri = env.file.uri;
             }))
 
 and traverseStructure ?(modulePath = []) ?implStructure ?originModule
@@ -1703,6 +1762,10 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                           function. Better explanation and docs coming soon.";
                    })
         | Value typ, Some Field -> (
+          let parameters =
+            resolverParametersFromSource ~env ~resolverName:item.name
+              ~resolverLoc:item.loc
+          in
           (* @gql.field let fullName = (user: user) => {...} *)
           match
             extractResolverFunctionInfo ~resolverName:item.name ~loc:item.loc
@@ -1717,7 +1780,8 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
               ~allowPublic:true ~attributes ~schemaState ~env;
             let args =
               mapFunctionArgs ~full ~debug ~env ~schemaState ~fnLoc:item.loc
-                ~fieldParentTypeName:displayName ~fieldName:item.name args
+                ~fieldParentTypeName:displayName ~fieldName:item.name
+                ~parameters args
             in
             (* Validate that inject intf typename arg is not present here, as
                   it's only valid in interface fns. *)
@@ -1781,7 +1845,8 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
               ~allowPublic:true ~attributes ~schemaState ~env;
             let args =
               mapFunctionArgs ~full ~debug ~env ~schemaState ~fnLoc:item.loc
-                ~fieldParentTypeName:displayName ~fieldName:item.name args
+                ~fieldParentTypeName:displayName ~fieldName:item.name
+                ~parameters args
             in
 
             (* Validate interface typename injection if present. *)

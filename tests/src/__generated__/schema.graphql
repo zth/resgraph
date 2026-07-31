@@ -11,7 +11,7 @@ directive @cacheControl(
 """Repeatable labels for schema elements."""
 directive @tag(
   name: String!
-) repeatable on SCALAR | OBJECT | FIELD_DEFINITION | ENUM | ENUM_VALUE | INPUT_OBJECT | INPUT_FIELD_DEFINITION
+) repeatable on SCALAR | OBJECT | FIELD_DEFINITION | ARGUMENT_DEFINITION | ENUM | ENUM_VALUE | INPUT_OBJECT | INPUT_FIELD_DEFINITION
 
 
 """Custom scalar with specifiedByUrl coverage."""
@@ -246,6 +246,10 @@ type Query {
   explicitSearchResult: ExplicitSearchResult!
   explicitCompanyHolder: ExplicitCompanyHolder!
   explicitCompany: ExplicitCompany!
+  directiveArgumentMetadata(
+    """Maximum number of results."""
+    limit: Int = 25 @deprecated(reason: "Use pageSize instead.") @tag(name: "argument")
+  ): Int!
   directiveInputDefault(input: DirectiveInput!): String!
   directiveExample(input: DirectiveInput!): DirectiveExample!
   getScalarHolder: ScalarHolder!

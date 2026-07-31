@@ -261,6 +261,52 @@ let validateInputFields ~schemaState ~(parentTypeName : string)
                      parentTypeName field.name;
                })
 
+let validateFieldArguments ~schemaState ~(parentTypeName : string)
+    (fields : gqlField list) =
+  fields
+  |> List.iter (fun (field : gqlField) ->
+      field.args
+      |> List.filter (fun (argument : gqlArg) ->
+          match argument.typ with
+          | InjectContext | InjectInterfaceTypename _ | InjectInfo -> false
+          | _ -> true)
+      |> List.iter (fun (argument : gqlArg) ->
+          (match argument.defaultValue with
+          | None -> ()
+          | Some value -> (
+            match validateConstValue ~schemaState argument.typ value with
+            | None -> ()
+            | Some message ->
+              schemaState
+              |> addDiagnostic
+                   ~diagnostic:
+                     {
+                       loc = argument.loc;
+                       fileUri = argument.fileUri;
+                       message =
+                         Printf.sprintf
+                           "Invalid default for resolver argument \
+                            `%s.%s(%s:)`: %s"
+                           parentTypeName field.name argument.name message;
+                     }));
+          if
+            Option.is_some argument.deprecationReason
+            && (not (isNullableType argument.typ))
+            && Option.is_none argument.defaultValue
+          then
+            schemaState
+            |> addDiagnostic
+                 ~diagnostic:
+                   {
+                     loc = argument.loc;
+                     fileUri = argument.fileUri;
+                     message =
+                       Printf.sprintf
+                         "Required argument `%s.%s(%s:)` cannot be deprecated \
+                          without a default value."
+                         parentTypeName field.name argument.name;
+                   }))
+
 let validateDirectiveDefinitions (schemaState : schemaState) =
   let reservedNames =
     ["skip"; "include"; "deprecated"; "specifiedBy"; "oneOf"]
@@ -685,7 +731,9 @@ let validateSchema (schemaState : schemaState) =
 
   schemaState.types
   |> Hashtbl.iter (fun _name (typ : gqlObjectType) ->
-      validateFields ~schemaState ~parentTypeName:typ.displayName typ.fields);
+      validateFields ~schemaState ~parentTypeName:typ.displayName typ.fields;
+      validateFieldArguments ~schemaState ~parentTypeName:typ.displayName
+        typ.fields);
 
   schemaState.inputObjects
   |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
@@ -708,4 +756,6 @@ let validateSchema (schemaState : schemaState) =
   |> Hashtbl.iter (fun _name (typ : gqlInterface) ->
       (* Subtype rules etc for interface fields are a bit complicated, so we
             let graphql-js do it at runtime instead. *)
-      validateFields ~schemaState ~parentTypeName:typ.displayName typ.fields)
+      validateFields ~schemaState ~parentTypeName:typ.displayName typ.fields;
+      validateFieldArguments ~schemaState ~parentTypeName:typ.displayName
+        typ.fields)

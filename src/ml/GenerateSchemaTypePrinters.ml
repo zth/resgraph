@@ -382,10 +382,45 @@ let printInterfaceTypenameToString
   if List.length implementedBy = 0 then ""
   else Printf.sprintf "external toString: t => string = \"%%identity\""
 
-let printArg (arg : gqlArg) =
-  Printf.sprintf "({typ: %s}: arg)" (printGraphQLType arg.typ)
+let printArg ~schemaState ~parentTypeName ~fieldName (arg : gqlArg) =
+  let extensions =
+    printDirectiveExtensions schemaState
+      (DirectiveArgumentDefinition
+         {parentTypeName; fieldName; argumentName = arg.name})
+  in
+  match
+    (arg.defaultValue, arg.description, arg.deprecationReason, extensions)
+  with
+  | None, None, None, None ->
+    Printf.sprintf "({typ: %s}: arg)" (printGraphQLType arg.typ)
+  | _ ->
+    let writer = CodeWriter.create 192 in
+    CodeWriter.line writer "({";
+    CodeWriter.indented writer (fun () ->
+        CodeWriter.line writer
+          (Printf.sprintf "typ: %s," (printGraphQLType arg.typ));
+        (match arg.defaultValue with
+        | None -> ()
+        | Some value ->
+          CodeWriter.line writer
+            (Printf.sprintf "defaultValue: %s," (printConstValue value)));
+        (match arg.description with
+        | None -> ()
+        | Some description ->
+          CodeWriter.line writer (Printf.sprintf "description: %S," description));
+        (match arg.deprecationReason with
+        | None -> ()
+        | Some reason ->
+          CodeWriter.line writer
+            (Printf.sprintf "deprecationReason: %S," reason));
+        match extensions with
+        | None -> ()
+        | Some extensions ->
+          CodeWriter.line writer (Printf.sprintf "extensions: %s" extensions));
+    CodeWriter.add writer "}: arg)";
+    CodeWriter.contents writer
 
-let printArgs (args : gqlArg list) =
+let printArgs ~schemaState ~parentTypeName ~fieldName (args : gqlArg list) =
   let args =
     args
     |> List.sort (fun (a1 : gqlArg) a2 -> String.compare a1.name a2.name)
@@ -398,7 +433,8 @@ let printArgs (args : gqlArg list) =
       args
       |> List.iteri (fun index (arg : gqlArg) ->
           CodeWriter.line writer
-            (Printf.sprintf "\"%s\": %s%s" arg.name (printArg arg)
+            (Printf.sprintf "\"%s\": %s%s" arg.name
+               (printArg ~schemaState ~parentTypeName ~fieldName arg)
                (if index = lastArgIndex then "" else ","))));
   CodeWriter.add writer "}->makeArgsDict";
   CodeWriter.contents writer
@@ -481,7 +517,9 @@ let printField ?(context = CtxDefault) ~parentTypeName ~schemaState
            (field.deprecationReason |> undefinedOrValueAsString));
       if List.length printableArgs > 0 then (
         CodeWriter.add writer "args: ";
-        CodeWriter.add writer (printArgs printableArgs);
+        CodeWriter.add writer
+          (printArgs ~schemaState ~parentTypeName ~fieldName:field.name
+             printableArgs);
         CodeWriter.line writer ",");
       (match
          printDirectiveExtensions schemaState

@@ -50,6 +50,15 @@ assert.deepEqual(plain(getDirective(schema, uuid, "tag")), [{ name: "scalar" }])
 const directiveInput = schema.getType("DirectiveInput");
 assert.equal(directiveInput.getFields().label.defaultValue, "fallback");
 
+const argumentMetadata = schema.getQueryType().getFields().directiveArgumentMetadata.args[0];
+assert.equal(argumentMetadata.name, "limit");
+assert.equal(argumentMetadata.defaultValue, 25);
+assert.equal(argumentMetadata.description, "Maximum number of results.");
+assert.equal(argumentMetadata.deprecationReason, "Use pageSize instead.");
+assert.deepEqual(plain(getDirective(schema, argumentMetadata, "tag")), [
+  {name: "argument"},
+]);
+
 const result = await execute({
   schema,
   document: parse(`
@@ -81,6 +90,16 @@ const defaultResult = await execute({
 assert.equal(defaultResult.errors, undefined);
 assert.deepEqual(plain(defaultResult.data), {
   directiveInputDefault: "fallback",
+});
+
+const argumentDefaultResult = await execute({
+  schema,
+  document: parse(`query { directiveArgumentMetadata }`),
+});
+
+assert.equal(argumentDefaultResult.errors, undefined);
+assert.deepEqual(plain(argumentDefaultResult.data), {
+  directiveArgumentMetadata: 25,
 });
 
 console.log("✅ Directive definitions, metadata, ordering, and execution work.");

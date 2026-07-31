@@ -43,6 +43,7 @@ let validAttributes =
     ("gql.scalar", "");
     ("gql.directive", "Defines a typed GraphQL directive.");
     ("gql.annotate", "Applies a GraphQL directive to a schema element.");
+    ("gql.description", "Describes a GraphQL resolver argument.");
     ("gql.default", "Defines a GraphQL constant default value.");
     ("gql.authorize", "Attaches a typed authorization function.");
     ("gql.public", "Marks a field public with a required reason.");
@@ -185,6 +186,111 @@ let rec constValueFromExpression (expression : Parsetree.expression) =
       "Expected a GraphQL constant: null, a boolean, number, string, enum, \
        array, or record."
 
+type resolverSourceParameter = {
+  label: Asttypes.arg_label;
+  loc: Location.t;
+  attributes: Parsetree.attributes;
+  defaultValue: Parsetree.expression option;
+}
+
+let resolverSourceCache : (string, string * Parsetree.structure) Hashtbl.t =
+  Hashtbl.create 16
+
+let resolverParametersFromSource ~(env : SharedTypes.QueryEnv.t) ~resolverName
+    ~resolverLoc =
+  let rec patternName (pattern : Parsetree.pattern) =
+    match pattern.ppat_desc with
+    | Ppat_var {txt} -> Some txt
+    | Ppat_alias (_, {txt}) -> Some txt
+    | Ppat_constraint (pattern, _) -> patternName pattern
+    | _ -> None
+  in
+  let contains outer inner =
+    outer.Location.loc_start.pos_cnum <= inner.Location.loc_start.pos_cnum
+    && outer.loc_end.pos_cnum >= inner.loc_end.pos_cnum
+  in
+  let rec bindingsOfModuleExpression (expression : Parsetree.module_expr) =
+    match expression.pmod_desc with
+    | Pmod_structure structure -> bindingsOfStructure structure
+    | Pmod_constraint (expression, _) -> bindingsOfModuleExpression expression
+    | _ -> []
+  and bindingsOfStructure structure =
+    structure
+    |> List.concat_map (fun (item : Parsetree.structure_item) ->
+        match item.pstr_desc with
+        | Pstr_value (_, bindings) -> bindings
+        | Pstr_module binding -> bindingsOfModuleExpression binding.pmb_expr
+        | Pstr_recmodule bindings ->
+          bindings
+          |> List.concat_map (fun (binding : Parsetree.module_binding) ->
+              bindingsOfModuleExpression binding.pmb_expr)
+        | _ -> [])
+  in
+  let rec parametersOfExpression (expression : Parsetree.expression) =
+    match expression.pexp_desc with
+    | Pexp_fun {arg_label; default; lhs; rhs; _} ->
+      {
+        label = arg_label;
+        loc = lhs.ppat_loc;
+        attributes = expression.pexp_attributes @ lhs.ppat_attributes;
+        defaultValue = default;
+      }
+      :: parametersOfExpression rhs
+    | Pexp_constraint (expression, _) -> parametersOfExpression expression
+    | _ -> []
+  in
+  let cmtPath = env.file.uri |> Uri.toPath in
+  let paths =
+    if Filename.check_suffix cmtPath ".resi" then
+      [cmtPath; Filename.chop_suffix cmtPath ".resi" ^ ".res"]
+    else [cmtPath]
+  in
+  let source =
+    paths
+    |> List.find_map (fun path ->
+        Files.readFile path |> Option.map (fun source -> (path, source)))
+  in
+  match source with
+  | None -> []
+  | Some (path, source) -> (
+    try
+      let digest = Digest.to_hex (Digest.string source) in
+      let structure =
+        match Hashtbl.find_opt resolverSourceCache path with
+        | Some (cachedDigest, structure) when cachedDigest = digest -> structure
+        | _ ->
+          let {Res_driver.parsetree = structure} =
+            Res_driver.parse_implementation_from_source ~for_printer:true
+              ~source ~display_filename:path
+          in
+          Hashtbl.replace resolverSourceCache path (digest, structure);
+          structure
+      in
+      let bindings =
+        structure |> bindingsOfStructure
+        |> List.filter (fun (binding : Parsetree.value_binding) ->
+            patternName binding.pvb_pat = Some resolverName)
+      in
+      let matchingBinding =
+        match
+          bindings
+          |> List.find_opt (fun (binding : Parsetree.value_binding) ->
+              contains binding.pvb_loc resolverLoc
+              || contains binding.pvb_pat.ppat_loc resolverLoc
+              || contains resolverLoc binding.pvb_pat.ppat_loc)
+        with
+        | Some binding -> Some binding
+        | None -> (
+          match bindings with
+          | [binding] -> Some binding
+          | _ -> None)
+      in
+      matchingBinding
+      |> Option.map (fun (binding : Parsetree.value_binding) ->
+          parametersOfExpression binding.pvb_expr)
+      |> Option.value ~default:[]
+    with _ -> [])
+
 type directiveConfig = {locations: gqlDirectiveLocation list; repeatable: bool}
 
 let directiveConfigFromAttributes ~schemaState ~(env : SharedTypes.QueryEnv.t)
@@ -297,6 +403,20 @@ let defaultValueFromAttributes ~schemaState ~(env : SharedTypes.QueryEnv.t)
       addDirectiveDiagnostic ~schemaState ~env ~loc:name.loc
         "`@gql.default` requires exactly one GraphQL constant value.";
       None)
+
+let descriptionFromAttributes ~schemaState ~(env : SharedTypes.QueryEnv.t)
+    attributes =
+  attributes
+  |> List.find_map (fun ((name, payload) : Parsetree.attribute) ->
+      if name.txt <> "gql.description" then None
+      else
+        match payloadExpressions payload with
+        | [{pexp_desc = Pexp_constant (Pconst_string (description, _))}] ->
+          Some description
+        | _ ->
+          addDirectiveDiagnostic ~schemaState ~env ~loc:name.loc
+            "`@gql.description` requires a string.";
+          None)
 
 let specifiedByUrlFromAttributes ~schemaState ~(env : SharedTypes.QueryEnv.t)
     attributes =

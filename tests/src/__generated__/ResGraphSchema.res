@@ -796,6 +796,21 @@ t_Query.contents = GraphQLObjectType.make({
       deprecationReason: ?(None),
       resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppInterfaceReturnRegression.brokenLabelledWrapper(src)})
     },
+    "directiveArgumentMetadata": {
+      typ: Scalars.int->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      args: dict{
+        "limit": ({
+          typ: Scalars.int->Scalars.toGraphQLType,
+          defaultValue: GraphQLLiteralValue.Number(25.),
+          description: "Maximum number of results.",
+          deprecationReason: "Use pageSize instead.",
+          extensions: {directives: dict{"tag": [dict{"name": GraphQLLiteralValue.String("argument")}]}, resgraph: {appliedDirectives: [{name: "tag", args: dict{"name": GraphQLLiteralValue.String("argument")}}]}}
+        }: arg)
+      }->makeArgsDict,
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppDirectives.directiveArgumentMetadata(src, ~limit=?((args["limit"]->Nullable.toOption)))})
+    },
     "directiveExample": {
       typ: get_DirectiveExample()->GraphQLObjectType.toGraphQLType->nonNull,
       description: ?(None),
@@ -1513,7 +1528,7 @@ let directive_cacheControl = GraphQLDirective.make({
 let directive_tag = GraphQLDirective.make({
   name: "tag",
   description: "Repeatable labels for schema elements.",
-  locations: ["SCALAR", "OBJECT", "FIELD_DEFINITION", "ENUM", "ENUM_VALUE", "INPUT_OBJECT", "INPUT_FIELD_DEFINITION"],
+  locations: ["SCALAR", "OBJECT", "FIELD_DEFINITION", "ARGUMENT_DEFINITION", "ENUM", "ENUM_VALUE", "INPUT_OBJECT", "INPUT_FIELD_DEFINITION"],
   args: dict{
     "name": ({
       typ: Scalars.string->Scalars.toGraphQLType->nonNull,

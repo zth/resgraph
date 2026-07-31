@@ -63,9 +63,10 @@ The next directive slices are deliberately still open:
 
 - Add a schema marker for schema-level descriptions, root mappings, and
   `SCHEMA` applications.
-- Correlate resolver source parameters with CMT output so
+- Resolver source parameters are correlated with CMT output, so
   `ARGUMENT_DEFINITION` applications, defaults, descriptions, and deprecations
-  can use normal parameter syntax.
+  use normal parameter syntax. ReScript requires `@gql.description` rather
+  than a parameter doc comment.
 - Decide whether generic annotations should normalize built-ins such as
   `deprecated`.
 - Add directive-aware LSP/state metadata, named/multi-schema coverage, and a
@@ -542,8 +543,8 @@ advantages and should remain central; they are not Grats gaps to copy.
 | --- | --- | --- | --- |
 | Custom directive definitions/applications | Foundation implemented for every CMT-visible type-system location; schema and resolver-argument applications remain | Add schema marker and source-correlated argument support | P0 follow-up |
 | Runtime access to applied directives | Standard GraphQL Tools map and exact ordered ResGraph projection implemented | Add transformation recipes and expand multi-schema coverage | Delivered/P1 docs |
-| Argument defaults | `gqlArg` explicitly has a TODO and no default slot | Parse resolver source defaults into shared input-value IR | P0 |
-| Argument descriptions/deprecations/directives | `gqlArg` only carries name/type/optional-label | Source-AST parameter metadata plus enriched input-value IR | P0 |
+| Argument defaults | Resolver source defaults are correlated, validated, and emitted in SDL/runtime configs | Add LSP/state projection and more nested-constant fixtures | Delivered/P1 tooling |
+| Argument descriptions/deprecations/directives | Parameter attributes populate enriched argument IR and ordered applications | Add completion/hover/definition support | Delivered/P1 tooling |
 | Input-field defaults | `@gql.default(const)` is validated and emitted in SDL/runtime input-field configs | Expand source tooling and nested-cycle diagnostics with the validation backstop | Delivered/P1 tooling |
 | `@specifiedBy` | Native `@specifiedBy("...")` emits SDL and `specifiedByURL` | Consider normalization through the generic annotation path | Delivered/P2 |
 | Standard OneOf | Native `isOneOf`, SDL, introspection, and coercion on `graphql@^16.11 || ^17`; no plugin required | Keep floor/latest compatibility coverage current | Delivered |
@@ -559,7 +560,7 @@ advantages and should remain central; they are not Grats gaps to copy.
 | Grats capability | ResGraph status | What to do | Priority |
 | --- | --- | --- | --- |
 | Directive definitions and generic annotations | Foundation implemented with records, standard directive map, and ordered ResGraph projection | Finish schema/argument locations and tooling | P0 follow-up |
-| Resolver argument defaults and metadata | Defaults/descriptions/deprecations missing | Shared input-value IR plus source-AST parameter index | P0 |
+| Resolver argument defaults and metadata | Defaults, descriptions, deprecations, and directives implemented through source-AST correlation | Extend state/LSP data and code actions | Delivered/P1 tooling |
 | Generic object/interface/union/input materialization | Annotated generic named types are not deliberately monomorphized into distinct GraphQL types | Design deterministic specialization names and cycle-safe memoized materialization; start with connections/results | P1 |
 | Derived context values, including async | One configured context type only | Add `@gql.context` provider functions, dependency graph validation, cycle detection, and per-request memoization semantics | P1 |
 | Non-subscription `AsyncIterable<T>` for `@stream` | Async iterables are only unwrapped for subscription return types | In output position, map `AsyncIterable<T>` to `[T]` while retaining iterator runtime value; document required Yoga plugin | P1 |
@@ -607,7 +608,8 @@ features. Otherwise each new feature adds another one-off metadata path.
 
 #### P1: close the practical Grats gaps
 
-1. Argument/input defaults, descriptions, deprecations, and annotations.
+1. ~~Argument/input defaults, descriptions, deprecations, and annotations.~~
+   Compiler/runtime support delivered; tooling projection remains.
 2. Root-field shorthand.
 3. Non-subscription AsyncIterable/list support for `@stream`.
 4. Generic type specialization for high-value patterns.

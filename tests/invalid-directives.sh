@@ -151,3 +151,32 @@ type broken = {
   value: string,
 }
 RES
+
+run_fixture "nonconstant-argument-default" 'Invalid default for resolver argument `Query.broken(count:)`' <<'RES'
+@gql.field
+let broken = (_: Query.query, ~count: int={
+  let value = 1
+  value
+}) => count
+RES
+
+run_fixture "deprecated-required-argument" 'Required argument `Query.broken(value:)` cannot be deprecated without a default value' <<'RES'
+@gql.field
+let broken = (
+  _: Query.query,
+  @deprecated("Use the replacement argument.")
+  ~value: string,
+) => value
+RES
+
+run_fixture "argument-directive-location" 'does not include `ARGUMENT_DEFINITION`' <<'RES'
+@gql.directive({locations: ["OBJECT"]})
+type objectOnly
+
+@gql.field
+let broken = (
+  _: Query.query,
+  @gql.annotate({name: "objectOnly"})
+  ~value: string,
+) => value
+RES

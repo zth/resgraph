@@ -119,6 +119,41 @@ let printDirectiveDefinition schemaState (definition : gqlDirectiveDefinition) =
     |> List.map GenerateSchemaDirectiveUtils.locationToString
     |> String.concat " | ")
 
+let printFieldArgument schemaState ~parentTypeName ~fieldName
+    (argument : gqlArg) =
+  Printf.sprintf "%s: %s%s%s%s" argument.name
+    (graphqlTypeToString argument.typ)
+    (match argument.defaultValue with
+    | None -> ""
+    | Some value -> " = " ^ constValueToString value)
+    (printDeprecatedDirective argument.deprecationReason)
+    (printDirectiveApplications schemaState
+       (DirectiveArgumentDefinition
+          {parentTypeName; fieldName; argumentName = argument.name}))
+
+let printFieldArguments schemaState ~parentTypeName ~fieldName arguments =
+  if arguments = [] then ""
+  else if
+    arguments
+    |> List.exists (fun (argument : gqlArg) ->
+        Option.is_some argument.description)
+  then
+    Printf.sprintf "(\n%s\n  )"
+      (arguments
+      |> List.map (fun (argument : gqlArg) ->
+          (match argument.description with
+            | None -> ""
+            | Some description ->
+              Printf.sprintf "    \"\"\"%s\"\"\"\n" description)
+          ^ "    "
+          ^ printFieldArgument schemaState ~parentTypeName ~fieldName argument)
+      |> String.concat "\n")
+  else
+    Printf.sprintf "(%s)"
+      (arguments
+      |> List.map (printFieldArgument schemaState ~parentTypeName ~fieldName)
+      |> String.concat ", ")
+
 let printFields ~schemaState ~parentTypeName ~input fields =
   fields
   |> List.map (fun (f : gqlField) ->
@@ -126,13 +161,7 @@ let printFields ~schemaState ~parentTypeName ~input fields =
       Printf.sprintf "%s  %s%s: %s%s"
         (printDescription f.description 2)
         f.name
-        (if List.length args > 0 then
-           Printf.sprintf "(%s)"
-             (args
-             |> List.map (fun (arg : gqlArg) ->
-                 Printf.sprintf "%s: %s" arg.name (graphqlTypeToString arg.typ))
-             |> String.concat ", ")
-         else "")
+        (printFieldArguments schemaState ~parentTypeName ~fieldName:f.name args)
         (graphqlTypeToString f.typ
         ^
         if input then
