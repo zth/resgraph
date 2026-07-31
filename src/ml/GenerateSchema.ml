@@ -108,6 +108,12 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
     | _ -> t
   in
   let typ = findTyp typ in
+  let isAsyncSequencePath ~includeIterator path =
+    match pathIdentToList path |> List.rev with
+    | "t" :: ("AsyncIterable" | "Stdlib__AsyncIterable") :: _ -> true
+    | "t" :: ("AsyncIterator" | "Stdlib__AsyncIterator") :: _ -> includeIterator
+    | _ -> false
+  in
   let isRescriptNullablePath path =
     match pathIdentToList path with
     | ["Nullable"; "t"]
@@ -124,15 +130,6 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
     | _ -> false
   in
   if isSubscription then (
-    let isAsyncIterablePath path =
-      match pathIdentToList path |> List.rev with
-      | "t"
-        :: ( "AsyncIterator" | "AsyncIterable" | "Stdlib__AsyncIterator"
-           | "Stdlib__AsyncIterable" )
-        :: _ ->
-        true
-      | _ -> false
-    in
     let addSubscriptionError () =
       schemaState
       |> addDiagnostic
@@ -152,7 +149,7 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
 
     match typ.desc with
     | Tconstr (path, [innerSubscriptionType], _) -> (
-      match isAsyncIterablePath path with
+      match isAsyncSequencePath ~includeIterator:true path with
       | true ->
         findGraphQLType innerSubscriptionType ?loc ~env ~debug ~schemaState
           ~full ~typeContext
@@ -184,6 +181,14 @@ let rec findGraphQLType ~(env : SharedTypes.QueryEnv.t)
       when isReturnType ->
       findGraphQLType unwrappedType ?loc ~env ~debug ~schemaState ~full
         ~typeContext
+    | Tconstr (path, [itemType], _)
+      when isReturnType && isAsyncSequencePath ~includeIterator:false path -> (
+      match
+        findGraphQLType itemType ?loc ~env ~debug ~schemaState ~full
+          ~typeContext
+      with
+      | None -> None
+      | Some itemType -> Some (List itemType))
     | Tconstr (Path.Pident {name = "string"}, [], _) -> Some (Scalar String)
     | Tconstr (Path.Pident {name = "bool"}, [], _) -> Some (Scalar Boolean)
     | Tconstr (Path.Pident {name = "int"}, [], _) -> Some (Scalar Int)

@@ -4,6 +4,8 @@ import * as Graphql from "graphql";
 import * as Nodecrypto from "node:crypto";
 import * as Primitive_option from "@rescript/runtime/lib/es6/Primitive_option.js";
 
+let AsyncIterable = {};
+
 function makeError(message, code) {
   return {
     message: message,
@@ -130,6 +132,7 @@ let Connections;
 let Utils;
 
 export {
+  AsyncIterable,
   GraphQLLiteralValue,
   GraphQLJSON,
   Connections,

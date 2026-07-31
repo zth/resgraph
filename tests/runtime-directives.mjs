@@ -108,4 +108,9 @@ assert.deepEqual(plain(argumentDefaultResult.data), {
   directiveArgumentMetadata: 25,
 });
 
+const asyncValuesField = schema.getQueryType().getFields().asyncValues;
+assert.equal(asyncValuesField.type.toString(), "[String!]!");
+const asyncValues = await asyncValuesField.resolve(undefined, {}, {}, {});
+assert.equal(typeof asyncValues[Symbol.asyncIterator], "function");
+
 console.log("✅ Directive definitions, metadata, ordering, and execution work.");

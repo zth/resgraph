@@ -271,6 +271,7 @@ type Query {
   getScalarHolder: ScalarHolder!
   nestedConnection: StringConnection!
   userConnection(first: Int, after: String): UserConnection!
+  asyncValues: [String!]!
 }
 
 

@@ -803,6 +803,12 @@ t_Query.contents = GraphQLObjectType.make({
   description: ?(None),
   interfaces: [],
   fields: () => {
+    "asyncValues": {
+      typ: GraphQLListType.make(Scalars.string->Scalars.toGraphQLType->nonNull)->GraphQLListType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppAsyncIterable.asyncValues(src)})
+    },
     "badLabelled": {
       typ: get_Labelled()->GraphQLInterfaceType.toGraphQLType->nonNull,
       description: ?(None),
