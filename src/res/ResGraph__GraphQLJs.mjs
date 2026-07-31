@@ -7,6 +7,8 @@ let AstNode = {};
 
 let Scalars = {};
 
+let GraphQLDirective = {};
+
 let GraphQLInterfaceType = {};
 
 let GraphQLScalar = {};
@@ -27,6 +29,7 @@ export {
   GraphQLLiteralValue,
   AstNode,
   Scalars,
+  GraphQLDirective,
   GraphQLInterfaceType,
   GraphQLScalar,
   GraphQLObjectType,

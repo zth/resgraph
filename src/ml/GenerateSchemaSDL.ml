@@ -56,7 +56,70 @@ let printDeprecatedDirective deprecationReason =
     Printf.sprintf " @deprecated(reason: \"%s\")" deprecationReason
   | None -> ""
 
-let printFields fields =
+let rec constValueToString = function
+  | ConstNull -> "null"
+  | ConstInt value | ConstFloat value | ConstEnum value -> value
+  | ConstString value -> Printf.sprintf "\"%s\"" (Json.escape value)
+  | ConstBoolean value -> if value then "true" else "false"
+  | ConstList values ->
+    Printf.sprintf "[%s]"
+      (values |> List.map constValueToString |> String.concat ", ")
+  | ConstObject fields ->
+    Printf.sprintf "{%s}"
+      (fields
+      |> List.map (fun (name, value) ->
+          Printf.sprintf "%s: %s" name (constValueToString value))
+      |> String.concat ", ")
+
+let printDirectiveApplication (application : gqlDirectiveApplication) =
+  Printf.sprintf " @%s%s" application.name
+    (match application.arguments with
+    | [] -> ""
+    | arguments ->
+      Printf.sprintf "(%s)"
+        (arguments
+        |> List.map (fun (name, value) ->
+            Printf.sprintf "%s: %s" name (constValueToString value))
+        |> String.concat ", "))
+
+let printDirectiveApplications schemaState target =
+  GenerateSchemaUtils.directivesForTarget schemaState target
+  |> List.map printDirectiveApplication
+  |> String.concat ""
+
+let printDirectiveDefinition schemaState (definition : gqlDirectiveDefinition) =
+  let arguments =
+    match definition.arguments with
+    | [] -> ""
+    | arguments ->
+      Printf.sprintf "(\n%s\n)"
+        (arguments
+        |> List.map (fun (argument : gqlDirectiveArgument) ->
+            Printf.sprintf "%s  %s: %s%s%s"
+              (printDescription argument.description 2)
+              argument.name
+              (graphqlTypeToString argument.typ)
+              (match argument.defaultValue with
+              | None -> ""
+              | Some value -> " = " ^ constValueToString value)
+              (printDeprecatedDirective argument.deprecationReason
+              ^ printDirectiveApplications schemaState
+                  (DirectiveDirectiveArgumentDefinition
+                     {
+                       directiveName = definition.name;
+                       argumentName = argument.name;
+                     })))
+        |> String.concat "\n")
+  in
+  Printf.sprintf "%sdirective @%s%s%s on %s"
+    (printDescription definition.description 0)
+    definition.name arguments
+    (if definition.repeatable then " repeatable" else "")
+    (definition.locations
+    |> List.map GenerateSchemaDirectiveUtils.locationToString
+    |> String.concat " | ")
+
+let printFields ~schemaState ~parentTypeName ~input fields =
   fields
   |> List.map (fun (f : gqlField) ->
       let args = GenerateSchemaUtils.onlyPrintableArgs f.args in
@@ -71,7 +134,13 @@ let printFields fields =
              |> String.concat ", ")
          else "")
         (graphqlTypeToString f.typ)
-        (printDeprecatedDirective f.deprecationReason))
+        (printDeprecatedDirective f.deprecationReason
+        ^ printDirectiveApplications schemaState
+            (if input then
+               DirectiveInputFieldDefinition
+                 {inputObjectName = parentTypeName; fieldName = f.name}
+             else DirectiveFieldDefinition {parentTypeName; fieldName = f.name})
+        ))
   |> String.concat "\n"
 
 let printSourceLoc = false
@@ -91,50 +160,65 @@ let printSourceLocDirective (typeLocation : typeLocation option) =
         (start |> fst) (start |> snd) (end_ |> fst) (end_ |> snd)
     | _ -> ""
 
-let printInputObject (input : gqlInputObjectType) =
-  Printf.sprintf "%sinput %s%s {\n%s\n}"
+let printInputObject schemaState (input : gqlInputObjectType) =
+  Printf.sprintf "%sinput %s%s%s {\n%s\n}"
     (printDescription input.description 0)
     input.displayName
     (printSourceLocDirective
        (match input.typeLocation with
        | Some typeLocation -> Some (Concrete typeLocation)
        | None -> None))
-    (printFields input.fields)
+    (printDirectiveApplications schemaState
+       (DirectiveInputObject input.displayName))
+    (printFields ~schemaState ~parentTypeName:input.displayName ~input:true
+       input.fields)
 
-let printInputUnion (input : gqlInputUnionType) =
+let printInputUnion schemaState (input : gqlInputUnionType) =
   let input = inputUnionToInputObj input in
-  Printf.sprintf "%sinput %s%s @oneOf {\n%s\n}"
+  Printf.sprintf "%sinput %s%s @oneOf%s {\n%s\n}"
     (printDescription input.description 0)
     input.displayName
     (printSourceLocDirective
        (match input.typeLocation with
        | Some typeLocation -> Some (Concrete typeLocation)
        | None -> None))
-    (printFields input.fields)
+    (printDirectiveApplications schemaState
+       (DirectiveInputObject input.displayName))
+    (printFields ~schemaState ~parentTypeName:input.displayName ~input:true
+       input.fields)
 
-let printScalar (scalar : gqlScalar) =
-  Printf.sprintf "%sscalar %s"
+let printScalar schemaState (scalar : gqlScalar) =
+  Printf.sprintf "%sscalar %s%s%s"
     (printDescription scalar.description 0)
     scalar.displayName
+    (match scalar.specifiedByUrl with
+    | None -> ""
+    | Some url -> Printf.sprintf " @specifiedBy(url: \"%s\")" (Json.escape url))
+    (printDirectiveApplications schemaState (DirectiveScalar scalar.displayName))
 
-let printEnum (enum : gqlEnum) =
-  Printf.sprintf "%senum %s%s {\n%s\n}"
+let printEnum schemaState (enum : gqlEnum) =
+  Printf.sprintf "%senum %s%s%s {\n%s\n}"
     (printDescription enum.description 0)
     enum.displayName
     (printSourceLocDirective (Some enum.typeLocation))
+    (printDirectiveApplications schemaState (DirectiveEnum enum.displayName))
     (enum.values
     |> List.map (fun (v : gqlEnumValue) ->
         Printf.sprintf "%s  %s%s"
           (printDescription v.description 2)
           v.value
-          (printDeprecatedDirective v.deprecationReason))
+          (printDeprecatedDirective v.deprecationReason
+          ^ printDirectiveApplications schemaState
+              (DirectiveEnumValue
+                 {enumName = enum.displayName; valueName = v.value})))
     |> String.concat "\n")
 
-let printUnion (union : gqlUnion) =
-  Printf.sprintf "%sunion %s%s =\n%s\n"
+let printUnion schemaState (union : gqlUnion) =
+  Printf.sprintf "%sunion %s%s%s =\n%s\n"
     (printDescription union.description 0)
     union.displayName
     (printSourceLocDirective (Some union.typeLocation))
+    (printDirectiveApplications schemaState (DirectiveUnion union.displayName))
     (union.types
     |> List.map (fun (v : gqlUnionMember) ->
         Printf.sprintf "  | %s%s"
@@ -144,21 +228,26 @@ let printUnion (union : gqlUnion) =
           v.displayName)
     |> String.concat "\n")
 
-let printInterface (intf : gqlInterface) =
-  Printf.sprintf "%sinterface %s%s%s {\n%s\n}"
+let printInterface schemaState (intf : gqlInterface) =
+  Printf.sprintf "%sinterface %s%s%s%s {\n%s\n}"
     (printDescription intf.description 0)
     intf.displayName
     (printImplements intf.interfaces)
     (printSourceLocDirective (Some (Concrete intf.typeLocation)))
-    (printFields intf.fields)
+    (printDirectiveApplications schemaState
+       (DirectiveInterface intf.displayName))
+    (printFields ~schemaState ~parentTypeName:intf.displayName ~input:false
+       intf.fields)
 
-let printObjectType (typ : gqlObjectType) =
-  Printf.sprintf "%stype %s%s%s {\n%s\n}"
+let printObjectType schemaState (typ : gqlObjectType) =
+  Printf.sprintf "%stype %s%s%s%s {\n%s\n}"
     (printDescription typ.description 0)
     typ.displayName
     (printImplements typ.interfaces)
     (printSourceLocDirective typ.typeLocation)
-    (printFields typ.fields)
+    (printDirectiveApplications schemaState (DirectiveObject typ.displayName))
+    (printFields ~schemaState ~parentTypeName:typ.displayName ~input:false
+       typ.fields)
 
 let printSchemaSDL (schemaState : schemaState) =
   let code = Buffer.create 16384 in
@@ -175,31 +264,35 @@ let printSchemaSDL (schemaState : schemaState) =
        UNION | INPUT_OBJECT | INPUT_FIELD_DEFINITION | INTERFACE | SCALAR | \
        ARGUMENT_DEFINITION";
 
+  schemaState.directiveDefinitions
+  |> iterHashtblAlphabetically (fun _ definition ->
+      addSection (printDirectiveDefinition schemaState definition));
+
   schemaState.scalars
   |> iterHashtblAlphabetically (fun _ (scalar : gqlScalar) ->
-      addSection (printScalar scalar));
+      addSection (printScalar schemaState scalar));
 
   schemaState.enums
   |> iterHashtblAlphabetically (fun _name (enum : gqlEnum) ->
-      addSection (printEnum enum));
+      addSection (printEnum schemaState enum));
 
   schemaState.unions
   |> iterHashtblAlphabetically (fun _name (union : gqlUnion) ->
-      addSection (printUnion union));
+      addSection (printUnion schemaState union));
 
   schemaState.inputObjects
   |> iterHashtblAlphabetically (fun _name (input : gqlInputObjectType) ->
-      addSection (printInputObject input));
+      addSection (printInputObject schemaState input));
 
   schemaState.inputUnions
   |> iterHashtblAlphabetically (fun _name (input : gqlInputUnionType) ->
-      addSection (printInputUnion input));
+      addSection (printInputUnion schemaState input));
 
   schemaState.interfaces
   |> iterHashtblAlphabetically (fun _name (intf : gqlInterface) ->
-      addSection (printInterface intf));
+      addSection (printInterface schemaState intf));
 
   schemaState.types
   |> iterHashtblAlphabetically (fun _name (typ : gqlObjectType) ->
-      addSection (printObjectType typ));
+      addSection (printObjectType schemaState typ));
   String.trim (Buffer.contents code) ^ "\n"

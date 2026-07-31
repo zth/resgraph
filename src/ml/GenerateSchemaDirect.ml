@@ -209,6 +209,8 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
                  inputUnions = Hashtbl.create 10;
                  interfaces = Hashtbl.create 10;
                  scalars = Hashtbl.create 10;
+                 directiveDefinitions = Hashtbl.create 10;
+                 appliedDirectives = Hashtbl.create 50;
                  authorizationConfig;
                  authorizationDeclarations = Hashtbl.create 50;
                  authorizationPlans = Hashtbl.create 50;

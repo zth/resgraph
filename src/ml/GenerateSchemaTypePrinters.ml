@@ -193,6 +193,84 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
       nullablePostfix
   | InjectContext | InjectInfo -> "Obj.magic()"
 
+let floatLiteral value =
+  if
+    String.contains value '.' || String.contains value 'e'
+    || String.contains value 'E'
+  then value
+  else value ^ "."
+
+let rec printConstValue = function
+  | ConstNull -> "GraphQLLiteralValue.Null"
+  | ConstInt value | ConstFloat value ->
+    Printf.sprintf "GraphQLLiteralValue.Number(%s)" (floatLiteral value)
+  | ConstString value | ConstEnum value ->
+    Printf.sprintf "GraphQLLiteralValue.String(\"%s\")" (Json.escape value)
+  | ConstBoolean true -> "GraphQLLiteralValue.True"
+  | ConstBoolean false -> "GraphQLLiteralValue.False"
+  | ConstList values ->
+    Printf.sprintf "GraphQLLiteralValue.Array([%s])"
+      (values |> List.map printConstValue |> String.concat ", ")
+  | ConstObject fields ->
+    Printf.sprintf "GraphQLLiteralValue.Object(dict{%s})"
+      (fields
+      |> List.map (fun (name, value) ->
+          Printf.sprintf "\"%s\": %s" name (printConstValue value))
+      |> String.concat ", ")
+
+let printDirectiveArguments arguments =
+  Printf.sprintf "dict{%s}"
+    (arguments
+    |> List.map (fun (name, value) ->
+        Printf.sprintf "\"%s\": %s" name (printConstValue value))
+    |> String.concat ", ")
+
+let groupDirectiveApplications applications =
+  applications
+  |> List.fold_left
+       (fun groups (application : gqlDirectiveApplication) ->
+         let rec add = function
+           | [] -> [(application.name, [application.arguments])]
+           | (name, arguments) :: rest when name = application.name ->
+             (name, arguments @ [application.arguments]) :: rest
+           | group :: rest -> group :: add rest
+         in
+         add groups)
+       []
+
+let printDirectiveExtensions ?(oneOf = false) schemaState target =
+  let applications =
+    GenerateSchemaUtils.directivesForTarget schemaState target
+  in
+  if applications = [] && not oneOf then None
+  else
+    let fields = ref [] in
+    (if applications <> [] then
+       let directives =
+         applications |> groupDirectiveApplications
+         |> List.map (fun (name, argumentSets) ->
+             Printf.sprintf "\"%s\": [%s]" name
+               (argumentSets
+               |> List.map printDirectiveArguments
+               |> String.concat ", "))
+         |> String.concat ", "
+       in
+       let ordered =
+         applications
+         |> List.map (fun (application : gqlDirectiveApplication) ->
+             Printf.sprintf "{name: \"%s\", args: %s}" application.name
+               (printDirectiveArguments application.arguments))
+         |> String.concat ", "
+       in
+       fields :=
+         !fields
+         @ [
+             Printf.sprintf "directives: dict{%s}" directives;
+             Printf.sprintf "resgraph: {appliedDirectives: [%s]}" ordered;
+           ]);
+    if oneOf then fields := !fields @ ["oneOf: true"];
+    Some (Printf.sprintf "{%s}" (String.concat ", " !fields))
+
 let displayNameFromImplementedBy
     (interfaceImplementedBy : interfaceImplementedBy) =
   match interfaceImplementedBy with
@@ -306,7 +384,7 @@ let printInterfaceTypenameToString
   else Printf.sprintf "external toString: t => string = \"%%identity\""
 
 let printArg (arg : gqlArg) =
-  Printf.sprintf "{typ: %s}" (printGraphQLType arg.typ)
+  Printf.sprintf "({typ: %s}: arg)" (printGraphQLType arg.typ)
 
 let printArgs (args : gqlArg list) =
   let args =
@@ -316,14 +394,76 @@ let printArgs (args : gqlArg list) =
   in
   let writer = CodeWriter.create 256 in
   let lastArgIndex = List.length args - 1 in
-  CodeWriter.line writer "{";
+  CodeWriter.line writer "dict{";
   CodeWriter.indented writer (fun () ->
       args
       |> List.iteri (fun index (arg : gqlArg) ->
           CodeWriter.line writer
             (Printf.sprintf "\"%s\": %s%s" arg.name (printArg arg)
                (if index = lastArgIndex then "" else ","))));
-  CodeWriter.add writer "}->makeArgs";
+  CodeWriter.add writer "}->makeArgsDict";
+  CodeWriter.contents writer
+
+let printDirectiveArgument schemaState directiveName
+    (argument : gqlDirectiveArgument) =
+  let writer = CodeWriter.create 256 in
+  CodeWriter.line writer "({";
+  CodeWriter.indented writer (fun () ->
+      CodeWriter.line writer
+        (Printf.sprintf "typ: %s," (printGraphQLType argument.typ));
+      (match argument.defaultValue with
+      | None -> ()
+      | Some value ->
+        CodeWriter.line writer
+          (Printf.sprintf "defaultValue: %s," (printConstValue value)));
+      CodeWriter.line writer
+        (Printf.sprintf "description: %s,"
+           (descriptionAsString argument.description));
+      CodeWriter.line writer
+        (Printf.sprintf "deprecationReason: %s,"
+           (undefinedOrValueAsString argument.deprecationReason));
+      match
+        printDirectiveExtensions schemaState
+          (DirectiveDirectiveArgumentDefinition
+             {directiveName; argumentName = argument.name})
+      with
+      | None -> ()
+      | Some extensions ->
+        CodeWriter.line writer (Printf.sprintf "extensions: %s" extensions));
+  CodeWriter.add writer "}: arg)";
+  CodeWriter.contents writer
+
+let printDirectiveDefinition schemaState (definition : gqlDirectiveDefinition) =
+  let writer = CodeWriter.create 512 in
+  CodeWriter.line writer "{";
+  CodeWriter.indented writer (fun () ->
+      CodeWriter.line writer (Printf.sprintf "name: \"%s\"," definition.name);
+      CodeWriter.line writer
+        (Printf.sprintf "description: %s,"
+           (descriptionAsString definition.description));
+      CodeWriter.line writer
+        (Printf.sprintf "locations: [%s],"
+           (definition.locations
+           |> List.map (fun location ->
+               Printf.sprintf "\"%s\""
+                 (GenerateSchemaDirectiveUtils.locationToString location))
+           |> String.concat ", "));
+      if definition.arguments <> [] then (
+        CodeWriter.line writer "args: dict{";
+        CodeWriter.indented writer (fun () ->
+            definition.arguments
+            |> List.iteri (fun index (argument : gqlDirectiveArgument) ->
+                CodeWriter.add writer (Printf.sprintf "\"%s\": " argument.name);
+                CodeWriter.add writer
+                  (printDirectiveArgument schemaState definition.name argument);
+                CodeWriter.line writer
+                  (if index = List.length definition.arguments - 1 then ""
+                   else ",")));
+        CodeWriter.line writer "}->makeArgsDict,");
+      CodeWriter.line writer
+        (Printf.sprintf "isRepeatable: %s"
+           (if definition.repeatable then "true" else "false")));
+  CodeWriter.add writer "}";
   CodeWriter.contents writer
 
 let printField ?(context = CtxDefault) ~parentTypeName ~schemaState
@@ -344,6 +484,13 @@ let printField ?(context = CtxDefault) ~parentTypeName ~schemaState
         CodeWriter.add writer "args: ";
         CodeWriter.add writer (printArgs printableArgs);
         CodeWriter.line writer ",");
+      (match
+         printDirectiveExtensions schemaState
+           (DirectiveFieldDefinition {parentTypeName; fieldName = field.name})
+       with
+      | None -> ()
+      | Some extensions ->
+        CodeWriter.line writer (Printf.sprintf "extensions: %s," extensions));
       match context with
       | CtxDefault ->
         CodeWriter.line writer
@@ -359,7 +506,7 @@ let printField ?(context = CtxDefault) ~parentTypeName ~schemaState
   CodeWriter.add writer "}";
   CodeWriter.contents writer
 
-let printInputObjectField (field : gqlField) =
+let printInputObjectField ~schemaState ~parentTypeName (field : gqlField) =
   let writer = CodeWriter.create 256 in
   CodeWriter.line writer "{";
   CodeWriter.indented writer (fun () ->
@@ -370,8 +517,16 @@ let printInputObjectField (field : gqlField) =
         (Printf.sprintf "description: %s,"
            (field.description |> descriptionAsString));
       CodeWriter.line writer
-        (Printf.sprintf "deprecationReason: %s"
-           (field.deprecationReason |> undefinedOrValueAsString)));
+        (Printf.sprintf "deprecationReason: %s,"
+           (field.deprecationReason |> undefinedOrValueAsString));
+      match
+        printDirectiveExtensions schemaState
+          (DirectiveInputFieldDefinition
+             {inputObjectName = parentTypeName; fieldName = field.name})
+      with
+      | None -> ()
+      | Some extensions ->
+        CodeWriter.line writer (Printf.sprintf "extensions: %s" extensions));
   CodeWriter.add writer "}";
   CodeWriter.contents writer
 
@@ -399,7 +554,8 @@ let printFields ?context ~parentTypeName ~schemaState fields =
     (fun field -> printField ?context ~parentTypeName ~schemaState field)
     fields
 
-let printInputObjectFields fields = printFieldsWith printInputObjectField fields
+let printInputObjectFields ~schemaState ~parentTypeName fields =
+  printFieldsWith (printInputObjectField ~schemaState ~parentTypeName) fields
 
 let printObjectType ~(schemaState : schemaState) (typ : gqlObjectType) =
   let writer = CodeWriter.create 1024 in
@@ -416,6 +572,12 @@ let printObjectType ~(schemaState : schemaState) (typ : gqlObjectType) =
                Printf.sprintf "get_%s()"
                  (GenerateSchemaUtils.capitalizeFirstChar id))
            |> String.concat ", "));
+      (match
+         printDirectiveExtensions schemaState (DirectiveObject typ.displayName)
+       with
+      | None -> ()
+      | Some extensions ->
+        CodeWriter.line writer (Printf.sprintf "extensions: %s," extensions));
       CodeWriter.add writer "fields: () => ";
       CodeWriter.add writer
         (printFields
@@ -426,11 +588,19 @@ let printObjectType ~(schemaState : schemaState) (typ : gqlObjectType) =
   CodeWriter.add writer "}";
   CodeWriter.contents writer
 
-let printScalar (typ : gqlScalar) =
+let printScalar ~schemaState (typ : gqlScalar) =
+  let extensions =
+    printDirectiveExtensions schemaState (DirectiveScalar typ.displayName)
+  in
   match typ.encoderDecoderLoc with
   | None ->
-    Printf.sprintf "{name: \"%s\", description: %s}" typ.displayName
+    Printf.sprintf "{name: \"%s\", description: %s, specifiedByURL: %s%s}"
+      typ.displayName
       (descriptionAsString typ.description)
+      (undefinedOrValueAsString typ.specifiedByUrl)
+      (match extensions with
+      | None -> ""
+      | Some extensions -> ", extensions: " ^ extensions)
   | Some encoderDecoderLoc ->
     let writer = CodeWriter.create 256 in
     CodeWriter.line writer "{";
@@ -444,6 +614,14 @@ let printScalar (typ : gqlScalar) =
             CodeWriter.line writer
               (Printf.sprintf "description: %s,"
                  (descriptionAsString typ.description));
+            CodeWriter.line writer
+              (Printf.sprintf "specifiedByURL: %s,"
+                 (undefinedOrValueAsString typ.specifiedByUrl));
+            (match extensions with
+            | None -> ()
+            | Some extensions ->
+              CodeWriter.line writer
+                (Printf.sprintf "extensions: %s," extensions));
             CodeWriter.line writer
               (Printf.sprintf "parseValue: %s,"
                  (typeLocationModuleToAccesor encoderDecoderLoc ["parseValue"]));
@@ -470,6 +648,13 @@ let printInterfaceType ~(schemaState : schemaState) (typ : gqlInterface) =
                Printf.sprintf "get_%s()"
                  (GenerateSchemaUtils.capitalizeFirstChar id))
            |> String.concat ", "));
+      (match
+         printDirectiveExtensions schemaState
+           (DirectiveInterface typ.displayName)
+       with
+      | None -> ()
+      | Some extensions ->
+        CodeWriter.line writer (Printf.sprintf "extensions: %s," extensions));
       CodeWriter.add writer "fields: () => ";
       CodeWriter.add writer
         (printFields ~context:CtxInterface ~parentTypeName:typ.displayName
@@ -483,7 +668,8 @@ let printInterfaceType ~(schemaState : schemaState) (typ : gqlInterface) =
   CodeWriter.add writer "}";
   CodeWriter.contents writer
 
-let printInputObjectType ?(inputUnion = false) (typ : gqlInputObjectType) =
+let printInputObjectType ~schemaState ?(inputUnion = false)
+    (typ : gqlInputObjectType) =
   let writer = CodeWriter.create 512 in
   CodeWriter.line writer "{";
   CodeWriter.indented writer (fun () ->
@@ -492,15 +678,21 @@ let printInputObjectType ?(inputUnion = false) (typ : gqlInputObjectType) =
         (Printf.sprintf "description: %s,"
            (descriptionAsString typ.description));
       CodeWriter.add writer "fields: () => ";
-      CodeWriter.add writer (printInputObjectFields typ.fields);
-      if inputUnion then (
+      CodeWriter.add writer
+        (printInputObjectFields ~schemaState ~parentTypeName:typ.displayName
+           typ.fields);
+      match
+        printDirectiveExtensions ~oneOf:inputUnion schemaState
+          (DirectiveInputObject typ.displayName)
+      with
+      | None -> CodeWriter.newline writer
+      | Some extensions ->
         CodeWriter.line writer ",";
-        CodeWriter.line writer "extensions: {oneOf: true}")
-      else CodeWriter.newline writer);
+        CodeWriter.line writer (Printf.sprintf "extensions: %s" extensions));
   CodeWriter.add writer "}";
   CodeWriter.contents writer
 
-let printUnionType (union : gqlUnion) =
+let printUnionType ~schemaState (union : gqlUnion) =
   let writer = CodeWriter.create 512 in
   CodeWriter.line writer "{";
   CodeWriter.indented writer (fun () ->
@@ -508,6 +700,12 @@ let printUnionType (union : gqlUnion) =
       CodeWriter.line writer
         (Printf.sprintf "description: %s,"
            (descriptionAsString union.description));
+      (match
+         printDirectiveExtensions schemaState (DirectiveUnion union.displayName)
+       with
+      | None -> ()
+      | Some extensions ->
+        CodeWriter.line writer (Printf.sprintf "extensions: %s," extensions));
       CodeWriter.line writer
         (Printf.sprintf "types: () => [%s],"
            (union.types
@@ -781,7 +979,8 @@ let printSchemaJsFile schemaState processSchema ~interfaceModulePrefix =
   |> iterHashtblAlphabetically (fun _name (scalar : gqlScalar) ->
       addWithNewLine
         (Printf.sprintf "let scalar_%s = GraphQLScalar.make(%s)"
-           scalar.displayName (printScalar scalar)));
+           scalar.displayName
+           (printScalar ~schemaState scalar)));
   addWithNewLine "";
 
   (* Print all enums. These won't have any other dependencies. *)
@@ -794,17 +993,32 @@ let printSchemaJsFile schemaState processSchema ~interfaceModulePrefix =
           CodeWriter.line code
             (Printf.sprintf "description: %s,"
                (descriptionAsString enum.description));
+          (match
+             printDirectiveExtensions schemaState
+               (DirectiveEnum enum.displayName)
+           with
+          | None -> ()
+          | Some extensions ->
+            CodeWriter.line code (Printf.sprintf "extensions: %s," extensions));
           CodeWriter.line code "values: {";
           CodeWriter.indented code (fun () ->
               enum.values
               |> List.iter (fun (value : gqlEnumValue) ->
+                  let extensions =
+                    printDirectiveExtensions schemaState
+                      (DirectiveEnumValue
+                         {enumName = enum.displayName; valueName = value.value})
+                  in
                   CodeWriter.line code
                     (Printf.sprintf
                        "\"%s\": {GraphQLEnumType.value: \"%s\", description: \
-                        %s, deprecationReason: %s},"
+                        %s, deprecationReason: %s%s},"
                        value.value value.value
                        (descriptionAsString value.description)
-                       (undefinedOrValueAsString value.deprecationReason))));
+                       (undefinedOrValueAsString value.deprecationReason)
+                       (match extensions with
+                       | None -> ""
+                       | Some extensions -> ", extensions: " ^ extensions))));
           CodeWriter.line code "}->makeEnumValues,");
       CodeWriter.line code "})";
       CodeWriter.blankLine code);
@@ -950,7 +1164,7 @@ let printSchemaJsFile schemaState processSchema ~interfaceModulePrefix =
       addWithNewLine
         (Printf.sprintf "input_%s.contents = GraphQLInputObjectType.make(%s)"
            typ.displayName
-           (typ |> printInputObjectType)));
+           (typ |> printInputObjectType ~schemaState)));
 
   schemaState.inputUnions
   |> iterHashtblAlphabetically (fun _name (typ : gqlInputUnionType) ->
@@ -958,15 +1172,32 @@ let printSchemaJsFile schemaState processSchema ~interfaceModulePrefix =
         (Printf.sprintf
            "inputUnion_%s.contents = GraphQLInputObjectType.make(%s)"
            typ.displayName
-           (typ |> inputUnionToInputObj |> printInputObjectType ~inputUnion:true)));
+           (typ |> inputUnionToInputObj
+           |> printInputObjectType ~schemaState ~inputUnion:true)));
 
   schemaState.unions
   |> iterHashtblAlphabetically (fun _name (union : gqlUnion) ->
       addWithNewLine
         (Printf.sprintf "union_%s.contents = GraphQLUnionType.make(%s)"
-           union.displayName (union |> printUnionType)));
+           union.displayName
+           (union |> printUnionType ~schemaState)));
+
+  if Hashtbl.length schemaState.directiveDefinitions > 0 then
+    CodeWriter.blankLine code;
+  schemaState.directiveDefinitions
+  |> iterHashtblAlphabetically
+       (fun _name (definition : gqlDirectiveDefinition) ->
+         addWithNewLine
+           (Printf.sprintf "let directive_%s = GraphQLDirective.make(%s)"
+              definition.name
+              (printDirectiveDefinition schemaState definition)));
 
   (* Print the schema gluing it all together. *)
+  let customDirectives =
+    hashtblToListAlphabetically schemaState.directiveDefinitions
+    |> List.map (fun (_name, (definition : gqlDirectiveDefinition)) ->
+        "directive_" ^ definition.name)
+  in
   let schemaTypes =
     (hashtblToListAlphabetically schemaState.types
     |> List.map (fun (_name, (typ : gqlObjectType)) ->
@@ -991,16 +1222,21 @@ let printSchemaJsFile schemaState processSchema ~interfaceModulePrefix =
   in
   let lastSchemaTypeIndex = List.length schemaTypes - 1 in
   CodeWriter.blankLine code;
-  CodeWriter.line code "let schema = GraphQLSchemaType.make({";
+  CodeWriter.line code "let schema = GraphQLSchemaType.makeConfig({";
   CodeWriter.indented code (fun () ->
-      CodeWriter.line code "\"query\": get_Query(),";
+      CodeWriter.line code "query: get_Query(),";
       (match schemaState.mutation with
       | None -> ()
-      | Some _ -> CodeWriter.line code "\"mutation\": get_Mutation(),");
+      | Some _ -> CodeWriter.line code "mutation: get_Mutation(),");
       (match schemaState.subscription with
       | None -> ()
-      | Some _ -> CodeWriter.line code "\"subscription\": get_Subscription(),");
-      CodeWriter.line code "\"types\": [";
+      | Some _ -> CodeWriter.line code "subscription: get_Subscription(),");
+      if customDirectives <> [] then
+        CodeWriter.line code
+          (Printf.sprintf
+             "directives: [...GraphQLDirective.specifiedDirectives, %s],"
+             (String.concat ", " customDirectives));
+      CodeWriter.line code "types: [";
       CodeWriter.indented code (fun () ->
           schemaTypes
           |> List.iteri (fun index schemaType ->
