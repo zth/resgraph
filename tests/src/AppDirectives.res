@@ -12,6 +12,7 @@ type cacheControl = {
 /** Repeatable labels for schema elements. */
 @gql.directive({
   locations: [
+    "SCHEMA",
     "SCALAR",
     "OBJECT",
     "FIELD_DEFINITION",
@@ -24,6 +25,11 @@ type cacheControl = {
   repeatable: true,
 })
 type tag = {name: string}
+
+/** The public ResGraph test schema. */
+@gql.annotate({name: "tag", args: {name: "schema"}})
+@gql.schema({query: "Query"})
+type publicSchema
 
 @gql.annotate({name: "tag", args: {name: "input"}})
 @gql.inputObject

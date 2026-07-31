@@ -272,6 +272,7 @@ printf '%b%s%b\n' "$successGreen" \
 
 node ./runtime-interface-returns.mjs
 node ./runtime-directives.mjs
+bash ./schema-marker.sh
 node ./runtime-oneof.mjs
 bash ./invalid-directives.sh
 ./invalid-interface-implements.sh

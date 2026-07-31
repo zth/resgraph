@@ -11,7 +11,15 @@ directive @cacheControl(
 """Repeatable labels for schema elements."""
 directive @tag(
   name: String!
-) repeatable on SCALAR | OBJECT | FIELD_DEFINITION | ARGUMENT_DEFINITION | ENUM | ENUM_VALUE | INPUT_OBJECT | INPUT_FIELD_DEFINITION
+) repeatable on SCHEMA | SCALAR | OBJECT | FIELD_DEFINITION | ARGUMENT_DEFINITION | ENUM | ENUM_VALUE | INPUT_OBJECT | INPUT_FIELD_DEFINITION
+
+
+"""The public ResGraph test schema."""
+schema @tag(name: "schema") {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
 
 
 """Custom scalar with specifiedByUrl coverage."""

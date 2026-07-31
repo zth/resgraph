@@ -1269,18 +1269,34 @@ let printSchemaJsFile schemaState processSchema ~interfaceModulePrefix =
   CodeWriter.blankLine code;
   CodeWriter.line code "let schema = GraphQLSchemaType.makeConfig({";
   CodeWriter.indented code (fun () ->
-      CodeWriter.line code "query: get_Query(),";
+      (match schemaState.schemaDefinition with
+      | Some {description = Some description} ->
+        CodeWriter.line code (Printf.sprintf "description: %S," description)
+      | Some _ | None -> ());
+      (match schemaState.query with
+      | None -> ()
+      | Some query ->
+        CodeWriter.line code
+          (Printf.sprintf "query: get_%s()," query.displayName));
       (match schemaState.mutation with
       | None -> ()
-      | Some _ -> CodeWriter.line code "mutation: get_Mutation(),");
+      | Some mutation ->
+        CodeWriter.line code
+          (Printf.sprintf "mutation: get_%s()," mutation.displayName));
       (match schemaState.subscription with
       | None -> ()
-      | Some _ -> CodeWriter.line code "subscription: get_Subscription(),");
+      | Some subscription ->
+        CodeWriter.line code
+          (Printf.sprintf "subscription: get_%s()," subscription.displayName));
       if customDirectives <> [] then
         CodeWriter.line code
           (Printf.sprintf
              "directives: [...GraphQLDirective.specifiedDirectives, %s],"
              (String.concat ", " customDirectives));
+      (match printDirectiveExtensions schemaState DirectiveSchema with
+      | None -> ()
+      | Some extensions ->
+        CodeWriter.line code (Printf.sprintf "extensions: %s," extensions));
       CodeWriter.line code "types: [";
       CodeWriter.indented code (fun () ->
           schemaTypes

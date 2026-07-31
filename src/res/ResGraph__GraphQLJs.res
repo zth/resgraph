@@ -230,6 +230,7 @@ module GraphQLSchemaType = {
   type t<'appContext>
 
   type config = {
+    description?: string,
     query: GraphQLObjectType.t,
     mutation?: GraphQLObjectType.t,
     subscription?: GraphQLObjectType.t,

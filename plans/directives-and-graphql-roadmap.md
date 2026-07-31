@@ -59,10 +59,10 @@ The directive foundation delivered on this branch includes:
 - Native OneOf input objects, introspection, and coercion on the supported
   graphql-js range without an Envelop validation plugin.
 
-The next directive slices are deliberately still open:
+The remaining directive follow-ups are deliberately narrower:
 
-- Add a schema marker for schema-level descriptions, root mappings, and
-  `SCHEMA` applications.
+- The schema marker now supplies schema-level descriptions, root mappings, and
+  `SCHEMA` applications in SDL and runtime metadata.
 - Resolver source parameters are correlated with CMT output, so
   `ARGUMENT_DEFINITION` applications, defaults, descriptions, and deprecations
   use normal parameter syntax. ReScript requires `@gql.description` rather
@@ -541,25 +541,25 @@ advantages and should remain central; they are not Grats gaps to copy.
 
 | Capability | ResGraph today | Recommended action | Priority |
 | --- | --- | --- | --- |
-| Custom directive definitions/applications | Foundation implemented for every CMT-visible type-system location; schema and resolver-argument applications remain | Add schema marker and source-correlated argument support | P0 follow-up |
+| Custom directive definitions/applications | Implemented across every type-system location, including schema and source-correlated resolver arguments | Add LSP/state projection and broader named-schema fixtures | Delivered/P1 tooling |
 | Runtime access to applied directives | Standard GraphQL Tools map and exact ordered ResGraph projection implemented | Add transformation recipes and expand multi-schema coverage | Delivered/P1 docs |
 | Argument defaults | Resolver source defaults are correlated, validated, and emitted in SDL/runtime configs | Add LSP/state projection and more nested-constant fixtures | Delivered/P1 tooling |
 | Argument descriptions/deprecations/directives | Parameter attributes populate enriched argument IR and ordered applications | Add completion/hover/definition support | Delivered/P1 tooling |
 | Input-field defaults | `@gql.default(const)` is validated and emitted in SDL/runtime input-field configs | Expand source tooling and nested-cycle diagnostics with the validation backstop | Delivered/P1 tooling |
 | `@specifiedBy` | Native `@specifiedBy("...")` emits SDL and `specifiedByURL` | Consider normalization through the generic annotation path | Delivered/P2 |
 | Standard OneOf | Native `isOneOf`, SDL, introspection, and coercion on `graphql@^16.11 || ^17`; no plugin required | Keep floor/latest compatibility coverage current | Delivered |
-| Schema definition metadata | No schema description, directives, or custom root mapping source | Add optional `@gql.schema` marker; custom roots can follow | P1 |
+| Schema definition metadata | Optional `@gql.schema` marker emits description, directives, and typed root mappings in SDL/runtime config | Extend editor metadata and Federation-oriented examples | Delivered/P1 tooling |
 | Type-system extensions | Field functions compose object/interface fields inside one ResGraph schema, but no general schema/scalar/union/enum/input extension model or external target | Model explicit/external extensions only when driven by migration/Federation use cases | P1/P2 |
 | Full schema validation | ResGraph has targeted native checks, but duplicates substantial spec logic and still lets some errors reach runtime | Export GraphQL AST/SDL and add `graphql-js` validation with coordinate-to-source translation | P0 |
 | SDL fidelity | Handwritten interpolation has multiple drift points. Union member descriptions are documented/emitted even though GraphQL has no union-member-description construct | Parse every emitted fixture; stop emitting unsupported member descriptions; centralize escaping | P0 |
 | Scalar coercion surface | Local magic `parseValue`/`serialize`; no explicit `parseLiteral` or per-schema configuration | Add `parseLiteral` and an explicit typed scalar-config option while preserving the ergonomic module convention | P1 |
-| Custom root type names | Conventional `Query`/`Mutation`/`Subscription` only | Add through the schema marker if a concrete integration needs it | P2 |
+| Custom root type names | `@gql.schema` maps query, mutation, and subscription to any authored object type | Add multi-schema fixtures and editor completion for mapping names | Delivered/P1 tooling |
 
 ### Gaps relative to Grats
 
 | Grats capability | ResGraph status | What to do | Priority |
 | --- | --- | --- | --- |
-| Directive definitions and generic annotations | Foundation implemented with records, standard directive map, and ordered ResGraph projection | Finish schema/argument locations and tooling | P0 follow-up |
+| Directive definitions and generic annotations | Definitions and applications cover all type-system locations with standard and ordered runtime projections | Finish tooling and transformation recipes | Delivered/P1 tooling |
 | Resolver argument defaults and metadata | Defaults, descriptions, deprecations, and directives implemented through source-AST correlation | Extend state/LSP data and code actions | Delivered/P1 tooling |
 | Generic object/interface/union/input materialization | Annotated generic named types are not deliberately monomorphized into distinct GraphQL types | Design deterministic specialization names and cycle-safe memoized materialization; start with connections/results | P1 |
 | Derived context values, including async | One configured context type only | Add `@gql.context` provider functions, dependency graph validation, cycle detection, and per-request memoization semantics | P1 |

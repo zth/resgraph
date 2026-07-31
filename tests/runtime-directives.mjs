@@ -6,8 +6,13 @@ import { schema } from "./src/__generated__/ResGraphSchema.mjs";
 
 const plain = value => JSON.parse(JSON.stringify(value));
 
-assert.doesNotThrow(() => parse(readFileSync("./src/__generated__/schema.graphql", "utf8")));
+const sdl = readFileSync("./src/__generated__/schema.graphql", "utf8");
+assert.doesNotThrow(() => parse(sdl));
 assert.deepEqual(validateSchema(schema), []);
+assert.equal(schema.description, "The public ResGraph test schema.");
+assert.equal(schema.getQueryType().name, "Query");
+assert.deepEqual(plain(getDirective(schema, schema, "tag")), [{name: "schema"}]);
+assert.match(sdl, /schema @tag\(name: "schema"\) \{/);
 
 const cacheControl = schema.getDirective("cacheControl");
 assert.ok(cacheControl);

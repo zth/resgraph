@@ -188,6 +188,15 @@ type gqlDirectiveDefinition = {
   typeLocation: typeLocationLoc;
 }
 
+type gqlSchemaDefinition = {
+  description: string option;
+  queryTypeName: string option;
+  mutationTypeName: string option;
+  subscriptionTypeName: string option;
+  loc: Location.t;
+  fileUri: Uri.t;
+}
+
 type gqlInterfaceIdentifier = {id: string; displayName: string}
 
 type explicitInterfaceImplementation = {
@@ -329,6 +338,7 @@ type schemaState = {
   mutable query: gqlObjectType option;
   mutable subscription: gqlObjectType option;
   mutable mutation: gqlObjectType option;
+  mutable schemaDefinition: gqlSchemaDefinition option;
   mutable diagnostics: (string * diagnostic) list;
 }
 
@@ -353,3 +363,4 @@ type gqlAttributes =
   | Union
   | Scalar
   | Directive
+  | Schema

@@ -1465,6 +1465,37 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                 }
           | Some None | None -> ()
         in
+        let registerSchemaDefinition () =
+          match schemaConfigFromAttributes ~schemaState ~env attributes with
+          | Some (Some config) -> (
+            match schemaState.schemaDefinition with
+            | Some existing ->
+              schemaState
+              |> addDiagnostic
+                   ~diagnostic:
+                     {
+                       loc = item.loc;
+                       fileUri = env.file.uri;
+                       message =
+                         Printf.sprintf
+                           "A schema marker already exists at `%s`. Only one \
+                            `@gql.schema` type is allowed."
+                           (Uri.toPath existing.fileUri);
+                     }
+            | None ->
+              schemaState.schemaDefinition <-
+                Some
+                  {
+                    description = attributesToDocstring attributes;
+                    queryTypeName = config.queryTypeName;
+                    mutationTypeName = config.mutationTypeName;
+                    subscriptionTypeName = config.subscriptionTypeName;
+                    loc = item.loc;
+                    fileUri = env.file.uri;
+                  };
+              registerDirectives DirectiveSchema)
+          | Some None | None -> ()
+        in
         (if List.length gqlImplementsAttributes > 0 then
            match (item.kind, gqlAttribute) with
            | Type ({kind = Record _}, _), Some (ObjectType | Interface) -> ()
@@ -1500,6 +1531,8 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
             ~schemaState ~env ~full ~debug intfStructure
         | Type ({kind = Abstract None; _}, _), Some Directive ->
           registerDirectiveDefinition []
+        | Type ({kind = Abstract None; _}, _), Some Schema ->
+          registerSchemaDefinition ()
         | Type ({kind = Record fields; _}, _), Some Directive ->
           let directiveName = nameFromAttribute attributes ~default:item.name in
           registerDirectiveDefinition
@@ -2030,6 +2063,16 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                     "This type is annotated with @gql.directive, but is not an \
                      abstract type or record. Directive records define typed \
                      arguments.";
+                }
+          | Some Schema ->
+            add
+              ~diagnostic:
+                {
+                  baseDiagnostic with
+                  message =
+                    "This type is annotated with @gql.schema, but is not an \
+                     abstract type. The schema marker must be declared as an \
+                     abstract type.";
                 }
           | Some (InterfaceResolver _) ->
             add

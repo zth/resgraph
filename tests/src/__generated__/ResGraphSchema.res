@@ -1528,7 +1528,7 @@ let directive_cacheControl = GraphQLDirective.make({
 let directive_tag = GraphQLDirective.make({
   name: "tag",
   description: "Repeatable labels for schema elements.",
-  locations: ["SCALAR", "OBJECT", "FIELD_DEFINITION", "ARGUMENT_DEFINITION", "ENUM", "ENUM_VALUE", "INPUT_OBJECT", "INPUT_FIELD_DEFINITION"],
+  locations: ["SCHEMA", "SCALAR", "OBJECT", "FIELD_DEFINITION", "ARGUMENT_DEFINITION", "ENUM", "ENUM_VALUE", "INPUT_OBJECT", "INPUT_FIELD_DEFINITION"],
   args: dict{
     "name": ({
       typ: Scalars.string->Scalars.toGraphQLType->nonNull,
@@ -1540,10 +1540,12 @@ let directive_tag = GraphQLDirective.make({
 })
 
 let schema = GraphQLSchemaType.makeConfig({
+  description: "The public ResGraph test schema.",
   query: get_Query(),
   mutation: get_Mutation(),
   subscription: get_Subscription(),
   directives: [...GraphQLDirective.specifiedDirectives, directive_cacheControl, directive_tag],
+  extensions: {directives: dict{"tag": [dict{"name": GraphQLLiteralValue.String("schema")}]}, resgraph: {appliedDirectives: [{name: "tag", args: dict{"name": GraphQLLiteralValue.String("schema")}}]}},
   types: [
     get_DirectiveExample()->GraphQLObjectType.toGraphQLType,
     get_ExplicitCompany()->GraphQLObjectType.toGraphQLType,

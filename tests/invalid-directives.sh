@@ -180,3 +180,30 @@ let broken = (
   ~value: string,
 ) => value
 RES
+
+run_fixture "schema-directive-location" 'does not include `SCHEMA`' <<'RES'
+@gql.directive({locations: ["OBJECT"]})
+type objectOnly
+
+@gql.annotate({name: "objectOnly"})
+@gql.schema
+type schemaMarker
+RES
+
+run_fixture "duplicate-schema-marker" 'Only one `@gql.schema` type is allowed' <<'RES'
+@gql.schema
+type firstSchemaMarker
+
+@gql.schema
+type secondSchemaMarker
+RES
+
+run_fixture "missing-schema-root" 'query root maps to `MissingQuery`' <<'RES'
+@gql.schema({query: "MissingQuery"})
+type schemaMarker
+RES
+
+run_fixture "invalid-schema-marker" 'schema marker must be declared as an abstract type' <<'RES'
+@gql.schema
+type schemaMarker = {value: string}
+RES

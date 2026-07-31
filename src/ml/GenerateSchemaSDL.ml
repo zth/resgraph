@@ -284,6 +284,20 @@ let printObjectType schemaState (typ : gqlObjectType) =
     (printFields ~schemaState ~parentTypeName:typ.displayName ~input:false
        typ.fields)
 
+let printSchemaDefinition schemaState (definition : gqlSchemaDefinition) =
+  let operation operationName = function
+    | None -> []
+    | Some (typ : gqlObjectType) ->
+      [Printf.sprintf "  %s: %s" operationName typ.displayName]
+  in
+  Printf.sprintf "%sschema%s {\n%s\n}"
+    (printDescription definition.description 0)
+    (printDirectiveApplications schemaState DirectiveSchema)
+    (operation "query" schemaState.query
+     @ operation "mutation" schemaState.mutation
+     @ operation "subscription" schemaState.subscription
+    |> String.concat "\n")
+
 let printSchemaSDL (schemaState : schemaState) =
   let code = Buffer.create 16384 in
   let addWithNewLine text =
@@ -302,6 +316,10 @@ let printSchemaSDL (schemaState : schemaState) =
   schemaState.directiveDefinitions
   |> iterHashtblAlphabetically (fun _ definition ->
       addSection (printDirectiveDefinition schemaState definition));
+
+  (match schemaState.schemaDefinition with
+  | None -> ()
+  | Some definition -> addSection (printSchemaDefinition schemaState definition));
 
   schemaState.scalars
   |> iterHashtblAlphabetically (fun _ (scalar : gqlScalar) ->
