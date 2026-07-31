@@ -256,11 +256,7 @@ let printUnion schemaState (union : gqlUnion) =
     (printDirectiveApplications schemaState (DirectiveUnion union.displayName))
     (union.types
     |> List.map (fun (v : gqlUnionMember) ->
-        Printf.sprintf "  | %s%s"
-          (match v.description with
-          | None -> ""
-          | Some desc -> Printf.sprintf "\"\"\"%s\"\"\" " desc)
-          v.displayName)
+        Printf.sprintf "  | %s" v.displayName)
     |> String.concat "\n")
 
 let printInterface schemaState (intf : gqlInterface) =

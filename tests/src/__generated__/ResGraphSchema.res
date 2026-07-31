@@ -117,6 +117,8 @@ let i_Ranked: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
 let get_Ranked = () => i_Ranked.contents
 let i_Searchable: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
 let get_Searchable = () => i_Searchable.contents
+let t_DescribedUnionPayload: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
+let get_DescribedUnionPayload = () => t_DescribedUnionPayload.contents
 let t_DirectiveExample: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_DirectiveExample = () => t_DirectiveExample.contents
 let t_ExplicitCompany: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
@@ -337,6 +339,10 @@ inputUnion_UpdatableString_conversionInstructions->Array.pushMany([
     makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
   ),
 ])
+let union_DescribedUnion: ref<GraphQLUnionType.t> = Obj.magic({"contents": null})
+let get_DescribedUnion = () => union_DescribedUnion.contents
+
+let union_DescribedUnion_resolveType = (v: AppDirectives.describedUnion) => switch v { | Described(_) => "DescribedUnionPayload"}
 
 let interface_CompanyHolder_resolveType = (v: Interface_companyHolder.Resolver.t) => resolveInterfaceTypename(v, ["ExplicitCompanyHolder"], "CompanyHolder", "Interface_companyHolder.Resolver.t")
 
@@ -510,6 +516,19 @@ i_Searchable.contents = GraphQLInterfaceType.make({
     }
   }->makeFields,
   resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Searchable_resolveType)
+})
+t_DescribedUnionPayload.contents = GraphQLObjectType.make({
+  name: "DescribedUnionPayload",
+  description: ?(None),
+  interfaces: [],
+  fields: () => {
+    "value": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["value"]})
+    }
+  }->makeFields
 })
 t_DirectiveExample.contents = GraphQLObjectType.make({
   name: "DirectiveExample",
@@ -1500,6 +1519,12 @@ inputUnion_UpdatableString.contents = GraphQLInputObjectType.make({
   isOneOf: true
 
 })
+union_DescribedUnion.contents = GraphQLUnionType.make({
+  name: "DescribedUnion",
+  description: ?(None),
+  types: () => [get_DescribedUnionPayload()],
+  resolveType: GraphQLUnionType.makeResolveUnionTypeFn(union_DescribedUnion_resolveType)
+})
 
 let directive_cacheControl = GraphQLDirective.make({
   name: "cacheControl",
@@ -1547,6 +1572,7 @@ let schema = GraphQLSchemaType.makeConfig({
   directives: [...GraphQLDirective.specifiedDirectives, directive_cacheControl, directive_tag],
   extensions: {directives: dict{"tag": [dict{"name": GraphQLLiteralValue.String("schema")}]}, resgraph: {appliedDirectives: [{name: "tag", args: dict{"name": GraphQLLiteralValue.String("schema")}}]}},
   types: [
+    get_DescribedUnionPayload()->GraphQLObjectType.toGraphQLType,
     get_DirectiveExample()->GraphQLObjectType.toGraphQLType,
     get_ExplicitCompany()->GraphQLObjectType.toGraphQLType,
     get_ExplicitCompanyHolder()->GraphQLObjectType.toGraphQLType,
@@ -1582,6 +1608,7 @@ let schema = GraphQLSchemaType.makeConfig({
     get_NullableNamed()->GraphQLInterfaceType.toGraphQLType,
     get_Ranked()->GraphQLInterfaceType.toGraphQLType,
     get_Searchable()->GraphQLInterfaceType.toGraphQLType,
+    get_DescribedUnion()->GraphQLUnionType.toGraphQLType,
     get_Res12Input()->GraphQLInputObjectType.toGraphQLType,
     get_UpdatableBool()->GraphQLInputObjectType.toGraphQLType,
     get_UpdatableFloat()->GraphQLInputObjectType.toGraphQLType,

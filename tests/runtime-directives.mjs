@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { getDirective, getDirectives } from "@graphql-tools/utils";
-import { execute, parse, validateSchema } from "graphql";
+import { buildSchema, execute, parse, validateSchema } from "graphql";
 import { schema } from "./src/__generated__/ResGraphSchema.mjs";
 
 const plain = value => JSON.parse(JSON.stringify(value));
 
 const sdl = readFileSync("./src/__generated__/schema.graphql", "utf8");
 assert.doesNotThrow(() => parse(sdl));
+assert.deepEqual(validateSchema(buildSchema(sdl)), []);
 assert.deepEqual(validateSchema(schema), []);
 assert.equal(schema.description, "The public ResGraph test schema.");
 assert.equal(schema.getQueryType().name, "Query");

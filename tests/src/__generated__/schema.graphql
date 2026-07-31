@@ -29,6 +29,10 @@ enum DirectiveStatus @tag(name: "enum") {
   Active @tag(name: "enum-value")
 }
 
+union DescribedUnion =
+  | DescribedUnionPayload
+
+
 input Res12InputInline {
 
   """Field doc on inline record."""
@@ -150,6 +154,10 @@ interface Ranked {
 interface Searchable {
   label(prefix: String): String!
   id: String!
+}
+
+type DescribedUnionPayload {
+  value: String!
 }
 
 type DirectiveExample @tag(name: "first") @cacheControl(maxAge: 30) @tag(name: "second") {

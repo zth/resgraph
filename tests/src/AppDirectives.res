@@ -45,6 +45,14 @@ type directiveInput = {
 type directiveStatus =
   | @gql.annotate({name: "tag", args: {name: "enum-value"}}) Active
 
+@gql.type
+type describedUnionPayload = {@gql.field value: string}
+
+@gql.union
+type describedUnion =
+  | /** This documents the ReScript constructor, not an SDL union member. */
+    Described(describedUnionPayload)
+
 @gql.annotate({name: "tag", args: {name: "first"}})
 @gql.annotate({name: "cacheControl", args: {maxAge: 30}})
 @gql.annotate({name: "tag", args: {name: "second"}})

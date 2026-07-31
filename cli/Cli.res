@@ -8,6 +8,15 @@ module JsExn = Js.Exn
 
 open PerfHooks.Performance
 
+module GraphQLValidation = {
+  type schema
+  type location = {line: int, column: int}
+  type error = {message: string, locations?: array<location>}
+
+  @module("graphql") external buildSchema: string => schema = "buildSchema"
+  @module("graphql") external validateSchema: schema => array<error> = "validateSchema"
+}
+
 let args = argv->Array.slice(~start=2)->Array.keepSome
 let argsList = args->List.fromArray
 
@@ -30,6 +39,36 @@ let printAuthorizationBaselineWarning = (authorization: option<Utils.authorizati
       `⚠️ Authorization baseline active: fields listed in ${baselinePath} are not protected by required authorization coverage.`,
     )
   }
+
+let validateGeneratedSdl = (schema: Utils.schemaConfig) => {
+  if !schema.dumpSchemaSdl {
+    true
+  } else {
+    let schemaPath = Path.resolve([schema.outputFolder, "schema.graphql"])
+    try {
+      let sdl = schemaPath->Fs.readFileSync->Buffer.toStringWithEncoding(StringEncoding.utf8)
+      let errors = sdl->GraphQLValidation.buildSchema->GraphQLValidation.validateSchema
+      errors->Array.forEach((error: GraphQLValidation.error) => {
+        let location = switch error.locations {
+        | Some(locations) if locations->Array.length > 0 =>
+          let location = locations->Array.get(0)->Option.getOrThrow(~message="GraphQL error location")
+          `:${location.line->Int.toString}:${location.column->Int.toString}`
+        | Some(_) | None => ""
+        }
+        Console.error(`${schemaPath}${location}: ${error.message}`)
+      })
+      errors->Array.length === 0
+    } catch {
+    | Exn.Error(error) =>
+      Console.error(`${schemaPath}: GraphQL SDL construction failed.`)
+      Console.error(error)
+      false
+    | _ =>
+      Console.error(`${schemaPath}: GraphQL SDL validation failed.`)
+      false
+    }
+  }
+}
 
 let helpText = `
 **ResGraph v0.1.0 CLI**
@@ -157,8 +196,15 @@ let buildSchemas = (config: Utils.config, schemas: array<Utils.schemaConfig>) =>
       switch Utils.callPrivateCli(GenerateSchema(schema)) {
       | Completion(_) | Hover(_) | Definition(_) | FindDefinition(_) | NotInitialized => ()
       | Success(_) =>
-        printBuildTime(schema, performance->now -. timeStart, ~showSchemaName)
-        printAuthorizationBaselineWarning(schema.authorization)
+        if validateGeneratedSdl(schema) {
+          printBuildTime(schema, performance->now -. timeStart, ~showSchemaName)
+          printAuthorizationBaselineWarning(schema.authorization)
+        } else {
+          if showSchemaName {
+            Console.error(`[${schema.name}] Generated GraphQL schema validation failed.`)
+          }
+          hadError := true
+        }
       | Error({errors}) =>
         if showSchemaName {
           Console.error(`[${schema.name}] Schema generation failed.`)
