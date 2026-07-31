@@ -10,10 +10,13 @@ build-resgraph-binary-dev:
 	dune build
 	cp _build/install/default/bin/resgraph bin/dev/resgraph.exe
 
+build-cli:
+	npm run build
+
 build-tests:
 	make -C tests build
 
-build: build-resgraph-binary build-tests
+build: build-resgraph-binary build-cli build-tests
 
 dce: build-resgraph-binary
 	opam exec reanalyze.exe -- -dce-cmt _build -suppress vendor
@@ -21,7 +24,7 @@ dce: build-resgraph-binary
 format:
 	dune build @fmt --auto-promote
 
-test-resgraph-binary: build-resgraph-binary
+test-resgraph-binary: build-resgraph-binary build-cli
 	make -C tests test
 
 test: test-resgraph-binary
@@ -36,4 +39,4 @@ checkformat:
 
 .DEFAULT_GOAL := build
 
-.PHONY: build-resgraph-binary build-resgraph-binary-dev build-tests dce clean format test
+.PHONY: build-resgraph-binary build-resgraph-binary-dev build-cli build-tests dce clean format test
