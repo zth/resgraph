@@ -76,6 +76,7 @@ This is the CLI of ResGraph. All configuration is read from \`resgraph.json\`.
 Available commands:
 
 init                            | Validate the project configuration.
+check                           | Validate resgraph.json and referenced paths.
 build [schema]                  | Build all schemas, or one named schema.
 authorization baseline [schema] | Create or update a schema's authorization baseline.
 watch [schema]                  | Watch all schemas, or one named schema.
@@ -281,6 +282,10 @@ try {
     } else {
       Console.log("✅ Project already set up correctly.")
     }
+  | list{"check"} =>
+    let config = readConfig()
+    validateConfig(config)
+    Console.log("✅ ResGraph configuration is valid.")
   | list{"authorization", "baseline"} => generateAuthorizationBaseline(None)
   | list{"authorization", "baseline", schemaName} => generateAuthorizationBaseline(Some(schemaName))
   | list{"build"} =>

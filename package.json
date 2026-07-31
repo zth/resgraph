@@ -54,6 +54,7 @@
     "compat.d.ts",
     "dist/Cli.mjs",
     "rescript.json",
+    "resgraph.schema.json",
     "package.json",
     "LICENSE",
     "README.md",

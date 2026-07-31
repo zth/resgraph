@@ -572,7 +572,7 @@ advantages and should remain central; they are not Grats gaps to copy.
 | Emitted metadata | ResGraph already emits state/definition and authorization metadata | Extend the existing state format with directives/arguments/source coordinates instead of adding a parallel artifact | P1 |
 | Generated client enum module | ReScript variants already are runtime/client-usable in the authoring language | No direct port needed; document client-codegen integration instead | Not needed |
 | `--fix` and code actions | Diagnostics/completion/hover exist, but no general fix workflow | Add focused fixes for attribute spelling, obsolete OneOf setup, and safe migrations after syntax stabilizes | P2 |
-| Schema headers/config schema | Limited output customization; TODO includes config JSON schema | Add a JSON Schema and `check` command before cosmetic header options | P2 |
+| Schema headers/config schema | Shipped JSON Schema covers legacy/named configs and `resgraph check` validates semantic/path constraints | Consider cosmetic generated-header options only with a concrete use case | Delivered/P2 headers |
 
 ### Broader GraphQL ecosystem opportunities
 
