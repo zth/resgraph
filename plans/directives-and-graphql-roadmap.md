@@ -34,13 +34,13 @@ The GraphQL runtime contract is now modernized: ResGraph peers on
 objects without the obsolete validation plugin. OneOf is part of the September
 2025 GraphQL specification.
 
-After directives, the biggest user-visible gaps relative to Grats are argument
-and input defaults, argument descriptions/deprecations, generic type
-materialization, derived context, non-subscription `AsyncIterable` fields for
-`@stream`, root-field shorthand, and smoother incremental schema integration.
-The biggest general GraphQL gaps are full type-system directive coverage,
-schema definitions/extensions, scalar `specifiedByURL`/`parseLiteral`, and a
-more comprehensive schema-validation/fidelity pass.
+After this stacked branch, the two substantial user-visible Grats gaps are
+generic type materialization and derived context providers. The remaining
+general GraphQL work is intentionally integration-led: explicit external/type
+extensions, optional Federation support, and source-remapped validation for
+schemas whose SDL is not persisted. Defaults, argument metadata, async list
+inference, root shorthand, schema definitions, scalar coercion, and the full
+type-system directive location set are delivered here.
 
 ### Implementation status
 
@@ -59,21 +59,27 @@ The directive foundation delivered on this branch includes:
 - Native OneOf input objects, introspection, and coercion on the supported
   graphql-js range without an Envelop validation plugin.
 
-The remaining directive follow-ups are deliberately narrower:
+The stacked roadmap branch additionally delivers:
 
-- The schema marker now supplies schema-level descriptions, root mappings, and
-  `SCHEMA` applications in SDL and runtime metadata.
+- A schema marker for descriptions, root mappings, and `SCHEMA` applications.
 - Resolver source parameters are correlated with CMT output, so
   `ARGUMENT_DEFINITION` applications, defaults, descriptions, and deprecations
   use normal parameter syntax. ReScript requires `@gql.description` rather
   than a parameter doc comment.
-- Decide whether generic annotations should normalize built-ins such as
-  `deprecated`.
-- Add directive-aware LSP/state metadata, named/multi-schema coverage, and a
-  full `graphql-js` validation/AST backstop with source-coordinate mapping.
+- Native OneOf, input defaults, root-field shorthand, non-subscription async
+  list inference, and full scalar literal coercion.
+- `graphql-js` SDL construction/validation in emitted-SDL builds and fixtures,
+  plus removal of invalid union-member description syntax.
+- Argument/directive hover and definition support from persisted source
+  metadata.
+- A shipped schema-merging compatibility plugin and config JSON Schema/check
+  command.
 
-Part II remains the backlog for the Grats and broader GraphQL gaps to tackle
-after this foundation.
+The intentionally separate follow-ups are generic specialization and derived
+context providers, both of which change type identity and generated runtime
+lifecycle rather than merely adding schema metadata. General external-type
+extensions and Federation should follow concrete integration work instead of
+being hidden inside the directive core.
 
 ## Part I: directive support
 
@@ -541,14 +547,14 @@ advantages and should remain central; they are not Grats gaps to copy.
 
 | Capability | ResGraph today | Recommended action | Priority |
 | --- | --- | --- | --- |
-| Custom directive definitions/applications | Implemented across every type-system location, including schema and source-correlated resolver arguments | Add LSP/state projection and broader named-schema fixtures | Delivered/P1 tooling |
+| Custom directive definitions/applications | Implemented across every type-system location, including schema and source-correlated resolver arguments | Add broader named-schema fixtures and code actions | Delivered/P2 tooling |
 | Runtime access to applied directives | Standard GraphQL Tools map and exact ordered ResGraph projection implemented | Add transformation recipes and expand multi-schema coverage | Delivered/P1 docs |
-| Argument defaults | Resolver source defaults are correlated, validated, and emitted in SDL/runtime configs | Add LSP/state projection and more nested-constant fixtures | Delivered/P1 tooling |
+| Argument defaults | Resolver source defaults are correlated, validated, emitted, and source-addressable in tooling | Add more nested-constant fixtures | Delivered |
 | Argument descriptions/deprecations/directives | Parameter attributes populate enriched argument IR; `Type.field.argument` hover/definition resolves source metadata | Add targeted completion/code actions | Delivered/P2 tooling |
 | Input-field defaults | `@gql.default(const)` is validated and emitted in SDL/runtime input-field configs | Expand source tooling and nested-cycle diagnostics with the validation backstop | Delivered/P1 tooling |
 | `@specifiedBy` | Native `@specifiedBy("...")` emits SDL and `specifiedByURL` | Consider normalization through the generic annotation path | Delivered/P2 |
 | Standard OneOf | Native `isOneOf`, SDL, introspection, and coercion on `graphql@^16.11 || ^17`; no plugin required | Keep floor/latest compatibility coverage current | Delivered |
-| Schema definition metadata | Optional `@gql.schema` marker emits description, directives, and typed root mappings in SDL/runtime config | Extend editor metadata and Federation-oriented examples | Delivered/P1 tooling |
+| Schema definition metadata | Optional `@gql.schema` marker emits description, directives, and typed root mappings in SDL/runtime config | Add Federation-oriented examples in a separate layer | Delivered |
 | Type-system extensions | Field functions compose object/interface fields inside one ResGraph schema, but no general schema/scalar/union/enum/input extension model or external target | Model explicit/external extensions only when driven by migration/Federation use cases | P1/P2 |
 | Full schema validation | Targeted native checks are backed by `graphql-js` SDL construction and validation in fixtures and CLI builds that emit SDL | Preserve validation for non-dumped SDL and translate SDL coordinates to author sources | P0 in progress |
 | SDL fidelity | Generated fixtures are parsed and constructed by `graphql-js`; unsupported union-member descriptions are no longer emitted | Centralize escaping and expand fixture coverage | P0 in progress |
@@ -582,10 +588,10 @@ an interoperable hook or documented integration rather than built-in policy.
 | Area | Missing piece | Recommended response | Priority |
 | --- | --- | --- | --- |
 | Apollo Federation/subgraphs | No schema `@link`, federation directives, entity union/reference resolver, or subgraph SDL workflow | Directives/schema annotations first; then a separate `ResGraphFederation` layer with entity types/resolvers and conformance fixtures | P1/P2 |
-| Schema transforms and policy directives | Applied metadata is unavailable to standard transformers | Standard directive map plus ordered projection and examples for cost, cache, auth, and formatting transforms | P0/P1 |
+| Schema transforms and policy directives | Standard GraphQL Tools map plus ordered ResGraph projection are available to transforms | Add cost/cache/formatting recipes without implicit compiler behavior | Delivered/P1 docs |
 | Incremental delivery | Subscriptions and non-subscription AsyncIterable list inference are supported; `@defer`/`@stream` transport remains server-driven | Add Yoga incremental-delivery integration tests; avoid owning transport protocol | Delivered/P1 integration |
 | Persisted operations, complexity limits, tracing, response caching | Not compiler/type-system features | Improve Yoga/Envelop bindings and recipes; directives can carry static cost/cache metadata | P2/docs |
-| Scalar ecosystem | No specification URLs and a narrower coercion API | `specifiedBy`, `parseLiteral`, scalar registry examples, and typed external configs | P0/P1 |
+| Scalar ecosystem | Specification URLs and all three coercion hooks are supported | Add scalar-registry examples and explicit configs only when needed | Delivered/P2 docs |
 | External schemas/stitching | Shipped compatibility glue handles merged resolver sources; duplicate definitions remain necessary | Test a full `mergeSchemas` fixture, then evaluate external type placeholders/resolver-map output | Delivered/P1 external types |
 | Emerging nullability | No semantic-null metadata or nullability-assertion experiments | Build on generic directives; keep opt-in and track the active RFC rather than hard-coding draft syntax | Experimental |
 | Client/tooling interoperability | State is ResGraph-specific and SDL can omit metadata | Valid SDL/AST, stable schema coordinates, directive extensions, and documented GraphQL Code Generator/Relay flows | P1 |
@@ -596,36 +602,74 @@ an interoperable hook or documented integration rather than built-in policy.
 
 1. ~~Declare/test the `graphql` peer range and modernize OneOf.~~ Delivered on
    the stacked roadmap branch.
-2. Complete the new constant-value/input-value foundation for resolver
-   argument metadata.
-3. Finish schema/argument directive locations.
-4. Add SDL/executable parity tests and a `graphql-js` validation backstop.
-5. Fix invalid/non-standard SDL emission, beginning with union member
-   descriptions and literal escaping.
+2. ~~Complete the constant/input-value foundation and resolver metadata.~~
+3. ~~Finish schema/argument directive locations.~~
+4. ~~Add SDL/executable parity tests and a `graphql-js` backstop.~~ Delivered
+   for fixtures and CLI builds that emit SDL; non-dumped SDL/source remapping is
+   the remaining hardening slice.
+5. ~~Remove invalid union-member description emission.~~ Continue centralizing
+   escaping as emitters are touched.
 
 This group should land before building Federation or more directive-based
 features. Otherwise each new feature adds another one-off metadata path.
 
 #### P1: close the practical Grats gaps
 
-1. ~~Argument/input defaults, descriptions, deprecations, and annotations.~~
-   Compiler/runtime support delivered; tooling projection remains.
-2. Root-field shorthand.
-3. Non-subscription AsyncIterable/list support for `@stream`.
+1. ~~Argument/input defaults, descriptions, deprecations, annotations, and
+   source tooling.~~
+2. ~~Root-field shorthand.~~
+3. ~~Non-subscription AsyncIterable/list support for `@stream`.~~
 4. Generic type specialization for high-value patterns.
 5. Derived context providers with explicit memoization behavior.
-6. Full scalar coercion/configuration.
-7. Supported schema-merging compatibility and external-schema migration tests.
-8. Directive-aware tooling/state metadata.
+6. ~~Full scalar coercion hooks.~~ Explicit config remains a P2 escape hatch.
+7. ~~Ship and test schema-merging compatibility.~~ External type placeholders
+   remain integration-driven.
+8. ~~Directive-aware tooling/state metadata.~~
 
 #### P2: ecosystem breadth and polish
 
 1. Federation as an optional layer.
 2. Resolver-map output if migration users need it.
 3. Opt-in semantic nullability experiments.
-4. CLI `check`, config JSON Schema, and safe code actions.
-5. Custom root names and broader explicit type extensions when a real use case
-   requires them.
+4. ~~CLI `check` and config JSON Schema.~~ Safe code actions remain.
+5. ~~Custom root names.~~ Broader explicit type extensions require a real use
+   case.
+
+### Specifications for the next focused PRs
+
+#### Generic specialization
+
+Treat an annotated generic declaration as a template, not as a schema type by
+itself. Materialize it only when a concrete instantiation is reachable from a
+root or another materialized type. The specialization key must contain the
+declaration's stable source identity plus recursively normalized concrete type
+arguments. Insert a placeholder in the memo table before expanding fields so
+recursive types terminate. Generate a deterministic GraphQL name from the base
+name and argument names, reject collisions with an actionable `@as` override,
+and persist the specialization-to-source mapping for hover/definition. Start
+with object and input-object records; add interfaces/unions only after variance
+and resolver dispatch have dedicated fixtures.
+
+#### Derived context providers
+
+Use `@gql.context` on a function whose return type is the provided context
+identity. Labelled parameters may request the configured base context or other
+provided contexts. Build and validate the provider dependency DAG before field
+argument inference, reject duplicate providers and cycles at their source
+locations, and make asyncness part of the provider IR. Generated resolvers must
+memoize each value or in-flight promise once per request context so sibling
+fields share work and failures consistently. Provider calls should remain
+explicit generated code; no process-global value cache and no hidden server
+plugin.
+
+#### External schemas and Federation
+
+Keep the shipped compatibility plugin as the migration baseline. Add external
+type placeholders only with a real merged-schema fixture that proves ownership,
+resolver, and validation semantics. Build Federation as a separate optional
+layer over schema directives (`@link`, `@key`, and friends), entity reference
+resolution, and subgraph SDL conformance; do not teach the generic directive
+engine Apollo-specific runtime behavior.
 
 ### What not to copy from Grats verbatim
 
