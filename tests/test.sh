@@ -273,6 +273,29 @@ printf '%b%s%b\n' "$successGreen" \
 node ./runtime-interface-returns.mjs
 node ./runtime-compat.mjs
 node ./runtime-directives.mjs
+
+argumentHover=$(../bin/dev/resgraph.exe hover-graphql ./src Query.directiveArgumentMetadata.limit)
+if [[ $argumentHover != *'Maximum number of results.'* ]] || \
+  [[ $argumentHover != *'Deprecated: Use pageSize instead.'* ]]; then
+  printf '%b%s\n%s\n%b\n' "$warningYellow" \
+    '⚠️ Resolver argument hover omitted source metadata.' "$argumentHover" "$reset"
+  exit 1
+fi
+argumentDefinition=$(../bin/dev/resgraph.exe definition-graphql ./src Query.directiveArgumentMetadata.limit)
+if [[ $argumentDefinition != *'AppDirectives.res'* ]]; then
+  printf '%b%s\n%s\n%b\n' "$warningYellow" \
+    '⚠️ Resolver argument definition did not resolve to source.' "$argumentDefinition" "$reset"
+  exit 1
+fi
+directiveHover=$(../bin/dev/resgraph.exe hover-graphql ./src @tag)
+if [[ $directiveHover != *'Directive `@tag` is defined by ResGraph.'* ]]; then
+  printf '%b%s\n%s\n%b\n' "$warningYellow" \
+    '⚠️ Directive hover did not resolve its definition.' "$directiveHover" "$reset"
+  exit 1
+fi
+printf '%b%s%b\n' "$successGreen" \
+  '✅ Argument and directive tooling resolves enriched schema state.' "$reset"
+
 bash ./schema-marker.sh
 node ./runtime-oneof.mjs
 bash ./invalid-directives.sh

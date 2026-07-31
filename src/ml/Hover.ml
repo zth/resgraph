@@ -49,6 +49,21 @@ let makeTypeHoverText ~typename ~(typeLocation : typeLocationLoc) =
   ^ Markdown.goToDefinitionText ~loc:typeLocation.loc
       ~fileUri:typeLocation.fileUri
 
+let fieldsOfHoverType = function
+  | ObjectType {fields} | Interface {fields} | InputObject {fields} ->
+    Some fields
+  | Enum _ | InputUnion _ | Union _ | Scalar _ -> None
+
+let findField ~schemaState ~typename ~fieldName =
+  match findGqlType typename ~schemaState with
+  | None -> None
+  | Some typ -> (
+    match fieldsOfHoverType typ with
+    | None -> None
+    | Some fields ->
+      fields |> List.find_opt (fun (field : gqlField) -> field.name = fieldName)
+    )
+
 let hover ~path:_ ~pos:_ ~debug:_ =
   Printf.printf "{\"status\": \"Hover\", \"item\": %s}" Protocol.null
 
@@ -61,7 +76,7 @@ let hoverGraphQL ~path ~hoverHint ~schemaName =
     in
     let hoverStr =
       match hoverHint |> String.split_on_char '.' with
-      | [typename] -> (
+      | [typename] when not (String.starts_with typename ~prefix:"@") -> (
         match findGqlType typename ~schemaState with
         | None -> Protocol.null
         | Some (Scalar typ) ->
@@ -116,6 +131,51 @@ let hoverGraphQL ~path ~hoverHint ~schemaName =
               ^ Markdown.divider
               ^ Markdown.goToDefinitionText ~loc ~fileUri))
         | _ -> Protocol.null)
+      | [typename; fieldName; argumentName] -> (
+        match findField ~schemaState ~typename ~fieldName with
+        | None -> Protocol.null
+        | Some field -> (
+          match
+            field.args
+            |> List.find_opt (fun (argument : gqlArg) ->
+                argument.name = argumentName)
+          with
+          | None -> Protocol.null
+          | Some argument ->
+            let details =
+              [
+                Some
+                  (Printf.sprintf "Argument `%s.%s(%s:)` has type `%s`."
+                     typename fieldName argumentName
+                     (GenerateSchemaValidation.graphqlTypeToString argument.typ));
+                Option.map
+                  (fun description -> "\n\n" ^ description)
+                  argument.description;
+                Option.map
+                  (fun reason -> "\n\nDeprecated: " ^ reason)
+                  argument.deprecationReason;
+              ]
+              |> List.filter_map Fun.id |> String.concat ""
+            in
+            Protocol.stringifyHover
+              (details ^ "\n" ^ Markdown.divider
+              ^ Markdown.goToDefinitionText ~loc:argument.loc
+                  ~fileUri:argument.fileUri)))
+      | [directiveName] when String.starts_with directiveName ~prefix:"@" -> (
+        let directiveName =
+          String.sub directiveName 1 (String.length directiveName - 1)
+        in
+        match
+          Hashtbl.find_opt schemaState.directiveDefinitions directiveName
+        with
+        | None -> Protocol.null
+        | Some definition ->
+          Protocol.stringifyHover
+            (Printf.sprintf "Directive `@%s` is defined by ResGraph.\n"
+               directiveName
+            ^ Markdown.divider
+            ^ Markdown.goToDefinitionText ~loc:definition.typeLocation.loc
+                ~fileUri:definition.typeLocation.fileUri))
       | _ -> Protocol.null
     in
     Printf.sprintf "{\"status\": \"Hover\", \"item\": %s}" hoverStr
@@ -129,7 +189,7 @@ let definitionGraphQL ~path ~definitionHint ~schemaName =
     in
     let definitionLoc =
       match definitionHint |> String.split_on_char '.' with
-      | [typename] -> (
+      | [typename] when not (String.starts_with typename ~prefix:"@") -> (
         match findGqlType typename ~schemaState with
         | Some (Scalar {typeLocation = {fileUri; loc}})
         | Some (ObjectType {syntheticTypeLocation = Some {fileUri; loc}})
@@ -178,6 +238,50 @@ let definitionGraphQL ~path ~definitionHint ~schemaName =
                   };
               })
         | _ -> None)
+      | [typename; fieldName; argumentName] ->
+        Option.bind (findField ~schemaState ~typename ~fieldName) (fun field ->
+            field.args
+            |> List.find_opt (fun (argument : gqlArg) ->
+                argument.name = argumentName))
+        |> Option.map (fun (argument : gqlArg) ->
+            {
+              Protocol.uri = argument.fileUri |> Uri.toString;
+              range =
+                {
+                  start =
+                    (let line, character =
+                       argument.loc.loc_start |> Pos.ofLexing
+                     in
+                     {line; character});
+                  end_ =
+                    (let line, character =
+                       argument.loc.loc_end |> Pos.ofLexing
+                     in
+                     {line; character});
+                };
+            })
+      | [directiveName] when String.starts_with directiveName ~prefix:"@" ->
+        let directiveName =
+          String.sub directiveName 1 (String.length directiveName - 1)
+        in
+        Hashtbl.find_opt schemaState.directiveDefinitions directiveName
+        |> Option.map (fun (definition : gqlDirectiveDefinition) ->
+            {
+              Protocol.uri = definition.typeLocation.fileUri |> Uri.toString;
+              range =
+                {
+                  start =
+                    (let line, character =
+                       definition.typeLocation.loc.loc_start |> Pos.ofLexing
+                     in
+                     {line; character});
+                  end_ =
+                    (let line, character =
+                       definition.typeLocation.loc.loc_end |> Pos.ofLexing
+                     in
+                     {line; character});
+                };
+            })
       | _ -> None
     in
     Printf.sprintf "{\"status\": \"Definition\", \"item\": %s}"
