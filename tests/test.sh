@@ -271,6 +271,8 @@ printf '%b%s%b\n' "$successGreen" \
   '✅ Invalid incremental cache is rebuilt safely.' "$reset"
 
 node ./runtime-interface-returns.mjs
+node ./runtime-directives.mjs
+bash ./invalid-directives.sh
 ./invalid-interface-implements.sh
 
 ./multi-schema-test.sh

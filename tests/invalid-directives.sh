@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cleanup_all() {
+  rm -rf .tmp-directive-*.??????
+}
+trap cleanup_all EXIT
+
+run_fixture() {
+  local name="$1"
+  local expected="$2"
+  local tmp_dir
+  tmp_dir="$(mktemp -d ".tmp-directive-${name}.XXXXXX")"
+
+  cleanup() {
+    rm -rf "$tmp_dir"
+  }
+  trap cleanup RETURN
+
+  mkdir -p "$tmp_dir/src"
+
+  cat > "$tmp_dir/rescript.json" <<'JSON'
+{
+  "name": "resgraph-invalid-directive-test",
+  "uncurried": true,
+  "package-specs": {
+    "in-source": true,
+    "module": "esmodule",
+    "suffix": ".mjs"
+  },
+  "sources": [
+    {"dir": "../../src/res", "subdirs": true},
+    {"dir": "src", "subdirs": true}
+  ],
+  "compiler-flags": ["-w -33-44"],
+  "dependencies": ["@glennsl/rescript-fetch", "rescript-nodejs"]
+}
+JSON
+
+  cat > "$tmp_dir/src/Query.res" <<'RES'
+@gql.type
+type query
+RES
+
+  cat > "$tmp_dir/src/ResGraphContext.res" <<'RES'
+type t = unit
+RES
+
+  cat > "$tmp_dir/src/App.res" <<'RES'
+@@warning("-32")
+
+RES
+  cat >> "$tmp_dir/src/App.res"
+
+  (
+    cd "$tmp_dir"
+    ../node_modules/.bin/rescript
+  )
+
+  local output
+  set +e
+  output="$(../bin/dev/resgraph.exe generate-schema "$tmp_dir/src" "$tmp_dir/src/__generated__" true)"
+  set -e
+
+  if ! printf "%s" "$output" | grep -q '"status": "Error"'; then
+    printf "Expected directive fixture %s to fail, but it succeeded.\n%s\n" "$name" "$output"
+    exit 1
+  fi
+
+  if ! printf "%s" "$output" | grep -q "$expected"; then
+    printf "Expected directive fixture %s to include diagnostic %s, got:\n%s\n" "$name" "$expected" "$output"
+    exit 1
+  fi
+}
+
+run_fixture "unknown" 'Directive `@missing` is not defined' <<'RES'
+@gql.annotate({name: "missing"})
+@gql.type
+type broken = {@gql.field value: string}
+
+@gql.field
+let broken = (_: Query.query): broken => {value: "broken"}
+RES
+
+run_fixture "wrong-location" 'does not include `OBJECT`' <<'RES'
+@gql.directive({locations: ["FIELD_DEFINITION"]})
+type fieldOnly
+
+@gql.annotate({name: "fieldOnly"})
+@gql.type
+type broken = {@gql.field value: string}
+
+@gql.field
+let broken = (_: Query.query): broken => {value: "broken"}
+RES
+
+run_fixture "missing-argument" 'requires argument `value`' <<'RES'
+@gql.directive({locations: ["OBJECT"]})
+type requiresValue = {value: int}
+
+@gql.annotate({name: "requiresValue"})
+@gql.type
+type broken = {@gql.field value: string}
+
+@gql.field
+let broken = (_: Query.query): broken => {value: "broken"}
+RES
+
+run_fixture "wrong-argument-type" 'Invalid value for `@typed(value:)`' <<'RES'
+@gql.directive({locations: ["OBJECT"]})
+type typed = {value: int}
+
+@gql.annotate({name: "typed", args: {value: "not-an-int"}})
+@gql.type
+type broken = {@gql.field value: string}
+
+@gql.field
+let broken = (_: Query.query): broken => {value: "broken"}
+RES
+
+run_fixture "not-repeatable" 'Directive `@once` is not repeatable' <<'RES'
+@gql.directive({locations: ["OBJECT"]})
+type once
+
+@gql.annotate({name: "once"})
+@gql.annotate({name: "once"})
+@gql.type
+type broken = {@gql.field value: string}
+
+@gql.field
+let broken = (_: Query.query): broken => {value: "broken"}
+RES
+
+run_fixture "invalid-location" 'is not a GraphQL directive location' <<'RES'
+@gql.directive({locations: ["OBJECTISH"]})
+type invalidLocation
+RES
