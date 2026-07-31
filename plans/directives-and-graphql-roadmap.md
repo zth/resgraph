@@ -567,7 +567,7 @@ advantages and should remain central; they are not Grats gaps to copy.
 | Root-field shorthand | `@gql.query`, `@gql.mutation`, and `@gql.subscription` synthesize conventional roots and omit the source argument | Extend editor snippets/completion and named-schema fixtures | Delivered/P1 tooling |
 | Nullable-by-default and semantic non-null mode | Nullability maps directly from ReScript `option`/nullable types | Do not copy blindly: ReScript is more sound than TypeScript. Revisit after generic directives, as an opt-in policy with runtime checks | P2/experimental |
 | Full scalar schema config (`serialize`, `parseValue`, `parseLiteral`) | Module-name convention supports all three hooks and typed AST-to-literal conversion | Consider an explicit config escape hatch; retain zero-config inference | Delivered/P2 escape hatch |
-| Incremental schema migration | Possible via `mergeSchemas`, but current guide requires duplicated types and a copy-pasted compatibility plugin | Ship/test the compatibility transform or emit a resolver map/external-type model; make field-level migration a supported path | P1 |
+| Incremental schema migration | `mergeSchemas` integration now uses a shipped, execution-tested compatibility plugin; shared types still need duplication | Evaluate external type placeholders/resolver-map output from concrete migrations | Delivered/P1 external types |
 | Resolver-map output | No equivalent | Consider after migration requirements are concrete; executable schema remains the default | P2 |
 | Emitted metadata | ResGraph already emits state/definition and authorization metadata | Extend the existing state format with directives/arguments/source coordinates instead of adding a parallel artifact | P1 |
 | Generated client enum module | ReScript variants already are runtime/client-usable in the authoring language | No direct port needed; document client-codegen integration instead | Not needed |
@@ -586,7 +586,7 @@ an interoperable hook or documented integration rather than built-in policy.
 | Incremental delivery | Subscriptions and non-subscription AsyncIterable list inference are supported; `@defer`/`@stream` transport remains server-driven | Add Yoga incremental-delivery integration tests; avoid owning transport protocol | Delivered/P1 integration |
 | Persisted operations, complexity limits, tracing, response caching | Not compiler/type-system features | Improve Yoga/Envelop bindings and recipes; directives can carry static cost/cache metadata | P2/docs |
 | Scalar ecosystem | No specification URLs and a narrower coercion API | `specifiedBy`, `parseLiteral`, scalar registry examples, and typed external configs | P0/P1 |
-| External schemas/stitching | Merge path requires compatibility glue and duplicate definitions | Ship the glue, test `mergeSchemas`, then evaluate external type placeholders/resolver-map output | P1 |
+| External schemas/stitching | Shipped compatibility glue handles merged resolver sources; duplicate definitions remain necessary | Test a full `mergeSchemas` fixture, then evaluate external type placeholders/resolver-map output | Delivered/P1 external types |
 | Emerging nullability | No semantic-null metadata or nullability-assertion experiments | Build on generic directives; keep opt-in and track the active RFC rather than hard-coding draft syntax | Experimental |
 | Client/tooling interoperability | State is ResGraph-specific and SDL can omit metadata | Valid SDL/AST, stable schema coordinates, directive extensions, and documented GraphQL Code Generator/Relay flows | P1 |
 

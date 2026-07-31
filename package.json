@@ -50,6 +50,8 @@
     "src/res",
     "lib",
     "cli/*",
+    "compat.mjs",
+    "compat.d.ts",
     "dist/Cli.mjs",
     "rescript.json",
     "package.json",

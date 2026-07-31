@@ -48,71 +48,31 @@ You'll also need to set up an `Envelop` plugin. This will make sure that your cu
 
 > Note that this is only something that needs solving when you're using ResGraph with _something else_. If all you're using is ResGraph, you don't need to set this up, it'll just work.
 
-For now, the compat `Envelop` plugin doesn't ship with ResGrah. Instead you can copy paste it into your project from below:
+ResGraph ships the compatibility plugin as `resgraph/compat.mjs`:
 
 ```typescript
-// resgraphCompatPlugin.ts
 import { Plugin } from "@envelop/core";
-import { GraphQLSchema } from "graphql";
+import { resgraphCompatPlugin } from "resgraph/compat.mjs";
 
-export const resgraphCompatPlugin = (): Plugin => {
-  return {
-    onSchemaChange({ schema: s, replaceSchema }) {
-      const schema: GraphQLSchema = s;
-      const unwrapResolverSource = (src: unknown) => {
-        if (typeof src === "object" && src != null) {
-          if ("_0" in src) {
-            return src["_0"];
-          }
-          if ("VAL" in src) {
-            return src["VAL"];
-          }
-        }
-
-        return src;
-      };
-
-      const newSchema = new GraphQLSchema({
-        ...schema.toConfig(),
-        types: Object.values(schema.getTypeMap()).map((type) => {
-          if ("getFields" in type) {
-            const fields = type.getFields();
-            Object.keys(fields).forEach((fieldName) => {
-              const field = fields[fieldName];
-              const defaultResolver = (source: any) => source[fieldName];
-              const originalResolver =
-                "resolve" in field
-                  ? field.resolve ?? defaultResolver
-                  : defaultResolver;
-
-              if ("resolve" in field) {
-                field.resolve = (source, args, context, info) => {
-                  const src = unwrapResolverSource(source);
-                  return originalResolver(src, args, context, info);
-                };
-              }
-            });
-          }
-          return type;
-        }),
-      });
-
-      replaceSchema(newSchema);
-    },
-  };
-};
+const plugin: Plugin = resgraphCompatPlugin();
 ```
 
 Finally, make sure you add the plugin to your `Envelop` setup:
 
 ```typescript
 import { envelop, useEngine, useSchema } from "@envelop/core";
-import { resgraphCompatPlugin } from "./resgraphCompatPlugin";
+import { resgraphCompatPlugin } from "resgraph/compat.mjs";
 
 export const getEnveloped = envelop({
   plugins: [useSchema(schema), resgraphCompatPlugin(), useEngine(GraphQLJs)],
 });
 ```
+
+The package also exports `unwrapResolverSource` for integrations that need the
+same record/variant unwrapping without Envelop. The plugin is intentionally
+small: it preserves the merged schema configuration and wraps field resolvers
+so ReScript record and variant payload representations work across the schema
+boundary.
 
 ## 4. Duplicate the needed types
 
