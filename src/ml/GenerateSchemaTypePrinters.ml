@@ -238,11 +238,11 @@ let groupDirectiveApplications applications =
          add groups)
        []
 
-let printDirectiveExtensions ?(oneOf = false) schemaState target =
+let printDirectiveExtensions schemaState target =
   let applications =
     GenerateSchemaUtils.directivesForTarget schemaState target
   in
-  if applications = [] && not oneOf then None
+  if applications = [] then None
   else
     let fields = ref [] in
     (if applications <> [] then
@@ -268,7 +268,6 @@ let printDirectiveExtensions ?(oneOf = false) schemaState target =
              Printf.sprintf "directives: dict{%s}" directives;
              Printf.sprintf "resgraph: {appliedDirectives: [%s]}" ordered;
            ]);
-    if oneOf then fields := !fields @ ["oneOf: true"];
     Some (Printf.sprintf "{%s}" (String.concat ", " !fields))
 
 let displayNameFromImplementedBy
@@ -681,13 +680,16 @@ let printInputObjectType ~schemaState ?(inputUnion = false)
       CodeWriter.add writer
         (printInputObjectFields ~schemaState ~parentTypeName:typ.displayName
            typ.fields);
+      if inputUnion then (
+        CodeWriter.line writer ",";
+        CodeWriter.line writer "isOneOf: true");
       match
-        printDirectiveExtensions ~oneOf:inputUnion schemaState
+        printDirectiveExtensions schemaState
           (DirectiveInputObject typ.displayName)
       with
       | None -> CodeWriter.newline writer
       | Some extensions ->
-        CodeWriter.line writer ",";
+        if not inputUnion then CodeWriter.line writer ",";
         CodeWriter.line writer (Printf.sprintf "extensions: %s" extensions));
   CodeWriter.add writer "}";
   CodeWriter.contents writer

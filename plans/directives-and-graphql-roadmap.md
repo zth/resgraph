@@ -29,11 +29,10 @@ The cleanest ReScript-facing design is:
   argument defaults, input-field defaults, descriptions, and deprecations then
   build on the same foundation.
 
-The highest-priority work around directives is to modernize the GraphQL runtime
-contract. ResGraph's tests are pinned to `graphql@16.8.1`, generated OneOf input
-objects use the pre-standard `extensions.oneOf` convention, and the docs still
-call OneOf experimental. OneOf is part of the September 2025 GraphQL
-specification and current `graphql-js` exposes it as `isOneOf`.
+The GraphQL runtime contract is now modernized: ResGraph peers on
+`graphql@^16.11 || ^17`, tests latest v16, and emits native `isOneOf` input
+objects without the obsolete validation plugin. OneOf is part of the September
+2025 GraphQL specification.
 
 After directives, the biggest user-visible gaps relative to Grats are argument
 and input defaults, argument descriptions/deprecations, generic type
@@ -57,6 +56,8 @@ The directive foundation delivered on this branch includes:
 - SDL and executable-schema parity, custom directive introspection,
   `specifiedByURL`, the GraphQL Tools `extensions.directives` convention, and
   an exact ordered `extensions.resgraph.appliedDirectives` projection.
+- Native OneOf input objects, introspection, and coercion on the supported
+  graphql-js range without an Envelop validation plugin.
 
 The next directive slices are deliberately still open:
 
@@ -65,8 +66,8 @@ The next directive slices are deliberately still open:
 - Correlate resolver source parameters with CMT output so
   `ARGUMENT_DEFINITION` applications, defaults, descriptions, and deprecations
   can use normal parameter syntax.
-- Finish native built-in modernization for standard OneOf, and decide whether
-  generic annotations should normalize built-ins such as `deprecated`.
+- Decide whether generic annotations should normalize built-ins such as
+  `deprecated`.
 - Add directive-aware LSP/state metadata, named/multi-schema coverage, and a
   full `graphql-js` validation/AST backstop with source-coordinate mapping.
 
@@ -545,7 +546,7 @@ advantages and should remain central; they are not Grats gaps to copy.
 | Argument descriptions/deprecations/directives | `gqlArg` only carries name/type/optional-label | Source-AST parameter metadata plus enriched input-value IR | P0 |
 | Input-field defaults | Shared constant-value parsing exists, but `gqlField` has no default slot yet | Add `@gql.default(const)` to the input-field IR, SDL, and runtime config | P1 |
 | `@specifiedBy` | Native `@specifiedBy("...")` emits SDL and `specifiedByURL` | Consider normalization through the generic annotation path | Delivered/P2 |
-| Standard OneOf | Input unions emit `extensions: {oneOf: true}` and require an obsolete validation plugin; tests pin GraphQL 16.8.1 | Upgrade runtime contract, use `isOneOf`, update introspection/coercion/docs | P0 |
+| Standard OneOf | Native `isOneOf`, SDL, introspection, and coercion on `graphql@^16.11 || ^17`; no plugin required | Keep floor/latest compatibility coverage current | Delivered |
 | Schema definition metadata | No schema description, directives, or custom root mapping source | Add optional `@gql.schema` marker; custom roots can follow | P1 |
 | Type-system extensions | Field functions compose object/interface fields inside one ResGraph schema, but no general schema/scalar/union/enum/input extension model or external target | Model explicit/external extensions only when driven by migration/Federation use cases | P1/P2 |
 | Full schema validation | ResGraph has targeted native checks, but duplicates substantial spec logic and still lets some errors reach runtime | Export GraphQL AST/SDL and add `graphql-js` validation with coordinate-to-source translation | P0 |
@@ -592,10 +593,11 @@ an interoperable hook or documented integration rather than built-in policy.
 
 #### P0: make the schema representation current and trustworthy
 
-1. Declare/test the `graphql` peer range and modernize OneOf.
+1. ~~Declare/test the `graphql` peer range and modernize OneOf.~~ Delivered on
+   the stacked roadmap branch.
 2. Complete the new constant-value/input-value foundation for resolver
    argument metadata.
-3. Finish schema/argument directive locations and native OneOf lowering.
+3. Finish schema/argument directive locations.
 4. Add SDL/executable parity tests and a `graphql-js` validation backstop.
 5. Fix invalid/non-standard SDL emission, beginning with union member
    descriptions and literal escaping.

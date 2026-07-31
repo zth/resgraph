@@ -58,4 +58,3 @@ type User implements HasName {
   name: String!
   age: Int!
 }
-

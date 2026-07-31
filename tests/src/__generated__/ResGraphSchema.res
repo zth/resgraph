@@ -1303,7 +1303,8 @@ inputUnion_Res12Input.contents = GraphQLInputObjectType.make({
       deprecationReason: ?(None),
     }
   }->makeFields,
-  extensions: {oneOf: true}
+  isOneOf: true
+
 })
 inputUnion_UpdatableBool.contents = GraphQLInputObjectType.make({
   name: "UpdatableBool",
@@ -1320,7 +1321,8 @@ inputUnion_UpdatableBool.contents = GraphQLInputObjectType.make({
       deprecationReason: ?(None),
     }
   }->makeFields,
-  extensions: {oneOf: true}
+  isOneOf: true
+
 })
 inputUnion_UpdatableFloat.contents = GraphQLInputObjectType.make({
   name: "UpdatableFloat",
@@ -1337,7 +1339,8 @@ inputUnion_UpdatableFloat.contents = GraphQLInputObjectType.make({
       deprecationReason: ?(None),
     }
   }->makeFields,
-  extensions: {oneOf: true}
+  isOneOf: true
+
 })
 inputUnion_UpdatableInt.contents = GraphQLInputObjectType.make({
   name: "UpdatableInt",
@@ -1354,7 +1357,8 @@ inputUnion_UpdatableInt.contents = GraphQLInputObjectType.make({
       deprecationReason: ?(None),
     }
   }->makeFields,
-  extensions: {oneOf: true}
+  isOneOf: true
+
 })
 inputUnion_UpdatableNullableBool.contents = GraphQLInputObjectType.make({
   name: "UpdatableNullableBool",
@@ -1376,7 +1380,8 @@ inputUnion_UpdatableNullableBool.contents = GraphQLInputObjectType.make({
       deprecationReason: ?(None),
     }
   }->makeFields,
-  extensions: {oneOf: true}
+  isOneOf: true
+
 })
 inputUnion_UpdatableNullableFloat.contents = GraphQLInputObjectType.make({
   name: "UpdatableNullableFloat",
@@ -1398,7 +1403,8 @@ inputUnion_UpdatableNullableFloat.contents = GraphQLInputObjectType.make({
       deprecationReason: ?(None),
     }
   }->makeFields,
-  extensions: {oneOf: true}
+  isOneOf: true
+
 })
 inputUnion_UpdatableNullableInt.contents = GraphQLInputObjectType.make({
   name: "UpdatableNullableInt",
@@ -1420,7 +1426,8 @@ inputUnion_UpdatableNullableInt.contents = GraphQLInputObjectType.make({
       deprecationReason: ?(None),
     }
   }->makeFields,
-  extensions: {oneOf: true}
+  isOneOf: true
+
 })
 inputUnion_UpdatableNullableString.contents = GraphQLInputObjectType.make({
   name: "UpdatableNullableString",
@@ -1442,7 +1449,8 @@ inputUnion_UpdatableNullableString.contents = GraphQLInputObjectType.make({
       deprecationReason: ?(None),
     }
   }->makeFields,
-  extensions: {oneOf: true}
+  isOneOf: true
+
 })
 inputUnion_UpdatableString.contents = GraphQLInputObjectType.make({
   name: "UpdatableString",
@@ -1459,7 +1467,8 @@ inputUnion_UpdatableString.contents = GraphQLInputObjectType.make({
       deprecationReason: ?(None),
     }
   }->makeFields,
-  extensions: {oneOf: true}
+  isOneOf: true
+
 })
 
 let directive_cacheControl = GraphQLDirective.make({

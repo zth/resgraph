@@ -19,7 +19,6 @@ type resgraphDirectiveExtensions = {appliedDirectives: array<appliedDirective>}
 type directiveExtensions = {
   directives?: directiveMap,
   resgraph?: resgraphDirectiveExtensions,
-  oneOf?: bool,
 }
 
 type graphqlType
@@ -166,6 +165,7 @@ module GraphQLInputObjectType = {
     astNode?: AstNode.t,
     description?: string,
     fields: unit => fields,
+    isOneOf?: bool,
     extensions?: directiveExtensions,
   }
   @module("graphql") @new external make: config => t = "GraphQLInputObjectType"

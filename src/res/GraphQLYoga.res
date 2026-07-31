@@ -19,20 +19,6 @@ module Envelope = {
 
   module Plugin = {
     type t
-
-    module ExtendedValidation = {
-      module Rule = {
-        type t
-
-        @module("@envelop/extended-validation")
-        external oneOfInputObjectsRule: t = "OneOfInputObjectsRule"
-      }
-
-      type config = {rules: array<Rule.t>}
-
-      @module("@envelop/extended-validation")
-      external use: config => t = "useExtendedValidation"
-    }
   }
 }
 
