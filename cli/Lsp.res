@@ -1,6 +1,16 @@
 // This file holds the actual language server implementation.
 
 @module("url") external fileURLToPath: string => string = "fileURLToPath"
+type fileUrl = {href: string}
+
+@module("url") external pathToFileURL: string => fileUrl = "pathToFileURL"
+
+let ensureFileUri = path =>
+  if path->String.startsWith("file://") {
+    path
+  } else {
+    pathToFileURL(path).href
+  }
 
 let initialized = ref(false)
 let shutdownRequestAlreadyReceived = ref(false)
@@ -371,7 +381,7 @@ let start = (~mode, ~configFilePath) => {
       ->Dict.toArray
       ->Array.map(((file, errors)) => {
         PublishDiagnostics({
-          uri: file,
+          uri: file->ensureFileUri,
           diagnostics: errors->Array.map(error => {
             let diagnostic: LspProtocol.diagnostic = {
               range: error.range,
@@ -383,14 +393,14 @@ let start = (~mode, ~configFilePath) => {
         })
         ->Message.Notification.asMessage
         ->send
-        file
+        file->ensureFileUri
       })
 
     filesWithDiagnostics := currentFilesWithDiagnostics
 
     filesWithDiagnosticsAtLastPublish->Array.forEach(fileName => {
       if !(currentFilesWithDiagnostics->Array.includes(fileName)) {
-        PublishDiagnostics({uri: fileName, diagnostics: []})
+        PublishDiagnostics({uri: fileName->ensureFileUri, diagnostics: []})
         ->Message.Notification.asMessage
         ->send
       }
@@ -405,7 +415,9 @@ let start = (~mode, ~configFilePath) => {
         | Utils.GeneratorResult(res) =>
           currentResults->Dict.set(schema.name, res)
           publishDiagnostics()
-        | Utils.GeneratorProcessFailure => ()
+        | Utils.GeneratorProcessFailure =>
+          currentResults->Dict.delete(schema.name)
+          publishDiagnostics()
         },
       ~config=schema,
     )
@@ -414,13 +426,13 @@ let start = (~mode, ~configFilePath) => {
   let openedFile = (uri, text) => {
     log(`opened ${uri}`)
     switch uri->Path.extname {
-    | ".res" => resFilesCache->Dict.set(uri, text)
+    | ".res" | ".resi" | ".graphql" => resFilesCache->Dict.set(uri, text)
     | _ => ()
     }
   }
 
   let updateOpenedFile = (uri, text) => {
-    if uri->Path.extname === ".res" {
+    if [".res", ".resi", ".graphql"]->Array.includes(uri->Path.extname) {
       switch resFilesCache->Dict.get(uri)->Option.isSome {
       | true => resFilesCache->Dict.set(uri, text)
       | false => ()
@@ -527,6 +539,7 @@ let start = (~mode, ~configFilePath) => {
                 ->Option.flatMap(schema => schema.stateName)
               let result = switch LspCompleteGraphQL.hoverAtPos(
                 ~path=filePath,
+                ~text=?resFilesCache->Dict.get(params.textDocument.uri),
                 ~pos=params.position,
                 ~stateName,
               ) {
@@ -558,6 +571,7 @@ let start = (~mode, ~configFilePath) => {
                 ->Option.flatMap(schema => schema.stateName)
               let result = switch LspCompleteGraphQL.definitionAtPos(
                 ~path=filePath,
+                ~text=?resFilesCache->Dict.get(params.textDocument.uri),
                 ~pos=params.position,
                 ~stateName,
               ) {
@@ -583,18 +597,18 @@ let start = (~mode, ~configFilePath) => {
                 ->send
               | Some(code) =>
                 let filePath = params.textDocument.uri->fileURLToPath
-                let tmpname = Utils.createFileInTempDir()
-                Fs.writeFileSyncWith(tmpname, Buffer.fromString(code), {encoding: "utf-8"})
                 let stateName =
                   config
                   ->Utils.schemaForFile(filePath)
                   ->Option.flatMap(schema => schema.stateName)
-                let result = switch Utils.callPrivateCli(
-                  Completion({filePath, position: params.position, tmpname, ?stateName}),
-                ) {
-                | Completion({items}) => Message.Result.fromCompletionItems(items)
-                | _ => Message.Result.null()
-                }
+                let result = Utils.withTemporaryFile(~contents=code, tmpname =>
+                  switch Utils.callPrivateCli(
+                    Completion({filePath, position: params.position, tmpname, ?stateName}),
+                  ) {
+                  | Completion({items}) => Message.Result.fromCompletionItems(items)
+                  | _ => Message.Result.null()
+                  }
+                )
                 Message.Response.make(~id=msg->Message.getId, ~result, ())
                 ->Message.Response.asMessage
                 ->send

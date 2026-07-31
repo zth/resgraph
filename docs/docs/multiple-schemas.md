@@ -5,6 +5,9 @@ sidebar_position: 2
 # Multiple schemas
 
 A repository can build several independent ResGraph schemas from one `resgraph.json`. Schemas may belong to the same ReScript package or to different packages in a monorepo.
+Editors can opt into validation and completion by adding
+`"$schema": "./node_modules/resgraph/resgraph.schema.json"` to the config.
+
 
 ## Configuration
 

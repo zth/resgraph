@@ -53,6 +53,7 @@ module Execute: {
 
   let parseQuery: string => document
   let makeQueryDocumentCache: unit => queryDocumentCache
+  let makeQueryDocumentCacheWithMaxSize: (~maxSize: int) => queryDocumentCache
   let setCachedQuery: (~cache: queryDocumentCache, ~query: string, ~document: document) => unit
   let getCachedQuery: (~cache: queryDocumentCache, ~query: string) => option<document>
   let parseQueryCached: (~cache: queryDocumentCache, ~query: string) => document
@@ -109,7 +110,7 @@ module Execute: {
   type jsonExecutionResult = executionResult<JSON.t, JSON.t, JSON.t>
 
   type variables = Dict.t<JSON.t>
-  type queryDocumentCache = Dict.t<document>
+  type queryDocumentCache
 
   type executeArgs<'appContext, 'rootValue> = {
     schema: schema<'appContext>,
@@ -122,36 +123,44 @@ module Execute: {
 
   @module("graphql") external parseQuery: string => document = "parse"
 
-  @module("graphql")
+  @module("./ResGraph__ExecuteRuntime.mjs")
   external executeInternal: executeArgs<'appContext, 'rootValue> => promise<
     executionResult<'data, 'error, 'extensions>,
-  > = "execute"
+  > = "executeValidated"
 
-  @module("node:crypto") external createHash: 'a = "createHash"
   external variablesOfJsonObject: dict<JSON.t> => variables = "%identity"
   external variablesToJsonObject: variables => dict<JSON.t> = "%identity"
   external executionResultToJson: jsonExecutionResult => JSON.t = "%identity"
 
-  let hashQuery = query => createHash("sha256")["update"](query)["digest"]("hex")
-
-  let cacheKeyForQuery = query => hashQuery(query)
-
-  let makeQueryDocumentCache = () => Dict.make()
-
-  let setCachedQuery = (~cache, ~query, ~document) => {
-    cache->Dict.set(query->cacheKeyForQuery, document)
-  }
-
-  let getCachedQuery = (~cache, ~query) => cache->Dict.get(query->cacheKeyForQuery)
+  @module("./ResGraph__ExecuteRuntime.mjs")
+  external makeQueryDocumentCache: unit => queryDocumentCache = "createQueryDocumentCache"
+  @module("./ResGraph__ExecuteRuntime.mjs")
+  external makeQueryDocumentCacheWithMaxSize: (~maxSize: int) => queryDocumentCache =
+    "createQueryDocumentCache"
+  @module("./ResGraph__ExecuteRuntime.mjs")
+  external setCachedQuery: (~cache: queryDocumentCache, ~query: string, ~document: document) => unit =
+    "setCachedQuery"
+  @module("./ResGraph__ExecuteRuntime.mjs")
+  external getCachedQuery: (~cache: queryDocumentCache, ~query: string) => option<document> =
+    "getCachedQuery"
 
   let parseQueryCached = (~cache, ~query) =>
-    switch cache->Dict.get(query->cacheKeyForQuery) {
+    switch getCachedQuery(~cache, ~query) {
     | Some(document) => document
     | None =>
       let document = parseQuery(query)
-      cache->Dict.set(query->cacheKeyForQuery, document)
+      setCachedQuery(~cache, ~query, ~document)
       document
     }
+
+  let invalidVariablesJson = () =>
+    JSON.Object(dict{
+      "errors": JSON.Array([
+        JSON.Object(dict{
+          "message": JSON.String("GraphQL variables must be a JSON object or null."),
+        }),
+      ]),
+    })
 
   let variablesFromJson = json =>
     switch json {
@@ -187,19 +196,29 @@ module Execute: {
     ~operationName=?,
     ~rootValue=?,
   ) => {
-    let variableValues = switch variablesJson {
-    | Some(json) => json->variablesFromJson
-    | None => None
+    switch variablesJson {
+    | Some(JSON.Null) | None =>
+      executeParsed(
+        schema,
+        ~document,
+        ~contextValue,
+        ~operationName?,
+        ~rootValue?,
+      )->Promise.thenResolve(executionResultToJson)
+    | Some(json) =>
+      switch json->variablesFromJson {
+      | Some(variableValues) =>
+        executeParsed(
+          schema,
+          ~document,
+          ~contextValue,
+          ~variableValues,
+          ~operationName?,
+          ~rootValue?,
+        )->Promise.thenResolve(executionResultToJson)
+      | None => Promise.resolve(invalidVariablesJson())
+      }
     }
-
-    executeParsed(
-      schema,
-      ~document,
-      ~contextValue,
-      ~variableValues?,
-      ~operationName?,
-      ~rootValue?,
-    )->Promise.thenResolve(executionResultToJson)
   }
 
   let execute = (
@@ -228,20 +247,31 @@ module Execute: {
     ~operationName=?,
     ~rootValue=?,
   ) => {
-    let variableValues = switch variablesJson {
-    | Some(json) => json->variablesFromJson
-    | None => None
+    switch variablesJson {
+    | Some(JSON.Null) | None =>
+      execute(
+        schema,
+        ~query,
+        ~contextValue,
+        ~cache?,
+        ~operationName?,
+        ~rootValue?,
+      )->Promise.thenResolve(executionResultToJson)
+    | Some(json) =>
+      switch json->variablesFromJson {
+      | Some(variableValues) =>
+        execute(
+          schema,
+          ~query,
+          ~contextValue,
+          ~cache?,
+          ~variableValues,
+          ~operationName?,
+          ~rootValue?,
+        )->Promise.thenResolve(executionResultToJson)
+      | None => Promise.resolve(invalidVariablesJson())
+      }
     }
-
-    execute(
-      schema,
-      ~query,
-      ~contextValue,
-      ~cache?,
-      ~variableValues?,
-      ~operationName?,
-      ~rootValue?,
-    )->Promise.thenResolve(executionResultToJson)
   }
 }
 

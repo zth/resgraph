@@ -33,8 +33,8 @@ let prettyPrintDiagnostic = (~lines, ~diagnostic: Utils.generateError) => {
 
   `${colors.red("Error in file:")} ${colors.blueBright(
       diagnostic.file,
-    )}:${fileLocText}`->Console.log
-  Console.log("\n")
+    )}:${fileLocText}`->Console.error
+  Console.error("\n")
   lines->Array.forEachWithIndex((line, index) => {
     if index > diagnostic.range.start.line - 5 && index < diagnostic.range.end_.line + 5 {
       let highlightOnThisLine =
@@ -60,18 +60,18 @@ let prettyPrintDiagnostic = (~lines, ~diagnostic: Utils.generateError) => {
           ) ++
           line->String.slice(~start=highlightEndOffset)
 
-        Console.log(
+        Console.error(
           `  ${modifiers.bold.red(
               Int.toString(index + 1),
             )} ${colors.blackBright(`┆`)} ${lineText}`,
         )
       } else {
-        Console.log(`  ${Int.toString(index + 1)} ${colors.blackBright(`┆`)} ${line}`)
+        Console.error(`  ${Int.toString(index + 1)} ${colors.blackBright(`┆`)} ${line}`)
       }
     }
   })
 
-  Console.log("\n  " ++ diagnostic.message)
+  Console.error("\n  " ++ diagnostic.message)
 }
 
 let printErrors = (errors: array<Utils.generateError>) => {

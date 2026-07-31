@@ -581,6 +581,11 @@ let printInterfaceFiles (schemaState : schemaState) ~processedSchema
       writeIfHasChanges interfaceFileOutputLoc
         (getIntfAssets intf ~processedSchema))
 
+let isOwnedGeneratedInterface path =
+  match Files.readFile path with
+  | Some contents -> String.starts_with contents ~prefix:"/* @generated */"
+  | None -> false
+
 let cleanInterfaceFiles (schemaState : schemaState) ~outputFolder
     ~interfaceModulePrefix =
   let validNames =
@@ -601,7 +606,8 @@ let cleanInterfaceFiles (schemaState : schemaState) ~outputFolder
         && String.starts_with
              (Filename.basename fileName)
              ~prefix:generatedPrefix
-        && not (List.mem fileName validNames))
+        && (not (List.mem fileName validNames))
+        && isOwnedGeneratedInterface (Filename.concat outputFolder fileName))
   in
   filesToRemove
   |> List.iter (fun fileName ->

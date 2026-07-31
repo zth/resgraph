@@ -288,7 +288,7 @@ failure_output=$(cd "$fixture_dir/failure" && node "$cli" build 2>&1)
 failure_status=$?
 set -e
 [[ $failure_status -ne 0 ]]
-[[ "$failure_output" == *'[uncompiled] Generator process failed.'* ]]
+[[ "$failure_output" == *'[uncompiled] Schema generation failed.'* ]]
 [[ "$failure_output" == *'[broken] Schema generation failed.'* ]]
 [[ "$failure_output" == *'[admin] Build succeeded'* ]]
 rm -f "$fixture_dir/src/generated/broken/BrokenSchema.res" "$fixture_dir/src/generated/broken/BrokenSchema.resi"
@@ -301,7 +301,7 @@ for cmt in \
     printf 'x' >"$cmt"
   fi
 done
-capture_watch_output "$fixture_dir/failure" '[uncompiled] Generator process failed.' uncompiled
+capture_watch_output "$fixture_dir/failure" '[uncompiled] Schema generation failed.' uncompiled
 [[ "$watch_output" != *'Build succeeded'* ]]
 rm -rf "$fixture_dir/uncompiled/lib"
 

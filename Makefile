@@ -2,6 +2,11 @@ SHELL = /bin/bash
 
 build-resgraph-binary:
 	rm -f bin/dev/resgraph.exe
+	dune build --profile release
+	cp _build/install/default/bin/resgraph bin/dev/resgraph.exe
+
+build-resgraph-binary-dev:
+	rm -f bin/dev/resgraph.exe
 	dune build
 	cp _build/install/default/bin/resgraph bin/dev/resgraph.exe
 
@@ -25,11 +30,10 @@ clean:
 	rm -f bin/dev/resgraph.exe
 	dune clean
 	make -C tests clean
-	make -C reanalyze clean
 
 checkformat:
 	dune build @fmt
 
 .DEFAULT_GOAL := build
 
-.PHONY: build-resgraph-binary build-tests dce clean format test
+.PHONY: build-resgraph-binary build-resgraph-binary-dev build-tests dce clean format test

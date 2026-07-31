@@ -1,9 +1,11 @@
+open Resgraph_engine
 let help =
   {|
 **Private CLI For ResGraph**
 
 Commands:
   generate-schema <projectRoot> <outputFolder> <printSdl:boolean> [options]
+  generate-schemas-v1 <length-prefixed generate-schema calls>
   completion <path> <line> <col> <currentFile>
   hover <path> <line> <col> [schema]
   hover-graphql <path> <hoverHint> [schema]
@@ -106,14 +108,67 @@ let valid_generate_options options =
   && matches "^[A-Z][A-Za-z0-9_]*\\(\\.[A-Za-z_][A-Za-z0-9_]*\\)+$"
        options.contextType
 
-let run_generate ~sourceFolder ~outputFolder ~writeSdlFile options =
-  GenerateSchemaDirect.generateSchemaDirect ~writeStateFile:true ~sourceFolder
-    ~debug:false ~outputFolder ~writeSdlFile ~printToStdOut:true
-    ~schemaName:options.schemaName ~moduleName:options.moduleName
-    ~contextType:options.contextType
+let run_generate ?generationContext ~sourceFolder ~outputFolder ~writeSdlFile
+    options =
+  GenerateSchemaDirect.generateSchemaDirect ?generationContext
+    ~writeStateFile:true ~sourceFolder ~debug:false ~outputFolder ~writeSdlFile
+    ~printToStdOut:true ~schemaName:options.schemaName
+    ~moduleName:options.moduleName ~contextType:options.contextType
     ~includePaths:(List.rev options.includePaths)
     ~excludePaths:(List.rev options.excludePaths)
-    ~authorizationConfig:options.authorizationConfig
+    ~authorizationConfig:options.authorizationConfig ()
+
+let parse_generate_call = function
+  | "generate-schema" :: sourceFolder :: outputFolder :: writeSdl :: rest -> (
+    match
+      Option.bind (parse_authorization_options default_generate_options rest)
+        (fun (options, rest) -> parse_generate_options options rest)
+    with
+    | Some options when valid_generate_options options ->
+      Some (sourceFolder, outputFolder, writeSdl = "true", options)
+    | Some _ | None -> None)
+  | _ -> None
+
+let rec take_arguments count acc args =
+  if count = 0 then Some (List.rev acc, args)
+  else
+    match args with
+    | [] -> None
+    | arg :: rest -> take_arguments (count - 1) (arg :: acc) rest
+
+let rec parse_batch_calls acc = function
+  | [] -> Some (List.rev acc)
+  | length :: rest -> (
+    match int_of_string_opt length with
+    | Some length when length > 0 -> (
+      match take_arguments length [] rest with
+      | Some (call, remaining) -> (
+        match parse_generate_call call with
+        | Some parsed -> parse_batch_calls (parsed :: acc) remaining
+        | None -> None)
+      | None -> None)
+    | Some _ | None -> None)
+
+let run_batch calls =
+  let generationContext = GenerationContext.create () in
+  print_string "[";
+  calls
+  |> List.iteri
+       (fun index (sourceFolder, outputFolder, writeSdlFile, options) ->
+         if index > 0 then print_string ",";
+         try
+           run_generate ~generationContext ~sourceFolder ~outputFolder
+             ~writeSdlFile options
+         with exn ->
+           Printf.printf "{\"status\":\"Error\",\"errors\":[%s]}"
+             (GenerateSchemaUtils.printDiagnostic
+                {
+                  loc = Location.none;
+                  fileUri = Uri.fromPath sourceFolder;
+                  message =
+                    "Schema generation failed: " ^ Printexc.to_string exn;
+                }));
+  print_string "]"
 
 let schema_name = function
   | [] -> Some None
@@ -122,15 +177,16 @@ let schema_name = function
 
 let main () =
   match Array.to_list Sys.argv with
-  | _ :: "generate-schema" :: sourceFolder :: outputFolder :: writeSdl :: rest
-    -> (
-    match
-      Option.bind (parse_authorization_options default_generate_options rest)
-        (fun (options, rest) -> parse_generate_options options rest)
-    with
-    | Some options when valid_generate_options options ->
-      run_generate ~sourceFolder ~outputFolder ~writeSdlFile:(writeSdl = "true")
-        options
+  | _ :: "generate-schema" :: rest -> (
+    match parse_generate_call ("generate-schema" :: rest) with
+    | Some (sourceFolder, outputFolder, writeSdlFile, options) ->
+      run_generate ~sourceFolder ~outputFolder ~writeSdlFile options
+    | None ->
+      prerr_endline help;
+      exit 1)
+  | _ :: "generate-schemas-v1" :: rest -> (
+    match parse_batch_calls [] rest with
+    | Some calls when calls <> [] -> run_batch calls
     | Some _ | None ->
       prerr_endline help;
       exit 1)
@@ -179,4 +235,4 @@ let main () =
     exit 1
 ;;
 
-main ()
+try main () with Sys_error _ | Unix.Unix_error _ -> exit 1

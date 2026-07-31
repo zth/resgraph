@@ -41,6 +41,25 @@ function loadMany(lazyLoader, keys) {
   return loader.loadMany(keys);
 }
 
+let isError = (value => value instanceof Error);
+
+function loadManyResults(lazyLoader, keys) {
+  let loader = Stdlib_Lazy.get(lazyLoader);
+  return loader.loadMany(keys).then(values => values.map(value => {
+    if (isError(value)) {
+      return {
+        TAG: "Error",
+        _0: value
+      };
+    } else {
+      return {
+        TAG: "Ok",
+        _0: value
+      };
+    }
+  }));
+}
+
 function clear(lazyLoader, key) {
   let loader = Stdlib_Lazy.get(lazyLoader);
   loader.clear(key);
@@ -56,9 +75,19 @@ function prime(lazyLoader, value) {
   loader.prime(value);
 }
 
+function primeAt(lazyLoader, key, value) {
+  let loader = Stdlib_Lazy.get(lazyLoader);
+  loader.prime(key, value);
+}
+
 function primeWithPromise(lazyLoader, value) {
   let loader = Stdlib_Lazy.get(lazyLoader);
   loader.prime(value);
+}
+
+function primeWithPromiseAt(lazyLoader, key, value) {
+  let loader = Stdlib_Lazy.get(lazyLoader);
+  loader.prime(key, value);
 }
 
 function name(lazyLoader) {
@@ -72,10 +101,13 @@ export {
   makeBatched,
   load,
   loadMany,
+  loadManyResults,
   clear,
   clearAll,
   prime,
+  primeAt,
   primeWithPromise,
+  primeWithPromiseAt,
   name,
 }
 /* dataloader Not a pure module */

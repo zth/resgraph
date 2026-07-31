@@ -14,11 +14,10 @@ export function stableStringify(data) {
     let i;
     let out;
     if (Array.isArray(node)) {
-      let sortedNode = node.slice().sort();
       out = "[";
-      for (i = 0; i < sortedNode.length; i++) {
+      for (i = 0; i < node.length; i++) {
         if (i) out += ",";
-        out += stringify(sortedNode[i]) || "null";
+        out += stringify(node[i]) || "null";
       }
       return out + "]";
     }

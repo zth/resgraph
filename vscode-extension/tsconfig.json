@@ -5,7 +5,7 @@
       "outDir": "build",
       "moduleResolution": "node",
       "lib": ["dom", "es2017", "esnext"],
-      "types": ["node", "jest"],
+      "types": ["node", "vscode"],
       "sourceMap": false,
       "esModuleInterop": true,
       "removeComments": true,

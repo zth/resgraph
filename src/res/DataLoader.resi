@@ -71,14 +71,23 @@ module Plain: {
    */
   @send
   external prime: (t<'key, 'value>, 'value) => unit = "prime"
+  /** Adds a value to the cache at the provided key. */
+  @send
+  external primeAt: (t<'key, 'value>, 'key, 'value) => unit = "prime"
+
   /**
-   * Adds the provided key and (promised) value to the cache. If the key already exists, no
+   * Adds the provided key and (promised) value to the cache. If the key already
    * change is made.
    */
   @send
   external primeWithPromise: (t<'key, 'value>, promise<'value>) => unit = "prime"
+
+  /** Adds a promised value to the cache at the provided key. */
+  @send
+  external primeWithPromiseAt: (t<'key, 'value>, 'key, promise<'value>) => unit = "prime"
+
   /**
-   * The name given to this `DataLoader` instance, if set. Useful for APM tools..
+   * The name given to this `DataLoader` instance, if set. Useful for APM tools.
    */
   @get @return(nullable)
   external name: t<'key, 'value> => option<string> = "name"
@@ -119,6 +128,9 @@ let load: (t<'key, 'value>, 'key) => promise<'value>
   */
 let loadMany: (t<'key, 'value>, array<'key>) => promise<array<'value>>
 
+
+/** Loads multiple keys while preserving DataLoader's per-entry errors. */
+let loadManyResults: (t<'key, 'value>, array<'key>) => promise<array<result<'value, exn>>>
 /**
   * Clears the value at `key` from the cache, if it exists.
   */
@@ -136,12 +148,18 @@ let clearAll: t<'key, 'value> => unit
   */
 let prime: (t<'key, 'value>, 'value) => unit
 
+
+/** Adds a value to the cache at the provided key. */
+let primeAt: (t<'key, 'value>, ~key: 'key, ~value: 'value) => unit
 /**
   * Adds the provided key and (promised) value to the cache. If the key already exists, no
   * change is made.
   */
 let primeWithPromise: (t<'key, 'value>, promise<'value>) => unit
 
+
+/** Adds a promised value to the cache at the provided key. */
+let primeWithPromiseAt: (t<'key, 'value>, ~key: 'key, ~value: promise<'value>) => unit
 /**
   * The name given to this `DataLoader` instance, if set. Useful for APM tools..
   */

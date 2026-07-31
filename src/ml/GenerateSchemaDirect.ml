@@ -10,7 +10,7 @@ type loaded = {
 
 type collect_error = {file: string; message: string}
 
-let load_cmt ~package ~moduleName ~sourcePath =
+let load_cmt ~context ~package ~moduleName ~sourcePath =
   match Hashtbl.find_opt package.pathsForModule moduleName with
   | None ->
     Error
@@ -22,7 +22,7 @@ let load_cmt ~package ~moduleName ~sourcePath =
   | Some paths -> (
     let uri = Uri.fromPath sourcePath in
     let cmtPath = SharedTypes.getCmtPath ~uri paths in
-    match CmtDirect.of_path ~moduleName ~path:cmtPath with
+    match GenerationContext.loadCmt context ~moduleName ~path:cmtPath with
     | None ->
       Error
         {file = cmtPath; message = "Unable to read cmt/cmt[i] file for module."}
@@ -46,7 +46,7 @@ let source_is_selected ~includePaths ~excludePaths sourcePath =
   in
   included && not excluded
 
-let collect_gql_cmts ~sourceFolder ~includePaths ~excludePaths =
+let collect_gql_cmts ~context ~sourceFolder ~includePaths ~excludePaths =
   let includePaths = List.map canonicalize_path includePaths in
   let excludePaths = List.map canonicalize_path excludePaths in
   match Packages.getPackage ~uri:(Uri.fromPath sourceFolder) with
@@ -82,7 +82,7 @@ let collect_gql_cmts ~sourceFolder ~includePaths ~excludePaths =
                   BuildSystem.namespacedName package.namespace
                     (FindFiles.getName sourcePath)
                 in
-                match load_cmt ~package ~moduleName ~sourcePath with
+                match load_cmt ~context ~package ~moduleName ~sourcePath with
                 | Error err -> errs := err :: !errs
                 | Ok (cmtPath, cmt) ->
                   loaded := {moduleName; sourcePath; cmtPath; cmt} :: !loaded)
@@ -94,31 +94,12 @@ let print_collect_errors errs =
   errs
   |> List.iter (fun {file; message} -> prerr_endline (file ^ ": " ^ message))
 
-let with_hooks ~package ~preloaded f =
-  let cache : (string, SharedTypes.File.t) Hashtbl.t = Hashtbl.create 100 in
-  (* seed cache with already loaded summaries *)
+let with_hooks ~context ~package ~preloaded f =
   preloaded
-  |> List.iter (fun (moduleName, file) -> Hashtbl.replace cache moduleName file);
-  let load_and_cache moduleName =
-    match Hashtbl.find_opt package.pathsForModule moduleName with
-    | None -> None
-    | Some paths -> (
-      let uri = SharedTypes.getUri paths in
-      let cmtPath = SharedTypes.getCmtPath ~uri paths in
-      match CmtDirect.of_path ~moduleName ~path:cmtPath with
-      | None -> None
-      | Some cmt ->
-        let file =
-          CmtSummarize.file_from_cmt_infos ~moduleName ~uri
-            (CmtDirect.infos cmt)
-        in
-        Hashtbl.replace cache moduleName file;
-        Some file)
-  in
+  |> List.iter (fun (moduleName, file) ->
+      GenerationContext.seedSummary context ~moduleName file);
   let loader ~moduleName =
-    match Hashtbl.find_opt cache moduleName with
-    | Some file -> Some file
-    | None -> load_and_cache moduleName
+    GenerationContext.loadSummary context ~package ~moduleName
   in
   let digHook = DirectReferences.digConstructor ~loader in
   References.setDigConstructorHook digHook;
@@ -131,9 +112,13 @@ let with_hooks ~package ~preloaded f =
   References.clearDigConstructorHook ();
   res
 
-let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
-    ~outputFolder ~writeSdlFile ~schemaName ~moduleName ~contextType
-    ~includePaths ~excludePaths ~authorizationConfig =
+let generateSchemaDirect ?generationContext ~printToStdOut ~writeStateFile
+    ~sourceFolder ~debug ~outputFolder ~writeSdlFile ~schemaName ~moduleName
+    ~contextType ~includePaths ~excludePaths ~authorizationConfig () =
+  let generationContext =
+    Option.value generationContext ~default:(GenerationContext.create ())
+  in
+
   let moduleOutputPaths =
     [
       outputFolder ^ "/" ^ moduleName ^ ".res";
@@ -157,7 +142,9 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
       Printf.printf "{\"status\": \"Success\", \"ok\": true}")
   else
     let collection =
-      try collect_gql_cmts ~sourceFolder ~includePaths ~excludePaths
+      try
+        collect_gql_cmts ~context:generationContext ~sourceFolder ~includePaths
+          ~excludePaths
       with exn ->
         GenerateSchemaAuthorization.prepareManifest ~outputFolder ~writeSdlFile
           ~additionalOutputPaths:moduleOutputPaths authorizationConfig;
@@ -167,8 +154,21 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
     | Error errs ->
       GenerateSchemaAuthorization.prepareManifest ~outputFolder ~writeSdlFile
         ~additionalOutputPaths:moduleOutputPaths authorizationConfig;
-      print_collect_errors errs;
-      exit 1
+      if printToStdOut then
+        Printf.printf
+          "{\n\
+          \  \"status\": \"Error\",\n\
+          \  \"errors\": \n\
+          \    [\n\
+          \      %s\n\
+          \    ]\n\
+           }"
+          (errs
+          |> List.map (fun {file; message} ->
+              GenerateSchemaUtils.printDiagnostic
+                {loc = Location.none; fileUri = Uri.fromPath file; message})
+          |> String.concat ",\n")
+      else print_collect_errors errs
     | Ok (package, loaded) ->
       let additionalOutputPaths =
         moduleOutputPaths
@@ -192,7 +192,8 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
             (l.moduleName, file))
       in
       ignore
-        (with_hooks ~package ~preloaded (fun ~loader ->
+        (with_hooks ~context:generationContext ~package ~preloaded
+           (fun ~loader ->
              let projectConfigPath =
                let rescriptJson = package.rootPath ^ "/rescript.json" in
                if Files.exists rescriptJson then rescriptJson
@@ -252,14 +253,6 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
                Option.map (fun _ -> moduleName) schemaName
              in
 
-             (match schemaName with
-             | Some _ ->
-               GenerateSchemaTypePrinters.cleanNamedSchemaFiles ~outputFolder
-                 ~moduleName;
-               if not writeSdlFile then
-                 GenerateSchemaTypePrinters.cleanNamedSchemaSdl ~outputFolder
-             | None -> ());
-
              if schemaState.diagnostics |> List.length > 0 then (
                if printToStdOut then
                  Printf.printf
@@ -275,15 +268,29 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
                        GenerateSchemaUtils.printDiagnostic diagnostic)
                    |> String.concat ",\n");
 
-               (* Write an empty schema just to avoid type errors in the generated code. *)
-               GenerateSchemaUtils.writeIfHasChanges schemaOutputPath
-                 (Printf.sprintf
-                    "let schema: ResGraph.schema<%s> = \
-                     ResGraph__GraphQLJs.GraphQLSchemaType.make(Obj.magic())\n"
-                    contextType
-                 |> markNamedSchemaFile);
-               GenerateSchemaUtils.writeIfHasChanges resiOutputPath resiContent)
+               (* Preserve prior successful artifacts; bootstrap only on the first build. *)
+               if not (Sys.file_exists schemaOutputPath) then
+                 GenerateSchemaUtils.writeIfHasChanges schemaOutputPath
+                   (Printf.sprintf
+                      "let schema: ResGraph.schema<%s> = \
+                       ResGraph__GraphQLJs.GraphQLSchemaType.make(Obj.magic())\n"
+                      contextType
+                   |> markNamedSchemaFile);
+               if not (Sys.file_exists resiOutputPath) then
+                 GenerateSchemaUtils.writeIfHasChanges resiOutputPath
+                   resiContent)
              else
+               let () =
+                 match schemaName with
+                 | Some _ ->
+                   GenerateSchemaTypePrinters.cleanNamedSchemaFiles
+                     ~outputFolder ~moduleName;
+                   if not writeSdlFile then
+                     GenerateSchemaTypePrinters.cleanNamedSchemaSdl
+                       ~outputFolder
+                 | None -> ()
+               in
+
                let schemaCode =
                  GenerateSchemaTypePrinters.printSchemaJsFile schemaState
                    processedSchema ~interfaceModulePrefix
@@ -294,10 +301,6 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
                  ~outputFolder ~interfaceModulePrefix;
                GenerateSchemaTypePrinters.printInterfaceFiles schemaState
                  ~processedSchema ~outputFolder ~interfaceModulePrefix;
-
-               if writeStateFile then
-                 GenerateSchemaUtils.writeStateFile ?schemaName ~package
-                   ~schemaState ~processedSchema ();
 
                (if writeSdlFile then
                   let sdl = GenerateSchemaSDL.printSchemaSDL schemaState in
@@ -313,6 +316,10 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
                GenerateSchemaUtils.writeIfHasChanges resiOutputPath resiContent;
 
                GenerateSchemaAuthorization.writeBaseline schemaState;
+
+               if writeStateFile then
+                 GenerateSchemaUtils.writeStateFile ?schemaName ~package
+                   ~schemaState ~processedSchema ();
                GenerateSchemaAuthorization.writeManifest ~package schemaState;
 
                if cacheEnabled then

@@ -1,6 +1,18 @@
 # ResGraph Changelog
 
 ## Unreleased
+- Validate operations before execution, support synchronous GraphQL.js results,
+  reject malformed variables, and avoid redundant query hashing.
+- Add correct keyed DataLoader priming, per-entry `loadMany` results, and
+  order-preserving structural cache keys while retaining existing APIs.
+- Preserve last-known-good generated schemas on validation failures and use
+  atomic writes for generated files and native state.
+- Add a packed-package consumer test, native architecture fixtures, strict
+  integration failure propagation, release guards, and VS Code extension checks.
+- Extract the native generator into a wrapped engine library with a reusable
+  generation context; batch schemas by compiler root to share CMT summaries
+  while retaining per-schema results; and publish architecture and
+  configuration-schema docs.
 
 ## 1.3.0
 
