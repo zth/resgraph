@@ -32,7 +32,7 @@ let printAuthorizationBaselineWarning = (authorization: option<Utils.authorizati
   }
 
 let helpText = `
-**ResGraph v0.1.0 CLI**
+**ResGraph CLI**
 This is the CLI of ResGraph. All configuration is read from \`resgraph.json\`.
 Available commands:
 
@@ -150,29 +150,52 @@ let printFindDefinition = (~target, ~jsonOutput, ~schemaName) => {
 let buildSchemas = (config: Utils.config, schemas: array<Utils.schemaConfig>) => {
   let showSchemaName = !config.legacy || schemas->Array.length > 1
   let hadError = ref(false)
+  let schemasByCompilerRoot: Dict.t<array<Utils.schemaConfig>> = Dict.make()
 
   schemas->Array.forEach(schema => {
+    let compilerRoot =
+      schema.projectRoot->Utils.findCompilerRoot->Option.getOr(schema.projectRoot)->Utils.canonicalPath
+    switch schemasByCompilerRoot->Dict.get(compilerRoot) {
+    | Some(group) => group->Array.push(schema)
+    | None => schemasByCompilerRoot->Dict.set(compilerRoot, [schema])
+    }
+  })
+
+  schemasByCompilerRoot->Dict.toArray->Array.forEach(((_compilerRoot, group)) => {
     let timeStart = performance->now
     try {
-      switch Utils.callPrivateCli(GenerateSchema(schema)) {
-      | Completion(_) | Hover(_) | Definition(_) | FindDefinition(_) | NotInitialized => ()
-      | Success(_) =>
-        printBuildTime(schema, performance->now -. timeStart, ~showSchemaName)
-        printAuthorizationBaselineWarning(schema.authorization)
-      | Error({errors}) =>
-        if showSchemaName {
-          Console.error(`[${schema.name}] Schema generation failed.`)
-        }
-        ErrorPrinter.printErrors(errors)
-        hadError := true
+      let results = Utils.callPrivateCliBatch(group)
+      if results->Array.length !== group->Array.length {
+        panic("Native batch response did not match the requested schema count.")
       }
+      results->Array.forEachWithIndex((result, index) => {
+        let schema = group[index]->Option.getOrThrow(~message="Missing schema for batch result.")
+        switch result {
+        | Completion(_) | Hover(_) | Definition(_) | FindDefinition(_) | NotInitialized =>
+          Console.error(`[${schema.name}] Native generator returned an unexpected response.`)
+          hadError := true
+        | Success(_) =>
+          printBuildTime(schema, performance->now -. timeStart, ~showSchemaName)
+          printAuthorizationBaselineWarning(schema.authorization)
+        | Error({errors}) =>
+          if showSchemaName {
+            Console.error(`[${schema.name}] Schema generation failed.`)
+          }
+          ErrorPrinter.printErrors(errors)
+          hadError := true
+        }
+      })
     } catch {
     | Exn.Error(error) =>
-      Console.error(`[${schema.name}] Generator process failed.`)
+      group->Array.forEach(schema =>
+        Console.error(`[${schema.name}] Generator process failed.`)
+      )
       Console.error(error)
       hadError := true
     | _ =>
-      Console.error(`[${schema.name}] Generator process failed.`)
+      group->Array.forEach(schema =>
+        Console.error(`[${schema.name}] Generator process failed.`)
+      )
       hadError := true
     }
   })
@@ -316,9 +339,11 @@ try {
       Process.process->Process.exitWithCode(1)
     }
   | list{"help"} => Console.log(helpText)
+  | list{"tools"} => Console.log(toolsHelpText)
   | value =>
-    Console.log("Invalid command: " ++ value->List.toArray->Array.join(" "))
+    Console.error("Invalid command: " ++ value->List.toArray->Array.join(" "))
     Console.log(helpText)
+    Process.process->Process.exitWithCode(1)
   }
 } catch {
 | Exn.Error(error) =>

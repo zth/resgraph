@@ -460,7 +460,7 @@ let addUnion id ~(makeUnion : unit -> gqlUnion) ~debug ~schemaState =
 
 let addInputUnion id ~(makeInputUnion : unit -> gqlInputUnionType) ~debug
     ~schemaState =
-  if Hashtbl.mem schemaState.unions id then ()
+  if Hashtbl.mem schemaState.inputUnions id then ()
   else (
     if debug then Printf.printf "Adding input union %s\n" id;
     Hashtbl.replace schemaState.inputUnions id (makeInputUnion ()))
@@ -1260,6 +1260,20 @@ let isFileContentsTheSame filePath s =
   with Sys_error _ -> false
 
 let gqlRegexp = Str.regexp_string "@gql."
+let removeTemporaryFile path = try Sys.remove path with Sys_error _ -> ()
+
+let writeAtomically path contents =
+  let temporaryPath = Printf.sprintf "%s.%d.tmp" path (Unix.getpid ()) in
+  let outputChannel = open_out_bin temporaryPath in
+  try
+    output_string outputChannel contents;
+    flush outputChannel;
+    close_out outputChannel;
+    Unix.rename temporaryPath path
+  with exn ->
+    close_out_noerr outputChannel;
+    removeTemporaryFile temporaryPath;
+    raise exn
 
 let hasGqlAttribute str =
   try
@@ -1285,17 +1299,14 @@ let fileHasGqlAttribute filePath =
 let writeIfHasChanges path contents =
   if isFileContentsTheSame path contents then ()
   else
-    try
-      let oc = open_out path in
-
-      output_string oc contents;
-      close_out oc
-    with Sys_error _ ->
-      Printf.printf
-        "Something went wrong trying to write to \"%s\". Make sure the \
-         directory actually exists."
-        path;
-      exit 1
+    try writeAtomically path contents
+    with (Sys_error _ | Unix.Unix_error _) as exn ->
+      prerr_endline
+        (Printf.sprintf
+           "Something went wrong trying to write to \"%s\". Make sure the \
+            directory actually exists."
+           path);
+      raise exn
 
 type persistedSchemaState = {
   version: int;
@@ -1334,18 +1345,20 @@ let writeStateFile ?schemaName ~package ~schemaState ~processedSchema () =
   (match schemaName with
   | None -> ()
   | Some _ -> ensureStateDirectory package);
-  let ch = open_out_bin (getStateFilePath ?schemaName package) in
-  output_string ch stateFileMagic;
-  (match schemaName with
-  | None ->
-    Marshal.to_channel ch
-      {version = stateFileVersion; schemaState; processedSchema}
-      [Compat_32]
-  | Some schemaName ->
-    Marshal.to_channel ch
-      {version = stateFileVersion; schemaName; schemaState; processedSchema}
-      [Compat_32]);
-  close_out ch
+  let payload =
+    match schemaName with
+    | None ->
+      Marshal.to_string
+        {version = stateFileVersion; schemaState; processedSchema}
+        [Compat_32]
+    | Some schemaName ->
+      Marshal.to_string
+        {version = stateFileVersion; schemaName; schemaState; processedSchema}
+        [Compat_32]
+  in
+  writeAtomically
+    (getStateFilePath ?schemaName package)
+    (stateFileMagic ^ payload)
 
 let readStateFile ?schemaName ~package () =
   let ch = open_in_bin (getStateFilePath ?schemaName package) in

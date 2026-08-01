@@ -40,6 +40,8 @@ module Plain = {
 
   type batchFn<'key, 'value> = array<'key> => promise<array<'value>>
 
+  type rawLoadManyEntry<'value>
+
   @new @module("dataloader")
   external make: (batchFn<'key, 'value>, ~options: options=?) => t<'key, 'value> = "default"
 
@@ -54,6 +56,9 @@ module Plain = {
    */
   @send
   external loadMany: (t<'key, 'value>, array<'key>) => promise<array<'value>> = "loadMany"
+  @send
+  external loadManyRaw: (t<'key, 'value>, array<'key>) => promise<array<rawLoadManyEntry<'value>>> =
+    "loadMany"
 
   /**
    * Clears the value at `key` from the cache, if it exists.
@@ -74,6 +79,8 @@ module Plain = {
    */
   @send
   external prime: (t<'key, 'value>, 'value) => unit = "prime"
+  @send
+  external primeAt: (t<'key, 'value>, 'key, 'value) => unit = "prime"
 
   /**
    * Adds the provided key and (promised) value to the cache. If the key already exists, no
@@ -81,6 +88,8 @@ module Plain = {
    */
   @send
   external primeWithPromise: (t<'key, 'value>, promise<'value>) => unit = "prime"
+  @send
+  external primeWithPromiseAt: (t<'key, 'value>, 'key, promise<'value>) => unit = "prime"
 
   /**
    * The name given to this `DataLoader` instance, if set. Useful for APM tools..
@@ -92,6 +101,7 @@ module Plain = {
 type t<'key, 'value> = Lazy.t<Plain.t<'key, 'value>>
 
 type batchFn<'key, 'value> = array<'key> => promise<array<'value>>
+type batchResultsFn<'key, 'value> = array<'key> => promise<array<result<'value, exn>>>
 
 type options = {
   /**
@@ -137,6 +147,33 @@ let makeBatched = (loadFn: batchFn<'key, 'value>, ~options=?) => {
   Lazy.make(() => Plain.make(loadFn, ~options=?mapOptions(options)))
 }
 
+external valueToRawLoadManyEntry: 'value => Plain.rawLoadManyEntry<'value> = "%identity"
+let errorToRawLoadManyEntry: exn => Plain.rawLoadManyEntry<'value> = %raw(`error => {
+  if (error instanceof Error) return error;
+  const message = error != null && typeof error.RE_EXN_ID === "string"
+    ? error.RE_EXN_ID
+    : String(error);
+  const wrapped = new Error(message);
+  Object.defineProperty(wrapped, "__resgraphException", {value: error});
+  return wrapped;
+}`)
+external rawLoaderToLoader: Plain.t<'key, Plain.rawLoadManyEntry<'value>> => Plain.t<'key, 'value> =
+  "%identity"
+
+let makeBatchedResults = (loadFn: batchResultsFn<'key, 'value>, ~options=?) => {
+  let rawLoadFn = keys =>
+    loadFn(keys)->Promise.thenResolve(results =>
+      results->Array.map(result =>
+        switch result {
+        | Ok(value) => value->valueToRawLoadManyEntry
+        | Error(error) => error->errorToRawLoadManyEntry
+        }
+      )
+    )
+
+  Lazy.make(() => Plain.make(rawLoadFn, ~options=?mapOptions(options))->rawLoaderToLoader)
+}
+
 let load = (lazyLoader, key) => {
   let loader = lazyLoader->Lazy.get
   loader->Plain.load(key)
@@ -145,6 +182,29 @@ let load = (lazyLoader, key) => {
 let loadMany = (lazyLoader, keys) => {
   let loader = lazyLoader->Lazy.get
   loader->Plain.loadMany(keys)
+}
+
+let isError: Plain.rawLoadManyEntry<'value> => bool = %raw(`value => value instanceof Error`)
+external rawLoadManyEntryToValue: Plain.rawLoadManyEntry<'value> => 'value = "%identity"
+let rawLoadManyEntryToError: Plain.rawLoadManyEntry<'value> => exn = %raw(`value =>
+  Object.prototype.hasOwnProperty.call(value, "__resgraphException")
+    ? value.__resgraphException
+    : value
+`)
+
+let loadManyResults = (lazyLoader, keys) => {
+  let loader = lazyLoader->Lazy.get
+  loader
+  ->Plain.loadManyRaw(keys)
+  ->Promise.thenResolve(values =>
+    values->Array.map(value =>
+      if isError(value) {
+        Error(value->rawLoadManyEntryToError)
+      } else {
+        Ok(value->rawLoadManyEntryToValue)
+      }
+    )
+  )
 }
 
 let clear = (lazyLoader, key) => {
@@ -162,9 +222,19 @@ let prime = (lazyLoader, value) => {
   loader->Plain.prime(value)
 }
 
+let primeAt = (lazyLoader, ~key, ~value) => {
+  let loader = lazyLoader->Lazy.get
+  loader->Plain.primeAt(key, value)
+}
+
 let primeWithPromise = (lazyLoader, value) => {
   let loader = lazyLoader->Lazy.get
   loader->Plain.primeWithPromise(value)
+}
+
+let primeWithPromiseAt = (lazyLoader, ~key, ~value) => {
+  let loader = lazyLoader->Lazy.get
+  loader->Plain.primeWithPromiseAt(key, value)
 }
 
 let name = lazyLoader => {

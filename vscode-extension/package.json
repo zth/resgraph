@@ -7,11 +7,12 @@
     "vscode": "^1.77.0"
   },
   "scripts": {
-    "vscode:prepublish": "yarn build",
-    "build:watch": "tsc -w",
+    "vscode:prepublish": "npm run build",
+    "typecheck": "tsc --noEmit",
+    "build:watch": "tsc -w --noEmit",
     "build:extension": "esbuild ./src/extension.ts --bundle --outfile=build/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
-    "build:clean": "rm -rf build",
-    "build": "yarn build:clean && yarn build:extension"
+    "build:clean": "node -e \"require('node:fs').rmSync('build', {recursive: true, force: true})\"",
+    "build": "npm run build:clean && npm run typecheck && npm run build:extension"
   },
   "author": "Gabriel Nordeborn <gabbe.nord@gmail.com>",
   "repository": {

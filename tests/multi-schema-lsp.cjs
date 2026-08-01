@@ -38,12 +38,21 @@ const send = message => {
   child.stdin.write(`Content-Length: ${Buffer.byteLength(payload)}\r\n\r\n${payload}`);
 };
 
-send({jsonrpc: "2.0", id: "initialize", method: "initialize", params: {}});
+send({jsonrpc: "2.0", id: 1, method: "initialize", params: {}});
 setTimeout(() => {
   send({
     jsonrpc: "2.0",
     method: "textDocument/didOpen",
     params: {textDocument: {uri: publicSourceUri, text: readFileSync(publicSource, "utf8")}},
+  });
+  send({
+    jsonrpc: "2.0",
+    id: "invalid-uri",
+    method: "textDocument/hover",
+    params: {
+      textDocument: {uri: "untitled:invalid"},
+      position: {line: 0, character: 0},
+    },
   });
   send({
     jsonrpc: "2.0",
@@ -68,8 +77,10 @@ child.on("close", code => {
   const valid =
     code === 0 &&
     removedArtifactWasCleaned &&
-    stdout.includes('"id":"initialize"') &&
+    stdout.includes('"id":1') &&
     stdout.includes('"capabilities"') &&
+    stdout.includes('"id":"invalid-uri"') &&
+    stdout.includes('"code":-32603') &&
     stdout.includes('"id":"completion"') &&
     stdout.includes("PublicContext.context");
   if (!valid) {

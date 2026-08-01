@@ -5,18 +5,16 @@ module FormData = Fetch.FormData
 module Blob = Fetch.Blob
 
 module GraphQLError = {
-  type t
+  type t = exn
   type options<'extensions> = {extensions?: {..} as 'extensions}
 
   @module("graphql") @new
   external make: (string, ~options: options<'extensions>=?) => t = "GraphQLError"
 
-  let raise: t => 'a = err => throw(Obj.magic(err))
+  let raise: t => 'a = err => throw(err)
 }
 
 module Envelope = {
-  type plugin
-
   module Plugin = {
     type t
 
@@ -34,6 +32,8 @@ module Envelope = {
       external use: config => t = "useExtendedValidation"
     }
   }
+
+  type plugin = Plugin.t
 }
 
 module Server = {

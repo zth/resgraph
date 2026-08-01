@@ -2,12 +2,14 @@
   "name": "resgraph",
   "version": "1.3.0",
   "description": "Build GraphQL servers in ReScript.",
-  "main": "index.js",
   "scripts": {
-    "prepublish": "npm run build",
+    "prepack": "npm run build",
     "build": "rescript clean && npm run res:build && esbuild --external:vscode-jsonrpc --external:chokidar --platform=node --format=esm --bundle cli/Cli.mjs --outfile=dist/Cli.mjs --minify --tree-shaking",
     "res:build": "rescript",
-    "res:watch": "rescript -w"
+    "res:watch": "rescript -w",
+    "test": "npm run test:runtime",
+    "test:runtime": "npm run res:build && node tests/runtime-bindings.mjs",
+    "test:package": "node scripts/test-package.mjs"
   },
   "bin": {
     "resgraph": "dist/Cli.mjs"
@@ -18,7 +20,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/zth/resgraph/issues"
   },
@@ -28,7 +30,15 @@
   },
   "peerDependencies": {
     "rescript": ">=12.0.0",
-    "@glennsl/rescript-fetch": ">=0.2.0"
+    "graphql": "^16.8.1",
+    "dataloader": "^2.2.2",
+    "graphql-yoga": "^5.3.0",
+    "@envelop/extended-validation": "^5.1.3"
+  },
+  "peerDependenciesMeta": {
+    "dataloader": {"optional": true},
+    "graphql-yoga": {"optional": true},
+    "@envelop/extended-validation": {"optional": true}
   },
   "dependencies": {
     "chokidar": "^3.5.3",
@@ -40,7 +50,10 @@
   "devDependencies": {
     "dataloader": "^2.2.2",
     "rescript": "^12.0.0",
+    "@envelop/extended-validation": "^5.1.3",
     "chalk": "^5.2.0",
+    "graphql": "^16.8.1",
+    "graphql-yoga": "^5.3.0",
     "esbuild": "^0.23.1"
   },
   "files": [
@@ -50,6 +63,7 @@
     "cli/*",
     "dist/Cli.mjs",
     "rescript.json",
+    "resgraph.schema.json",
     "package.json",
     "LICENSE",
     "README.md",

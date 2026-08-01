@@ -101,6 +101,35 @@ admin_cache_output=$(cd "$fixture_dir" && RESGRAPH_INCREMENTAL_DEBUG=1 node "$cl
 [[ "$public_cache_output" == *'Incremental cache hit'* ]]
 [[ "$admin_cache_output" == *'Incremental cache hit'* ]]
 
+manifest_failure_dir=$(mktemp -d /tmp/resgraph-manifest-failure.XXXXXX)
+node -e '
+  const fs = require("node:fs");
+  const [configPath, projectRoot, includePath, outputFolder] = process.argv.slice(1);
+  fs.writeFileSync(configPath, JSON.stringify({
+    schemas: {
+      public: {
+        projectRoot,
+        include: [includePath],
+        outputFolder,
+        moduleName: "PublicSchema",
+        contextType: "PublicContext.context"
+      }
+    }
+  }));
+' "$manifest_failure_dir/resgraph.json" "$fixture_dir" \
+  "$fixture_dir/src" "$fixture_dir/src/generated/public"
+printf 'blocks ownership directory creation\n' >"$manifest_failure_dir/lib"
+set +e
+manifest_failure_output=$(cd "$manifest_failure_dir" && node "$cli" build 2>&1)
+manifest_failure_status=$?
+set -e
+rm -rf "$manifest_failure_dir"
+if [[ $manifest_failure_status -eq 0 ]]; then
+  printf 'Build unexpectedly ignored an ownership-manifest write failure.\n' >&2
+  exit 1
+fi
+[[ "$manifest_failure_output" == *'ENOTDIR'* || "$manifest_failure_output" == *'not a directory'* ]]
+
 config_backup=$(mktemp /tmp/resgraph-config.XXXXXX)
 cp "$fixture_dir/resgraph.json" "$config_backup"
 restore_config() {
@@ -288,10 +317,36 @@ failure_output=$(cd "$fixture_dir/failure" && node "$cli" build 2>&1)
 failure_status=$?
 set -e
 [[ $failure_status -ne 0 ]]
-[[ "$failure_output" == *'[uncompiled] Generator process failed.'* ]]
+[[ "$failure_output" == *'[uncompiled] Schema generation failed.'* ]]
 [[ "$failure_output" == *'[broken] Schema generation failed.'* ]]
 [[ "$failure_output" == *'[admin] Build succeeded'* ]]
 rm -f "$fixture_dir/src/generated/broken/BrokenSchema.res" "$fixture_dir/src/generated/broken/BrokenSchema.resi"
+
+missing_output_parent=$(mktemp -d /tmp/resgraph-batch-write-failure.XXXXXX)
+trap 'rm -rf "$missing_output_parent"' EXIT
+batch_write_failure_output=$(
+  "$repo_dir/bin/dev/resgraph.exe" generate-schemas-v1 \
+    12 generate-schema "$fixture_dir" "$missing_output_parent/missing" false \
+    --schema broken-write \
+    --module BrokenWriteSchema \
+    --context BrokenContext.context \
+    --include "$fixture_dir/src/broken" \
+    2>/dev/null
+)
+node -e '
+const results = JSON.parse(process.argv[1]);
+if (
+  results.length !== 1 ||
+  results[0].status !== "Error" ||
+  !results[0].errors.some(error =>
+    error.message.includes("Failed to write compile-safe bootstrap artifacts:")
+  )
+) {
+  process.exit(1);
+}
+' "$batch_write_failure_output"
+rm -rf "$missing_output_parent"
+trap - EXIT
 
 (cd "$fixture_dir/uncompiled" && "$rescript_bin")
 for cmt in \
@@ -301,7 +356,7 @@ for cmt in \
     printf 'x' >"$cmt"
   fi
 done
-capture_watch_output "$fixture_dir/failure" '[uncompiled] Generator process failed.' uncompiled
+capture_watch_output "$fixture_dir/failure" '[uncompiled] Schema generation failed.' uncompiled
 [[ "$watch_output" != *'Build succeeded'* ]]
 rm -rf "$fixture_dir/uncompiled/lib"
 
@@ -436,6 +491,13 @@ test ! -e "$fixture_dir/package-a/src/generated/ResGraphSchema.res"
 test ! -e "$fixture_dir/package-a/src/generated/ResGraphSchema.resi"
 test ! -e "$fixture_dir/package-a/src/generated/interface_obsolete.res"
 test -f "$fixture_dir/package-a/src/generated/interface_custom.res"
+
+printf 'let preserved = true\n' >"$fixture_dir/package-a/src/generated/ResGraphSchema.res"
+printf 'let preserved: bool\n' >"$fixture_dir/package-a/src/generated/ResGraphSchema.resi"
+(cd "$fixture_dir/central" && node "$cli" build package-a >/dev/null)
+assert_contains "$fixture_dir/package-a/src/generated/ResGraphSchema.res" 'let preserved = true'
+assert_contains "$fixture_dir/package-a/src/generated/ResGraphSchema.resi" 'let preserved: bool'
+
 restore_legacy_generated
 trap - EXIT
 (cd "$fixture_dir/package-a" && "$rescript_bin")

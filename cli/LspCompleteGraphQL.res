@@ -131,9 +131,12 @@ let findLookupValue = token => {
   }
 }
 
-let hoverAtPos = (~path, ~pos: LspProtocol.loc, ~stateName) => {
+let hoverAtPos = (~path, ~text=?, ~pos: LspProtocol.loc, ~stateName) => {
   try {
-    let fileContents = Fs.readFileSync(path)->Buffer.toStringWithEncoding(StringEncoding.utf8)
+    let fileContents = switch text {
+    | Some(text) => text
+    | None => Fs.readFileSync(path)->Buffer.toStringWithEncoding(StringEncoding.utf8)
+    }
 
     switch getTokenAtPosition(
       ~queryText=fileContents,
@@ -160,9 +163,12 @@ let hoverAtPos = (~path, ~pos: LspProtocol.loc, ~stateName) => {
   }
 }
 
-let definitionAtPos = (~path, ~pos: LspProtocol.loc, ~stateName) => {
+let definitionAtPos = (~path, ~text=?, ~pos: LspProtocol.loc, ~stateName) => {
   try {
-    let fileContents = Fs.readFileSync(path)->Buffer.toStringWithEncoding(StringEncoding.utf8)
+    let fileContents = switch text {
+    | Some(text) => text
+    | None => Fs.readFileSync(path)->Buffer.toStringWithEncoding(StringEncoding.utf8)
+    }
 
     switch getTokenAtPosition(
       ~queryText=fileContents,

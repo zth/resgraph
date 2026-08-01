@@ -314,6 +314,86 @@ let validateInterfaceImplementationCycles (schemaState : schemaState) =
                      typ.displayName;
                })
 
+type graphqlTypeNameEntry = {
+  name: string;
+  kind: string;
+  loc: Location.t;
+  fileUri: Uri.t;
+}
+
+let validateTypeNameUniqueness (schemaState : schemaState) =
+  let entries = ref [] in
+  let add ~name ~kind ~loc ~fileUri =
+    entries := {name; kind; loc; fileUri} :: !entries
+  in
+  let addTypeLocation ~name ~kind = function
+    | Concrete typeLocation ->
+      add ~name ~kind ~loc:typeLocation.loc ~fileUri:typeLocation.fileUri
+    | Synthetic {fileUri} -> add ~name ~kind ~loc:emptyLoc ~fileUri
+  in
+  schemaState.types
+  |> Hashtbl.iter (fun _name (typ : gqlObjectType) ->
+      match (typ.typeLocation, typ.syntheticTypeLocation) with
+      | Some location, _ ->
+        addTypeLocation ~name:typ.displayName ~kind:"object type" location
+      | None, Some location ->
+        add ~name:typ.displayName ~kind:"object type" ~loc:location.loc
+          ~fileUri:location.fileUri
+      | None, None -> ());
+  schemaState.inputObjects
+  |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
+      match (typ.typeLocation, typ.syntheticTypeLocation) with
+      | Some location, _ ->
+        add ~name:typ.displayName ~kind:"input object" ~loc:location.loc
+          ~fileUri:location.fileUri
+      | None, Some location ->
+        add ~name:typ.displayName ~kind:"input object" ~loc:location.loc
+          ~fileUri:location.fileUri
+      | None, None -> ());
+  schemaState.inputUnions
+  |> Hashtbl.iter (fun _name (typ : gqlInputUnionType) ->
+      add ~name:typ.displayName ~kind:"input union" ~loc:typ.typeLocation.loc
+        ~fileUri:typ.typeLocation.fileUri);
+  schemaState.enums
+  |> Hashtbl.iter (fun _name (typ : gqlEnum) ->
+      addTypeLocation ~name:typ.displayName ~kind:"enum" typ.typeLocation);
+  schemaState.unions
+  |> Hashtbl.iter (fun _name (typ : gqlUnion) ->
+      addTypeLocation ~name:typ.displayName ~kind:"union" typ.typeLocation);
+  schemaState.interfaces
+  |> Hashtbl.iter (fun _name (typ : gqlInterface) ->
+      add ~name:typ.displayName ~kind:"interface" ~loc:typ.typeLocation.loc
+        ~fileUri:typ.typeLocation.fileUri);
+  schemaState.scalars
+  |> Hashtbl.iter (fun _name (typ : gqlScalar) ->
+      add ~name:typ.displayName ~kind:"scalar" ~loc:typ.typeLocation.loc
+        ~fileUri:typ.typeLocation.fileUri);
+  let registered = Hashtbl.create (List.length !entries) in
+  !entries
+  |> List.sort (fun left right ->
+      compare
+        (left.name, left.kind, Uri.toPath left.fileUri, Loc.toString left.loc)
+        ( right.name,
+          right.kind,
+          Uri.toPath right.fileUri,
+          Loc.toString right.loc ))
+  |> List.iter (fun entry ->
+      match Hashtbl.find_opt registered entry.name with
+      | None -> Hashtbl.add registered entry.name entry
+      | Some previous ->
+        schemaState
+        |> addDiagnostic
+             ~diagnostic:
+               {
+                 loc = entry.loc;
+                 fileUri = entry.fileUri;
+                 message =
+                   Printf.sprintf
+                     "GraphQL type name `%s` is used by both a %s and a %s. \
+                      Type names must be unique across all GraphQL kinds."
+                     entry.name previous.kind entry.kind;
+               })
+
 let validateSchema (schemaState : schemaState) =
   validateRootTypes schemaState;
   validateInterfaceImplementationCycles schemaState;
@@ -336,6 +416,7 @@ let validateSchema (schemaState : schemaState) =
       (* No need to validate each case, ReScript has already done it for us. *)
       validateName ~name:typ.displayName ~typeLocation:typ.typeLocation
         schemaState);
+  validateTypeNameUniqueness schemaState;
 
   schemaState.unions
   |> Hashtbl.iter (fun _name (typ : gqlUnion) ->

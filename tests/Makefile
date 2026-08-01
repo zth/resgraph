@@ -1,7 +1,7 @@
 SHELL = /bin/bash
 
 node_modules/.bin/rescript:
-	npm install
+	npm ci
 
 build: node_modules/.bin/rescript
 	node_modules/.bin/rescript
@@ -17,7 +17,7 @@ test: build
 	authorization/run-tests.sh
 
 clean:
-	rm -r node_modules lib
+	rm -rf node_modules lib
 
 .DEFAULT_GOAL := test
 

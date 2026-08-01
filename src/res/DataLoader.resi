@@ -50,8 +50,10 @@ module Plain: {
   @send
   external load: (t<'key, 'value>, 'key) => promise<'value> = "load"
   /**
-   * Loads multiple keys, promising an array of values.
+   * Loads multiple keys, promising an array of values. DataLoader can place
+   * errors in this array, which this legacy signature cannot represent.
    */
+  @deprecated("Use the high-level loadManyResults API.")
   @send
   external loadMany: (t<'key, 'value>, array<'key>) => promise<array<'value>> = "loadMany"
   /**
@@ -66,19 +68,28 @@ module Plain: {
   @send
   external clearAll: t<'key, 'value> => unit = "clearAll"
   /**
-   * Adds the provided key and value to the cache. If the key already exists, no
-   * change is made.
+   * Legacy binding with a missing key argument.
    */
+  @deprecated("Use primeAt, which accepts both the cache key and value.")
   @send
   external prime: (t<'key, 'value>, 'value) => unit = "prime"
+  /** Adds a value to the cache at the provided key. */
+  @send
+  external primeAt: (t<'key, 'value>, 'key, 'value) => unit = "prime"
+
   /**
-   * Adds the provided key and (promised) value to the cache. If the key already exists, no
-   * change is made.
+   * Legacy binding with a missing key argument.
    */
+  @deprecated("Use primeWithPromiseAt, which accepts both the cache key and promised value.")
   @send
   external primeWithPromise: (t<'key, 'value>, promise<'value>) => unit = "prime"
+
+  /** Adds a promised value to the cache at the provided key. */
+  @send
+  external primeWithPromiseAt: (t<'key, 'value>, 'key, promise<'value>) => unit = "prime"
+
   /**
-   * The name given to this `DataLoader` instance, if set. Useful for APM tools..
+   * The name given to this `DataLoader` instance, if set. Useful for APM tools.
    */
   @get @return(nullable)
   external name: t<'key, 'value> => option<string> = "name"
@@ -87,6 +98,7 @@ module Plain: {
 type t<'key, 'value>
 
 type batchFn<'key, 'value> = array<'key> => promise<array<'value>>
+type batchResultsFn<'key, 'value> = array<'key> => promise<array<result<'value, exn>>>
 
 type options = {
   /**
@@ -110,14 +122,27 @@ let makeSingle: ('key => promise<'value>, ~options: options=?) => t<'key, 'value
 let makeBatched: (batchFn<'key, 'value>, ~options: options=?) => t<'key, 'value>
 
 /**
+  * Creates a batched loader whose individual keys may resolve to errors.
+  */
+let makeBatchedResults: (
+  batchResultsFn<'key, 'value>,
+  ~options: options=?,
+) => t<'key, 'value>
+
+/**
   * Loads a key, returning a `promise` for the value represented by that key.
   */
 let load: (t<'key, 'value>, 'key) => promise<'value>
 
 /**
-  * Loads multiple keys, promising an array of values.
+  * Loads multiple keys, promising an array of values. DataLoader can place
+  * errors in this array, which this legacy signature cannot represent.
   */
+@deprecated("Use loadManyResults to preserve per-entry errors.")
 let loadMany: (t<'key, 'value>, array<'key>) => promise<array<'value>>
+
+/** Loads multiple keys while preserving DataLoader's per-entry errors. */
+let loadManyResults: (t<'key, 'value>, array<'key>) => promise<array<result<'value, exn>>>
 
 /**
   * Clears the value at `key` from the cache, if it exists.
@@ -131,18 +156,24 @@ let clear: (t<'key, 'value>, 'key) => unit
 let clearAll: t<'key, 'value> => unit
 
 /**
-  * Adds the provided key and value to the cache. If the key already exists, no
-  * change is made.
+  * Legacy binding with a missing key argument.
   */
+@deprecated("Use primeAt, which accepts both the cache key and value.")
 let prime: (t<'key, 'value>, 'value) => unit
 
-/**
-  * Adds the provided key and (promised) value to the cache. If the key already exists, no
-  * change is made.
-  */
-let primeWithPromise: (t<'key, 'value>, promise<'value>) => unit
+/** Adds a value to the cache at the provided key. */
+let primeAt: (t<'key, 'value>, ~key: 'key, ~value: 'value) => unit
 
 /**
-  * The name given to this `DataLoader` instance, if set. Useful for APM tools..
+  * Legacy binding with a missing key argument.
+  */
+@deprecated("Use primeWithPromiseAt, which accepts both the cache key and promised value.")
+let primeWithPromise: (t<'key, 'value>, promise<'value>) => unit
+
+/** Adds a promised value to the cache at the provided key. */
+let primeWithPromiseAt: (t<'key, 'value>, ~key: 'key, ~value: promise<'value>) => unit
+
+/**
+  * The name given to this `DataLoader` instance, if set. Useful for APM tools.
   */
 let name: t<'key, 'value> => option<string>

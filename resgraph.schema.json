@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/zth/resgraph/main/resgraph.schema.json",
+  "title": "ResGraph configuration",
+  "description": "Configuration for one legacy schema or several named ResGraph schemas.",
+  "type": "object",
+  "oneOf": [
+    {"$ref": "#/$defs/legacyConfig"},
+    {"$ref": "#/$defs/namedConfig"}
+  ],
+  "$defs": {
+    "authorization": {
+      "type": "object",
+      "required": ["mode"],
+      "properties": {
+        "mode": {"const": "required"},
+        "onForbidden": {"type": "string", "minLength": 1},
+        "manifestPath": {"type": "string", "minLength": 1},
+        "baselinePath": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "schemaOptions": {
+      "type": "object",
+      "required": ["outputFolder"],
+      "properties": {
+        "projectRoot": {"type": "string", "minLength": 1, "default": "."},
+        "include": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true,
+          "default": []
+        },
+        "exclude": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true,
+          "default": []
+        },
+        "outputFolder": {"type": "string", "minLength": 1},
+        "moduleName": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Za-z0-9_]*$"
+        },
+        "contextType": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+$",
+          "default": "ResGraphContext.context"
+        },
+        "dumpSchemaSdl": {"type": "boolean", "default": false},
+        "authorization": {"$ref": "#/$defs/authorization"}
+      },
+      "additionalProperties": false
+    },
+    "legacyConfig": {
+      "type": "object",
+      "required": ["src", "outputFolder"],
+      "properties": {
+        "$schema": {"type": "string"},
+        "src": {"type": "string", "minLength": 1},
+        "outputFolder": {"type": "string", "minLength": 1},
+        "include": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "exclude": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "contextType": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+$"
+        },
+        "dumpSchemaSdl": {"type": "boolean", "default": false},
+        "authorization": {"$ref": "#/$defs/authorization"}
+      },
+      "additionalProperties": false
+    },
+    "namedConfig": {
+      "type": "object",
+      "required": ["schemas"],
+      "properties": {
+        "$schema": {"type": "string"},
+        "defaultSchema": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$"
+        },
+        "schemas": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"pattern": "^[A-Za-z0-9_-]+$"},
+          "additionalProperties": {"$ref": "#/$defs/schemaOptions"}
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

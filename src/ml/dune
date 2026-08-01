@@ -1,11 +1,10 @@
-(executable
- (public_name resgraph)
- (name Cli)
- (modes byte exe)
+(library
+ (name resgraph_engine)
+ (wrapped true)
  (flags
   (-w "+6+26+27+32+33+39"))
  (libraries unix str ext ml jsonlib syntax)
- (modules Cli CodeWriter GenerateSchema GenerateSchemaDirect
+ (modules CodeWriter GenerateSchema GenerateSchemaDirect GenerationContext
    GenerateSchemaTypes GenerateSchemaAuthorization GenerateSchemaUtils
    GenerateSchemaDiagnostics GenerateSchemaSDL GenerateSchemaCache
    GenerateSchemaValidation GenerateSchemaTypePrinters ProcessAttributes
@@ -13,3 +12,19 @@
    ModuleResolution BuildSystem Cache Cfg CmtDirect CmtSummarize
    DirectResolve DirectReferences Debug Log PrintType Protocol References
    Completion Hover Analyze Markdown FindFiles))
+
+(executable
+ (public_name resgraph)
+ (name Cli)
+ (modes byte exe)
+ (flags
+  (-w "+6+26+27+32+33+39"))
+ (libraries resgraph_engine)
+ (modules Cli))
+
+(test
+ (name ArchitectureTests)
+ (flags
+  (-w "+6+26+27+32+33+39"))
+ (modules ArchitectureTests)
+ (libraries resgraph_engine))

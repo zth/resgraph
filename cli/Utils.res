@@ -178,6 +178,7 @@ type callResult =
 
 external toCallResult: string => callResult = "JSON.parse"
 
+external toCallResults: string => array<callResult> = "JSON.parse"
 external infinity: int = "Infinity"
 
 let devBinLocation = "../bin/dev/resgraph.exe"
@@ -187,9 +188,8 @@ let hasDevBin = Lazy.make(() => (devBinLocation->makeUrl(currentFileUrl)).pathna
 @module("node:os")
 external arch: unit => string = "arch"
 
-let callPrivateCli = command => {
+let privateCliPath = () => {
   let hasDevBin = hasDevBin->Lazy.get
-
   let binLocation = if hasDevBin {
     devBinLocation
   } else {
@@ -199,11 +199,27 @@ let callPrivateCli = command => {
     | (platform, _) => platform
     } ++ "/resgraph.exe"
   }
-
   (binLocation->makeUrl(currentFileUrl)).pathname
+}
+
+let callPrivateCli = command => {
+  privateCliPath()
   ->ChildProcess.execFileSyncWith(command->privateCliCallToArgs, {maxBuffer: infinity})
   ->Buffer.toString
   ->toCallResult
+}
+
+let callPrivateCliBatch = (schemas: array<schemaConfig>) => {
+  let calls = schemas->Array.flatMap(schema => {
+    let args = GenerateSchema(schema)->privateCliCallToArgs
+    [args->Array.length->Int.toString, ...args]
+  })
+  let args = ["generate-schemas-v1", ...calls]
+
+  privateCliPath()
+  ->ChildProcess.execFileSyncWith(args, {maxBuffer: infinity})
+  ->Buffer.toString
+  ->toCallResults
 }
 
 let formatFindDefinitionText = (item: findDefinitionItem) => {
@@ -321,6 +337,9 @@ let setupWatcher = (~onResult, ~onStartRebuild, ~config: schemaConfig) => {
   let compilerWatcher =
     watcher
     ->watch(compilerLogPath)
+    ->Watcher.onAdd(compilerLogPath => {
+      generateSchema->runIfCompilerDone(~compilerLogPath, ~lastCompletedBuild)
+    })
     ->Watcher.onChange(compilerLogPath => {
       generateSchema->runIfCompilerDone(~compilerLogPath, ~lastCompletedBuild)
     })
@@ -333,13 +352,50 @@ let setupWatcher = (~onResult, ~onStartRebuild, ~config: schemaConfig) => {
   compilerWatcher
 }
 
-let tempFilePrefix = "resgraph_support_file_" ++ Process.process->Process.pid->Int.toString ++ "_"
-let tempFileId = ref(0)
+@module("node:fs") external makeTemporaryDirectory: string => string = "mkdtempSync"
 
-let createFileInTempDir = (~extension="") => {
-  let tempFileName = tempFilePrefix ++ tempFileId.contents->Int.toString ++ extension
-  tempFileId := tempFileId.contents + 1
-  Path.join([Os.tmpdir(), tempFileName])
+let removeFileIfExists = path => {
+  if Fs.existsSync(path) {
+    try {
+      Fs.unlinkSync(path)
+    } catch {
+    | _ => ()
+    }
+  }
+}
+
+let removeDirectoryIfExists = path => {
+  if Fs.existsSync(path) {
+    try {
+      Fs.rmdirSync(path)
+    } catch {
+    | _ => ()
+    }
+  }
+}
+
+let rethrow: 'error => 'value = %raw(`error => { throw error }`)
+
+let withTemporaryFile = (~contents, callback) => {
+  let directory = makeTemporaryDirectory(Path.join([Os.tmpdir(), "resgraph-support-"]))
+  let path = Path.join([directory, "source.res"])
+  let cleanup = () => {
+    removeFileIfExists(path)
+    removeDirectoryIfExists(directory)
+  }
+  try {
+    Fs.writeFileSyncWith(path, Buffer.fromString(contents), {encoding: "utf-8"})
+    let result = callback(path)
+    cleanup()
+    result
+  } catch {
+  | Exn.Error(error) =>
+    cleanup()
+    rethrow(error)
+  | _ =>
+    cleanup()
+    panic("Unknown failure while using a ResGraph temporary file.")
+  }
 }
 
 let parseOptionalString = (dict, key) =>

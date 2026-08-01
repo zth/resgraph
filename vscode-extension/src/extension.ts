@@ -18,6 +18,18 @@ import { cosmiconfig } from "cosmiconfig";
 import { dirname, resolve } from "path";
 
 const DEBUG = false;
+function resolveWorkspaceCli(workspacePath: string): string {
+  try {
+    return require.resolve("resgraph/dist/Cli.mjs", {
+      paths: [workspacePath],
+    });
+  } catch {
+    throw new Error(
+      "Could not find ResGraph in this workspace. Install resgraph in the project before starting the extension."
+    );
+  }
+}
+
 
 export async function activate(context: ExtensionContext) {
   let currentWorkspacePath = workspace.workspaceFolders?.[0].uri.fsPath;
@@ -30,28 +42,22 @@ export async function activate(context: ExtensionContext) {
 
   let { filepath } = c;
   let fileDir = dirname(filepath);
+  const cliPath = DEBUG
+    ? resolve(__filename, "../../../cli/Cli.mjs")
+    : resolveWorkspaceCli(fileDir);
 
   if (DEBUG) {
     window.showInformationMessage("Running in debug mode." + __filename);
   }
 
-  let serverOptions: ServerOptions = DEBUG
-    ? {
-        transport: TransportKind.stdio,
-        command: "node",
-        args: [resolve(__filename, "../../../cli/Cli.mjs"), "lsp", fileDir],
-        options: {
-          cwd: fileDir,
-        },
-      }
-    : {
-        transport: TransportKind.stdio,
-        command: "npx",
-        args: ["resgraph", "lsp", fileDir],
-        options: {
-          cwd: fileDir,
-        },
-      };
+  let serverOptions: ServerOptions = {
+    transport: TransportKind.stdio,
+    command: process.execPath,
+    args: [cliPath, "lsp", fileDir],
+    options: {
+      cwd: fileDir,
+    },
+  };
 
   let clientOptions: LanguageClientOptions = {
     documentSelector: [
@@ -59,7 +65,7 @@ export async function activate(context: ExtensionContext) {
       { scheme: "file", language: "graphql" },
     ],
     synchronize: {
-      fileEvents: workspace.createFileSystemWatcher("**/*.res"),
+      fileEvents: workspace.createFileSystemWatcher("**/*.{res,resi,graphql}"),
     },
     outputChannelName: "ResGraph Language Server",
     revealOutputChannelOn: RevealOutputChannelOn.Never,

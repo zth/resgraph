@@ -1,6 +1,16 @@
 // This file holds the actual language server implementation.
 
 @module("url") external fileURLToPath: string => string = "fileURLToPath"
+type fileUrl = {href: string}
+
+@module("url") external pathToFileURL: string => fileUrl = "pathToFileURL"
+
+let ensureFileUri = path =>
+  if path->String.startsWith("file://") {
+    path
+  } else {
+    pathToFileURL(path).href
+  }
 
 let initialized = ref(false)
 let shutdownRequestAlreadyReceived = ref(false)
@@ -11,6 +21,7 @@ let log = Console.error
 
 module Message = {
   type msg
+  type requestId
 
   type t = msg
 
@@ -44,7 +55,7 @@ module Message = {
   external unsafeGetParams: t => 'a = "params"
 
   @get
-  external getId: t => string = "id"
+  external getId: t => requestId = "id"
 
   module LspMessage = {
     @live
@@ -143,14 +154,15 @@ module Message = {
 
   module Error: {
     type t
-    type code = ServerNotInitialized | InvalidRequest
+    type code = ServerNotInitialized | InvalidRequest | InternalError
     let make: (~code: code, ~message: string) => t
   } = {
-    type code = ServerNotInitialized | InvalidRequest
+    type code = ServerNotInitialized | InvalidRequest | InternalError
     let codeToInt = code =>
       switch code {
       | ServerNotInitialized => -32002
       | InvalidRequest => -32600
+      | InternalError => -32603
       }
 
     @live
@@ -257,12 +269,12 @@ module Message = {
   module Response: {
     type t
     external asMessage: t => msg = "%identity"
-    let make: (~id: string, ~error: Error.t=?, ~result: Result.t=?, unit) => t
+    let make: (~id: requestId, ~error: Error.t=?, ~result: Result.t=?, unit) => t
   } = {
     @live
     type t = {
       jsonrpc: string,
-      id: string,
+      id: requestId,
       error: option<Error.t>,
       result: option<Result.t>,
     }
@@ -371,7 +383,7 @@ let start = (~mode, ~configFilePath) => {
       ->Dict.toArray
       ->Array.map(((file, errors)) => {
         PublishDiagnostics({
-          uri: file,
+          uri: file->ensureFileUri,
           diagnostics: errors->Array.map(error => {
             let diagnostic: LspProtocol.diagnostic = {
               range: error.range,
@@ -383,14 +395,14 @@ let start = (~mode, ~configFilePath) => {
         })
         ->Message.Notification.asMessage
         ->send
-        file
+        file->ensureFileUri
       })
 
     filesWithDiagnostics := currentFilesWithDiagnostics
 
     filesWithDiagnosticsAtLastPublish->Array.forEach(fileName => {
       if !(currentFilesWithDiagnostics->Array.includes(fileName)) {
-        PublishDiagnostics({uri: fileName, diagnostics: []})
+        PublishDiagnostics({uri: fileName->ensureFileUri, diagnostics: []})
         ->Message.Notification.asMessage
         ->send
       }
@@ -405,7 +417,9 @@ let start = (~mode, ~configFilePath) => {
         | Utils.GeneratorResult(res) =>
           currentResults->Dict.set(schema.name, res)
           publishDiagnostics()
-        | Utils.GeneratorProcessFailure => ()
+        | Utils.GeneratorProcessFailure =>
+          currentResults->Dict.delete(schema.name)
+          publishDiagnostics()
         },
       ~config=schema,
     )
@@ -414,13 +428,13 @@ let start = (~mode, ~configFilePath) => {
   let openedFile = (uri, text) => {
     log(`opened ${uri}`)
     switch uri->Path.extname {
-    | ".res" => resFilesCache->Dict.set(uri, text)
+    | ".res" | ".resi" | ".graphql" => resFilesCache->Dict.set(uri, text)
     | _ => ()
     }
   }
 
   let updateOpenedFile = (uri, text) => {
-    if uri->Path.extname === ".res" {
+    if [".res", ".resi", ".graphql"]->Array.includes(uri->Path.extname) {
       switch resFilesCache->Dict.get(uri)->Option.isSome {
       | true => resFilesCache->Dict.set(uri, text)
       | false => ()
@@ -527,6 +541,7 @@ let start = (~mode, ~configFilePath) => {
                 ->Option.flatMap(schema => schema.stateName)
               let result = switch LspCompleteGraphQL.hoverAtPos(
                 ~path=filePath,
+                ~text=?resFilesCache->Dict.get(params.textDocument.uri),
                 ~pos=params.position,
                 ~stateName,
               ) {
@@ -558,6 +573,7 @@ let start = (~mode, ~configFilePath) => {
                 ->Option.flatMap(schema => schema.stateName)
               let result = switch LspCompleteGraphQL.definitionAtPos(
                 ~path=filePath,
+                ~text=?resFilesCache->Dict.get(params.textDocument.uri),
                 ~pos=params.position,
                 ~stateName,
               ) {
@@ -583,18 +599,18 @@ let start = (~mode, ~configFilePath) => {
                 ->send
               | Some(code) =>
                 let filePath = params.textDocument.uri->fileURLToPath
-                let tmpname = Utils.createFileInTempDir()
-                Fs.writeFileSyncWith(tmpname, Buffer.fromString(code), {encoding: "utf-8"})
                 let stateName =
                   config
                   ->Utils.schemaForFile(filePath)
                   ->Option.flatMap(schema => schema.stateName)
-                let result = switch Utils.callPrivateCli(
-                  Completion({filePath, position: params.position, tmpname, ?stateName}),
-                ) {
-                | Completion({items}) => Message.Result.fromCompletionItems(items)
-                | _ => Message.Result.null()
-                }
+                let result = Utils.withTemporaryFile(~contents=code, tmpname =>
+                  switch Utils.callPrivateCli(
+                    Completion({filePath, position: params.position, tmpname, ?stateName}),
+                  ) {
+                  | Completion({items}) => Message.Result.fromCompletionItems(items)
+                  | _ => Message.Result.null()
+                  }
+                )
                 Message.Response.make(~id=msg->Message.getId, ~result, ())
                 ->Message.Response.asMessage
                 ->send
@@ -626,6 +642,34 @@ let start = (~mode, ~configFilePath) => {
     }
   }
 
+  let onMessageSafely = msg => {
+    let sendInternalError = () => {
+      if Message.isRequestMessage(msg) {
+        Message.Response.make(
+          ~id=msg->Message.getId,
+          ~error=Message.Error.make(
+            ~code=InternalError,
+            ~message="ResGraph language server request failed.",
+          ),
+          (),
+        )
+        ->Message.Response.asMessage
+        ->send
+      }
+    }
+
+    try {
+      onMessage(msg)
+    } catch {
+    | Exn.Error(error) =>
+      log(error)
+      sendInternalError()
+    | _ =>
+      log("Unknown ResGraph language server request failure.")
+      sendInternalError()
+    }
+  }
+
   // ////
   // BOOT
   // ////
@@ -635,12 +679,12 @@ let start = (~mode, ~configFilePath) => {
     let writer = Rpc.StreamMessageWriter.make(stdout)
     let reader = Rpc.StreamMessageReader.make(stdin)
     sendFn := (msg => writer->Rpc.StreamMessageWriter.write(msg))
-    reader->Rpc.StreamMessageReader.listen(onMessage)
+    reader->Rpc.StreamMessageReader.listen(onMessageSafely)
     log(`Starting LSP in stdio mode.`)
 
   | NodeRpc =>
     sendFn := processSend
-    processOnMessage(onMessage)
+    processOnMessage(onMessageSafely)
     log(`Starting LSP in Node RPC.`)
   }
 }

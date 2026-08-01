@@ -1,5 +1,59 @@
 #!/usr/bin/env bash
 
+set -euo pipefail
+
+alternateExecutable=""
+configBackup=""
+symlinkTargets=""
+createdBsconfig=false
+dependencyConfig=""
+dependencyConfigBackup=""
+hiddenDependency=""
+hiddenConfigBackup=""
+compiledConfigBackup=""
+sourceBackup=""
+schemaBackup=""
+
+cleanup() {
+  if [[ -n $alternateExecutable ]]; then
+    rm -f "$alternateExecutable"
+  fi
+  if [[ -n $configBackup && -f $configBackup ]]; then
+    cp "$configBackup" ./rescript.json
+    rm -f "$configBackup" ./cache-link-src
+  fi
+  if [[ -n $symlinkTargets && -d $symlinkTargets ]]; then
+    rm -rf "$symlinkTargets"
+  fi
+  if [[ $createdBsconfig == true ]]; then
+    rm -f ./bsconfig.json
+  fi
+  if [[ -n $dependencyConfigBackup && -f $dependencyConfigBackup ]]; then
+    cp "$dependencyConfigBackup" "$dependencyConfig"
+    rm -f "$dependencyConfigBackup"
+  fi
+  if [[ -n $hiddenConfigBackup && -f $hiddenConfigBackup ]]; then
+    cp "$hiddenConfigBackup" ./rescript.json
+    rm -f "$hiddenConfigBackup"
+    rm -rf "$hiddenDependency"
+  fi
+  if [[ -n $compiledConfigBackup && -f $compiledConfigBackup ]]; then
+    cp "$compiledConfigBackup" ./rescript.json
+    rm -f "$compiledConfigBackup" ./lib/bs/empty-compiled-src/NewModule.cmt
+    rmdir ./empty-compiled-src ./lib/bs/empty-compiled-src 2>/dev/null || true
+  fi
+  if [[ -n $sourceBackup && -f $sourceBackup ]]; then
+    cp "$sourceBackup" ./src/ResGraphContext.res
+    rm -f "$sourceBackup"
+  fi
+  if [[ -n $schemaBackup && -f $schemaBackup ]]; then
+    cp "$schemaBackup" ./src/__generated__/ResGraphSchema.res
+    rm -f "$schemaBackup"
+  fi
+}
+
+trap cleanup EXIT INT TERM
+
 warningYellow='\033[0;33m'
 successGreen='\033[0;32m'
 reset='\033[0m'
@@ -121,11 +175,13 @@ printf '%b%s%b\n' "$successGreen" \
   '✅ Symlink retargets invalidate incremental cache.' "$reset"
 
 printf '{}\n' >./bsconfig.json
+createdBsconfig=true
 configAdditionOutput=$(
   RESGRAPH_INCREMENTAL_DEBUG=1 ../bin/dev/resgraph.exe generate-schema \
     ./src ./src/__generated__ true 2>&1
 )
 rm -f ./bsconfig.json
+createdBsconfig=false
 if [[ $configAdditionOutput != *"project input changed"* ]]; then
   printf '%b%s\n%s\n%b\n' "$warningYellow" \
     '⚠️ Added configuration file did not invalidate incremental cache.' \
