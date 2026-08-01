@@ -172,10 +172,60 @@ let testCrossKindGraphqlNameCollision () =
     (List.length schemaState.diagnostics = 1)
     "Cross-kind GraphQL type names must be rejected before emission."
 
+let testSyntheticGraphqlNameCollisions () =
+  let schemaState = makeSchemaState () in
+  let fileUri = Uri.fromPath "/tmp/Schema.res" in
+  let typeLocation typeName =
+    {
+      fileName = "Schema";
+      fileUri;
+      modulePath = [];
+      typeName;
+      loc = Location.none;
+    }
+  in
+  let addEnum id displayName =
+    Hashtbl.add schemaState.enums id
+      {
+        id;
+        displayName;
+        values = [];
+        description = None;
+        typeLocation = Concrete (typeLocation id);
+      }
+  in
+  addEnum "syntheticObjectEnum" "SyntheticObject";
+  addEnum "syntheticInputEnum" "SyntheticInput";
+  Hashtbl.add schemaState.types "syntheticObject"
+    {
+      id = "syntheticObject";
+      displayName = "SyntheticObject";
+      fields = [];
+      description = None;
+      typeLocation = None;
+      syntheticTypeLocation = Some {fileUri; loc = Location.none};
+      interfaces = [];
+      explicitInterfaces = [];
+    };
+  Hashtbl.add schemaState.inputObjects "syntheticInput"
+    {
+      id = "syntheticInput";
+      displayName = "SyntheticInput";
+      fields = [];
+      description = None;
+      typeLocation = None;
+      syntheticTypeLocation = Some {fileUri; loc = Location.none};
+    };
+  GenerateSchemaValidation.validateTypeNameUniqueness schemaState;
+  assertTrue
+    (List.length schemaState.diagnostics = 2)
+    "Synthetic GraphQL types must participate in cross-kind name validation."
+
 let () =
   testGenerationContextScopesSummariesByPackage ();
   testInputUnionRegistry ();
   testAtomicWrite ();
   testWriteFailureIsRaised ();
   testCrossKindGraphqlNameCollision ();
+  testSyntheticGraphqlNameCollisions ();
   print_endline "Native architecture fixtures passed."

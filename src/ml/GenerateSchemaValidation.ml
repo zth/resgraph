@@ -333,17 +333,23 @@ let validateTypeNameUniqueness (schemaState : schemaState) =
   in
   schemaState.types
   |> Hashtbl.iter (fun _name (typ : gqlObjectType) ->
-      match typ.typeLocation with
-      | None -> ()
-      | Some location ->
-        addTypeLocation ~name:typ.displayName ~kind:"object type" location);
+      match (typ.typeLocation, typ.syntheticTypeLocation) with
+      | Some location, _ ->
+        addTypeLocation ~name:typ.displayName ~kind:"object type" location
+      | None, Some location ->
+        add ~name:typ.displayName ~kind:"object type" ~loc:location.loc
+          ~fileUri:location.fileUri
+      | None, None -> ());
   schemaState.inputObjects
   |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
-      match typ.typeLocation with
-      | None -> ()
-      | Some location ->
+      match (typ.typeLocation, typ.syntheticTypeLocation) with
+      | Some location, _ ->
         add ~name:typ.displayName ~kind:"input object" ~loc:location.loc
-          ~fileUri:location.fileUri);
+          ~fileUri:location.fileUri
+      | None, Some location ->
+        add ~name:typ.displayName ~kind:"input object" ~loc:location.loc
+          ~fileUri:location.fileUri
+      | None, None -> ());
   schemaState.inputUnions
   |> Hashtbl.iter (fun _name (typ : gqlInputUnionType) ->
       add ~name:typ.displayName ~kind:"input union" ~loc:typ.typeLocation.loc
