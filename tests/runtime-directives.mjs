@@ -66,6 +66,10 @@ assert.deepEqual(plain(getDirective(schema, argumentMetadata, "tag")), [
   {name: "argument"},
 ]);
 
+const signatureMetadata = schema.getQueryType().getFields().signatureMetadata.args[0];
+assert.equal(signatureMetadata.name, "value");
+assert.equal(signatureMetadata.description, "Metadata loaded from the implementation source.");
+
 const result = await execute({
   schema,
   document: parse(`

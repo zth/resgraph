@@ -252,30 +252,36 @@ let resolverParametersFromSource ~(env : SharedTypes.QueryEnv.t) ~resolverName
   let cmtPath = env.file.uri |> Uri.toPath in
   let paths =
     if Filename.check_suffix cmtPath ".resi" then
-      [cmtPath; Filename.chop_suffix cmtPath ".resi" ^ ".res"]
+      [Filename.chop_suffix cmtPath ".resi" ^ ".res"]
     else [cmtPath]
   in
-  let source =
+  let parsedSource =
     paths
     |> List.find_map (fun path ->
-        Files.readFile path |> Option.map (fun source -> (path, source)))
+        match Files.readFile path with
+        | None -> None
+        | Some source -> (
+          try
+            let digest = Digest.to_hex (Digest.string source) in
+            let structure =
+              match Hashtbl.find_opt resolverSourceCache path with
+              | Some (cachedDigest, structure) when cachedDigest = digest ->
+                structure
+              | _ ->
+                let {Res_driver.parsetree = structure} =
+                  Res_driver.parse_implementation_from_source ~for_printer:true
+                    ~source ~display_filename:path
+                in
+                Hashtbl.replace resolverSourceCache path (digest, structure);
+                structure
+            in
+            Some structure
+          with _ -> None))
   in
-  match source with
+  match parsedSource with
   | None -> []
-  | Some (path, source) -> (
+  | Some structure -> (
     try
-      let digest = Digest.to_hex (Digest.string source) in
-      let structure =
-        match Hashtbl.find_opt resolverSourceCache path with
-        | Some (cachedDigest, structure) when cachedDigest = digest -> structure
-        | _ ->
-          let {Res_driver.parsetree = structure} =
-            Res_driver.parse_implementation_from_source ~for_printer:true
-              ~source ~display_filename:path
-          in
-          Hashtbl.replace resolverSourceCache path (digest, structure);
-          structure
-      in
       let bindings =
         structure |> bindingsOfStructure
         |> List.filter (fun (binding : Parsetree.value_binding) ->
