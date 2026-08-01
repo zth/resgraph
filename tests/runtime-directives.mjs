@@ -10,7 +10,7 @@ const sdl = readFileSync("./src/__generated__/schema.graphql", "utf8");
 assert.doesNotThrow(() => parse(sdl));
 assert.deepEqual(validateSchema(buildSchema(sdl)), []);
 assert.deepEqual(validateSchema(schema), []);
-assert.equal(schema.description, "The public ResGraph test schema.");
+assert.equal(schema.description, 'The public """ResGraph""" test schema.');
 assert.equal(schema.getQueryType().name, "Query");
 assert.deepEqual(plain(getDirective(schema, schema, "tag")), [{name: "schema"}]);
 assert.match(sdl, /schema @tag\(name: "schema"\) \{/);

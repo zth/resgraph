@@ -421,7 +421,9 @@ let printArg ~schemaState ~parentTypeName ~fieldName (arg : gqlArg) =
         (match arg.description with
         | None -> ()
         | Some description ->
-          CodeWriter.line writer (Printf.sprintf "description: %S," description));
+          CodeWriter.line writer
+            (Printf.sprintf "description: %s,"
+               (descriptionAsString (Some description))));
         (match arg.deprecationReason with
         | None -> ()
         | Some reason ->
@@ -1290,7 +1292,9 @@ let printSchemaJsFile schemaState processSchema ~interfaceModulePrefix =
   CodeWriter.indented code (fun () ->
       (match schemaState.schemaDefinition with
       | Some {description = Some description} ->
-        CodeWriter.line code (Printf.sprintf "description: %S," description)
+        CodeWriter.line code
+          (Printf.sprintf "description: %s,"
+             (descriptionAsString (Some description)))
       | Some _ | None -> ());
       (match schemaState.query with
       | None -> ()

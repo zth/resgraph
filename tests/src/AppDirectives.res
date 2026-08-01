@@ -26,7 +26,7 @@ type cacheControl = {
 })
 type tag = {name: string}
 
-/** The public ResGraph test schema. */
+/** The public """ResGraph""" test schema. */
 @gql.annotate({name: "tag", args: {name: "schema"}})
 @gql.schema({query: "Query"})
 type publicSchema

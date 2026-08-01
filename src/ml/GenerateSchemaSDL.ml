@@ -166,7 +166,8 @@ let printFieldArguments schemaState ~parentTypeName ~fieldName arguments =
           (match argument.description with
             | None -> ""
             | Some description ->
-              Printf.sprintf "    \"\"\"%s\"\"\"\n" description)
+              Printf.sprintf "    \"\"\"%s\"\"\"\n"
+                (escapeBlockString description))
           ^ "    "
           ^ printFieldArgument schemaState ~parentTypeName ~fieldName argument)
       |> String.concat "\n")
