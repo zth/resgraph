@@ -363,6 +363,17 @@ let validateDirectiveDefinitions (schemaState : schemaState) =
                       redefined."
                      definition.name;
                };
+      if definition.name = "sourceLoc" then
+        schemaState
+        |> addDiagnostic
+             ~diagnostic:
+               {
+                 loc = definition.typeLocation.loc;
+                 fileUri = definition.typeLocation.fileUri;
+                 message =
+                   "`@sourceLoc` is reserved for ResGraph's generated schema \
+                    metadata and cannot be redefined.";
+               };
       let seenLocations = Hashtbl.create (List.length definition.locations) in
       definition.locations
       |> List.iter (fun location ->

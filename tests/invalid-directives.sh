@@ -236,6 +236,12 @@ run_fixture "invalid-name" 'is not a valid GraphQL name' <<'RES'
 type invalidName
 RES
 
+run_fixture "reserved-source-loc" '`@sourceLoc` is reserved for ResGraph' <<'RES'
+@as("sourceLoc")
+@gql.directive({locations: ["OBJECT"]})
+type internalDirectiveName
+RES
+
 run_fixture "int-out-of-range" 'Invalid default for directive argument' <<'RES'
 @gql.directive({locations: ["OBJECT"]})
 type invalidInt = {
