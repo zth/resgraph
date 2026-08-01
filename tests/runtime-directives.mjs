@@ -17,12 +17,13 @@ assert.match(sdl, /schema @tag\(name: "schema"\) \{/);
 
 const cacheControl = schema.getDirective("cacheControl");
 assert.ok(cacheControl);
+assert.equal(cacheControl.description, 'Caching metadata consumed by a """schema transform""".');
 assert.deepEqual(cacheControl.locations, ["OBJECT", "FIELD_DEFINITION"]);
 assert.equal(cacheControl.isRepeatable, false);
 assert.equal(cacheControl.args.find(argument => argument.name === "maxAge").defaultValue, 60);
 assert.equal(
   cacheControl.args.find(argument => argument.name === "legacyScope").deprecationReason,
-  "Use scope instead.",
+  'Use "scope" instead.',
 );
 
 const tag = schema.getDirective("tag");

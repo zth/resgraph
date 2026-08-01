@@ -613,7 +613,7 @@ let directiveApplicationsFromAttributes ~schemaState
             Some
               {
                 name;
-                arguments = List.rev arguments;
+                arguments;
                 loc = attributeName.loc;
                 fileUri = env.file.uri;
               }
@@ -1078,7 +1078,34 @@ let undefinedOrValueAsString ?(escape = false) v =
   | None -> "?(None)"
   | Some v -> Printf.sprintf "\"%s\"" (if escape then Json.escape v else v)
 
-let descriptionAsString v = undefinedOrValueAsString ~escape:true v
+let escapeDescriptionForRescript value =
+  let escaped = Json.escape value in
+  let length = String.length escaped in
+  let buffer = Buffer.create (length + 16) in
+  let rec append index =
+    if index >= length then ()
+    else if
+      index + 5 < length
+      && escaped.[index] = '\\'
+      && escaped.[index + 1] = '"'
+      && escaped.[index + 2] = '\\'
+      && escaped.[index + 3] = '"'
+      && escaped.[index + 4] = '\\'
+      && escaped.[index + 5] = '"'
+    then (
+      Buffer.add_string buffer "\\u0022\\u0022\\u0022";
+      append (index + 6))
+    else (
+      Buffer.add_char buffer escaped.[index];
+      append (index + 1))
+  in
+  append 0;
+  Buffer.contents buffer
+
+let descriptionAsString = function
+  | None -> "?(None)"
+  | Some description ->
+    Printf.sprintf "\"%s\"" (escapeDescriptionForRescript description)
 
 let trimString str =
   let isSpace = function

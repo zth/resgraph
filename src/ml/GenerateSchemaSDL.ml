@@ -45,10 +45,32 @@ let printImplements interfaces =
       |> String.concat " & ")
   else ""
 
+let escapeBlockString value =
+  let length = String.length value in
+  let buffer = Buffer.create (length + 8) in
+  let rec append index =
+    if index >= length then ()
+    else if
+      index + 2 < length
+      && value.[index] = '"'
+      && value.[index + 1] = '"'
+      && value.[index + 2] = '"'
+    then (
+      Buffer.add_string buffer "\\\"\"\"";
+      append (index + 3))
+    else (
+      Buffer.add_char buffer value.[index];
+      append (index + 1))
+  in
+  append 0;
+  Buffer.contents buffer
+
 let printDescription desc indentation =
   match desc with
   | None -> ""
-  | Some desc -> Printf.sprintf "\n%s\"\"\"%s\"\"\"\n" (indent indentation) desc
+  | Some desc ->
+    Printf.sprintf "\n%s\"\"\"%s\"\"\"\n" (indent indentation)
+      (escapeBlockString desc)
 
 let printDeprecatedDirective deprecationReason =
   match deprecationReason with

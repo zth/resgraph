@@ -1,10 +1,10 @@
-"""Caching metadata consumed by an explicit schema transform."""
+"""Caching metadata consumed by a \"""schema transform\"""."""
 directive @cacheControl(
 
   """Maximum cache lifetime in seconds."""
   maxAge: Int! = 60
   scope: String
-  legacyScope: String @deprecated(reason: "Use scope instead.")
+  legacyScope: String @deprecated(reason: "Use \"scope\" instead.")
 ) on OBJECT | FIELD_DEFINITION
 
 
