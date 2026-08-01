@@ -1,4 +1,6 @@
-import {GraphQLSchema} from "graphql";
+import {defaultFieldResolver, isIntrospectionType} from "graphql";
+
+const compatResolver = Symbol.for("resgraph.compatResolver");
 
 export const unwrapResolverSource = source => {
   if (typeof source !== "object" || source === null) return source;
@@ -9,19 +11,21 @@ export const unwrapResolverSource = source => {
 
 export const resgraphCompatPlugin = () => ({
   onSchemaChange({schema, replaceSchema}) {
-    const types = Object.values(schema.getTypeMap());
-
-    for (const type of types) {
+    for (const type of Object.values(schema.getTypeMap())) {
+      if (isIntrospectionType(type)) continue;
       if (!("getFields" in type)) continue;
 
       for (const [fieldName, field] of Object.entries(type.getFields())) {
-        const defaultResolver = source => source?.[fieldName];
-        const originalResolver = field.resolve ?? defaultResolver;
-        field.resolve = (source, args, context, info) =>
+        const originalResolver = field.resolve ?? defaultFieldResolver;
+        if (originalResolver[compatResolver]) continue;
+
+        const resolver = (source, args, context, info) =>
           originalResolver(unwrapResolverSource(source), args, context, info);
+        Object.defineProperty(resolver, compatResolver, {value: true});
+        field.resolve = resolver;
       }
     }
 
-    replaceSchema(new GraphQLSchema({...schema.toConfig(), types}));
+    replaceSchema(schema);
   },
 });

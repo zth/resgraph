@@ -15,13 +15,23 @@ assert.deepEqual(unwrapResolverSource({value: "plain"}), {value: "plain"});
 
 const wrappedType = new GraphQLObjectType({
   name: "CompatWrapped",
-  fields: {value: {type: GraphQLString}},
+  fields: {
+    value: {type: GraphQLString},
+    computed: {type: GraphQLString, args: {suffix: {type: GraphQLString}}},
+  },
 });
 
+const recordValue = {
+  _0: "legitimate payload field",
+  value: "record",
+  computed(args) {
+    return this.value + args.suffix;
+  },
+};
 const queryType = new GraphQLObjectType({
   name: "CompatQuery",
   fields: {
-    record: {type: wrappedType, resolve: () => ({_0: {value: "record"}})},
+    record: {type: wrappedType, resolve: () => ({_0: recordValue})},
     variant: {type: wrappedType, resolve: () => ({VAL: {value: "variant"}})},
   },
 });
@@ -34,15 +44,21 @@ resgraphCompatPlugin().onSchemaChange({
     schema = replacement;
   },
 });
+resgraphCompatPlugin().onSchemaChange({
+  schema,
+  replaceSchema: replacement => {
+    schema = replacement;
+  },
+});
 
 assert.deepEqual(validateSchema(schema), []);
 const result = await execute({
   schema,
-  document: parse(`{ record { value } variant { value } }`),
+  document: parse(`{ record { value computed(suffix: "!") } variant { value } }`),
 });
 assert.equal(result.errors, undefined);
 assert.deepEqual(JSON.parse(JSON.stringify(result.data)), {
-  record: {value: "record"},
+  record: {value: "record", computed: "record!"},
   variant: {value: "variant"},
 });
 
