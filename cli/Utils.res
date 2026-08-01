@@ -352,14 +352,7 @@ let setupWatcher = (~onResult, ~onStartRebuild, ~config: schemaConfig) => {
   compilerWatcher
 }
 
-let tempFilePrefix = "resgraph_support_file_" ++ Process.process->Process.pid->Int.toString ++ "_"
-let tempFileId = ref(0)
-
-let createFileInTempDir = (~extension="") => {
-  let tempFileName = tempFilePrefix ++ tempFileId.contents->Int.toString ++ extension
-  tempFileId := tempFileId.contents + 1
-  Path.join([Os.tmpdir(), tempFileName])
-}
+@module("node:fs") external makeTemporaryDirectory: string => string = "mkdtempSync"
 
 let removeFileIfExists = path => {
   if Fs.existsSync(path) {
@@ -371,21 +364,36 @@ let removeFileIfExists = path => {
   }
 }
 
+let removeDirectoryIfExists = path => {
+  if Fs.existsSync(path) {
+    try {
+      Fs.rmdirSync(path)
+    } catch {
+    | _ => ()
+    }
+  }
+}
+
 let rethrow: 'error => 'value = %raw(`error => { throw error }`)
 
 let withTemporaryFile = (~contents, callback) => {
-  let path = createFileInTempDir()
-  Fs.writeFileSyncWith(path, Buffer.fromString(contents), {encoding: "utf-8"})
-  try {
-    let result = callback(path)
+  let directory = makeTemporaryDirectory(Path.join([Os.tmpdir(), "resgraph-support-"]))
+  let path = Path.join([directory, "source.res"])
+  let cleanup = () => {
     removeFileIfExists(path)
+    removeDirectoryIfExists(directory)
+  }
+  try {
+    Fs.writeFileSyncWith(path, Buffer.fromString(contents), {encoding: "utf-8"})
+    let result = callback(path)
+    cleanup()
     result
   } catch {
   | Exn.Error(error) =>
-    removeFileIfExists(path)
+    cleanup()
     rethrow(error)
   | _ =>
-    removeFileIfExists(path)
+    cleanup()
     panic("Unknown failure while using a ResGraph temporary file.")
   }
 }

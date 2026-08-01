@@ -1,13 +1,36 @@
 import assert from "node:assert/strict";
+import {existsSync, readFileSync} from "node:fs";
+import path from "node:path";
 import {
   GraphQLInt,
   GraphQLObjectType,
   GraphQLSchema,
   GraphQLString,
 } from "../node_modules/graphql/index.js";
+import * as CliUtils from "../cli/Utils.mjs";
 import * as DataLoader from "../src/res/DataLoader.mjs";
 import {Execute} from "../src/res/ResGraph.mjs";
 import {stableStringify} from "../src/res/stableStringify.mjs";
+
+let temporaryDirectory;
+const temporaryResult = CliUtils.withTemporaryFile("temporary contents", temporaryPath => {
+  temporaryDirectory = path.dirname(temporaryPath);
+  assert.equal(readFileSync(temporaryPath, "utf8"), "temporary contents");
+  return "callback result";
+});
+assert.equal(temporaryResult, "callback result");
+assert.equal(existsSync(temporaryDirectory), false);
+
+const expectedTemporaryError = new Error("expected temporary callback failure");
+assert.throws(
+  () =>
+    CliUtils.withTemporaryFile("temporary contents", temporaryPath => {
+      temporaryDirectory = path.dirname(temporaryPath);
+      throw expectedTemporaryError;
+    }),
+  error => error === expectedTemporaryError,
+);
+assert.equal(existsSync(temporaryDirectory), false);
 
 assert.notEqual(
   stableStringify([1, 2]),

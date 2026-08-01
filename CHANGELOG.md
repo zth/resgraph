@@ -21,7 +21,8 @@
 - Scope shared native summaries by package and keep artifact-write failures
   inside a single structured batch response.
 - Preserve numeric and string JSON-RPC IDs and contain language-server handler
-  failures.
+  failures. Completion buffers now use private, OS-created temporary directories
+  that are cleaned after both successful and failed requests.
 
 ## 1.3.0
 
