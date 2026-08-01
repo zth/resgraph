@@ -60,6 +60,9 @@ assert.deepEqual(plain(getDirective(schema, valueField, "cacheControl")), [
 const uuid = schema.getType("Uuid");
 assert.equal(uuid.specifiedByURL, "https://example.com/specifiedBy/uuid");
 assert.deepEqual(plain(getDirective(schema, uuid, "tag")), [{ name: "scalar" }]);
+assert.deepEqual(plain(getDirective(schema, uuid, "scalarMetadata")), [
+  {config: {label: "deferred"}, tier: "Premium"},
+]);
 
 const directiveInput = schema.getType("DirectiveInput");
 assert.equal(directiveInput.getFields().label.defaultValue, "fallback");

@@ -186,7 +186,7 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
     Printf.sprintf "get_%s()->GraphQLObjectType.toGraphQLType%s" displayName
       nullablePostfix
   | GraphQLScalar {displayName} ->
-    Printf.sprintf "scalar_%s->GraphQLScalar.toGraphQLType%s" displayName
+    Printf.sprintf "getScalar_%s()->GraphQLScalar.toGraphQLType%s" displayName
       nullablePostfix
   | GraphQLInterface {displayName} ->
     Printf.sprintf "get_%s()->GraphQLInterfaceType.toGraphQLType%s" displayName
@@ -200,7 +200,7 @@ let rec printGraphQLType ?(nullable = false) (returnType : graphqlType) =
     Printf.sprintf "get_%s()->GraphQLInputObjectType.toGraphQLType%s"
       displayName nullablePostfix
   | GraphQLEnum {displayName} ->
-    Printf.sprintf "enum_%s->GraphQLEnumType.toGraphQLType%s" displayName
+    Printf.sprintf "getEnum_%s()->GraphQLEnumType.toGraphQLType%s" displayName
       nullablePostfix
   | GraphQLUnion {displayName} ->
     Printf.sprintf "get_%s()->GraphQLUnionType.toGraphQLType%s" displayName
@@ -249,10 +249,10 @@ let printDirectiveValue schemaState directiveName argumentName value =
   | None -> printConstValue value
 
 let printDirectiveArguments schemaState directiveName arguments =
-  Printf.sprintf "dict{%s}"
+  Printf.sprintf "makeLazyDirectiveArguments(dict{%s})"
     (arguments
     |> List.map (fun (name, value) ->
-        Printf.sprintf "\"%s\": %s" name
+        Printf.sprintf "\"%s\": () => %s" name
           (printDirectiveValue schemaState directiveName name value))
     |> String.concat ", ")
 
@@ -1061,20 +1061,44 @@ let printSchemaJsFile schemaState processSchema ~interfaceModulePrefix =
 }`)|};
   addWithNewLine "";
 
+  (* Scalar and enum directive values may depend on types constructed later.
+     Declare holders first so lazy directive coercion can safely capture every
+     input type regardless of construction order. *)
+  schemaState.scalars
+  |> iterHashtblAlphabetically (fun _name (scalar : gqlScalar) ->
+      addWithNewLine
+        (Printf.sprintf
+           "let scalar_%s: ref<GraphQLScalar.t> = Obj.magic({\"contents\": null})"
+           scalar.displayName);
+      addWithNewLine
+        (Printf.sprintf "let getScalar_%s = () => scalar_%s.contents"
+           scalar.displayName scalar.displayName));
+  schemaState.enums
+  |> iterHashtblAlphabetically (fun _name (enum : gqlEnum) ->
+      addWithNewLine
+        (Printf.sprintf
+           "let enum_%s: ref<GraphQLEnumType.t> = Obj.magic({\"contents\": null})"
+           enum.displayName);
+      addWithNewLine
+        (Printf.sprintf "let getEnum_%s = () => enum_%s.contents"
+           enum.displayName enum.displayName));
+  addWithNewLine "";
+
+  let printScalarsAndEnums () =
   (* Print all custom scalars. *)
   schemaState.scalars
   |> iterHashtblAlphabetically (fun _name (scalar : gqlScalar) ->
       addWithNewLine
-        (Printf.sprintf "let scalar_%s = GraphQLScalar.make(%s)"
+        (Printf.sprintf "scalar_%s.contents = GraphQLScalar.make(%s)"
            scalar.displayName
            (printScalar ~schemaState scalar)));
-  addWithNewLine "";
+  if Hashtbl.length schemaState.scalars > 0 then addWithNewLine "";
 
   (* Print all enums. These won't have any other dependencies. *)
   schemaState.enums
   |> iterHashtblAlphabetically (fun _name (enum : gqlEnum) ->
       CodeWriter.line code
-        (Printf.sprintf "let enum_%s = GraphQLEnumType.make({" enum.displayName);
+        (Printf.sprintf "enum_%s.contents = GraphQLEnumType.make({" enum.displayName);
       CodeWriter.indented code (fun () ->
           CodeWriter.line code (Printf.sprintf "name: \"%s\"," enum.displayName);
           CodeWriter.line code
@@ -1108,7 +1132,8 @@ let printSchemaJsFile schemaState processSchema ~interfaceModulePrefix =
                        | Some extensions -> ", extensions: " ^ extensions))));
           CodeWriter.line code "}->makeEnumValues,");
       CodeWriter.line code "})";
-      CodeWriter.blankLine code);
+      CodeWriter.blankLine code)
+  in
 
   (* Print the interface type holders and getters *)
   schemaState.interfaces
@@ -1186,6 +1211,7 @@ let printSchemaJsFile schemaState processSchema ~interfaceModulePrefix =
            union.displayName));
 
   addWithNewLine "";
+  printScalarsAndEnums ();
 
   (* Print support functions for union type resolution *)
   schemaState.unions
@@ -1305,7 +1331,7 @@ let printSchemaJsFile schemaState processSchema ~interfaceModulePrefix =
       )
     @ (hashtblToListAlphabetically schemaState.enums
       |> List.map (fun (_name, (typ : gqlEnum)) ->
-          "enum_" ^ typ.displayName ^ "->GraphQLEnumType.toGraphQLType"))
+          "getEnum_" ^ typ.displayName ^ "()->GraphQLEnumType.toGraphQLType"))
   in
   let lastSchemaTypeIndex = List.length schemaTypes - 1 in
   CodeWriter.blankLine code;

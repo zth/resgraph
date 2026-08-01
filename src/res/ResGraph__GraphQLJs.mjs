@@ -5,6 +5,22 @@ let GraphQLLiteralValue = {};
 
 let GraphQLValueNode = {};
 
+let makeLazyDirectiveArguments = (function makeLazyDirectiveArguments(thunks) {
+    const result = {};
+    Object.entries(thunks).forEach(([name, thunk]) => {
+      Object.defineProperty(result, name, {
+        configurable: true,
+        enumerable: true,
+        get() {
+          const value = thunk();
+          Object.defineProperty(result, name, {enumerable: true, value});
+          return value;
+        },
+      });
+    });
+    return result;
+  });
+
 let GraphQLInput = {};
 
 let AstNode = {};
@@ -32,6 +48,7 @@ let GraphQLSchemaType = {};
 export {
   GraphQLLiteralValue,
   GraphQLValueNode,
+  makeLazyDirectiveArguments,
   GraphQLInput,
   AstNode,
   Scalars,
