@@ -21,6 +21,7 @@ let log = Console.error
 
 module Message = {
   type msg
+  type requestId
 
   type t = msg
 
@@ -54,7 +55,7 @@ module Message = {
   external unsafeGetParams: t => 'a = "params"
 
   @get
-  external getId: t => string = "id"
+  external getId: t => requestId = "id"
 
   module LspMessage = {
     @live
@@ -153,14 +154,15 @@ module Message = {
 
   module Error: {
     type t
-    type code = ServerNotInitialized | InvalidRequest
+    type code = ServerNotInitialized | InvalidRequest | InternalError
     let make: (~code: code, ~message: string) => t
   } = {
-    type code = ServerNotInitialized | InvalidRequest
+    type code = ServerNotInitialized | InvalidRequest | InternalError
     let codeToInt = code =>
       switch code {
       | ServerNotInitialized => -32002
       | InvalidRequest => -32600
+      | InternalError => -32603
       }
 
     @live
@@ -267,12 +269,12 @@ module Message = {
   module Response: {
     type t
     external asMessage: t => msg = "%identity"
-    let make: (~id: string, ~error: Error.t=?, ~result: Result.t=?, unit) => t
+    let make: (~id: requestId, ~error: Error.t=?, ~result: Result.t=?, unit) => t
   } = {
     @live
     type t = {
       jsonrpc: string,
-      id: string,
+      id: requestId,
       error: option<Error.t>,
       result: option<Result.t>,
     }
@@ -640,6 +642,34 @@ let start = (~mode, ~configFilePath) => {
     }
   }
 
+  let onMessageSafely = msg => {
+    let sendInternalError = () => {
+      if Message.isRequestMessage(msg) {
+        Message.Response.make(
+          ~id=msg->Message.getId,
+          ~error=Message.Error.make(
+            ~code=InternalError,
+            ~message="ResGraph language server request failed.",
+          ),
+          (),
+        )
+        ->Message.Response.asMessage
+        ->send
+      }
+    }
+
+    try {
+      onMessage(msg)
+    } catch {
+    | Exn.Error(error) =>
+      log(error)
+      sendInternalError()
+    | _ =>
+      log("Unknown ResGraph language server request failure.")
+      sendInternalError()
+    }
+  }
+
   // ////
   // BOOT
   // ////
@@ -649,12 +679,12 @@ let start = (~mode, ~configFilePath) => {
     let writer = Rpc.StreamMessageWriter.make(stdout)
     let reader = Rpc.StreamMessageReader.make(stdin)
     sendFn := (msg => writer->Rpc.StreamMessageWriter.write(msg))
-    reader->Rpc.StreamMessageReader.listen(onMessage)
+    reader->Rpc.StreamMessageReader.listen(onMessageSafely)
     log(`Starting LSP in stdio mode.`)
 
   | NodeRpc =>
     sendFn := processSend
-    processOnMessage(onMessage)
+    processOnMessage(onMessageSafely)
     log(`Starting LSP in Node RPC.`)
   }
 }

@@ -34,6 +34,20 @@ assert.deepEqual(loadManyResults[0], {TAG: "Ok", _0: "loaded:ok"});
 assert.equal(loadManyResults[1].TAG, "Error");
 assert.match(loadManyResults[1]._0.message, /expected loader error/);
 
+const typedResultsLoader = DataLoader.makeBatchedResults(async keys =>
+  keys.map(key =>
+    key === "error"
+      ? {TAG: "Error", _0: new Error("typed loader error")}
+      : {TAG: "Ok", _0: `typed:${key}`},
+  ),
+);
+const typedResults = await DataLoader.loadManyResults(typedResultsLoader, [
+  "ok",
+  "error",
+]);
+assert.deepEqual(typedResults[0], {TAG: "Ok", _0: "typed:ok"});
+assert.match(typedResults[1]._0.message, /typed loader error/);
+
 const queryType = new GraphQLObjectType({
   name: "Query",
   fields: {

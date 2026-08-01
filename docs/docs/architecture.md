@@ -30,8 +30,9 @@ The native executable is intentionally thin. Generator code lives in the
 wrapped `resgraph_engine` library, and `GenerationContext` is the explicit home
 for reusable CMT and module-summary caches. Normal builds group schemas by
 canonical compiler root and send one length-prefixed batch request per root.
-Schemas build sequentially with aligned results: compiler summaries are shared,
-while mutable schema state, artifacts, diagnostics, and failures remain isolated.
+Schemas build sequentially with aligned results: compiler summaries are shared
+within their owning package, while mutable schema state, artifacts, diagnostics,
+and failures remain isolated.
 
 ## Invariants
 
@@ -49,6 +50,10 @@ while mutable schema state, artifacts, diagnostics, and failures remain isolated
 - GraphQL operations executed through `ResGraph.Execute` are validated before
   execution and normalized to promises whether GraphQL.js completes
   synchronously or asynchronously.
+- `DataLoader.makeBatchedResults` and `loadManyResults` preserve per-key
+  failures as `result` values. Use `primeAt` and `primeWithPromiseAt` for
+  keyed priming; the old keyless signatures remain only for source
+  compatibility and are deprecated.
 - Compiler-specific values stay inside the native engine. Public runtime APIs
   expose ReScript types, GraphQL values, JSON, results, and promises.
 
@@ -95,9 +100,13 @@ Stdout is reserved for one JSON response and stderr for operational failures or
 diagnostic presentation. Existing command shapes are compatibility surfaces for
 the published Node CLI even though they are not a user-facing API.
 
-When evolving this protocol, introduce a versioned request/response DTO, retain
-per-schema results, and update package-consumer and LSP tests together. Avoid
-adding process exits below the CLI boundary.
+Language-server request IDs are opaque passthrough values so both numeric and
+string JSON-RPC IDs survive unchanged. Handler failures return an internal-error
+response without terminating the server.
+
+When evolving the native protocol, introduce a versioned request/response DTO,
+retain per-schema results, and update package-consumer and LSP tests together.
+Avoid adding process exits below the CLI boundary.
 
 ## Performance work
 

@@ -60,7 +60,6 @@ module Plain = {
   external loadManyRaw: (t<'key, 'value>, array<'key>) => promise<array<rawLoadManyEntry<'value>>> =
     "loadMany"
 
-
   /**
    * Clears the value at `key` from the cache, if it exists.
    */
@@ -83,7 +82,6 @@ module Plain = {
   @send
   external primeAt: (t<'key, 'value>, 'key, 'value) => unit = "prime"
 
-
   /**
    * Adds the provided key and (promised) value to the cache. If the key already exists, no
    * change is made.
@@ -92,7 +90,6 @@ module Plain = {
   external primeWithPromise: (t<'key, 'value>, promise<'value>) => unit = "prime"
   @send
   external primeWithPromiseAt: (t<'key, 'value>, 'key, promise<'value>) => unit = "prime"
-
 
   /**
    * The name given to this `DataLoader` instance, if set. Useful for APM tools..
@@ -104,6 +101,7 @@ module Plain = {
 type t<'key, 'value> = Lazy.t<Plain.t<'key, 'value>>
 
 type batchFn<'key, 'value> = array<'key> => promise<array<'value>>
+type batchResultsFn<'key, 'value> = array<'key> => promise<array<result<'value, exn>>>
 
 type options = {
   /**
@@ -149,6 +147,25 @@ let makeBatched = (loadFn: batchFn<'key, 'value>, ~options=?) => {
   Lazy.make(() => Plain.make(loadFn, ~options=?mapOptions(options)))
 }
 
+external valueToRawLoadManyEntry: 'value => Plain.rawLoadManyEntry<'value> = "%identity"
+external errorToRawLoadManyEntry: exn => Plain.rawLoadManyEntry<'value> = "%identity"
+external rawLoaderToLoader: Plain.t<'key, Plain.rawLoadManyEntry<'value>> => Plain.t<'key, 'value> =
+  "%identity"
+
+let makeBatchedResults = (loadFn: batchResultsFn<'key, 'value>, ~options=?) => {
+  let rawLoadFn = keys =>
+    loadFn(keys)->Promise.thenResolve(results =>
+      results->Array.map(result =>
+        switch result {
+        | Ok(value) => value->valueToRawLoadManyEntry
+        | Error(error) => error->errorToRawLoadManyEntry
+        }
+      )
+    )
+
+  Lazy.make(() => Plain.make(rawLoadFn, ~options=?mapOptions(options))->rawLoaderToLoader)
+}
+
 let load = (lazyLoader, key) => {
   let loader = lazyLoader->Lazy.get
   loader->Plain.load(key)
@@ -158,7 +175,6 @@ let loadMany = (lazyLoader, keys) => {
   let loader = lazyLoader->Lazy.get
   loader->Plain.loadMany(keys)
 }
-
 
 let isError: Plain.rawLoadManyEntry<'value> => bool = %raw(`value => value instanceof Error`)
 external rawLoadManyEntryToValue: Plain.rawLoadManyEntry<'value> => 'value = "%identity"
@@ -178,6 +194,7 @@ let loadManyResults = (lazyLoader, keys) => {
     )
   )
 }
+
 let clear = (lazyLoader, key) => {
   let loader = lazyLoader->Lazy.get
   loader->Plain.clear(key)

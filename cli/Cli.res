@@ -171,7 +171,9 @@ let buildSchemas = (config: Utils.config, schemas: array<Utils.schemaConfig>) =>
       results->Array.forEachWithIndex((result, index) => {
         let schema = group[index]->Option.getOrThrow(~message="Missing schema for batch result.")
         switch result {
-        | Completion(_) | Hover(_) | Definition(_) | FindDefinition(_) | NotInitialized => ()
+        | Completion(_) | Hover(_) | Definition(_) | FindDefinition(_) | NotInitialized =>
+          Console.error(`[${schema.name}] Native generator returned an unexpected response.`)
+          hadError := true
         | Success(_) =>
           printBuildTime(schema, performance->now -. timeStart, ~showSchemaName)
           printAuthorizationBaselineWarning(schema.authorization)

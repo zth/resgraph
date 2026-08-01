@@ -150,6 +150,17 @@ assert.equal(result.data.greeting, "hello from package");
 const loader = DataLoader.makeSingle(async key => "loaded:" + key);
 DataLoader.primeAt(loader, "key", "primed");
 assert.equal(await DataLoader.load(loader, "key"), "primed");
+
+const resultsLoader = DataLoader.makeBatchedResults(async keys =>
+  keys.map(key =>
+    key === "error"
+      ? {TAG: "Error", _0: new Error("packed loader error")}
+      : {TAG: "Ok", _0: "loaded:" + key}
+  )
+);
+const entries = await DataLoader.loadManyResults(resultsLoader, ["ok", "error"]);
+assert.equal(entries[0]._0, "loaded:ok");
+assert.equal(entries[1]._0.message, "packed loader error");
 `,
   );
   run("node", ["verify.mjs"], {cwd: consumerRoot});

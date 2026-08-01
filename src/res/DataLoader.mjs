@@ -31,6 +31,11 @@ function makeBatched(loadFn, options) {
   return Stdlib_Lazy.make(() => new Dataloader(loadFn, Primitive_option.toUndefined(mapOptions(options))));
 }
 
+function makeBatchedResults(loadFn, options) {
+  let rawLoadFn = keys => loadFn(keys).then(results => results.map(result => result._0));
+  return Stdlib_Lazy.make(() => new Dataloader(rawLoadFn, Primitive_option.toUndefined(mapOptions(options))));
+}
+
 function load(lazyLoader, key) {
   let loader = Stdlib_Lazy.get(lazyLoader);
   return loader.load(key);
@@ -99,6 +104,7 @@ export {
   Plain,
   makeSingle,
   makeBatched,
+  makeBatchedResults,
   load,
   loadMany,
   loadManyResults,

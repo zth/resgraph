@@ -37,6 +37,51 @@ let makeSchemaState () : schemaState =
     diagnostics = [];
   }
 
+let makePackage rootPath : SharedTypes.package =
+  {
+    genericJsxModule = None;
+    suffix = ".mjs";
+    rootPath;
+    projectFiles = SharedTypes.FileSet.empty;
+    dependenciesFiles = SharedTypes.FileSet.empty;
+    pathsForModule = Hashtbl.create 1;
+    namespace = None;
+    opens = [];
+    uncurried = true;
+    rescriptVersion = (12, 0);
+    autocomplete = Misc.StringMap.empty;
+  }
+
+let testGenerationContextScopesSummariesByPackage () =
+  let context = GenerationContext.create () in
+  let firstPackage = makePackage "/tmp/resgraph-package-a" in
+  let secondPackage = makePackage "/tmp/resgraph-package-b" in
+  let moduleName = "Shared" in
+  let firstFile =
+    SharedTypes.File.create moduleName
+      (Uri.fromPath "/tmp/resgraph-package-a/src/Shared.res")
+  in
+  let secondFile =
+    SharedTypes.File.create moduleName
+      (Uri.fromPath "/tmp/resgraph-package-b/src/Shared.res")
+  in
+  GenerationContext.seedSummary context ~package:firstPackage ~moduleName
+    firstFile;
+  GenerationContext.seedSummary context ~package:secondPackage ~moduleName
+    secondFile;
+  let loadedPath package =
+    match GenerationContext.loadSummary context ~package ~moduleName with
+    | Some file -> Uri.toPath file.uri
+    | None -> fail "A seeded generation summary must be available."
+  in
+  assertTrue
+    (loadedPath firstPackage = "/tmp/resgraph-package-a/src/Shared.res")
+    "A generation context must not reuse a same-named module from another \
+     package.";
+  assertTrue
+    (loadedPath secondPackage = "/tmp/resgraph-package-b/src/Shared.res")
+    "A generation context must retain summaries independently per package."
+
 let testInputUnionRegistry () =
   let schemaState = makeSchemaState () in
   let fileUri = Uri.fromPath "/tmp/Schema.res" in
@@ -128,6 +173,7 @@ let testCrossKindGraphqlNameCollision () =
     "Cross-kind GraphQL type names must be rejected before emission."
 
 let () =
+  testGenerationContextScopesSummariesByPackage ();
   testInputUnionRegistry ();
   testAtomicWrite ();
   testWriteFailureIsRaised ();

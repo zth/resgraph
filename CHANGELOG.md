@@ -3,8 +3,9 @@
 ## Unreleased
 - Validate operations before execution, support synchronous GraphQL.js results,
   reject malformed variables, and avoid redundant query hashing.
-- Add correct keyed DataLoader priming, per-entry `loadMany` results, and
-  order-preserving structural cache keys while retaining existing APIs.
+- Add correct keyed DataLoader priming and type-safe per-entry batch results,
+  deprecate the unsound legacy priming and `loadMany` signatures, and preserve
+  array order in structural cache keys.
 - Preserve last-known-good generated schemas on validation failures and use
   atomic writes for generated files and native state.
 - Add a packed-package consumer test, native architecture fixtures, strict
@@ -13,6 +14,10 @@
   generation context; batch schemas by compiler root to share CMT summaries
   while retaining per-schema results; and publish architecture and
   configuration-schema docs.
+- Scope shared native summaries by package and keep artifact-write failures
+  inside a single structured batch response.
+- Preserve numeric and string JSON-RPC IDs and contain language-server handler
+  failures.
 
 ## 1.3.0
 

@@ -97,7 +97,7 @@ let print_collect_errors errs =
 let with_hooks ~context ~package ~preloaded f =
   preloaded
   |> List.iter (fun (moduleName, file) ->
-      GenerationContext.seedSummary context ~moduleName file);
+      GenerationContext.seedSummary context ~package ~moduleName file);
   let loader ~moduleName =
     GenerationContext.loadSummary context ~package ~moduleName
   in
@@ -254,6 +254,36 @@ let generateSchemaDirect ?generationContext ~printToStdOut ~writeStateFile
              in
 
              if schemaState.diagnostics |> List.length > 0 then (
+               let diagnostics =
+                 schemaState.diagnostics |> List.rev |> List.map snd
+               in
+               let diagnostics =
+                 try
+                   (* Preserve prior successful artifacts; bootstrap only on
+                      the first build. *)
+                   if not (Sys.file_exists schemaOutputPath) then
+                     GenerateSchemaUtils.writeIfHasChanges schemaOutputPath
+                       (Printf.sprintf
+                          "let schema: ResGraph.schema<%s> = \
+                           ResGraph__GraphQLJs.GraphQLSchemaType.make(Obj.magic())\n"
+                          contextType
+                       |> markNamedSchemaFile);
+                   if not (Sys.file_exists resiOutputPath) then
+                     GenerateSchemaUtils.writeIfHasChanges resiOutputPath
+                       resiContent;
+                   diagnostics
+                 with (Sys_error _ | Unix.Unix_error _) as exn ->
+                   diagnostics
+                   @ [
+                       {
+                         loc = Location.none;
+                         fileUri = Uri.fromPath outputFolder;
+                         message =
+                           "Failed to write compile-safe bootstrap artifacts: "
+                           ^ Printexc.to_string exn;
+                       };
+                     ]
+               in
                if printToStdOut then
                  Printf.printf
                    "{\n\
@@ -263,22 +293,9 @@ let generateSchemaDirect ?generationContext ~printToStdOut ~writeStateFile
                    \      %s\n\
                    \    ]\n\
                     }"
-                   (schemaState.diagnostics |> List.rev
-                   |> List.map (fun (_, diagnostic) ->
-                       GenerateSchemaUtils.printDiagnostic diagnostic)
-                   |> String.concat ",\n");
-
-               (* Preserve prior successful artifacts; bootstrap only on the first build. *)
-               if not (Sys.file_exists schemaOutputPath) then
-                 GenerateSchemaUtils.writeIfHasChanges schemaOutputPath
-                   (Printf.sprintf
-                      "let schema: ResGraph.schema<%s> = \
-                       ResGraph__GraphQLJs.GraphQLSchemaType.make(Obj.magic())\n"
-                      contextType
-                   |> markNamedSchemaFile);
-               if not (Sys.file_exists resiOutputPath) then
-                 GenerateSchemaUtils.writeIfHasChanges resiOutputPath
-                   resiContent)
+                   (diagnostics
+                   |> List.map GenerateSchemaUtils.printDiagnostic
+                   |> String.concat ",\n"))
              else
                let () =
                  match schemaName with

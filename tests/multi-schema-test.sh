@@ -293,6 +293,32 @@ set -e
 [[ "$failure_output" == *'[admin] Build succeeded'* ]]
 rm -f "$fixture_dir/src/generated/broken/BrokenSchema.res" "$fixture_dir/src/generated/broken/BrokenSchema.resi"
 
+missing_output_parent=$(mktemp -d /tmp/resgraph-batch-write-failure.XXXXXX)
+trap 'rm -rf "$missing_output_parent"' EXIT
+batch_write_failure_output=$(
+  "$repo_dir/bin/dev/resgraph.exe" generate-schemas-v1 \
+    12 generate-schema "$fixture_dir" "$missing_output_parent/missing" false \
+    --schema broken-write \
+    --module BrokenWriteSchema \
+    --context BrokenContext.context \
+    --include "$fixture_dir/src/broken" \
+    2>/dev/null
+)
+node -e '
+const results = JSON.parse(process.argv[1]);
+if (
+  results.length !== 1 ||
+  results[0].status !== "Error" ||
+  !results[0].errors.some(error =>
+    error.message.includes("Failed to write compile-safe bootstrap artifacts:")
+  )
+) {
+  process.exit(1);
+}
+' "$batch_write_failure_output"
+rm -rf "$missing_output_parent"
+trap - EXIT
+
 (cd "$fixture_dir/uncompiled" && "$rescript_bin")
 for cmt in \
   "$fixture_dir/uncompiled/lib/bs/src/Schema.cmt" \
