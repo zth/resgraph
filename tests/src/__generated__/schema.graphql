@@ -7,6 +7,10 @@ directive @cacheControl(
   legacyScope: String @deprecated(reason: "Use \"scope\" instead.")
 ) on OBJECT | FIELD_DEFINITION
 
+directive @identifies(
+  value: ID! = 123
+) on OBJECT
+
 
 """Repeatable labels for schema elements."""
 directive @tag(
@@ -169,7 +173,7 @@ type DescribedUnionPayload {
   value: String!
 }
 
-type DirectiveExample @tag(name: "first") @cacheControl(maxAge: 30) @tag(name: "second") {
+type DirectiveExample @identifies(value: 456) @tag(name: "first") @cacheControl(maxAge: 30) @tag(name: "second") {
   value: String! @cacheControl(maxAge: 10, scope: "private") @tag(name: "field")
   status: DirectiveStatus!
 }
