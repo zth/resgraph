@@ -9,7 +9,15 @@ let GraphQLError = {
   raise: raise
 };
 
-let Plugin = {};
+let Rule = {};
+
+let ExtendedValidation = {
+  Rule: Rule
+};
+
+let Plugin = {
+  ExtendedValidation: ExtendedValidation
+};
 
 let Envelope = {
   Plugin: Plugin
