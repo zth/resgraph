@@ -198,6 +198,12 @@ type firstSchemaMarker
 type secondSchemaMarker
 RES
 
+run_fixture "duplicate-schema-annotation" 'Only one `@gql.schema` annotation is allowed' <<'RES'
+@gql.schema
+@gql.schema({query: "Query"})
+type schemaMarker
+RES
+
 run_fixture "missing-schema-root" 'query root maps to `MissingQuery`' <<'RES'
 @gql.schema({query: "MissingQuery"})
 type schemaMarker

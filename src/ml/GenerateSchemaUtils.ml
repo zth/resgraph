@@ -411,10 +411,17 @@ type schemaConfig = {
 
 let schemaConfigFromAttributes ~schemaState ~(env : SharedTypes.QueryEnv.t)
     attributes =
-  attributes
+  let schemaAttributes =
+    attributes
+    |> List.filter (fun ((name, _) : Parsetree.attribute) -> name.txt = "gql.schema")
+  in
+  (match schemaAttributes with
+  | _ :: (name, _) :: _ ->
+    addDirectiveDiagnostic ~schemaState ~env ~loc:name.loc
+      "Only one `@gql.schema` annotation is allowed."
+  | _ -> ());
+  schemaAttributes
   |> List.find_map (fun ((name, payload) : Parsetree.attribute) ->
-      if name.txt <> "gql.schema" then None
-      else
         let invalid message =
           addDirectiveDiagnostic ~schemaState ~env ~loc:name.loc message;
           Some None
