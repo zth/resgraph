@@ -136,6 +136,94 @@ run_fixture "invalid-location" 'is not a GraphQL directive location' <<'RES'
 type invalidLocation
 RES
 
+run_fixture "invalid-input-default" 'Invalid default for input field `Broken.count`' <<'RES'
+@gql.inputObject
+type broken = {
+  @gql.default("not-an-int")
+  count: int,
+}
+RES
+
+run_fixture "deprecated-required-input" 'Required input field `Broken.value` cannot be deprecated without a default value' <<'RES'
+@gql.inputObject
+type broken = {
+  @deprecated("Use the replacement field.")
+  value: string,
+}
+RES
+
+run_fixture "nonconstant-argument-default" 'Invalid default for resolver argument `Query.broken(count:)`' <<'RES'
+@gql.field
+let broken = (_: Query.query, ~count: int={
+  let value = 1
+  value
+}) => count
+RES
+
+run_fixture "deprecated-required-argument" 'Required argument `Query.broken(value:)` cannot be deprecated without a default value' <<'RES'
+@gql.field
+let broken = (
+  _: Query.query,
+  @deprecated("Use the replacement argument.")
+  ~value: string,
+) => value
+RES
+
+run_fixture "argument-directive-location" 'does not include `ARGUMENT_DEFINITION`' <<'RES'
+@gql.directive({locations: ["OBJECT"]})
+type objectOnly
+
+@gql.field
+let broken = (
+  _: Query.query,
+  @gql.annotate({name: "objectOnly"})
+  ~value: string,
+) => value
+RES
+
+run_fixture "schema-directive-location" 'does not include `SCHEMA`' <<'RES'
+@gql.directive({locations: ["OBJECT"]})
+type objectOnly
+
+@gql.annotate({name: "objectOnly"})
+@gql.schema
+type schemaMarker
+RES
+
+run_fixture "duplicate-schema-marker" 'Only one `@gql.schema` type is allowed' <<'RES'
+@gql.schema
+type firstSchemaMarker
+
+@gql.schema
+type secondSchemaMarker
+RES
+
+run_fixture "duplicate-schema-annotation" 'Only one `@gql.schema` annotation is allowed' <<'RES'
+@gql.schema
+@gql.schema({query: "Query"})
+type schemaMarker
+RES
+
+run_fixture "missing-schema-root" 'query root maps to `MissingQuery`' <<'RES'
+@gql.schema({query: "MissingQuery"})
+type schemaMarker
+RES
+
+run_fixture "invalid-schema-marker" 'schema marker must be declared as an abstract type' <<'RES'
+@gql.schema
+type schemaMarker = {value: string}
+RES
+
+run_fixture "root-shorthand-positional-argument" 'must take either `unit` followed by labelled arguments' <<'RES'
+@gql.query
+let broken = (value: string) => value
+RES
+
+run_fixture "root-shorthand-not-function" 'root-field annotation, but is not a function' <<'RES'
+@gql.query
+let broken = "value"
+RES
+
 run_fixture "duplicate-directive-annotation" 'Only one `@gql.directive` annotation is allowed' <<'RES'
 @gql.directive({locations: ["OBJECT"]})
 @gql.directive({locations: ["FIELD_DEFINITION"]})

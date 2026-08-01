@@ -59,6 +59,16 @@ type contextOverride = {
 @gql.field
 let contextOverrideLabel = (_: contextOverride): string => "base"
 
+@gql.interface
+type defaultable = {
+  @gql.field id: string,
+}
+
+module DefaultableFields = {
+  @gql.field
+  let format = (_: defaultable): string => "interface"
+}
+
 @gql.implements("NamedEntity")
 @gql.implements("NullableNamed")
 @gql.implements("Ranked")
@@ -107,6 +117,18 @@ let contextOverrideLabel = (
   | Some(id) => "override:" ++ id
   | None => "override:none"
   }
+
+@gql.implements("Defaultable")
+@gql.type
+type explicitDefaultable = {
+  @gql.field id: string,
+}
+
+module ExplicitDefaultableFields = {
+  @gql.field
+  let format = (_: explicitDefaultable, ~suffix: string="!"): string =>
+    "implementation" ++ suffix
+}
 
 let makeExplicitCompany = (): explicitCompany => {
   name: "Informind",

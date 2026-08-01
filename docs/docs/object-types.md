@@ -123,6 +123,31 @@ Notice a few things:
 
 This is likely going to be the main way you add fields to your object types. Let's dive in to how to do a few more things:
 
+### Defining root fields without a source argument
+
+Root fields can omit the otherwise-unused source argument by using
+`@gql.query`, `@gql.mutation`, or `@gql.subscription`:
+
+```rescript
+@gql.query
+let greeting = () => "hello"
+
+@gql.query
+let search = (~term: string, ~ctx: ResGraphContext.context) =>
+  Search.find(~term, ~ctx)
+
+@gql.mutation
+let increment = (~value: int) => value + 1
+```
+
+The root type is synthesized when it has not been declared explicitly. A
+zero-argument root resolver takes `unit`; a resolver with inputs can use only
+labelled arguments. When `@gql.schema` maps an operation to a custom root type,
+the shorthand field is attached to that mapped root. Defaults, descriptions,
+deprecations, directives, context, `resolveInfo`, authorization, and
+subscription return validation work exactly as they do for `@gql.field`
+resolvers.
+
 ### Adding arguments to your fields
 
 Using arguments for your field is as easy as adding a labelled argument to your function:
@@ -156,9 +181,32 @@ type User {
   """
   The full name of the user.
   """
-  fullName(includeInitials: Boolean): String
+  fullName(includeInitials: Boolean = false): String
 }
 ```
+
+The ReScript default expression is the GraphQL default and must be a GraphQL
+constant. ResGraph validates it against the inferred argument type and the
+generated resolver receives the coerced value.
+
+Parameter attributes add the rest of GraphQL's argument metadata:
+
+```rescript
+@gql.field
+let users = (
+  _: query,
+  @gql.description("Maximum number of users to return.")
+  @gql.annotate({name: "cost", args: {credits: 2}})
+  @deprecated("Use pageSize instead.")
+  ~limit: int=20,
+) => {
+  loadUsers(~limit)
+}
+```
+
+This emits the description, default, deprecation, and directive on the
+`Query.users(limit:)` argument. ReScript does not accept doc comments directly
+on function parameters, so argument descriptions use `@gql.description`.
 
 Arguments can also be [input objects](input-objects), [custom scalars](custom-scalars) and so on.
 

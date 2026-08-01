@@ -193,6 +193,7 @@ let rec validateConstValue ~(schemaState : schemaState) typ value =
           inputObject.fields
           |> List.find_opt (fun (field : gqlField) ->
               (not (isNullableType field.typ))
+              && Option.is_none field.defaultValue
               && fields |> List.mem_assoc field.name |> not)
         in
         match missingRequiredField with
@@ -254,6 +255,92 @@ let rec validateConstValue ~(schemaState : schemaState) typ value =
       _ ) ->
     expected ()
   | _ -> expected ()
+
+let validateInputFields ~schemaState ~(parentTypeName : string)
+    (fields : gqlField list) =
+  validateFields ~schemaState ~parentTypeName fields;
+  fields
+  |> List.iter (fun (field : gqlField) ->
+      (match field.defaultValue with
+      | None -> ()
+      | Some value -> (
+        match validateConstValue ~schemaState field.typ value with
+        | None -> ()
+        | Some message ->
+          schemaState
+          |> addDiagnostic
+               ~diagnostic:
+                 {
+                   loc = field.loc;
+                   fileUri = field.fileUri;
+                   message =
+                     Printf.sprintf
+                       "Invalid default for input field `%s.%s`: %s"
+                       parentTypeName field.name message;
+                 }));
+      if
+        Option.is_some field.deprecationReason
+        && (not (isNullableType field.typ))
+        && Option.is_none field.defaultValue
+      then
+        schemaState
+        |> addDiagnostic
+             ~diagnostic:
+               {
+                 loc = field.loc;
+                 fileUri = field.fileUri;
+                 message =
+                   Printf.sprintf
+                     "Required input field `%s.%s` cannot be deprecated \
+                      without a default value."
+                     parentTypeName field.name;
+               })
+
+let validateFieldArguments ~schemaState ~(parentTypeName : string)
+    (fields : gqlField list) =
+  fields
+  |> List.iter (fun (field : gqlField) ->
+      field.args
+      |> List.filter (fun (argument : gqlArg) ->
+          match argument.typ with
+          | InjectContext | InjectInterfaceTypename _ | InjectInfo -> false
+          | _ -> true)
+      |> List.iter (fun (argument : gqlArg) ->
+          (match argument.defaultValue with
+          | None -> ()
+          | Some value -> (
+            match validateConstValue ~schemaState argument.typ value with
+            | None -> ()
+            | Some message ->
+              schemaState
+              |> addDiagnostic
+                   ~diagnostic:
+                     {
+                       loc = argument.loc;
+                       fileUri = argument.fileUri;
+                       message =
+                         Printf.sprintf
+                           "Invalid default for resolver argument \
+                            `%s.%s(%s:)`: %s"
+                           parentTypeName field.name argument.name message;
+                     }));
+          if
+            Option.is_some argument.deprecationReason
+            && (not (isNullableType argument.typ))
+            && Option.is_none argument.defaultValue
+          then
+            schemaState
+            |> addDiagnostic
+                 ~diagnostic:
+                   {
+                     loc = argument.loc;
+                     fileUri = argument.fileUri;
+                     message =
+                       Printf.sprintf
+                         "Required argument `%s.%s(%s:)` cannot be deprecated \
+                          without a default value."
+                         parentTypeName field.name argument.name;
+                   }))
 
 let validateDirectiveDefinitions (schemaState : schemaState) =
   let reservedNames =
@@ -596,7 +683,10 @@ let validateInterfaceFieldArguments ~schemaState ~loc ~fileUri
       match findArgByName interfaceArgs implementationArg.name with
       | Some _ -> ()
       | None ->
-        if isRequiredInputType implementationArg.typ then
+        if
+          isRequiredInputType implementationArg.typ
+          && Option.is_none implementationArg.defaultValue
+        then
           addInterfaceImplementationDiagnostic schemaState ~loc ~fileUri
             (Printf.sprintf
                "`%s` cannot implement `%s`: field `%s` adds required argument \
@@ -694,7 +784,9 @@ let validateSchema (schemaState : schemaState) =
       | Some typeLocation ->
         validateName ~name:typ.displayName ~typeLocation schemaState
       | None -> ());
-      validateFields ~schemaState ~parentTypeName:typ.displayName typ.fields);
+      validateFields ~schemaState ~parentTypeName:typ.displayName typ.fields;
+      validateFieldArguments ~schemaState ~parentTypeName:typ.displayName
+        typ.fields);
 
   schemaState.inputObjects
   |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
@@ -703,7 +795,8 @@ let validateSchema (schemaState : schemaState) =
         validateName ~name:typ.displayName
           ~typeLocation:(Concrete typeLocation) schemaState
       | None -> ());
-      validateFields ~schemaState ~parentTypeName:typ.displayName typ.fields);
+      validateInputFields ~schemaState ~parentTypeName:typ.displayName
+        typ.fields);
 
   schemaState.inputUnions
   |> Hashtbl.iter (fun _name (typ : gqlInputUnionType) ->
@@ -728,4 +821,6 @@ let validateSchema (schemaState : schemaState) =
             let graphql-js do it at runtime instead. *)
       validateName ~name:typ.displayName
         ~typeLocation:(Concrete typ.typeLocation) schemaState;
-      validateFields ~schemaState ~parentTypeName:typ.displayName typ.fields)
+      validateFields ~schemaState ~parentTypeName:typ.displayName typ.fields;
+      validateFieldArguments ~schemaState ~parentTypeName:typ.displayName
+        typ.fields)

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/zth/resgraph/main/resgraph.schema.json",
+  "title": "ResGraph configuration",
+  "type": "object",
+  "oneOf": [
+    {
+      "title": "Single schema",
+      "required": ["src", "outputFolder"],
+      "properties": {
+        "$schema": {"type": "string"},
+        "src": {"type": "string"},
+        "outputFolder": {"type": "string"},
+        "include": {"$ref": "#/$defs/paths"},
+        "exclude": {"$ref": "#/$defs/paths"},
+        "contextType": {"$ref": "#/$defs/contextType"},
+        "dumpSchemaSdl": {"type": "boolean"},
+        "authorization": {"$ref": "#/$defs/authorization"}
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Named schemas",
+      "required": ["schemas"],
+      "properties": {
+        "$schema": {"type": "string"},
+        "defaultSchema": {"type": "string"},
+        "schemas": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"pattern": "^[A-Za-z0-9_-]+$"},
+          "additionalProperties": {"$ref": "#/$defs/schema"}
+        }
+      },
+      "additionalProperties": false
+    }
+  ],
+  "$defs": {
+    "paths": {
+      "type": "array",
+      "items": {"type": "string"},
+      "uniqueItems": true
+    },
+    "contextType": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+$"
+    },
+    "authorization": {
+      "type": "object",
+      "required": ["mode"],
+      "properties": {
+        "mode": {"const": "required"},
+        "onForbidden": {"type": "string"},
+        "manifestPath": {"type": "string"},
+        "baselinePath": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "schema": {
+      "type": "object",
+      "required": ["outputFolder"],
+      "properties": {
+        "projectRoot": {"type": "string"},
+        "include": {"$ref": "#/$defs/paths"},
+        "exclude": {"$ref": "#/$defs/paths"},
+        "outputFolder": {"type": "string"},
+        "moduleName": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Za-z0-9_]*$"
+        },
+        "contextType": {"$ref": "#/$defs/contextType"},
+        "dumpSchemaSdl": {"type": "boolean"},
+        "authorization": {"$ref": "#/$defs/authorization"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -4,34 +4,12 @@ sidebar_position: 8
 
 # Input Unions
 
-Even though they're not officially in the spec yet, ResGraph has first class support for [input unions via the `@oneOf` server directive proposal](https://github.com/graphql/graphql-spec/pull/825).
+ResGraph models input unions as standard [OneOf Input Objects](https://spec.graphql.org/September2025/#sec-OneOf-Input-Objects).
+They use graphql-js's native validation, input coercion, SDL, and introspection
+support. No validation plugin is required.
 
-## Prerequisites
-
-You'll need to add the `@oneOf` validation package and configure it in your server to be able to use input unions. It looks like this:
-
-```bash
-# First, install the package that has the validation rule. This is using graphql-yoga@3.
-npm i @envelop/extended-validation@2
-```
-
-Next, add the plugin to your GraphQL Yoga server:
-
-```rescript
-open GraphQLYoga
-
-let yoga = createYoga({
-  schema: ResGraphSchema.schema,
-  plugins: [
-    Envelope.Plugin.ExtendedValidation.use({
-      rules: [Envelope.Plugin.ExtendedValidation.Rule.oneOfInputObjectsRule],
-    }),
-  ],
-```
-
-Now you should be all set!
-
-> You can [read more here](https://the-guild.dev/graphql/envelop/docs/guides/using-graphql-features-from-the-future) on how this plugin works with GraphQL Yoga.
+Install `graphql@^16.11` or `graphql@^17` alongside ResGraph. GraphQL 17
+requires Node 22 or newer; GraphQL 16 remains supported for Node 20 projects.
 
 ## Using Input Unions
 

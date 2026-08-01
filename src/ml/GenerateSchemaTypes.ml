@@ -24,8 +24,15 @@ type graphqlType =
   | GraphQLScalar of {id: string; displayName: string}
 
 type fieldResolverStyle =
-  | Resolver of {moduleName: string; fnName: string; pathToFn: string list}
+  | Resolver of {
+      moduleName: string;
+      fnName: string;
+      pathToFn: string list;
+      callStyle: resolverCallStyle;
+    }
   | Property of string
+
+and resolverCallStyle = ResolverSource | ResolverUnit | ResolverLabelled
 
 type authorizationMode =
   | AuthorizationOptional
@@ -162,7 +169,12 @@ type gqlArg = {
   name: string;
   isOptionLabelled: bool;
       (* If the argument in ReScript is an optional label. *)
-  typ: graphqlType; (* TODO: Default value. *)
+  typ: graphqlType;
+  defaultValue: gqlConstValue option;
+  description: string option;
+  deprecationReason: string option;
+  loc: Location.t;
+  fileUri: Uri.t;
 }
 
 type gqlDirectiveArgument = {
@@ -181,6 +193,15 @@ type gqlDirectiveDefinition = {
   locations: gqlDirectiveLocation list;
   repeatable: bool;
   typeLocation: typeLocationLoc;
+}
+
+type gqlSchemaDefinition = {
+  description: string option;
+  queryTypeName: string option;
+  mutationTypeName: string option;
+  subscriptionTypeName: string option;
+  loc: Location.t;
+  fileUri: Uri.t;
 }
 
 type gqlInterfaceIdentifier = {id: string; displayName: string}
@@ -233,6 +254,7 @@ type gqlScalar = {
   typeLocation: typeLocationLoc;
   specifiedByUrl: string option;
   encoderDecoderLoc: typeLocationLoc option;
+  hasParseLiteral: bool;
 }
 
 (* TODO: Can this be thinned out for some cases? Should be split up. *)
@@ -241,6 +263,7 @@ type gqlField = {
   resolverStyle: fieldResolverStyle;
   typ: graphqlType;
   args: gqlArg list;
+  defaultValue: gqlConstValue option;
   deprecationReason: string option;
   description: string option;
   loc: Location.t;
@@ -323,6 +346,7 @@ type schemaState = {
   mutable query: gqlObjectType option;
   mutable subscription: gqlObjectType option;
   mutable mutation: gqlObjectType option;
+  mutable schemaDefinition: gqlSchemaDefinition option;
   mutable diagnostics: (string * diagnostic) list;
 }
 
@@ -343,7 +367,11 @@ type gqlAttributes =
   | InputObject
   | InputUnion
   | Field
+  | QueryField
+  | MutationField
+  | SubscriptionField
   | Enum
   | Union
   | Scalar
   | Directive
+  | Schema

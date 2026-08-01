@@ -20,7 +20,21 @@ directive @scalarMetadata(
 """Repeatable labels for schema elements."""
 directive @tag(
   name: String!
-) repeatable on SCALAR | OBJECT | FIELD_DEFINITION | ENUM | ENUM_VALUE | INPUT_OBJECT | INPUT_FIELD_DEFINITION
+) repeatable on SCHEMA | SCALAR | OBJECT | FIELD_DEFINITION | ARGUMENT_DEFINITION | ENUM | ENUM_VALUE | INPUT_OBJECT | INPUT_FIELD_DEFINITION
+
+
+"""The public \"""ResGraph\""" test schema."""
+schema @tag(name: "schema") {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
+
+scalar DefaultText
+
+
+"""Text scalar with explicit literal coercion."""
+scalar LiteralText
 
 
 """Custom scalar with specifiedByUrl coverage."""
@@ -34,14 +48,23 @@ enum ScalarTier {
   Premium
 }
 
+union DescribedUnion =
+  | DescribedUnionPayload
+
+
 input Res12InputInline {
 
   """Field doc on inline record."""
   payload: String!
 }
 
+input CoercedDefaultInput {
+  identifiers: [ID!]! = 123
+}
+
 input DirectiveInput @tag(name: "input") {
   value: String! @tag(name: "input-field")
+  label: String! = "fallback"
 }
 
 input ReservedWordInput {
@@ -126,6 +149,11 @@ interface Contextual {
   id: String!
 }
 
+interface Defaultable {
+  format: String!
+  id: String!
+}
+
 interface Labelled {
   typenameEcho: String!
 }
@@ -160,6 +188,10 @@ interface Searchable {
   id: String!
 }
 
+type DescribedUnionPayload {
+  value: String!
+}
+
 type DirectiveExample @identifies(value: 456) @tag(name: "first") @cacheControl(maxAge: 30) @tag(name: "second") {
   value: String! @cacheControl(maxAge: 10, scope: "private") @tag(name: "field")
   status: DirectiveStatus!
@@ -184,6 +216,11 @@ type ExplicitContextOverrideResult implements ContextOverride {
 
 type ExplicitContextResult implements Contextual {
   contextLabel: String!
+  id: String!
+}
+
+type ExplicitDefaultable implements Defaultable {
+  format(suffix: String = "!"): String!
   id: String!
 }
 
@@ -213,6 +250,7 @@ type LabelledWrapper {
 
 type Mutation {
   updateThing(thingId: ID!, input: UpdateThingInput!): Thing
+  shorthandIncrement(value: Int!): Int!
 }
 
 type NullableInterop {
@@ -246,6 +284,15 @@ type Query {
   node(id: ID!): Node
   functionFieldRegression: FunctionFieldRegression!
   userDefinedNullable: T!
+  signatureMetadata(
+    """Metadata loaded from the implementation source."""
+    value: String!
+  ): String!
+  shorthandContext: String!
+  shorthandEcho(message: String!): String!
+
+  """A root query without an unused source argument."""
+  shorthandGreeting: String!
   reservedWordArgumentEcho(constraint: String!): String!
   reservedWordInputEcho(input: ReservedWordInput!): String!
   reservedWordRecord: ReservedWordRecord!
@@ -262,10 +309,19 @@ type Query {
   explicitSearchResult: ExplicitSearchResult!
   explicitCompanyHolder: ExplicitCompanyHolder!
   explicitCompany: ExplicitCompany!
+  coercedInputDefault(input: CoercedDefaultInput!): String!
+  directiveArgumentMetadata(
+    """Maximum number of results."""
+    limit: Int = 25 @deprecated(reason: "Use pageSize instead.") @tag(name: "argument")
+  ): Int!
+  directiveInputDefault(input: DirectiveInput!): String!
   directiveExample(input: DirectiveInput!): DirectiveExample!
+  defaultText(value: DefaultText = "source"): DefaultText!
+  literalText(value: LiteralText!): LiteralText!
   getScalarHolder: ScalarHolder!
   nestedConnection: StringConnection!
   userConnection(first: Int, after: String): UserConnection!
+  asyncValues: [String!]!
 }
 
 
@@ -308,6 +364,7 @@ type StringEdge {
 
 type Subscription {
   latestMessage: String!
+  shorthandLatest: String!
 }
 
 type T {

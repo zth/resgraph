@@ -141,6 +141,42 @@ let printDirectiveDefinition schemaState (definition : gqlDirectiveDefinition) =
     |> List.map GenerateSchemaDirectiveUtils.locationToString
     |> String.concat " | ")
 
+let printFieldArgument schemaState ~parentTypeName ~fieldName
+    (argument : gqlArg) =
+  Printf.sprintf "%s: %s%s%s%s" argument.name
+    (graphqlTypeToString argument.typ)
+    (match argument.defaultValue with
+    | None -> ""
+    | Some value -> " = " ^ constValueToString value)
+    (printDeprecatedDirective argument.deprecationReason)
+    (printDirectiveApplications schemaState
+       (DirectiveArgumentDefinition
+          {parentTypeName; fieldName; argumentName = argument.name}))
+
+let printFieldArguments schemaState ~parentTypeName ~fieldName arguments =
+  if arguments = [] then ""
+  else if
+    arguments
+    |> List.exists (fun (argument : gqlArg) ->
+        Option.is_some argument.description)
+  then
+    Printf.sprintf "(\n%s\n  )"
+      (arguments
+      |> List.map (fun (argument : gqlArg) ->
+          (match argument.description with
+            | None -> ""
+            | Some description ->
+              Printf.sprintf "    \"\"\"%s\"\"\"\n"
+                (escapeBlockString description))
+          ^ "    "
+          ^ printFieldArgument schemaState ~parentTypeName ~fieldName argument)
+      |> String.concat "\n")
+  else
+    Printf.sprintf "(%s)"
+      (arguments
+      |> List.map (printFieldArgument schemaState ~parentTypeName ~fieldName)
+      |> String.concat ", ")
+
 let printFields ~schemaState ~parentTypeName ~input fields =
   fields
   |> List.map (fun (f : gqlField) ->
@@ -148,14 +184,14 @@ let printFields ~schemaState ~parentTypeName ~input fields =
       Printf.sprintf "%s  %s%s: %s%s"
         (printDescription f.description 2)
         f.name
-        (if List.length args > 0 then
-           Printf.sprintf "(%s)"
-             (args
-             |> List.map (fun (arg : gqlArg) ->
-                 Printf.sprintf "%s: %s" arg.name (graphqlTypeToString arg.typ))
-             |> String.concat ", ")
-         else "")
-        (graphqlTypeToString f.typ)
+        (printFieldArguments schemaState ~parentTypeName ~fieldName:f.name args)
+        (graphqlTypeToString f.typ
+        ^
+        if input then
+          match f.defaultValue with
+          | None -> ""
+          | Some value -> " = " ^ constValueToString value
+        else "")
         (printDeprecatedDirective f.deprecationReason
         ^ printDirectiveApplications schemaState
             (if input then
@@ -243,11 +279,7 @@ let printUnion schemaState (union : gqlUnion) =
     (printDirectiveApplications schemaState (DirectiveUnion union.displayName))
     (union.types
     |> List.map (fun (v : gqlUnionMember) ->
-        Printf.sprintf "  | %s%s"
-          (match v.description with
-          | None -> ""
-          | Some desc -> Printf.sprintf "\"\"\"%s\"\"\" " desc)
-          v.displayName)
+        Printf.sprintf "  | %s" v.displayName)
     |> String.concat "\n")
 
 let printInterface schemaState (intf : gqlInterface) =
@@ -271,6 +303,20 @@ let printObjectType schemaState (typ : gqlObjectType) =
     (printFields ~schemaState ~parentTypeName:typ.displayName ~input:false
        typ.fields)
 
+let printSchemaDefinition schemaState (definition : gqlSchemaDefinition) =
+  let operation operationName = function
+    | None -> []
+    | Some (typ : gqlObjectType) ->
+      [Printf.sprintf "  %s: %s" operationName typ.displayName]
+  in
+  Printf.sprintf "%sschema%s {\n%s\n}"
+    (printDescription definition.description 0)
+    (printDirectiveApplications schemaState DirectiveSchema)
+    (operation "query" schemaState.query
+     @ operation "mutation" schemaState.mutation
+     @ operation "subscription" schemaState.subscription
+    |> String.concat "\n")
+
 let printSchemaSDL (schemaState : schemaState) =
   let code = Buffer.create 16384 in
   let addWithNewLine text =
@@ -289,6 +335,10 @@ let printSchemaSDL (schemaState : schemaState) =
   schemaState.directiveDefinitions
   |> iterHashtblAlphabetically (fun _ definition ->
       addSection (printDirectiveDefinition schemaState definition));
+
+  (match schemaState.schemaDefinition with
+  | None -> ()
+  | Some definition -> addSection (printSchemaDefinition schemaState definition));
 
   schemaState.scalars
   |> iterHashtblAlphabetically (fun _ (scalar : gqlScalar) ->

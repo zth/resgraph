@@ -3,6 +3,8 @@
 
 let GraphQLLiteralValue = {};
 
+let GraphQLValueNode = {};
+
 let makeLazyDirectiveArguments = (function makeLazyDirectiveArguments(thunks) {
     const result = {};
     Object.entries(thunks).forEach(([name, thunk]) => {
@@ -45,6 +47,7 @@ let GraphQLSchemaType = {};
 
 export {
   GraphQLLiteralValue,
+  GraphQLValueNode,
   makeLazyDirectiveArguments,
   GraphQLInput,
   AstNode,

@@ -36,13 +36,20 @@ let validAttributes =
        GraphQL interface." );
     ("gql.interfaceResolver", "");
     ("gql.field", "");
+    ("gql.query", "Defines a field on the query root without a source argument.");
+    ( "gql.mutation",
+      "Defines a field on the mutation root without a source argument." );
+    ( "gql.subscription",
+      "Defines a field on the subscription root without a source argument." );
     ("gql.enum", "");
     ("gql.union", "");
     ("gql.inputObject", "");
     ("gql.inputUnion", "");
     ("gql.scalar", "");
     ("gql.directive", "Defines a typed GraphQL directive.");
+    ("gql.schema", "Defines GraphQL schema metadata and root mappings.");
     ("gql.annotate", "Applies a GraphQL directive to a schema element.");
+    ("gql.description", "Describes a GraphQL resolver argument.");
     ("gql.default", "Defines a GraphQL constant default value.");
     ("gql.authorize", "Attaches a typed authorization function.");
     ("gql.public", "Marks a field public with a required reason.");
@@ -92,11 +99,15 @@ let extractGqlAttribute ~(schemaState : GenerateSchemaTypes.schemaState)
                  };
           None)
       | ["gql"; "field"] -> Some Field
+      | ["gql"; "query"] -> Some QueryField
+      | ["gql"; "mutation"] -> Some MutationField
+      | ["gql"; "subscription"] -> Some SubscriptionField
       | ["gql"; "enum"] -> Some Enum
       | ["gql"; "union"] -> Some Union
       | ["gql"; "inputObject"] -> Some InputObject
       | ["gql"; "inputUnion"] -> Some InputUnion
       | ["gql"; "directive"] -> Some Directive
+      | ["gql"; "schema"] -> Some Schema
       | ["gql"; "annotate"]
       | ["gql"; "default"]
       | ["gql"; "authorize"]
@@ -184,6 +195,117 @@ let rec constValueFromExpression (expression : Parsetree.expression) =
     Error
       "Expected a GraphQL constant: null, a boolean, number, string, enum, \
        array, or record."
+
+type resolverSourceParameter = {
+  label: Asttypes.arg_label;
+  loc: Location.t;
+  attributes: Parsetree.attributes;
+  defaultValue: Parsetree.expression option;
+}
+
+let resolverSourceCache : (string, string * Parsetree.structure) Hashtbl.t =
+  Hashtbl.create 16
+
+let resolverParametersFromSource ~(env : SharedTypes.QueryEnv.t) ~resolverName
+    ~resolverLoc =
+  let rec patternName (pattern : Parsetree.pattern) =
+    match pattern.ppat_desc with
+    | Ppat_var {txt} -> Some txt
+    | Ppat_alias (_, {txt}) -> Some txt
+    | Ppat_constraint (pattern, _) -> patternName pattern
+    | _ -> None
+  in
+  let contains outer inner =
+    outer.Location.loc_start.pos_cnum <= inner.Location.loc_start.pos_cnum
+    && outer.loc_end.pos_cnum >= inner.loc_end.pos_cnum
+  in
+  let rec bindingsOfModuleExpression (expression : Parsetree.module_expr) =
+    match expression.pmod_desc with
+    | Pmod_structure structure -> bindingsOfStructure structure
+    | Pmod_constraint (expression, _) -> bindingsOfModuleExpression expression
+    | _ -> []
+  and bindingsOfStructure structure =
+    structure
+    |> List.concat_map (fun (item : Parsetree.structure_item) ->
+        match item.pstr_desc with
+        | Pstr_value (_, bindings) -> bindings
+        | Pstr_module binding -> bindingsOfModuleExpression binding.pmb_expr
+        | Pstr_recmodule bindings ->
+          bindings
+          |> List.concat_map (fun (binding : Parsetree.module_binding) ->
+              bindingsOfModuleExpression binding.pmb_expr)
+        | _ -> [])
+  in
+  let rec parametersOfExpression (expression : Parsetree.expression) =
+    match expression.pexp_desc with
+    | Pexp_fun {arg_label; default; lhs; rhs; _} ->
+      {
+        label = arg_label;
+        loc = lhs.ppat_loc;
+        attributes = expression.pexp_attributes @ lhs.ppat_attributes;
+        defaultValue = default;
+      }
+      :: parametersOfExpression rhs
+    | Pexp_constraint (expression, _) -> parametersOfExpression expression
+    | _ -> []
+  in
+  let cmtPath = env.file.uri |> Uri.toPath in
+  let paths =
+    if Filename.check_suffix cmtPath ".resi" then
+      [Filename.chop_suffix cmtPath ".resi" ^ ".res"]
+    else [cmtPath]
+  in
+  let parsedSource =
+    paths
+    |> List.find_map (fun path ->
+        match Files.readFile path with
+        | None -> None
+        | Some source -> (
+          try
+            let digest = Digest.to_hex (Digest.string source) in
+            let structure =
+              match Hashtbl.find_opt resolverSourceCache path with
+              | Some (cachedDigest, structure) when cachedDigest = digest ->
+                structure
+              | _ ->
+                let {Res_driver.parsetree = structure} =
+                  Res_driver.parse_implementation_from_source ~for_printer:true
+                    ~source ~display_filename:path
+                in
+                Hashtbl.replace resolverSourceCache path (digest, structure);
+                structure
+            in
+            Some structure
+          with _ -> None))
+  in
+  match parsedSource with
+  | None -> []
+  | Some structure -> (
+    try
+      let bindings =
+        structure |> bindingsOfStructure
+        |> List.filter (fun (binding : Parsetree.value_binding) ->
+            patternName binding.pvb_pat = Some resolverName)
+      in
+      let matchingBinding =
+        match
+          bindings
+          |> List.find_opt (fun (binding : Parsetree.value_binding) ->
+              contains binding.pvb_loc resolverLoc
+              || contains binding.pvb_pat.ppat_loc resolverLoc
+              || contains resolverLoc binding.pvb_pat.ppat_loc)
+        with
+        | Some binding -> Some binding
+        | None -> (
+          match bindings with
+          | [binding] -> Some binding
+          | _ -> None)
+      in
+      matchingBinding
+      |> Option.map (fun (binding : Parsetree.value_binding) ->
+          parametersOfExpression binding.pvb_expr)
+      |> Option.value ~default:[]
+    with _ -> [])
 
 type directiveConfig = {locations: gqlDirectiveLocation list; repeatable: bool}
 
@@ -281,6 +403,104 @@ let directiveConfigFromAttributes ~schemaState ~(env : SharedTypes.QueryEnv.t)
             "`@gql.directive` requires a record payload, for example \
              `@gql.directive({locations: [\"FIELD_DEFINITION\"]})`.")
 
+type schemaConfig = {
+  queryTypeName: string option;
+  mutationTypeName: string option;
+  subscriptionTypeName: string option;
+}
+
+let schemaConfigFromAttributes ~schemaState ~(env : SharedTypes.QueryEnv.t)
+    attributes =
+  let schemaAttributes =
+    attributes
+    |> List.filter (fun ((name, _) : Parsetree.attribute) -> name.txt = "gql.schema")
+  in
+  (match schemaAttributes with
+  | _ :: (name, _) :: _ ->
+    addDirectiveDiagnostic ~schemaState ~env ~loc:name.loc
+      "Only one `@gql.schema` annotation is allowed."
+  | _ -> ());
+  schemaAttributes
+  |> List.find_map (fun ((name, payload) : Parsetree.attribute) ->
+        let invalid message =
+          addDirectiveDiagnostic ~schemaState ~env ~loc:name.loc message;
+          Some None
+        in
+        let parseFields fields =
+          let fields =
+            fields
+            |> List.map
+                 (fun (field : Parsetree.expression Parsetree.record_element) ->
+                   (Longident.last field.lid.txt, field.x))
+          in
+          let allowed = ["query"; "mutation"; "subscription"] in
+          let unknownFields =
+            fields
+            |> List.filter_map (fun (fieldName, _) ->
+                if List.mem fieldName allowed then None else Some fieldName)
+          in
+          let duplicateFields =
+            allowed
+            |> List.filter (fun fieldName ->
+                fields
+                |> List.filter (fun (name, _) -> name = fieldName)
+                |> List.length |> ( < ) 1)
+          in
+          if unknownFields <> [] then
+            Error
+              (Printf.sprintf "Unknown `@gql.schema` configuration field%s: %s."
+                 (if List.length unknownFields = 1 then "" else "s")
+                 (String.concat ", " unknownFields))
+          else if duplicateFields <> [] then
+            Error
+              (Printf.sprintf
+                 "Duplicate `@gql.schema` configuration field%s: %s."
+                 (if List.length duplicateFields = 1 then "" else "s")
+                 (String.concat ", " duplicateFields))
+          else
+            allowed
+            |> List.fold_left
+                 (fun result fieldName ->
+                   match (result, List.assoc_opt fieldName fields) with
+                   | Error message, _ -> Error message
+                   | Ok values, None -> Ok ((fieldName, None) :: values)
+                   | ( Ok values,
+                       Some
+                         {
+                           pexp_desc =
+                             Pexp_constant (Pconst_string (typeName, _));
+                         } ) ->
+                     Ok ((fieldName, Some typeName) :: values)
+                   | Ok _, Some _ ->
+                     Error
+                       (Printf.sprintf
+                          "`%s` must be a GraphQL type name string." fieldName))
+                 (Ok [])
+            |> Result.map (fun values ->
+                {
+                  queryTypeName = List.assoc "query" values;
+                  mutationTypeName = List.assoc "mutation" values;
+                  subscriptionTypeName = List.assoc "subscription" values;
+                })
+        in
+        match payloadExpressions payload with
+        | [] ->
+          Some
+            (Some
+               {
+                 queryTypeName = None;
+                 mutationTypeName = None;
+                 subscriptionTypeName = None;
+               })
+        | [{pexp_desc = Pexp_record (fields, None)}] -> (
+          match parseFields fields with
+          | Ok config -> Some (Some config)
+          | Error message -> invalid message)
+        | _ ->
+          invalid
+            "`@gql.schema` takes no payload or a record containing `query`, \
+             `mutation`, and `subscription` type-name strings.")
+
 let defaultValueFromAttributes ~schemaState ~(env : SharedTypes.QueryEnv.t)
     attributes =
   let defaults =
@@ -305,6 +525,20 @@ let defaultValueFromAttributes ~schemaState ~(env : SharedTypes.QueryEnv.t)
       addDirectiveDiagnostic ~schemaState ~env ~loc:name.loc
         "`@gql.default` requires exactly one GraphQL constant value.";
       None)
+
+let descriptionFromAttributes ~schemaState ~(env : SharedTypes.QueryEnv.t)
+    attributes =
+  attributes
+  |> List.find_map (fun ((name, payload) : Parsetree.attribute) ->
+      if name.txt <> "gql.description" then None
+      else
+        match payloadExpressions payload with
+        | [{pexp_desc = Pexp_constant (Pconst_string (description, _))}] ->
+          Some description
+        | _ ->
+          addDirectiveDiagnostic ~schemaState ~env ~loc:name.loc
+            "`@gql.description` requires a string.";
+          None)
 
 let specifiedByUrlFromAttributes ~schemaState ~(env : SharedTypes.QueryEnv.t)
     attributes =
@@ -790,7 +1024,7 @@ let addInputUnion id ~(makeInputUnion : unit -> gqlInputUnionType) ~debug
     Hashtbl.replace schemaState.inputUnions id (makeInputUnion ()))
 
 let addScalar ~debug ~schemaState ?description ?specifiedByUrl ~typeLocation
-    ?encoderDecoderLoc id =
+    ?encoderDecoderLoc ?(hasParseLiteral = false) id =
   if Hashtbl.mem schemaState.scalars id then ()
   else (
     if debug then Printf.printf "Adding scalar %s\n" id;
@@ -802,6 +1036,7 @@ let addScalar ~debug ~schemaState ?description ?specifiedByUrl ~typeLocation
         typeLocation;
         specifiedByUrl;
         encoderDecoderLoc;
+        hasParseLiteral;
       })
 
 let addInterface id ~(makeInterface : unit -> gqlInterface) ~debug ~schemaState
@@ -986,6 +1221,7 @@ let inputUnionToInputObj (inputUnion : gqlInputUnionType) : gqlInputObjectType =
             resolverStyle = Property iu.fieldName;
             typ = Nullable iu.typ;
             args = [];
+            defaultValue = None;
             deprecationReason = None;
             description = iu.description;
             loc = iu.loc;
@@ -1336,9 +1572,150 @@ let validateInterfaceImplementations (schemaState : schemaState) =
               ~implementingTypeName:typ.displayName
               ~implementingFields:typ.fields ~interface:intf))
 
+let resolveSchemaRootTypes (schemaState : schemaState) =
+  let findObjectType typeName =
+    schemaState.types |> hashtblToListAlphabetically
+    |> List.find_map (fun (id, (typ : gqlObjectType)) ->
+        if id = typeName || typ.displayName = typeName then Some typ else None)
+  in
+  let moveCoordinate table ~oldParentTypeName ~newParentTypeName ~fieldName =
+    let oldCoordinate =
+      authorizationCoordinate ~parentTypeName:oldParentTypeName ~fieldName
+    in
+    let newCoordinate =
+      authorizationCoordinate ~parentTypeName:newParentTypeName ~fieldName
+    in
+    match Hashtbl.find_opt table oldCoordinate with
+    | None -> ()
+    | Some value ->
+      Hashtbl.remove table oldCoordinate;
+      if not (Hashtbl.mem table newCoordinate) then
+        Hashtbl.replace table newCoordinate value
+  in
+  let moveDirectiveTarget oldTarget newTarget =
+    match Hashtbl.find_opt schemaState.appliedDirectives oldTarget with
+    | None -> ()
+    | Some applications ->
+      Hashtbl.remove schemaState.appliedDirectives oldTarget;
+      let existing =
+        Hashtbl.find_opt schemaState.appliedDirectives newTarget
+        |> Option.value ~default:[]
+      in
+      Hashtbl.replace schemaState.appliedDirectives newTarget
+        (existing @ applications)
+  in
+  let moveFieldMetadata ~oldParentTypeName ~newParentTypeName
+      (field : gqlField) =
+    moveDirectiveTarget
+      (DirectiveFieldDefinition
+         {parentTypeName = oldParentTypeName; fieldName = field.name})
+      (DirectiveFieldDefinition
+         {parentTypeName = newParentTypeName; fieldName = field.name});
+    field.args
+    |> List.iter (fun (argument : gqlArg) ->
+        moveDirectiveTarget
+          (DirectiveArgumentDefinition
+             {
+               parentTypeName = oldParentTypeName;
+               fieldName = field.name;
+               argumentName = argument.name;
+             })
+          (DirectiveArgumentDefinition
+             {
+               parentTypeName = newParentTypeName;
+               fieldName = field.name;
+               argumentName = argument.name;
+             }));
+    moveCoordinate schemaState.authorizationDeclarations ~oldParentTypeName
+      ~newParentTypeName ~fieldName:field.name;
+    moveCoordinate schemaState.authorizationPlans ~oldParentTypeName
+      ~newParentTypeName ~fieldName:field.name;
+    moveCoordinate schemaState.resolverOutcomes ~oldParentTypeName
+      ~newParentTypeName ~fieldName:field.name;
+    moveCoordinate schemaState.authorizationExemptions ~oldParentTypeName
+      ~newParentTypeName ~fieldName:field.name
+  in
+  let moveRootShorthandFields ~conventionalId configuredName =
+    match configuredName with
+    | None -> ()
+    | Some configuredName -> (
+      match
+        (Hashtbl.find_opt schemaState.types conventionalId,
+         findObjectType configuredName)
+      with
+      | Some source, Some target when source.id <> target.id ->
+        let shorthandFields, remainingFields =
+          source.fields
+          |> List.partition (fun (field : gqlField) ->
+              match field.resolverStyle with
+              | Resolver {callStyle = ResolverUnit | ResolverLabelled} -> true
+              | Property _ | Resolver {callStyle = ResolverSource} -> false)
+        in
+        if shorthandFields <> [] then (
+          shorthandFields
+          |> List.iter
+               (moveFieldMetadata ~oldParentTypeName:source.displayName
+                  ~newParentTypeName:target.displayName);
+          Hashtbl.replace schemaState.types target.id
+            {target with fields = shorthandFields @ target.fields};
+          if remainingFields = [] && Option.is_none source.typeLocation then
+            Hashtbl.remove schemaState.types source.id
+          else
+            Hashtbl.replace schemaState.types source.id
+              {source with fields = remainingFields})
+      | _ -> ())
+  in
+  let resolve ~operation ~configuredName ~conventionalId current =
+    let typeName = Option.value configuredName ~default:conventionalId in
+    match findObjectType typeName with
+    | Some typ -> Some typ
+    | None when Option.is_none configuredName -> current
+    | None ->
+      let loc, fileUri =
+        match schemaState.schemaDefinition with
+        | Some definition -> (definition.loc, definition.fileUri)
+        | None -> (Location.none, schemaState.rootFileUri)
+      in
+      schemaState
+      |> addDiagnostic
+           ~diagnostic:
+             {
+               loc;
+               fileUri;
+               message =
+                 Printf.sprintf
+                   "The `@gql.schema` %s root maps to `%s`, but no GraphQL \
+                    object type with that name exists."
+                   operation typeName;
+             };
+      None
+  in
+  let queryTypeName, mutationTypeName, subscriptionTypeName =
+    match schemaState.schemaDefinition with
+    | None -> (None, None, None)
+    | Some definition ->
+      ( definition.queryTypeName,
+        definition.mutationTypeName,
+        definition.subscriptionTypeName )
+  in
+  moveRootShorthandFields ~conventionalId:"query" queryTypeName;
+  moveRootShorthandFields ~conventionalId:"mutation" mutationTypeName;
+  moveRootShorthandFields ~conventionalId:"subscription" subscriptionTypeName;
+  schemaState.query <-
+    resolve ~operation:"query" ~configuredName:queryTypeName
+      ~conventionalId:"query" schemaState.query;
+  schemaState.mutation <-
+    resolve ~operation:"mutation" ~configuredName:mutationTypeName
+      ~conventionalId:"mutation" schemaState.mutation;
+  schemaState.subscription <-
+    resolve ~operation:"subscription" ~configuredName:subscriptionTypeName
+      ~conventionalId:"subscription" schemaState.subscription
+
 let processSchema (schemaState : schemaState) =
   let processedSchema = {interfaceImplementedBy = Hashtbl.create 10} in
   let positionsToRead = Hashtbl.create 10 in
+
+  resolveSchemaRootTypes schemaState;
 
   (* Figure out all files that needs reading to check for interface spreads *)
   schemaState.types
@@ -1662,7 +2039,7 @@ type persistedLegacySchemaState = {
 }
 
 let stateFileMagic = "RESGRAPH_STATE\000"
-let stateFileVersion = 2
+let stateFileVersion = 3
 
 let validStateName schemaName =
   Str.string_match (Str.regexp "^[A-Za-z0-9_-]+$") schemaName 0

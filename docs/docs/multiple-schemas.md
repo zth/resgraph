@@ -12,6 +12,7 @@ Use the named `schemas` form:
 
 ```json
 {
+  "$schema": "./node_modules/resgraph/resgraph.schema.json",
   "defaultSchema": "public",
   "schemas": {
     "public": {
@@ -36,6 +37,14 @@ Use the named `schemas` form:
     }
   }
 }
+```
+
+The shipped JSON Schema provides editor completion and catches misspelled or
+mistyped settings. Run the same semantic/path validation used by builds without
+generating a schema:
+
+```bash
+npx resgraph check
 ```
 
 Each schema supports:

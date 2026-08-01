@@ -220,6 +220,7 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
                  query = None;
                  subscription = None;
                  mutation = None;
+                 schemaDefinition = None;
                  diagnostics = [];
                  processedFiles = Hashtbl.create 100;
                }

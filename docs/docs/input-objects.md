@@ -73,6 +73,32 @@ Use `@as` for input object fields, including inline record payload fields genera
 
 You can add comments to the type definition itself, and to all record fields. These will then be exposed in your schema.
 
+### Default values
+
+Use `@gql.default` when GraphQL should provide a value for an omitted input
+field. The payload must be a GraphQL constant compatible with the field type.
+
+```rescript
+@gql.inputObject
+type searchOptions = {
+  @gql.default(20)
+  limit: int,
+  @gql.default(["name", "createdAt"])
+  fields: array<string>,
+}
+```
+
+```graphql
+input SearchOptions {
+  limit: Int! = 20
+  fields: [String!]! = ["name", "createdAt"]
+}
+```
+
+The generated resolver receives a complete ReScript record after GraphQL has
+applied defaults. ResGraph validates defaults recursively while generating the
+schema. A required input field may only be deprecated when it has a default.
+
 ### Handling `null`
 
 Just like in [arguments of object type fields](object-types#handling-null-in-arguments), you can choose to explicitly handle `null` values by annotating fields in the input object to be `Js.Nullable.t`.

@@ -6,10 +6,15 @@ external idToString: id => string = "%identity"
 @editor.completeFrom(Execute)
 type schema<'appContext> = ResGraph__GraphQLJs.GraphQLSchemaType.t<'appContext>
 
+module AsyncIterable = {
+  type t<'value>
+}
+
 @module("graphql") external printSchema: schema<_> => string = "printSchema"
 
 module GraphQLLiteralValue = ResGraph__GraphQLJs.GraphQLLiteralValue
 module GraphQLJSON = ResGraph__GraphQLJs.GraphQLLiteralValue
+module GraphQLValueNode = ResGraph__GraphQLJs.GraphQLValueNode
 
 module Connections = ResGraph__Connections
 

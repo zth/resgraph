@@ -12,6 +12,12 @@ module GraphQLLiteralValue = {
     | Array(array<t>)
 }
 
+module GraphQLValueNode = {
+  type t
+
+  @module("graphql") external toLiteralValue: t => GraphQLLiteralValue.t = "valueFromASTUntyped"
+}
+
 type directiveArguments = Dict.t<GraphQLLiteralValue.t>
 type directiveMap = Dict.t<array<directiveArguments>>
 type directiveArgumentThunk = unit => GraphQLLiteralValue.t
@@ -39,7 +45,6 @@ type resgraphDirectiveExtensions = {appliedDirectives: array<appliedDirective>}
 type directiveExtensions = {
   directives?: directiveMap,
   resgraph?: resgraphDirectiveExtensions,
-  oneOf?: bool,
 }
 
 type graphqlType
@@ -152,6 +157,7 @@ module GraphQLScalar = {
     name: string,
     description?: string,
     parseValue?: GraphQLLiteralValue.t => option<'t>,
+    parseLiteral?: GraphQLValueNode.t => option<'t>,
     serialize?: 't => GraphQLLiteralValue.t,
     specifiedByURL?: string,
     extensions?: directiveExtensions,
@@ -182,6 +188,7 @@ module GraphQLInputObjectType = {
 
   type inputObjectField = {
     @as("type") typ: graphqlType,
+    defaultValue?: GraphQLLiteralValue.t,
     description?: string,
     deprecationReason?: string,
     extensions?: directiveExtensions,
@@ -192,6 +199,7 @@ module GraphQLInputObjectType = {
     astNode?: AstNode.t,
     description?: string,
     fields: unit => fields,
+    isOneOf?: bool,
     extensions?: directiveExtensions,
   }
   @module("graphql") @new external make: config => t = "GraphQLInputObjectType"
@@ -255,6 +263,7 @@ module GraphQLSchemaType = {
   type t<'appContext>
 
   type config = {
+    description?: string,
     query: GraphQLObjectType.t,
     mutation?: GraphQLObjectType.t,
     subscription?: GraphQLObjectType.t,

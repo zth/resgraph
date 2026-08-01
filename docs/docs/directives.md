@@ -77,7 +77,39 @@ arguments, and value coercion while generating the schema.
 
 Applications are currently supported on scalars, objects, interfaces, unions,
 enums, enum values, input objects, input fields, and output fields. Schema-level
-applications and resolver-argument applications are planned follow-ups.
+and resolver-argument applications use the same syntax.
+
+## Describe and annotate the schema
+
+Add one optional abstract `@gql.schema` marker when the schema itself needs a
+description, directives, or non-conventional root names:
+
+```rescript
+/** The public commerce API. */
+@gql.annotate({name: "tag", args: {name: "public"}})
+@gql.schema({
+  query: "StorefrontQuery",
+  mutation: "StorefrontMutation",
+})
+type publicSchema
+```
+
+The `query`, `mutation`, and `subscription` fields are optional GraphQL object
+type names. They can match either a type's emitted GraphQL name (including an
+`@as` override) or its ReScript type name. Without a mapping, ResGraph keeps
+using the conventional `query`, `mutation`, and `subscription` types. The
+marker emits an explicit SDL schema definition and the equivalent
+`graphql-js` schema description, roots, and directive extensions.
+
+A bare marker is valid when only a description or directive is needed:
+
+```rescript
+/** Internal administration schema. */
+@gql.schema
+type adminSchema
+```
+
+Only one schema marker can belong to a generated schema.
 
 ## Repeatable directives and order
 

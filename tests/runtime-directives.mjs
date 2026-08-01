@@ -1,13 +1,19 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { getDirective, getDirectives } from "@graphql-tools/utils";
-import { execute, parse, validateSchema } from "graphql";
+import { buildSchema, execute, parse, validateSchema } from "graphql";
 import { schema } from "./src/__generated__/ResGraphSchema.mjs";
 
 const plain = value => JSON.parse(JSON.stringify(value));
 
-assert.doesNotThrow(() => parse(readFileSync("./src/__generated__/schema.graphql", "utf8")));
+const sdl = readFileSync("./src/__generated__/schema.graphql", "utf8");
+assert.doesNotThrow(() => parse(sdl));
+assert.deepEqual(validateSchema(buildSchema(sdl)), []);
 assert.deepEqual(validateSchema(schema), []);
+assert.equal(schema.description, 'The public """ResGraph""" test schema.');
+assert.equal(schema.getQueryType().name, "Query");
+assert.deepEqual(plain(getDirective(schema, schema, "tag")), [{name: "schema"}]);
+assert.match(sdl, /schema @tag\(name: "schema"\) \{/);
 
 const cacheControl = schema.getDirective("cacheControl");
 assert.ok(cacheControl);
@@ -58,6 +64,31 @@ assert.deepEqual(plain(getDirective(schema, uuid, "scalarMetadata")), [
   {config: {label: "deferred"}, tier: "Premium"},
 ]);
 
+const directiveInput = schema.getType("DirectiveInput");
+assert.equal(directiveInput.getFields().label.defaultValue, "fallback");
+
+const argumentMetadata = schema.getQueryType().getFields().directiveArgumentMetadata.args[0];
+assert.equal(argumentMetadata.name, "limit");
+assert.equal(argumentMetadata.defaultValue, 25);
+assert.equal(argumentMetadata.description, "Maximum number of results.");
+assert.equal(argumentMetadata.deprecationReason, "Use pageSize instead.");
+assert.deepEqual(plain(getDirective(schema, argumentMetadata, "tag")), [
+  {name: "argument"},
+]);
+
+const coercedArgument = schema.getQueryType().getFields().defaultText.args[0];
+assert.equal(coercedArgument.defaultValue, "parsed:source");
+
+const coercedInput = schema.getType("CoercedDefaultInput");
+assert.deepEqual(
+  coercedInput.getFields().identifiers.defaultValue,
+  ["123"],
+);
+
+const signatureMetadata = schema.getQueryType().getFields().signatureMetadata.args[0];
+assert.equal(signatureMetadata.name, "value");
+assert.equal(signatureMetadata.description, "Metadata loaded from the implementation source.");
+
 const result = await execute({
   schema,
   document: parse(`
@@ -74,6 +105,95 @@ const result = await execute({
 assert.equal(result.errors, undefined);
 assert.deepEqual(plain(result.data), {
   directiveExample: { value: "directives work", status: "Active" },
+});
+
+const defaultResult = await execute({
+  schema,
+  document: parse(`
+    query DirectiveInputDefault($input: DirectiveInput!) {
+      directiveInputDefault(input: $input)
+    }
+  `),
+  variableValues: { input: { value: "provided" } },
+});
+
+assert.equal(defaultResult.errors, undefined);
+assert.deepEqual(plain(defaultResult.data), {
+  directiveInputDefault: "fallback",
+});
+
+const argumentDefaultResult = await execute({
+  schema,
+  document: parse(`query { directiveArgumentMetadata }`),
+});
+
+assert.equal(argumentDefaultResult.errors, undefined);
+assert.deepEqual(plain(argumentDefaultResult.data), {
+  directiveArgumentMetadata: 25,
+});
+
+const coercedDefaultsResult = await execute({
+  schema,
+  document: parse(`query { defaultText coercedInputDefault(input: {}) }`),
+});
+
+assert.equal(coercedDefaultsResult.errors, undefined);
+assert.deepEqual(plain(coercedDefaultsResult.data), {
+  defaultText: "parsed:source",
+  coercedInputDefault: "123",
+});
+
+const asyncValuesField = schema.getQueryType().getFields().asyncValues;
+assert.equal(asyncValuesField.type.toString(), "[String!]!");
+const asyncValues = await asyncValuesField.resolve(undefined, {}, {}, {});
+assert.equal(typeof asyncValues[Symbol.asyncIterator], "function");
+
+const shorthandQueryResult = await execute({
+  schema,
+  document: parse(`{
+    shorthandGreeting
+    shorthandEcho(message: "echo")
+    shorthandContext
+  }`),
+  contextValue: {},
+});
+
+assert.equal(shorthandQueryResult.errors, undefined);
+assert.deepEqual(plain(shorthandQueryResult.data), {
+  shorthandGreeting: "hello",
+  shorthandEcho: "echo",
+  shorthandContext: "context",
+});
+
+const shorthandMutationResult = await execute({
+  schema,
+  document: parse(`mutation { shorthandIncrement(value: 2) }`),
+});
+
+assert.equal(shorthandMutationResult.errors, undefined);
+assert.deepEqual(plain(shorthandMutationResult.data), {
+  shorthandIncrement: 3,
+});
+
+const scalarLiteralResult = await execute({
+  schema,
+  document: parse(`{ literalText(value: "literal") }`),
+});
+
+assert.equal(scalarLiteralResult.errors, undefined);
+assert.deepEqual(plain(scalarLiteralResult.data), {
+  literalText: "literal",
+});
+
+const scalarVariableResult = await execute({
+  schema,
+  document: parse(`query($value: LiteralText!) { literalText(value: $value) }`),
+  variableValues: {value: "variable"},
+});
+
+assert.equal(scalarVariableResult.errors, undefined);
+assert.deepEqual(plain(scalarVariableResult.data), {
+  literalText: "variable",
 });
 
 console.log("✅ Directive definitions, metadata, ordering, and execution work.");

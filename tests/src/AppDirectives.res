@@ -18,9 +18,11 @@ type identifies = {
 /** Repeatable labels for schema elements. */
 @gql.directive({
   locations: [
+    "SCHEMA",
     "SCALAR",
     "OBJECT",
     "FIELD_DEFINITION",
+    "ARGUMENT_DEFINITION",
     "ENUM",
     "ENUM_VALUE",
     "INPUT_OBJECT",
@@ -30,17 +32,38 @@ type identifies = {
 })
 type tag = {name: string}
 
+/** The public """ResGraph""" test schema. */
+@gql.annotate({name: "tag", args: {name: "schema"}})
+@gql.schema({query: "Query"})
+type publicSchema
+
 @gql.annotate({name: "tag", args: {name: "input"}})
 @gql.inputObject
 type directiveInput = {
   @gql.annotate({name: "tag", args: {name: "input-field"}})
   value: string,
+  @gql.default("fallback")
+  label: string,
+}
+
+@gql.inputObject
+type coercedDefaultInput = {
+  @gql.default(123)
+  identifiers: array<ResGraph.id>,
 }
 
 @gql.annotate({name: "tag", args: {name: "enum"}})
 @gql.enum
 type directiveStatus =
   | @gql.annotate({name: "tag", args: {name: "enum-value"}}) Active
+
+@gql.type
+type describedUnionPayload = {@gql.field value: string}
+
+@gql.union
+type describedUnion =
+  | /** This documents the ReScript constructor, not an SDL union member. */
+    Described(describedUnionPayload)
 
 @gql.annotate({name: "identifies", args: {value: 456}})
 @gql.annotate({name: "tag", args: {name: "first"}})
@@ -61,3 +84,19 @@ let directiveExample = (_: Query.query, ~input: directiveInput): directiveExampl
   value: input.value,
   status: Active,
 }
+
+@gql.field
+let directiveInputDefault = (_: Query.query, ~input: directiveInput) => input.label
+
+@gql.field
+let directiveArgumentMetadata = (
+  _: Query.query,
+  @gql.description("Maximum number of results.")
+  @gql.annotate({name: "tag", args: {name: "argument"}})
+  @deprecated("Use pageSize instead.")
+  ~limit: int=25,
+) => limit
+
+@gql.field
+let coercedInputDefault = (_: Query.query, ~input: coercedDefaultInput) =>
+  input.identifiers->Array.map(ResGraph.idToString)->Array.join(",")

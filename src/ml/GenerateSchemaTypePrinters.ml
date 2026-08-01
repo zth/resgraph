@@ -58,52 +58,56 @@ let printResolverForField ~parentTypeName ~(schemaState : schemaState)
   let resolverCall =
     match field.resolverStyle with
     | Property name -> Printf.sprintf "src[\"%s\"]" name
-    | Resolver {moduleName; fnName; pathToFn} ->
+    | Resolver {moduleName; fnName; pathToFn; callStyle} ->
       let ctxArgName = findContextArgName field.args in
       let hasCtxArg = Option.is_some ctxArgName in
       let infoArgName = findInfoArgName field.args in
       let hasInfoArg = Option.is_some infoArgName in
       let intfTypeArgName = findInterfaceTypeArgName field.args in
       let hasIntTypeArg = Option.is_some intfTypeArgName in
-      Printf.sprintf "%s(src%s)"
+      let positionalArgument =
+        match callStyle with
+        | ResolverSource -> Some "src"
+        | ResolverUnit -> Some "()"
+        | ResolverLabelled -> None
+      in
+      let labelledArguments =
+        field.args
+        |> List.sort (fun (a1 : gqlArg) a2 -> String.compare a1.name a2.name)
+        |> List.filter_map (fun (arg : gqlArg) ->
+            if hasInfoArg && Some arg.name = infoArgName then
+              Some
+                (Printf.sprintf "%s=info"
+                   (printLabelledArg (Option.get infoArgName)))
+            else if hasCtxArg && Some arg.name = ctxArgName then
+              Some
+                (Printf.sprintf "%s=ctx"
+                   (printLabelledArg (Option.get ctxArgName)))
+            else if hasIntTypeArg && Some arg.name = intfTypeArgName then
+              field.onType
+              |> Option.map (fun name ->
+                  Printf.sprintf "%s=%s"
+                    (printLabelledArg (Option.get intfTypeArgName))
+                    name)
+            else
+              let argsText =
+                if usesAuthorizationArgs then
+                  Printf.sprintf "authorizationArgs[\"%s\"]" arg.name
+                else
+                  generateConverter
+                    (Printf.sprintf "args[\"%s\"]" arg.name)
+                    arg.typ
+              in
+              Some
+                (Printf.sprintf "%s=%s"
+                   (printLabelledArg arg.name)
+                   (if arg.isOptionLabelled then Printf.sprintf "?(%s)" argsText
+                    else argsText)))
+      in
+      Printf.sprintf "%s(%s)"
         ([moduleName] @ pathToFn @ [fnName] |> String.concat ".")
-        (if field.args = [] then ""
-         else
-           ", "
-           ^ (field.args
-             |> List.sort (fun (a1 : gqlArg) a2 ->
-                 String.compare a1.name a2.name)
-             |> List.filter_map (fun (arg : gqlArg) ->
-                 if hasInfoArg && Some arg.name = infoArgName then
-                   Some
-                     (Printf.sprintf "%s=info"
-                        (printLabelledArg (Option.get infoArgName)))
-                 else if hasCtxArg && Some arg.name = ctxArgName then
-                   Some
-                     (Printf.sprintf "%s=ctx"
-                        (printLabelledArg (Option.get ctxArgName)))
-                 else if hasIntTypeArg && Some arg.name = intfTypeArgName then
-                   field.onType
-                   |> Option.map (fun name ->
-                       Printf.sprintf "%s=%s"
-                         (printLabelledArg (Option.get intfTypeArgName))
-                         name)
-                 else
-                   let argsText =
-                     if usesAuthorizationArgs then
-                       Printf.sprintf "authorizationArgs[\"%s\"]" arg.name
-                     else
-                       generateConverter
-                         (Printf.sprintf "args[\"%s\"]" arg.name)
-                         arg.typ
-                   in
-                   Some
-                     (Printf.sprintf "%s=%s"
-                        (printLabelledArg arg.name)
-                        (if arg.isOptionLabelled then
-                           Printf.sprintf "?(%s)" argsText
-                         else argsText)))
-             |> String.concat ", "))
+        (String.concat ", "
+           ((positionalArgument |> Option.to_list) @ labelledArguments))
   in
   let resolverBody =
     match plan.resolverOutcome with
@@ -134,14 +138,24 @@ let printResolverForField ~parentTypeName ~(schemaState : schemaState)
     | Some {isAsync = true} -> true
     | _ -> false
   in
+  let needsSource =
+    plan.functions <> []
+    ||
+    match field.resolverStyle with
+    | Property _ | Resolver {callStyle = ResolverSource} -> true
+    | Resolver {callStyle = ResolverUnit | ResolverLabelled} -> false
+  in
   let resolverArguments =
     match (field.resolverStyle, plan.functions, plan.resolverOutcome) with
     | Property _, [], None -> "(src, _args, _ctx, _info)"
-    | _ -> "(src, args, ctx, info)"
+    | _ ->
+      Printf.sprintf "(%s, args, ctx, info)"
+        (if needsSource then "src" else "_src")
   in
-  Printf.sprintf "%s%s => {let src = typeUnwrapper(src); %s%s}"
+  Printf.sprintf "%s%s => {%s%s%s}"
     (if isAsync then "async " else "")
     resolverArguments
+    (if needsSource then "let src = typeUnwrapper(src); " else "")
     (if usesAuthorizationArgs then
        Printf.sprintf "let authorizationArgs = %s; "
          (printAuthorizationArgs field)
@@ -255,11 +269,11 @@ let groupDirectiveApplications applications =
          add groups)
        []
 
-let printDirectiveExtensions ?(oneOf = false) schemaState target =
+let printDirectiveExtensions schemaState target =
   let applications =
     GenerateSchemaUtils.directivesForTarget schemaState target
   in
-  if applications = [] && not oneOf then None
+  if applications = [] then None
   else
     let fields = ref [] in
     (if applications <> [] then
@@ -286,7 +300,6 @@ let printDirectiveExtensions ?(oneOf = false) schemaState target =
              Printf.sprintf "directives: dict{%s}" directives;
              Printf.sprintf "resgraph: {appliedDirectives: [%s]}" ordered;
            ]);
-    if oneOf then fields := !fields @ ["oneOf: true"];
     Some (Printf.sprintf "{%s}" (String.concat ", " !fields))
 
 let displayNameFromImplementedBy
@@ -401,10 +414,48 @@ let printInterfaceTypenameToString
   if List.length implementedBy = 0 then ""
   else Printf.sprintf "external toString: t => string = \"%%identity\""
 
-let printArg (arg : gqlArg) =
-  Printf.sprintf "({typ: %s}: arg)" (printGraphQLType arg.typ)
+let printArg ~schemaState ~parentTypeName ~fieldName (arg : gqlArg) =
+  let extensions =
+    printDirectiveExtensions schemaState
+      (DirectiveArgumentDefinition
+         {parentTypeName; fieldName; argumentName = arg.name})
+  in
+  match
+    (arg.defaultValue, arg.description, arg.deprecationReason, extensions)
+  with
+  | None, None, None, None ->
+    Printf.sprintf "({typ: %s}: arg)" (printGraphQLType arg.typ)
+  | _ ->
+    let writer = CodeWriter.create 192 in
+    CodeWriter.line writer "({";
+    CodeWriter.indented writer (fun () ->
+        CodeWriter.line writer
+          (Printf.sprintf "typ: %s," (printGraphQLType arg.typ));
+        (match arg.defaultValue with
+        | None -> ()
+        | Some value ->
+          CodeWriter.line writer
+            (Printf.sprintf "defaultValue: %s,"
+               (printCoercedValue arg.typ value)));
+        (match arg.description with
+        | None -> ()
+        | Some description ->
+          CodeWriter.line writer
+            (Printf.sprintf "description: %s,"
+               (descriptionAsString (Some description))));
+        (match arg.deprecationReason with
+        | None -> ()
+        | Some reason ->
+          CodeWriter.line writer
+            (Printf.sprintf "deprecationReason: %S," reason));
+        match extensions with
+        | None -> ()
+        | Some extensions ->
+          CodeWriter.line writer (Printf.sprintf "extensions: %s" extensions));
+    CodeWriter.add writer "}: arg)";
+    CodeWriter.contents writer
 
-let printArgs (args : gqlArg list) =
+let printArgs ~schemaState ~parentTypeName ~fieldName (args : gqlArg list) =
   let args =
     args
     |> List.sort (fun (a1 : gqlArg) a2 -> String.compare a1.name a2.name)
@@ -417,7 +468,8 @@ let printArgs (args : gqlArg list) =
       args
       |> List.iteri (fun index (arg : gqlArg) ->
           CodeWriter.line writer
-            (Printf.sprintf "\"%s\": %s%s" arg.name (printArg arg)
+            (Printf.sprintf "\"%s\": %s%s" arg.name
+               (printArg ~schemaState ~parentTypeName ~fieldName arg)
                (if index = lastArgIndex then "" else ","))));
   CodeWriter.add writer "}->makeArgsDict";
   CodeWriter.contents writer
@@ -501,7 +553,9 @@ let printField ?(context = CtxDefault) ~parentTypeName ~schemaState
            (field.deprecationReason |> undefinedOrValueAsString));
       if List.length printableArgs > 0 then (
         CodeWriter.add writer "args: ";
-        CodeWriter.add writer (printArgs printableArgs);
+        CodeWriter.add writer
+          (printArgs ~schemaState ~parentTypeName ~fieldName:field.name
+             printableArgs);
         CodeWriter.line writer ",");
       (match
          printDirectiveExtensions schemaState
@@ -535,6 +589,12 @@ let printInputObjectField ~schemaState ~parentTypeName (field : gqlField) =
       CodeWriter.line writer
         (Printf.sprintf "description: %s,"
            (field.description |> descriptionAsString));
+      (match field.defaultValue with
+      | None -> ()
+      | Some value ->
+        CodeWriter.line writer
+          (Printf.sprintf "defaultValue: %s,"
+             (printCoercedValue field.typ value)));
       CodeWriter.line writer
         (Printf.sprintf "deprecationReason: %s,"
            (field.deprecationReason |> undefinedOrValueAsString));
@@ -644,6 +704,11 @@ let printScalar ~schemaState (typ : gqlScalar) =
             CodeWriter.line writer
               (Printf.sprintf "parseValue: %s,"
                  (typeLocationModuleToAccesor encoderDecoderLoc ["parseValue"]));
+            if typ.hasParseLiteral then
+              CodeWriter.line writer
+                (Printf.sprintf "parseLiteral: %s,"
+                   (typeLocationModuleToAccesor encoderDecoderLoc
+                      ["parseLiteral"]));
             CodeWriter.line writer
               (Printf.sprintf "serialize: %s,"
                  (typeLocationModuleToAccesor encoderDecoderLoc ["serialize"])));
@@ -700,13 +765,16 @@ let printInputObjectType ~schemaState ?(inputUnion = false)
       CodeWriter.add writer
         (printInputObjectFields ~schemaState ~parentTypeName:typ.displayName
            typ.fields);
+      if inputUnion then (
+        CodeWriter.line writer ",";
+        CodeWriter.line writer "isOneOf: true");
       match
-        printDirectiveExtensions ~oneOf:inputUnion schemaState
+        printDirectiveExtensions schemaState
           (DirectiveInputObject typ.displayName)
       with
       | None -> CodeWriter.newline writer
       | Some extensions ->
-        CodeWriter.line writer ",";
+        if not inputUnion then CodeWriter.line writer ",";
         CodeWriter.line writer (Printf.sprintf "extensions: %s" extensions));
   CodeWriter.add writer "}";
   CodeWriter.contents writer
@@ -1269,18 +1337,36 @@ let printSchemaJsFile schemaState processSchema ~interfaceModulePrefix =
   CodeWriter.blankLine code;
   CodeWriter.line code "let schema = GraphQLSchemaType.makeConfig({";
   CodeWriter.indented code (fun () ->
-      CodeWriter.line code "query: get_Query(),";
+      (match schemaState.schemaDefinition with
+      | Some {description = Some description} ->
+        CodeWriter.line code
+          (Printf.sprintf "description: %s,"
+             (descriptionAsString (Some description)))
+      | Some _ | None -> ());
+      (match schemaState.query with
+      | None -> ()
+      | Some query ->
+        CodeWriter.line code
+          (Printf.sprintf "query: get_%s()," query.displayName));
       (match schemaState.mutation with
       | None -> ()
-      | Some _ -> CodeWriter.line code "mutation: get_Mutation(),");
+      | Some mutation ->
+        CodeWriter.line code
+          (Printf.sprintf "mutation: get_%s()," mutation.displayName));
       (match schemaState.subscription with
       | None -> ()
-      | Some _ -> CodeWriter.line code "subscription: get_Subscription(),");
+      | Some subscription ->
+        CodeWriter.line code
+          (Printf.sprintf "subscription: get_%s()," subscription.displayName));
       if customDirectives <> [] then
         CodeWriter.line code
           (Printf.sprintf
              "directives: [...GraphQLDirective.specifiedDirectives, %s],"
              (String.concat ", " customDirectives));
+      (match printDirectiveExtensions schemaState DirectiveSchema with
+      | None -> ()
+      | Some extensions ->
+        CodeWriter.line code (Printf.sprintf "extensions: %s," extensions));
       CodeWriter.line code "types: [";
       CodeWriter.indented code (fun () ->
           schemaTypes
