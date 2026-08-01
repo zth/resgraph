@@ -102,8 +102,15 @@ function executeParsedToJson(schema, document, contextValue, variablesJson, oper
 }
 
 function execute(schema, query, contextValue, cache, variableValues, operationName, rootValue) {
-  let document = cache !== undefined ? parseQueryCached(Primitive_option.valFromOption(cache), query) : Graphql.parse(query);
-  return executeParsed(schema, document, contextValue, variableValues, operationName, rootValue);
+  return ResGraph__ExecuteRuntimeMjs.executeQueryValidated({
+    schema: schema,
+    query: query,
+    contextValue: contextValue,
+    cache: cache,
+    variableValues: variableValues,
+    operationName: operationName,
+    rootValue: rootValue
+  });
 }
 
 function executeToJson(schema, query, contextValue, cache, variablesJson, operationName, rootValue) {

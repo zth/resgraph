@@ -83,11 +83,15 @@ let fileStartsWith = (path, prefix) =>
 
 let removeFile = path => {
   if Fs.existsSync(path) {
-    try {
-      Fs.unlinkSync(path)
-    } catch {
-    | _ => ()
-    }
+    Fs.unlinkSync(path)
+  }
+}
+
+let removeFileIgnoringErrors = path => {
+  try {
+    path->removeFile
+  } catch {
+  | _ => ()
   }
 }
 
@@ -103,22 +107,18 @@ let cleanOwnership = ownership => {
 
   if Fs.existsSync(ownership.outputFolder) {
     let interfacePrefix = ownership.moduleName ++ "__Interface_"
-    try {
-      ownership.outputFolder
-      ->Fs.readdirSync
-      ->Array.forEach(fileName => {
-        let path = Path.resolve([ownership.outputFolder, fileName])
-        if (
-          fileName->String.startsWith(interfacePrefix) &&
-          fileName->String.endsWith(".res") &&
-          path->fileStartsWith(generatedInterfaceHeader)
-        ) {
-          path->removeFile
-        }
-      })
-    } catch {
-    | _ => ()
-    }
+    ownership.outputFolder
+    ->Fs.readdirSync
+    ->Array.forEach(fileName => {
+      let path = Path.resolve([ownership.outputFolder, fileName])
+      if (
+        fileName->String.startsWith(interfacePrefix) &&
+        fileName->String.endsWith(".res") &&
+        path->fileStartsWith(generatedInterfaceHeader)
+      ) {
+        path->removeFile
+      }
+    })
   }
 
   let schemaSdl = Path.resolve([ownership.outputFolder, "schema.graphql"])
@@ -144,7 +144,12 @@ let writeManifest = (path, schemas) => {
     Fs.writeFileSync(temporaryPath, Buffer.fromString(payload->JSON.stringifyAny->Option.getOr("")))
     Fs.renameSync(~from=temporaryPath, ~to_=path)
   } catch {
-  | _ => temporaryPath->removeFile
+  | Exn.Error(error) =>
+    temporaryPath->removeFileIgnoringErrors
+    Utils.rethrow(error)
+  | _ =>
+    temporaryPath->removeFileIgnoringErrors
+    panic("Unknown failure while writing the ResGraph schema ownership manifest.")
   }
 }
 

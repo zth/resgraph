@@ -147,6 +147,9 @@ import {schema} from "./src/generated/ResGraphSchema.mjs";
 const result = await Execute.executeToJson(schema, "{ greeting }", undefined);
 assert.equal(result.data.greeting, "hello from package");
 
+const malformed = await Execute.executeToJson(schema, "{", undefined);
+assert.match(malformed.errors[0].message, /Syntax Error/);
+
 const loader = DataLoader.makeSingle(async key => "loaded:" + key);
 DataLoader.primeAt(loader, "key", "primed");
 assert.equal(await DataLoader.load(loader, "key"), "primed");
@@ -161,6 +164,13 @@ const resultsLoader = DataLoader.makeBatchedResults(async keys =>
 const entries = await DataLoader.loadManyResults(resultsLoader, ["ok", "error"]);
 assert.equal(entries[0]._0, "loaded:ok");
 assert.equal(entries[1]._0.message, "packed loader error");
+
+const customException = {RE_EXN_ID: "Packed_exception"};
+const customExceptionLoader = DataLoader.makeBatchedResults(async () => [
+  {TAG: "Error", _0: customException}
+]);
+const [customEntry] = await DataLoader.loadManyResults(customExceptionLoader, ["custom"]);
+assert.equal(customEntry._0, customException);
 `,
   );
   run("node", ["verify.mjs"], {cwd: consumerRoot});

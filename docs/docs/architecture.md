@@ -49,11 +49,13 @@ and failures remain isolated.
   output succeeds.
 - GraphQL operations executed through `ResGraph.Execute` are validated before
   execution and normalized to promises whether GraphQL.js completes
-  synchronously or asynchronously.
+  synchronously or asynchronously. Query syntax, operation validation, and
+  malformed-variable failures are returned in the same execution-result
+  envelope.
 - `DataLoader.makeBatchedResults` and `loadManyResults` preserve per-key
-  failures as `result` values. Use `primeAt` and `primeWithPromiseAt` for
-  keyed priming; the old keyless signatures remain only for source
-  compatibility and are deprecated.
+  failures as `result` values, including the identity of custom ReScript
+  exceptions. Use `primeAt` and `primeWithPromiseAt` for keyed priming; the old
+  keyless signatures remain only for source compatibility and are deprecated.
 - Compiler-specific values stay inside the native engine. Public runtime APIs
   expose ReScript types, GraphQL values, JSON, results, and promises.
 

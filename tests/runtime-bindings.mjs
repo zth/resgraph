@@ -48,6 +48,14 @@ const typedResults = await DataLoader.loadManyResults(typedResultsLoader, [
 assert.deepEqual(typedResults[0], {TAG: "Ok", _0: "typed:ok"});
 assert.match(typedResults[1]._0.message, /typed loader error/);
 
+const customException = {RE_EXN_ID: "Custom_exception"};
+const customExceptionLoader = DataLoader.makeBatchedResults(async () => [
+  {TAG: "Error", _0: customException},
+]);
+const [customExceptionResult] = await DataLoader.loadManyResults(customExceptionLoader, ["key"]);
+assert.equal(customExceptionResult.TAG, "Error");
+assert.equal(customExceptionResult._0, customException);
+
 const queryType = new GraphQLObjectType({
   name: "Query",
   fields: {
@@ -85,6 +93,8 @@ assert.notEqual(Execute.getCachedQuery(cache, query), undefined);
 const invalidQueryResult = await Execute.executeToJson(schema, "{ missing }", undefined);
 assert.match(invalidQueryResult.errors[0].message, /Cannot query field "missing"/);
 
+const malformedQueryResult = await Execute.executeToJson(schema, "{", undefined);
+assert.match(malformedQueryResult.errors[0].message, /Syntax Error/);
 assert.deepEqual(
   await Execute.executeToJson(schema, "{ greeting }", undefined, undefined, []),
   {errors: [{message: "GraphQL variables must be a JSON object or null."}]},

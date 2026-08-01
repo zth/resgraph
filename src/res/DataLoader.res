@@ -148,7 +148,15 @@ let makeBatched = (loadFn: batchFn<'key, 'value>, ~options=?) => {
 }
 
 external valueToRawLoadManyEntry: 'value => Plain.rawLoadManyEntry<'value> = "%identity"
-external errorToRawLoadManyEntry: exn => Plain.rawLoadManyEntry<'value> = "%identity"
+let errorToRawLoadManyEntry: exn => Plain.rawLoadManyEntry<'value> = %raw(`error => {
+  if (error instanceof Error) return error;
+  const message = error != null && typeof error.RE_EXN_ID === "string"
+    ? error.RE_EXN_ID
+    : String(error);
+  const wrapped = new Error(message);
+  Object.defineProperty(wrapped, "__resgraphException", {value: error});
+  return wrapped;
+}`)
 external rawLoaderToLoader: Plain.t<'key, Plain.rawLoadManyEntry<'value>> => Plain.t<'key, 'value> =
   "%identity"
 
@@ -178,7 +186,11 @@ let loadMany = (lazyLoader, keys) => {
 
 let isError: Plain.rawLoadManyEntry<'value> => bool = %raw(`value => value instanceof Error`)
 external rawLoadManyEntryToValue: Plain.rawLoadManyEntry<'value> => 'value = "%identity"
-external rawLoadManyEntryToError: Plain.rawLoadManyEntry<'value> => exn = "%identity"
+let rawLoadManyEntryToError: Plain.rawLoadManyEntry<'value> => exn = %raw(`value =>
+  Object.prototype.hasOwnProperty.call(value, "__resgraphException")
+    ? value.__resgraphException
+    : value
+`)
 
 let loadManyResults = (lazyLoader, keys) => {
   let loader = lazyLoader->Lazy.get

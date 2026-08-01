@@ -2,12 +2,16 @@
 
 ## Unreleased
 - Validate operations before execution, support synchronous GraphQL.js results,
-  reject malformed variables, and avoid redundant query hashing.
+  return query syntax, validation, and malformed-variable failures through the
+  execution-result envelope, and avoid redundant query hashing.
 - Add correct keyed DataLoader priming and type-safe per-entry batch results,
   deprecate the unsound legacy priming and `loadMany` signatures, and preserve
-  array order in structural cache keys.
+  array order in structural cache keys. Non-JavaScript ReScript exceptions are
+  normalized for DataLoader and retain their identity in `loadManyResults`.
 - Preserve last-known-good generated schemas on validation failures and use
   atomic writes for generated files and native state.
+- Mark legacy schema modules as generated, preserve unmarked user-owned files
+  during named-schema migration, and surface ownership persistence failures.
 - Add a packed-package consumer test, native architecture fixtures, strict
   integration failure propagation, release guards, and VS Code extension checks.
 - Extract the native generator into a wrapped engine library with a reusable

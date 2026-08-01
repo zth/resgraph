@@ -236,17 +236,18 @@ let generateSchemaDirect ?generationContext ~printToStdOut ~writeStateFile
                GenerateSchemaUtils.processSchema schemaState
              in
              GenerateSchemaAuthorization.buildPlans ~loader ~package schemaState;
-             let markNamedSchemaFile contents =
+             let markSchemaFile contents =
                match schemaName with
                | Some _ ->
                  GenerateSchemaTypePrinters.markNamedSchemaFile contents
-               | None -> contents
+               | None ->
+                 GenerateSchemaTypePrinters.markLegacySchemaFile contents
              in
              let schemaOutputPath = outputFolder ^ "/" ^ moduleName ^ ".res" in
              let resiOutputPath = schemaOutputPath ^ "i" in
              let resiContent =
                Printf.sprintf "let schema: ResGraph.schema<%s>\n" contextType
-               |> markNamedSchemaFile
+               |> markSchemaFile
              in
              let sdlOutputPath = outputFolder ^ "/schema.graphql" in
              let interfaceModulePrefix =
@@ -267,7 +268,7 @@ let generateSchemaDirect ?generationContext ~printToStdOut ~writeStateFile
                           "let schema: ResGraph.schema<%s> = \
                            ResGraph__GraphQLJs.GraphQLSchemaType.make(Obj.magic())\n"
                           contextType
-                       |> markNamedSchemaFile);
+                       |> markSchemaFile);
                    if not (Sys.file_exists resiOutputPath) then
                      GenerateSchemaUtils.writeIfHasChanges resiOutputPath
                        resiContent;
@@ -311,7 +312,7 @@ let generateSchemaDirect ?generationContext ~printToStdOut ~writeStateFile
                let schemaCode =
                  GenerateSchemaTypePrinters.printSchemaJsFile schemaState
                    processedSchema ~interfaceModulePrefix
-                 |> markNamedSchemaFile
+                 |> markSchemaFile
                in
 
                GenerateSchemaTypePrinters.cleanInterfaceFiles schemaState

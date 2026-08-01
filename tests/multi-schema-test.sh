@@ -101,6 +101,35 @@ admin_cache_output=$(cd "$fixture_dir" && RESGRAPH_INCREMENTAL_DEBUG=1 node "$cl
 [[ "$public_cache_output" == *'Incremental cache hit'* ]]
 [[ "$admin_cache_output" == *'Incremental cache hit'* ]]
 
+manifest_failure_dir=$(mktemp -d /tmp/resgraph-manifest-failure.XXXXXX)
+node -e '
+  const fs = require("node:fs");
+  const [configPath, projectRoot, includePath, outputFolder] = process.argv.slice(1);
+  fs.writeFileSync(configPath, JSON.stringify({
+    schemas: {
+      public: {
+        projectRoot,
+        include: [includePath],
+        outputFolder,
+        moduleName: "PublicSchema",
+        contextType: "PublicContext.context"
+      }
+    }
+  }));
+' "$manifest_failure_dir/resgraph.json" "$fixture_dir" \
+  "$fixture_dir/src" "$fixture_dir/src/generated/public"
+printf 'blocks ownership directory creation\n' >"$manifest_failure_dir/lib"
+set +e
+manifest_failure_output=$(cd "$manifest_failure_dir" && node "$cli" build 2>&1)
+manifest_failure_status=$?
+set -e
+rm -rf "$manifest_failure_dir"
+if [[ $manifest_failure_status -eq 0 ]]; then
+  printf 'Build unexpectedly ignored an ownership-manifest write failure.\n' >&2
+  exit 1
+fi
+[[ "$manifest_failure_output" == *'ENOTDIR'* || "$manifest_failure_output" == *'not a directory'* ]]
+
 config_backup=$(mktemp /tmp/resgraph-config.XXXXXX)
 cp "$fixture_dir/resgraph.json" "$config_backup"
 restore_config() {
@@ -462,6 +491,13 @@ test ! -e "$fixture_dir/package-a/src/generated/ResGraphSchema.res"
 test ! -e "$fixture_dir/package-a/src/generated/ResGraphSchema.resi"
 test ! -e "$fixture_dir/package-a/src/generated/interface_obsolete.res"
 test -f "$fixture_dir/package-a/src/generated/interface_custom.res"
+
+printf 'let preserved = true\n' >"$fixture_dir/package-a/src/generated/ResGraphSchema.res"
+printf 'let preserved: bool\n' >"$fixture_dir/package-a/src/generated/ResGraphSchema.resi"
+(cd "$fixture_dir/central" && node "$cli" build package-a >/dev/null)
+assert_contains "$fixture_dir/package-a/src/generated/ResGraphSchema.res" 'let preserved = true'
+assert_contains "$fixture_dir/package-a/src/generated/ResGraphSchema.resi" 'let preserved: bool'
+
 restore_legacy_generated
 trap - EXIT
 (cd "$fixture_dir/package-a" && "$rescript_bin")

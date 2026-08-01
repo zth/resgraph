@@ -121,12 +121,27 @@ module Execute: {
     rootValue?: 'rootValue,
   }
 
+  type executeQueryArgs<'appContext, 'rootValue> = {
+    schema: schema<'appContext>,
+    query: string,
+    contextValue: 'appContext,
+    cache?: queryDocumentCache,
+    variableValues?: variables,
+    operationName?: string,
+    rootValue?: 'rootValue,
+  }
+
   @module("graphql") external parseQuery: string => document = "parse"
 
   @module("./ResGraph__ExecuteRuntime.mjs")
   external executeInternal: executeArgs<'appContext, 'rootValue> => promise<
     executionResult<'data, 'error, 'extensions>,
   > = "executeValidated"
+
+  @module("./ResGraph__ExecuteRuntime.mjs")
+  external executeQueryInternal: executeQueryArgs<'appContext, 'rootValue> => promise<
+    executionResult<'data, 'error, 'extensions>,
+  > = "executeQueryValidated"
 
   external variablesOfJsonObject: dict<JSON.t> => variables = "%identity"
   external variablesToJsonObject: variables => dict<JSON.t> = "%identity"
@@ -229,14 +244,16 @@ module Execute: {
     ~variableValues=?,
     ~operationName=?,
     ~rootValue=?,
-  ) => {
-    let document = switch cache {
-    | None => parseQuery(query)
-    | Some(cache) => parseQueryCached(~cache, ~query)
-    }
-
-    executeParsed(schema, ~document, ~contextValue, ~variableValues?, ~operationName?, ~rootValue?)
-  }
+  ) =>
+    executeQueryInternal({
+      schema,
+      query,
+      contextValue,
+      ?cache,
+      ?variableValues,
+      ?operationName,
+      ?rootValue,
+    })
 
   let executeToJson = (
     schema,

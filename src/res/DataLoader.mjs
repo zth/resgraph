@@ -31,8 +31,24 @@ function makeBatched(loadFn, options) {
   return Stdlib_Lazy.make(() => new Dataloader(loadFn, Primitive_option.toUndefined(mapOptions(options))));
 }
 
+let errorToRawLoadManyEntry = (error => {
+  if (error instanceof Error) return error;
+  const message = error != null && typeof error.RE_EXN_ID === "string"
+    ? error.RE_EXN_ID
+    : String(error);
+  const wrapped = new Error(message);
+  Object.defineProperty(wrapped, "__resgraphException", {value: error});
+  return wrapped;
+});
+
 function makeBatchedResults(loadFn, options) {
-  let rawLoadFn = keys => loadFn(keys).then(results => results.map(result => result._0));
+  let rawLoadFn = keys => loadFn(keys).then(results => results.map(result => {
+    if (result.TAG === "Ok") {
+      return result._0;
+    } else {
+      return errorToRawLoadManyEntry(result._0);
+    }
+  }));
   return Stdlib_Lazy.make(() => new Dataloader(rawLoadFn, Primitive_option.toUndefined(mapOptions(options))));
 }
 
@@ -48,13 +64,18 @@ function loadMany(lazyLoader, keys) {
 
 let isError = (value => value instanceof Error);
 
+let rawLoadManyEntryToError = (value =>
+  Object.prototype.hasOwnProperty.call(value, "__resgraphException")
+    ? value.__resgraphException
+    : value);
+
 function loadManyResults(lazyLoader, keys) {
   let loader = Stdlib_Lazy.get(lazyLoader);
   return loader.loadMany(keys).then(values => values.map(value => {
     if (isError(value)) {
       return {
         TAG: "Error",
-        _0: value
+        _0: rawLoadManyEntryToError(value)
       };
     } else {
       return {

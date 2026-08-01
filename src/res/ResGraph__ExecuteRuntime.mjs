@@ -1,4 +1,4 @@
-import {execute, validate} from "graphql";
+import {execute, parse, validate} from "graphql";
 
 const validatedDocumentsBySchema = new WeakMap();
 export function createQueryDocumentCache(maxSize = 100) {
@@ -49,5 +49,27 @@ export function executeValidated(args) {
   return Promise.resolve().then(() => {
     const errors = validationErrors(args.schema, args.document);
     return errors.length > 0 ? {errors} : execute(args);
+  });
+}
+
+export function executeQueryValidated(args) {
+  return Promise.resolve().then(() => {
+    let document = args.cache === undefined
+      ? undefined
+      : getCachedQuery(args.cache, args.query);
+
+    if (document === undefined) {
+      try {
+        document = parse(args.query);
+      } catch (error) {
+        return {errors: [error]};
+      }
+      if (args.cache !== undefined) {
+        setCachedQuery(args.cache, args.query, document);
+      }
+    }
+
+    const {query: _query, cache: _cache, ...executeArgs} = args;
+    return executeValidated({...executeArgs, document});
   });
 }
