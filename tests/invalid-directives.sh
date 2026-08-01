@@ -218,6 +218,12 @@ run_fixture "root-shorthand-not-function" 'root-field annotation, but is not a f
 let broken = "value"
 RES
 
+run_fixture "duplicate-directive-annotation" 'Only one `@gql.directive` annotation is allowed' <<'RES'
+@gql.directive({locations: ["OBJECT"]})
+@gql.directive({locations: ["FIELD_DEFINITION"]})
+type duplicateDirective
+RES
+
 run_fixture "invalid-name" 'is not a valid GraphQL name' <<'RES'
 @as("invalid-name")
 @gql.directive({locations: ["OBJECT"]})

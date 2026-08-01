@@ -311,10 +311,18 @@ type directiveConfig = {locations: gqlDirectiveLocation list; repeatable: bool}
 
 let directiveConfigFromAttributes ~schemaState ~(env : SharedTypes.QueryEnv.t)
     attributes =
-  attributes
+  let directiveAttributes =
+    attributes
+    |> List.filter (fun ((name, _) : Parsetree.attribute) ->
+           name.txt = "gql.directive")
+  in
+  (match directiveAttributes with
+  | _ :: (name, _) :: _ ->
+    addDirectiveDiagnostic ~schemaState ~env ~loc:name.loc
+      "Only one `@gql.directive` annotation is allowed."
+  | _ -> ());
+  directiveAttributes
   |> List.find_map (fun ((name, payload) : Parsetree.attribute) ->
-      if name.txt <> "gql.directive" then None
-      else
         let invalid message =
           addDirectiveDiagnostic ~schemaState ~env ~loc:name.loc message;
           Some None
