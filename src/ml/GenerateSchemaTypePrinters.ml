@@ -47,6 +47,7 @@ let printResolverForField ~parentTypeName ~(schemaState : schemaState)
     | None ->
       {
         functions = [];
+        inheritedSelectionPolicies = [];
         public = None;
         resolverOutcome =
           Hashtbl.find_opt schemaState.resolverOutcomes coordinate;

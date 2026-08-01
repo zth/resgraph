@@ -162,8 +162,53 @@ let addAuthorizationDiagnostic ~schemaState ~(env : SharedTypes.QueryEnv.t) ~loc
   |> addDiagnostic
        ~diagnostic:{loc; fileUri = env.SharedTypes.QueryEnv.file.uri; message}
 
-let functionReferenceFromPayload ~schemaState ~(env : SharedTypes.QueryEnv.t)
-    ~attributeLoc (payload : Parsetree.payload) =
+let authorizationCoverageFromRecord ~schemaState ~(env : SharedTypes.QueryEnv.t)
+    ~attributeLoc fields =
+  let coversFields =
+    fields
+    |> List.filter
+         (fun (field : Parsetree.expression Parsetree.record_element) ->
+           Longident.last field.lid.txt = "covers")
+  in
+  match (fields, coversFields) with
+  | [_], [field] -> (
+    match field.x.pexp_desc with
+    | Pexp_construct ({txt = constructor}, None)
+      when Longident.last constructor = "Selection" ->
+      Some AuthorizationSelection
+    | _ ->
+      addAuthorizationDiagnostic ~schemaState ~env ~loc:attributeLoc
+        "`@gql.authorize` coverage must be the `Selection` constructor, for \
+         example `@gql.authorize((Security.canRead, \
+         {ResGraph.Authorization.covers: Selection}))`.";
+      None)
+  | [], _ | _, [] ->
+    addAuthorizationDiagnostic ~schemaState ~env ~loc:attributeLoc
+      "`@gql.authorize` coverage requires `{covers: Selection}` in its tuple \
+       payload.";
+    None
+  | _ ->
+    addAuthorizationDiagnostic ~schemaState ~env ~loc:attributeLoc
+      "`@gql.authorize` coverage accepts only `{covers: Selection}`.";
+    None
+
+let functionReferenceFromPayload ~allowSelection ~schemaState
+    ~(env : SharedTypes.QueryEnv.t) ~attributeLoc (payload : Parsetree.payload)
+    =
+  let reference functionPath covers =
+    let path = Longident.flatten functionPath in
+    if List.length path < 2 then (
+      addAuthorizationDiagnostic ~schemaState ~env ~loc:attributeLoc
+        "`@gql.authorize` requires a module-qualified function path, for \
+         example `Security.canRead`.";
+      None)
+    else if covers = AuthorizationSelection && not allowSelection then (
+      addAuthorizationDiagnostic ~schemaState ~env ~loc:attributeLoc
+        "`@gql.authorize((..., {covers: Selection}))` can only be used on \
+         output fields or resolver functions, not on a type.";
+      None)
+    else Some {path; loc = attributeLoc; fileUri = env.file.uri; covers}
+  in
   match payload with
   | PStr
       [
@@ -172,13 +217,28 @@ let functionReferenceFromPayload ~schemaState ~(env : SharedTypes.QueryEnv.t)
             Pstr_eval ({pexp_desc = Pexp_ident {txt = functionPath}}, _);
         };
       ] ->
-    let path = Longident.flatten functionPath in
-    if List.length path < 2 then (
-      addAuthorizationDiagnostic ~schemaState ~env ~loc:attributeLoc
-        "`@gql.authorize` requires a module-qualified function path, for \
-         example `Security.canRead`.";
-      None)
-    else Some {path; loc = attributeLoc; fileUri = env.file.uri}
+    reference functionPath AuthorizationField
+  | PStr
+      [
+        {
+          pstr_desc =
+            Pstr_eval
+              ( {
+                  pexp_desc =
+                    Pexp_tuple
+                      [
+                        {pexp_desc = Pexp_ident {txt = functionPath}};
+                        {pexp_desc = Pexp_record (fields, None)};
+                      ];
+                },
+                _ );
+        };
+      ] -> (
+    match
+      authorizationCoverageFromRecord ~schemaState ~env ~attributeLoc fields
+    with
+    | None -> None
+    | Some covers -> reference functionPath covers)
   | _ ->
     addAuthorizationDiagnostic ~schemaState ~env ~loc:attributeLoc
       "`@gql.authorize` requires a module-qualified function path, for example \
@@ -229,8 +289,8 @@ let extractDeclaredAuthorization ~allowPublic ~schemaState
          match String.split_on_char '.' name.txt with
          | ["gql"; "authorize"] -> (
            match
-             functionReferenceFromPayload ~schemaState ~env
-               ~attributeLoc:name.loc payload
+             functionReferenceFromPayload ~allowSelection:allowPublic
+               ~schemaState ~env ~attributeLoc:name.loc payload
            with
            | None -> declared
            | Some fn -> {declared with functions = declared.functions @ [fn]})
@@ -1311,7 +1371,7 @@ type persistedLegacySchemaState = {
 }
 
 let stateFileMagic = "RESGRAPH_STATE\000"
-let stateFileVersion = 1
+let stateFileVersion = 2
 
 let validStateName schemaName =
   Str.string_match (Str.regexp "^[A-Za-z0-9_-]+$") schemaName 0

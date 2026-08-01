@@ -85,7 +85,44 @@ A policy must have:
 
 Type, interface, field, and resolver policies compose additively. Interface field public dispositions and interface resolver outcomes also propagate to concrete implementations. Policies execute in declaration order with AND semantics and stop at the first `Forbidden`. Converted field arguments are constructed once and shared by every policy and the resolver. Async code is generated only when a policy or outcome is promise-backed.
 
-A policy on a field returning an object does not authorize that object's child fields. Each output field needs its own disposition.
+By default, a policy on a field returning an object does not authorize that
+object's child fields. Each output field needs its own disposition.
+
+### Covering a returned selection
+
+A field policy can explicitly cover the selection returned beneath that field.
+This is useful for connection wrappers, mutation payloads, and calculated result
+objects that have no authorization identity independent of the field producing
+them:
+
+```rescript
+@gql.authorize(
+  (CampaignSecurity.canList, {ResGraph.Authorization.covers: Selection})
+)
+@gql.field
+let campaigns = async (
+  _: query,
+  ~organizationId: string,
+  ~ctx: ResGraphContext.context,
+): campaignConnection => {
+  await ctx.dataLoaders.campaigns.load(~organizationId)
+}
+```
+
+The inner parentheses form the ReScript tuple consumed by `@gql.authorize`.
+The qualified record label gives ReScript the configuration type, from which it
+infers and checks the `Selection` constructor.
+
+The policy runs once on `Query.campaigns`. Required authorization treats fields
+reachable exclusively beneath that result as selection-covered, without
+generating additional policy calls for them. Local type and field policies
+still run and compose additively when present.
+
+Selection coverage is path-sensitive. If the same result type is also reachable
+through a path without a selection-covering policy, its otherwise-uncovered
+fields fail required authorization. Public fields and resolver outcomes do not
+establish selection coverage. `covers: Selection` is supported only on output
+fields and resolver functions, not on type policies.
 
 ## Resolver outcomes
 
@@ -137,7 +174,7 @@ let onForbidden = (
 
 ## Audit manifest and boundaries
 
-`manifestPath` emits stable, sorted JSON with every concrete field, its disposition, policy order and provenance, public reason, source locations, resolver-outcome metadata, and mutation status. Commit it when authorization posture should be reviewed through diffs.
+`manifestPath` emits stable, sorted JSON with every concrete field, its disposition, policy order and provenance, inherited selection boundaries, public reason, source locations, resolver-outcome metadata, and mutation status. For a field reachable through multiple covered paths, `selectionCoverage` lists the possible boundary sources; only the boundary on the selected runtime path executes. Commit the manifest when authorization posture should be reviewed through diffs.
 
 Fields on inferred union payload objects use the `synthetic` disposition. They
 have no annotation surface and are reachable only after their parent resolver

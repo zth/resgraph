@@ -53,3 +53,5 @@ let nonUnitOutcome = (_: Query.query, ~args: {.}): ResGraph.Authorization.outcom
   string,
   reason,
 > => ResGraph.Authorization.Allowed("wrong")
+
+let canSelect = (_: Query.query, ~args: {.}) => ResGraph.Authorization.Allowed()

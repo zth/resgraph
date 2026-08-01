@@ -234,7 +234,8 @@ let generateSchemaDirect ~printToStdOut ~writeStateFile ~sourceFolder ~debug
              let processedSchema =
                GenerateSchemaUtils.processSchema schemaState
              in
-             GenerateSchemaAuthorization.buildPlans ~loader ~package schemaState;
+             GenerateSchemaAuthorization.buildPlans ~loader ~package
+               ~processedSchema schemaState;
              let markNamedSchemaFile contents =
                match schemaName with
                | Some _ ->

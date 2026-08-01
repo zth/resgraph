@@ -16,6 +16,9 @@ module Connections = ResGraph__Connections
 module Utils = ResGraph__Utils
 
 module Authorization = {
+  type coverage = Selection
+  type coverageOptions = {covers: coverage}
+
   type outcome<'value, 'reason> =
     | Allowed('value)
     | Forbidden('reason)

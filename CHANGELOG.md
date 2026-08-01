@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Allow field authorization policies to cover their returned selection with
+  `{covers: Selection}`, including statically validated path coverage and
+  authorization-manifest provenance without repeated policy evaluation.
+
 ## 1.3.0
 
 - Add opt-in required authorization coverage with typed `.authorize` policies, explicit `.public` dispositions, resolver outcomes, mutation prechecks, interface policy inheritance, custom forbidden handlers, and deterministic audit manifests.

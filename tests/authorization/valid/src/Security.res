@@ -40,3 +40,8 @@ module Alias = Nested
 let canLoadPublicDevice = (_: Query.query, ~args) => ResGraph.Authorization.Allowed()
 
 let canLoadOutcomeDevice = (_: Query.query, ~args) => ResGraph.Authorization.Allowed()
+
+let canLoadSelection = (_: Query.query, ~args) => ResGraph.Authorization.Allowed()
+
+let canReadSelectionNode = (_: SelectionCoverage.selectionNode, ~args) =>
+  ResGraph.Authorization.Allowed()

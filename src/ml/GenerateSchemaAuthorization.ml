@@ -394,7 +394,7 @@ let loadBaseline path =
            BaselineEntries.empty
 
 let gapForField ~(typ : gqlObjectType) ~(field : gqlField) ~synthetic ~public
-    ~references ~resolverOutcome =
+    ~references ~inheritedSelectionPolicies ~resolverOutcome =
   let coordinate =
     GenerateSchemaUtils.authorizationCoordinate ~parentTypeName:typ.displayName
       ~fieldName:field.name
@@ -402,7 +402,9 @@ let gapForField ~(typ : gqlObjectType) ~(field : gqlField) ~synthetic ~public
   if typ.id = "subscription" then Some (coordinate, UnsupportedSubscription)
   else if synthetic then None
   else if
-    Option.is_none public && references = [] && Option.is_none resolverOutcome
+    Option.is_none public && references = []
+    && inheritedSelectionPolicies = []
+    && Option.is_none resolverOutcome
   then Some (coordinate, UncoveredField)
   else if typ.id = "mutation" && Option.is_none public && references = [] then
     Some (coordinate, MutationPreResolverPolicy)
@@ -434,8 +436,7 @@ let addGapDiagnostic schemaState ~(field : gqlField) (coordinate, kind) =
        ~diagnostic:{loc = field.loc; fileUri = field.fileUri; message}
 
 let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
-    ~baselineEntries ~skipGapDiagnostics ~(typ : gqlObjectType)
-    ~(field : gqlField) =
+    ~(typ : gqlObjectType) ~(field : gqlField) =
   let coordinate =
     GenerateSchemaUtils.authorizationCoordinate ~parentTypeName:typ.displayName
       ~fieldName:field.name
@@ -494,8 +495,181 @@ let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
                  coordinate;
            }
   | _ -> ());
+  Hashtbl.replace schemaState.authorizationPlans coordinate
+    {
+      functions;
+      inheritedSelectionPolicies = [];
+      public;
+      resolverOutcome;
+      synthetic;
+      baselineGap = None;
+    }
+
+module InheritedSelectionPolicy = struct
+  type t = inheritedSelectionPolicy
+
+  let compare = Stdlib.compare
+end
+
+module InheritedSelectionPolicies = Set.Make (InheritedSelectionPolicy)
+
+type selectionReachability = {
+  hasUnprotectedPath: bool;
+  policies: InheritedSelectionPolicies.t;
+}
+
+let rec outputTypeIds ~processedSchema = function
+  | List inner | Nullable inner | RescriptNullable inner ->
+    outputTypeIds ~processedSchema inner
+  | GraphQLObjectType {id} -> [id]
+  | GraphQLUnion _ -> []
+  | GraphQLInterface {id} -> (
+    match Hashtbl.find_opt processedSchema.interfaceImplementedBy id with
+    | None -> []
+    | Some implementations ->
+      implementations
+      |> List.filter_map (fun (implementation : interfaceImplementedBy) ->
+          match implementation with
+          | ObjectType typ -> Some typ.id
+          | Interface _ -> None))
+  | Scalar _ | EmptyPayload | InjectContext | InjectInfo
+  | InjectInterfaceTypename _ | GraphQLInputObject _ | GraphQLInputUnion _
+  | GraphQLEnum _ | GraphQLScalar _ ->
+    []
+
+let unionMemberIds (schemaState : schemaState) = function
+  | GraphQLUnion {id} -> (
+    match Hashtbl.find_opt schemaState.unions id with
+    | None -> []
+    | Some union ->
+      union.types
+      |> List.map (fun (member : gqlUnionMember) -> member.objectTypeId))
+  | _ -> []
+
+let fieldOutputTypeIds ~processedSchema (schemaState : schemaState)
+    (field : gqlField) =
+  let rec ids = function
+    | List inner | Nullable inner | RescriptNullable inner -> ids inner
+    | GraphQLUnion _ as union -> unionMemberIds schemaState union
+    | typ -> outputTypeIds ~processedSchema typ
+  in
+  ids field.typ |> List.sort_uniq String.compare
+
+let selectionPolicies coordinate (plan : effectiveAuthorizationPlan) =
+  plan.functions
+  |> List.filter_map (fun (fn : authorizationFunction) ->
+      match fn.reference.covers with
+      | AuthorizationField -> None
+      | AuthorizationSelection -> Some {boundaryCoordinate = coordinate; fn})
+  |> InheritedSelectionPolicies.of_list
+
+let updateReachability reachability typeId incoming =
+  match Hashtbl.find_opt reachability typeId with
+  | None ->
+    Hashtbl.add reachability typeId incoming;
+    true
+  | Some existing ->
+    let merged =
+      {
+        hasUnprotectedPath =
+          existing.hasUnprotectedPath || incoming.hasUnprotectedPath;
+        policies =
+          InheritedSelectionPolicies.union existing.policies incoming.policies;
+      }
+    in
+    if merged = existing then false
+    else (
+      Hashtbl.replace reachability typeId merged;
+      true)
+
+let selectionReachability ~processedSchema (schemaState : schemaState) =
+  let reachability = Hashtbl.create 50 in
+  let pending = Queue.create () in
+  let enqueueRoot = function
+    | None -> ()
+    | Some (typ : gqlObjectType) ->
+      if
+        updateReachability reachability typ.id
+          {
+            hasUnprotectedPath = true;
+            policies = InheritedSelectionPolicies.empty;
+          }
+      then Queue.add typ.id pending
+  in
+  enqueueRoot schemaState.query;
+  enqueueRoot schemaState.mutation;
+  enqueueRoot schemaState.subscription;
+  while not (Queue.is_empty pending) do
+    let typeId = Queue.take pending in
+    match
+      ( Hashtbl.find_opt schemaState.types typeId,
+        Hashtbl.find_opt reachability typeId )
+    with
+    | Some typ, Some incoming ->
+      typ.fields
+      |> List.iter (fun field ->
+          let coordinate =
+            GenerateSchemaUtils.authorizationCoordinate
+              ~parentTypeName:typ.displayName ~fieldName:field.name
+          in
+          let plan = Hashtbl.find schemaState.authorizationPlans coordinate in
+          let localPolicies = selectionPolicies coordinate plan in
+          let outgoing =
+            {
+              hasUnprotectedPath =
+                incoming.hasUnprotectedPath
+                && InheritedSelectionPolicies.is_empty localPolicies;
+              policies =
+                InheritedSelectionPolicies.union incoming.policies localPolicies;
+            }
+          in
+          fieldOutputTypeIds ~processedSchema schemaState field
+          |> List.iter (fun outputTypeId ->
+              if updateReachability reachability outputTypeId outgoing then
+                Queue.add outputTypeId pending))
+    | _ -> ()
+  done;
+  reachability
+
+let applyInheritedSelectionPolicies ~processedSchema (schemaState : schemaState)
+    =
+  let reachability = selectionReachability ~processedSchema schemaState in
+  schemaState.types
+  |> Hashtbl.iter (fun typeId (typ : gqlObjectType) ->
+      let inheritedSelectionPolicies =
+        match Hashtbl.find_opt reachability typeId with
+        | Some {hasUnprotectedPath = false; policies}
+          when not (InheritedSelectionPolicies.is_empty policies) ->
+          InheritedSelectionPolicies.elements policies
+        | _ -> []
+      in
+      typ.fields
+      |> List.iter (fun field ->
+          let coordinate =
+            GenerateSchemaUtils.authorizationCoordinate
+              ~parentTypeName:typ.displayName ~fieldName:field.name
+          in
+          match Hashtbl.find_opt schemaState.authorizationPlans coordinate with
+          | None -> ()
+          | Some plan ->
+            Hashtbl.replace schemaState.authorizationPlans coordinate
+              {plan with inheritedSelectionPolicies}))
+
+let finalizeFieldPlan ~(schemaState : schemaState) ~baselineEntries
+    ~skipGapDiagnostics ~(typ : gqlObjectType) ~(field : gqlField) =
+  let coordinate =
+    GenerateSchemaUtils.authorizationCoordinate ~parentTypeName:typ.displayName
+      ~fieldName:field.name
+  in
+  let plan = Hashtbl.find schemaState.authorizationPlans coordinate in
+  let references =
+    plan.functions
+    |> List.map (fun (fn : authorizationFunction) -> fn.reference)
+  in
   let gap =
-    gapForField ~typ ~field ~synthetic ~public ~references ~resolverOutcome
+    gapForField ~typ ~field ~synthetic:plan.synthetic ~public:plan.public
+      ~references ~inheritedSelectionPolicies:plan.inheritedSelectionPolicies
+      ~resolverOutcome:plan.resolverOutcome
   in
   let baselineGap =
     match (schemaState.authorizationConfig.mode, gap, baselineEntries) with
@@ -506,7 +680,7 @@ let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
     | _ -> None
   in
   Hashtbl.replace schemaState.authorizationPlans coordinate
-    {functions; public; resolverOutcome; synthetic; baselineGap};
+    {plan with baselineGap};
   (match gap with
   | Some entry ->
     schemaState.authorizationGaps <- entry :: schemaState.authorizationGaps
@@ -537,7 +711,7 @@ let addStaleBaselineDiagnostics schemaState ~path ~baselineEntries =
                    (authorizationGapKindToString kind);
              })
 
-let buildPlans ~loader ~package (schemaState : schemaState) =
+let buildPlans ~loader ~package ~processedSchema (schemaState : schemaState) =
   let baselineEntries, baselineLoadFailed =
     match
       ( schemaState.authorizationConfig.mode,
@@ -558,7 +732,14 @@ let buildPlans ~loader ~package (schemaState : schemaState) =
        (fun _ (typ : gqlObjectType) ->
          typ.fields
          |> List.iter (fun field ->
-             buildFieldPlan ~loader ~package ~schemaState ~baselineEntries
+             buildFieldPlan ~loader ~package ~schemaState ~typ ~field));
+  applyInheritedSelectionPolicies ~processedSchema schemaState;
+  schemaState.types
+  |> GenerateSchemaUtils.iterHashtblAlphabetically
+       (fun _ (typ : gqlObjectType) ->
+         typ.fields
+         |> List.iter (fun field ->
+             finalizeFieldPlan ~schemaState ~baselineEntries
                ~skipGapDiagnostics:baselineLoadFailed ~typ ~field));
   match (baselineEntries, schemaState.authorizationConfig.baselinePath) with
   | Some entries, Some path ->
@@ -582,13 +763,24 @@ let provenanceToString = function
   | FieldPolicy coordinate -> "field:" ^ coordinate
 
 let manifestPolicy ~package (fn : authorizationFunction) =
+  let covers =
+    match fn.reference.covers with
+    | AuthorizationField -> ""
+    | AuthorizationSelection -> ",\"covers\":\"selection\""
+  in
   Printf.sprintf
-    "{\"path\":%s,\"provenance\":%s,\"file\":%s,\"location\":%s,\"async\":%s}"
+    "{\"path\":%s,\"provenance\":%s,\"file\":%s,\"location\":%s,\"async\":%s%s}"
     (jsonString (GenerateSchemaUtils.authorizationFunctionName fn.reference))
     (jsonString (provenanceToString fn.provenance))
     (jsonString (relativeSourcePath ~package fn.reference.fileUri))
     (jsonString (Loc.toString fn.reference.loc))
     (if fn.isAsync then "true" else "false")
+    covers
+
+let manifestInheritedPolicy ~package (policy : inheritedSelectionPolicy) =
+  Printf.sprintf "{\"boundary\":%s,\"policy\":%s}"
+    (jsonString policy.boundaryCoordinate)
+    (manifestPolicy ~package policy.fn)
 
 let manifestField ~package coordinate (plan : effectiveAuthorizationPlan) =
   let disposition =
@@ -597,14 +789,16 @@ let manifestField ~package coordinate (plan : effectiveAuthorizationPlan) =
         plan.synthetic,
         plan.public,
         plan.functions,
+        plan.inheritedSelectionPolicies,
         plan.resolverOutcome )
     with
-    | Some _, _, _, _, _ -> "baseline"
-    | None, true, _, _, _ -> "synthetic"
-    | None, false, Some _, _, _ -> "public"
-    | None, false, None, _ :: _, _ -> "policies"
-    | None, false, None, [], Some _ -> "resolverOutcome"
-    | None, false, None, [], None -> "uncovered"
+    | Some _, _, _, _, _, _ -> "baseline"
+    | None, true, _, _, _, _ -> "synthetic"
+    | None, false, Some _, _, _, _ -> "public"
+    | None, false, None, _ :: _, _, _ -> "policies"
+    | None, false, None, [], _, Some _ -> "resolverOutcome"
+    | None, false, None, [], _ :: _, None -> "selection"
+    | None, false, None, [], [], None -> "uncovered"
   in
   let publicJson =
     match plan.public with
@@ -621,13 +815,22 @@ let manifestField ~package coordinate (plan : effectiveAuthorizationPlan) =
     | Some {isAsync} ->
       Printf.sprintf "{\"async\":%s}" (if isAsync then "true" else "false")
   in
+  let inheritedSelectionJson =
+    match plan.inheritedSelectionPolicies with
+    | [] -> ""
+    | policies ->
+      Printf.sprintf ",\"selectionCoverage\":[%s]"
+        (policies
+        |> List.map (manifestInheritedPolicy ~package)
+        |> String.concat ",")
+  in
   Printf.sprintf
-    "{\"coordinate\":%s,\"disposition\":%s,\"mutation\":%s,\"policies\":[%s],\"public\":%s,\"resolverOutcome\":%s}"
+    "{\"coordinate\":%s,\"disposition\":%s,\"mutation\":%s,\"policies\":[%s],\"public\":%s,\"resolverOutcome\":%s%s}"
     (jsonString coordinate) (jsonString disposition)
     (if String.starts_with coordinate ~prefix:"Mutation." then "true"
      else "false")
     (plan.functions |> List.map (manifestPolicy ~package) |> String.concat ",")
-    publicJson resolverOutcomeJson
+    publicJson resolverOutcomeJson inheritedSelectionJson
 
 let rec ensureDirectory path =
   if path = "" || path = "." || Sys.file_exists path then ()
@@ -639,7 +842,7 @@ let generatedManifest ~status ~fields =
   Printf.sprintf
     "{\n\
     \  \"generatedBy\": \"resgraph\",\n\
-    \  \"version\": 1,\n\
+    \  \"version\": 2,\n\
     \  \"status\": \"%s\",\n\
     \  \"fields\": [\n\
     \    %s\n\
@@ -655,8 +858,9 @@ let isGeneratedManifest path =
     | None -> false
     | Some json ->
       let status = Option.bind (Json.get "status" json) Json.string in
+      let version = Option.bind (Json.get "version" json) Json.number in
       Option.bind (Json.get "generatedBy" json) Json.string = Some "resgraph"
-      && Option.bind (Json.get "version" json) Json.number = Some 1.
+      && (version = Some 1. || version = Some 2.)
       && (status = Some "generationFailed" || status = Some "success")
       && Option.is_some (Option.bind (Json.get "fields" json) Json.array))
 

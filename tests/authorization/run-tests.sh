@@ -58,8 +58,25 @@ grep -F 'ResGraph.Authorization.raiseError(Security.onForbidden(reason, ~ctx=ctx
 grep -F 'switch Security.canReadNamed(Obj.magic(src)' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 grep -F 'switch Security.first' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 grep -F 'switch Security.Alias.second' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
+if [[ "$(grep -c 'switch Security.canLoadSelection' "$tmp_dir/valid/ResGraphSchema.res")" -ne 1 ]]; then
+  echo "Selection policy was not emitted exactly once at its boundary." >&2
+  exit 1
+fi
 diff -u "$root_dir/tests/authorization/valid/expected-authorization-manifest.json" \
   "$tmp_dir/valid/authorization-manifest.json"
+
+mkdir -p "$tmp_dir/manifest-upgrade"
+cp "$root_dir/tests/authorization/valid/expected-authorization-manifest.json" \
+  "$tmp_dir/manifest-upgrade/authorization-manifest.json"
+sed -i 's/"version": 2/"version": 1/' \
+  "$tmp_dir/manifest-upgrade/authorization-manifest.json"
+"$resgraph_bin" generate-schema \
+  "$root_dir/tests/authorization/valid/src" \
+  "$tmp_dir/manifest-upgrade" false required Security.onForbidden \
+  "$tmp_dir/manifest-upgrade/authorization-manifest.json" \
+  >"$tmp_dir/manifest-upgrade-result.json"
+jq -e '.generatedBy == "resgraph" and .version == 2 and .status == "success"' \
+  "$tmp_dir/manifest-upgrade/authorization-manifest.json" >/dev/null
 
 mkdir -p "$tmp_dir/cache-bypass"
 "$resgraph_bin" generate-schema \
@@ -106,6 +123,10 @@ grep -F 'has source type `Mutation`, but it is applied to `Query`' \
 grep -F 'must declare `~args` as a ReScript polymorphic object' \
   "$tmp_dir/invalid-result.json" >/dev/null
 grep -F 'has invalid `~ctx`' "$tmp_dir/invalid-result.json" >/dev/null
+grep -F '`@gql.authorize((..., {covers: Selection}))` can only be used on output fields' \
+  "$tmp_dir/invalid-result.json" >/dev/null
+grep -F 'Field `SharedSelection.value` has no authorization disposition.' \
+  "$tmp_dir/invalid-result.json" >/dev/null
 grep -F 'Required authorization coverage does not support subscription field `Subscription.events` yet.' \
   "$tmp_dir/invalid-result.json" >/dev/null
 

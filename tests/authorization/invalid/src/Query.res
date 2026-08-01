@@ -1,4 +1,6 @@
-@gql.public({reason: "Types cannot be public"}) @gql.type
+@gql.public({reason: "Types cannot be public"})
+@gql.authorize((Security.good, {ResGraph.Authorization.covers: Selection}))
+@gql.type
 type query
 
 @gql.field
@@ -39,3 +41,18 @@ let badContext = (_: query): string => "bad context"
 
 @gql.authorize(Security.nonUnitOutcome) @gql.field
 let nonUnitOutcome = (_: query): string => "bad outcome"
+
+@gql.type
+type sharedSelection = {
+  @gql.field
+  value: string,
+}
+
+@gql.authorize(
+  (Security.canSelect, {ResGraph.Authorization.covers: Selection})
+)
+@gql.field
+let protectedSelection = (_: query): sharedSelection => {value: "protected"}
+
+@gql.public({reason: "Intentionally exercises an unprotected alternate path"}) @gql.field
+let publicSelection = (_: query): sharedSelection => {value: "public"}
