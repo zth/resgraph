@@ -392,7 +392,7 @@ let directiveApplicationsFromAttributes ~schemaState
             Some
               {
                 name;
-                arguments = List.rev arguments;
+                arguments;
                 loc = attributeName.loc;
                 fileUri = env.file.uri;
               }

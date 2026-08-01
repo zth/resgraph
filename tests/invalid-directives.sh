@@ -47,7 +47,7 @@ type t = unit
 RES
 
   cat > "$tmp_dir/src/App.res" <<'RES'
-@@warning("-32")
+@@warning("-32-101")
 
 RES
   cat >> "$tmp_dir/src/App.res"
@@ -134,4 +134,18 @@ RES
 run_fixture "invalid-location" 'is not a GraphQL directive location' <<'RES'
 @gql.directive({locations: ["OBJECTISH"]})
 type invalidLocation
+RES
+
+run_fixture "invalid-name" 'is not a valid GraphQL name' <<'RES'
+@as("invalid-name")
+@gql.directive({locations: ["OBJECT"]})
+type invalidName
+RES
+
+run_fixture "int-out-of-range" 'Invalid default for directive argument' <<'RES'
+@gql.directive({locations: ["OBJECT"]})
+type invalidInt = {
+  @gql.default(2147483648)
+  value: int,
+}
 RES

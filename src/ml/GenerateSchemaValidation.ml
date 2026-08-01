@@ -18,12 +18,43 @@ let emptyLoc =
 let mkTypeLocation ~typeName ~fileName ~fileUri ~loc =
   Concrete {fileName; fileUri; modulePath = []; typeName; loc}
 
+let isGraphQLNameStart character =
+  let code = Char.code character in
+  character = '_'
+  || (code >= Char.code 'A' && code <= Char.code 'Z')
+  || (code >= Char.code 'a' && code <= Char.code 'z')
+
+let isGraphQLNameContinue character =
+  let code = Char.code character in
+  isGraphQLNameStart character
+  || (code >= Char.code '0' && code <= Char.code '9')
+
+let isValidGraphQLName name =
+  let length = String.length name in
+  length > 0
+  && isGraphQLNameStart name.[0]
+  && String.to_seq name |> Seq.for_all isGraphQLNameContinue
+
 let validateName ~name ~(typeLocation : typeLocation)
     (schemaState : schemaState) =
   match typeLocation with
   | Synthetic _ -> ()
   | Concrete typeLocation ->
-    if Utils.startsWith name "__" then
+    if not (isValidGraphQLName name) then
+      schemaState
+      |> addDiagnostic
+           ~diagnostic:
+             {
+               loc = typeLocation.loc;
+               fileUri = typeLocation.fileUri;
+               message =
+                 Printf.sprintf
+                   "Name \"%s\" is not a valid GraphQL name. Names must start \
+                    with a letter or underscore and contain only letters, \
+                    digits, and underscores."
+                   name;
+             }
+    else if Utils.startsWith name "__" then
       schemaState
       |> addDiagnostic
            ~diagnostic:
@@ -103,6 +134,13 @@ let isNullableType = function
   | Nullable _ | RescriptNullable _ -> true
   | _ -> false
 
+let isGraphQLInt value =
+  try
+    let value = Int64.of_string value in
+    Int64.compare value (-2147483648L) >= 0
+    && Int64.compare value 2147483647L <= 0
+  with Failure _ -> false
+
 let rec validateConstValue ~(schemaState : schemaState) typ value =
   let expected () =
     Some
@@ -117,7 +155,7 @@ let rec validateConstValue ~(schemaState : schemaState) typ value =
   | List inner, ConstList values ->
     values |> List.find_map (validateConstValue ~schemaState inner)
   | List inner, value -> validateConstValue ~schemaState inner value
-  | Scalar Int, ConstInt _ -> None
+  | Scalar Int, ConstInt value when isGraphQLInt value -> None
   | Scalar Float, (ConstInt _ | ConstFloat _) -> None
   | Scalar String, ConstString _ -> None
   | Scalar Boolean, ConstBoolean _ -> None
@@ -209,10 +247,7 @@ let rec validateConstValue ~(schemaState : schemaState) typ value =
               | None -> None
               | Some member -> validateConstValue ~schemaState member.typ value)
       ))
-  | ( GraphQLScalar _,
-      (ConstInt _ | ConstFloat _ | ConstString _ | ConstBoolean _ | ConstEnum _)
-    ) ->
-    None
+  | GraphQLScalar _, _ -> None
   | EmptyPayload, ConstBoolean _ -> None
   | ( ( InjectContext | InjectInfo | InjectInterfaceTypename _
       | GraphQLObjectType _ | GraphQLUnion _ | GraphQLInterface _ ),

@@ -1,8 +1,8 @@
 # Directives and GraphQL capability roadmap
 
 Status: directive foundation implemented on `agent/directives-roadmap`; remaining
-directive and capability work is tracked below  
-ResGraph baseline: `origin/main` at `dc1647b` (`v1.3.0`, 2026-07-30)  
+directive and capability work is tracked below
+ResGraph baseline: `origin/main` at `dc1647b` (`v1.3.0`, 2026-07-30)
 Research date: 2026-07-31
 
 ## Executive summary
