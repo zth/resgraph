@@ -672,7 +672,10 @@ let validateInterfaceFieldArguments ~schemaState ~loc ~fileUri
       match findArgByName interfaceArgs implementationArg.name with
       | Some _ -> ()
       | None ->
-        if isRequiredInputType implementationArg.typ then
+        if
+          isRequiredInputType implementationArg.typ
+          && Option.is_none implementationArg.defaultValue
+        then
           addInterfaceImplementationDiagnostic schemaState ~loc ~fileUri
             (Printf.sprintf
                "`%s` cannot implement `%s`: field `%s` adds required argument \
