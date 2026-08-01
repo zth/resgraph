@@ -1464,7 +1464,7 @@ inputUnion_UpdatableString.contents = GraphQLInputObjectType.make({
 
 let directive_cacheControl = GraphQLDirective.make({
   name: "cacheControl",
-  description: "Caching metadata consumed by an explicit schema transform.",
+  description: "Caching metadata consumed by a \u0022\u0022\u0022schema transform\u0022\u0022\u0022.",
   locations: ["OBJECT", "FIELD_DEFINITION"],
   args: dict{
     "maxAge": ({
@@ -1481,7 +1481,7 @@ let directive_cacheControl = GraphQLDirective.make({
     "legacyScope": ({
       typ: Scalars.string->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: "Use scope instead.",
+      deprecationReason: "Use \"scope\" instead.",
     }: arg)
   }->makeArgsDict,
   isRepeatable: false

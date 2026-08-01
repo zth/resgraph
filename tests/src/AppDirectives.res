@@ -1,11 +1,11 @@
-/** Caching metadata consumed by an explicit schema transform. */
+/** Caching metadata consumed by a """schema transform""". */
 @gql.directive({locations: ["OBJECT", "FIELD_DEFINITION"], repeatable: false})
 type cacheControl = {
   /** Maximum cache lifetime in seconds. */
   @gql.default(60)
   maxAge: int,
   scope: option<string>,
-  @deprecated("Use scope instead.")
+  @deprecated("Use \"scope\" instead.")
   legacyScope: option<string>,
 }
 
