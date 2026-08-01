@@ -1689,7 +1689,7 @@ let directive_tag = GraphQLDirective.make({
 })
 
 let schema = GraphQLSchemaType.makeConfig({
-  description: "The public ResGraph test schema.",
+  description: "The public \u0022\u0022\u0022ResGraph\u0022\u0022\u0022 test schema.",
   query: get_Query(),
   mutation: get_Mutation(),
   subscription: get_Subscription(),
