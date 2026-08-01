@@ -336,8 +336,14 @@ try {
               }
               ErrorPrinter.printErrors(errors)
             | Utils.GeneratorResult(Success(_)) =>
-              printBuildTime(schema, performance->now -. timeStart, ~showSchemaName)
-              printAuthorizationBaselineWarning(schema.authorization)
+              if validateGeneratedSdl(schema) {
+                printBuildTime(schema, performance->now -. timeStart, ~showSchemaName)
+                printAuthorizationBaselineWarning(schema.authorization)
+              } else if showSchemaName {
+                Console.error(
+                  `[${schema.name}] Generated GraphQL schema validation failed.`,
+                )
+              }
             | Utils.GeneratorResult(_) =>
               Console.error(`[${schema.name}] Unexpected generator response.`)
             }
