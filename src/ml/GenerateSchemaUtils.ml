@@ -1578,6 +1578,93 @@ let resolveSchemaRootTypes (schemaState : schemaState) =
     |> List.find_map (fun (id, (typ : gqlObjectType)) ->
         if id = typeName || typ.displayName = typeName then Some typ else None)
   in
+  let moveCoordinate table ~oldParentTypeName ~newParentTypeName ~fieldName =
+    let oldCoordinate =
+      authorizationCoordinate ~parentTypeName:oldParentTypeName ~fieldName
+    in
+    let newCoordinate =
+      authorizationCoordinate ~parentTypeName:newParentTypeName ~fieldName
+    in
+    match Hashtbl.find_opt table oldCoordinate with
+    | None -> ()
+    | Some value ->
+      Hashtbl.remove table oldCoordinate;
+      if not (Hashtbl.mem table newCoordinate) then
+        Hashtbl.replace table newCoordinate value
+  in
+  let moveDirectiveTarget oldTarget newTarget =
+    match Hashtbl.find_opt schemaState.appliedDirectives oldTarget with
+    | None -> ()
+    | Some applications ->
+      Hashtbl.remove schemaState.appliedDirectives oldTarget;
+      let existing =
+        Hashtbl.find_opt schemaState.appliedDirectives newTarget
+        |> Option.value ~default:[]
+      in
+      Hashtbl.replace schemaState.appliedDirectives newTarget
+        (existing @ applications)
+  in
+  let moveFieldMetadata ~oldParentTypeName ~newParentTypeName
+      (field : gqlField) =
+    moveDirectiveTarget
+      (DirectiveFieldDefinition
+         {parentTypeName = oldParentTypeName; fieldName = field.name})
+      (DirectiveFieldDefinition
+         {parentTypeName = newParentTypeName; fieldName = field.name});
+    field.args
+    |> List.iter (fun (argument : gqlArg) ->
+        moveDirectiveTarget
+          (DirectiveArgumentDefinition
+             {
+               parentTypeName = oldParentTypeName;
+               fieldName = field.name;
+               argumentName = argument.name;
+             })
+          (DirectiveArgumentDefinition
+             {
+               parentTypeName = newParentTypeName;
+               fieldName = field.name;
+               argumentName = argument.name;
+             }));
+    moveCoordinate schemaState.authorizationDeclarations ~oldParentTypeName
+      ~newParentTypeName ~fieldName:field.name;
+    moveCoordinate schemaState.authorizationPlans ~oldParentTypeName
+      ~newParentTypeName ~fieldName:field.name;
+    moveCoordinate schemaState.resolverOutcomes ~oldParentTypeName
+      ~newParentTypeName ~fieldName:field.name;
+    moveCoordinate schemaState.authorizationExemptions ~oldParentTypeName
+      ~newParentTypeName ~fieldName:field.name
+  in
+  let moveRootShorthandFields ~conventionalId configuredName =
+    match configuredName with
+    | None -> ()
+    | Some configuredName -> (
+      match
+        (Hashtbl.find_opt schemaState.types conventionalId,
+         findObjectType configuredName)
+      with
+      | Some source, Some target when source.id <> target.id ->
+        let shorthandFields, remainingFields =
+          source.fields
+          |> List.partition (fun (field : gqlField) ->
+              match field.resolverStyle with
+              | Resolver {callStyle = ResolverUnit | ResolverLabelled} -> true
+              | Property _ | Resolver {callStyle = ResolverSource} -> false)
+        in
+        if shorthandFields <> [] then (
+          shorthandFields
+          |> List.iter
+               (moveFieldMetadata ~oldParentTypeName:source.displayName
+                  ~newParentTypeName:target.displayName);
+          Hashtbl.replace schemaState.types target.id
+            {target with fields = shorthandFields @ target.fields};
+          if remainingFields = [] && Option.is_none source.typeLocation then
+            Hashtbl.remove schemaState.types source.id
+          else
+            Hashtbl.replace schemaState.types source.id
+              {source with fields = remainingFields})
+      | _ -> ())
+  in
   let resolve ~operation ~configuredName ~conventionalId current =
     let typeName = Option.value configuredName ~default:conventionalId in
     match findObjectType typeName with
@@ -1611,6 +1698,9 @@ let resolveSchemaRootTypes (schemaState : schemaState) =
         definition.mutationTypeName,
         definition.subscriptionTypeName )
   in
+  moveRootShorthandFields ~conventionalId:"query" queryTypeName;
+  moveRootShorthandFields ~conventionalId:"mutation" mutationTypeName;
+  moveRootShorthandFields ~conventionalId:"subscription" subscriptionTypeName;
   schemaState.query <-
     resolve ~operation:"query" ~configuredName:queryTypeName
       ~conventionalId:"query" schemaState.query;

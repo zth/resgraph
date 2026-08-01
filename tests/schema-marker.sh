@@ -33,7 +33,7 @@ RES
 
 cat >"$tmp_dir/src/App.res" <<'RES'
 /** Identifies the schema in runtime transforms. */
-@gql.directive({locations: ["SCHEMA"]})
+@gql.directive({locations: ["SCHEMA", "FIELD_DEFINITION"]})
 type schemaName = {value: string}
 
 @gql.type
@@ -44,6 +44,10 @@ type rootQuery = {
 
 @gql.field
 let greeting = (_: rootQuery) => "hello"
+
+@gql.annotate({name: "schemaName", args: {value: "shorthand"}})
+@gql.query
+let shorthandGreeting = () => "hello from shorthand"
 
 /** A schema with a custom query root. */
 @gql.annotate({name: "schemaName", args: {value: "custom"}})
@@ -67,5 +71,13 @@ grep -Fq 'schema @schemaName(value: "custom") {' \
   "$tmp_dir/src/__generated__/schema.graphql"
 grep -Fq 'query: RootQuery' \
   "$tmp_dir/src/__generated__/schema.graphql"
+grep -Fq 'shorthandGreeting: String! @schemaName(value: "shorthand")' \
+  "$tmp_dir/src/__generated__/schema.graphql"
+if grep -Fq 'type Query' "$tmp_dir/src/__generated__/schema.graphql"; then
+  printf '%s\n' 'Custom schema roots left an orphaned shorthand Query type.' >&2
+  exit 1
+fi
+grep -Fq 'App.shorthandGreeting(())' \
+  "$tmp_dir/src/__generated__/ResGraphSchema.res"
 
 printf '%s\n' '✅ Schema descriptions, directives, and custom roots work.'

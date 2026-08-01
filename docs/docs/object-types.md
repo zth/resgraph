@@ -142,9 +142,11 @@ let increment = (~value: int) => value + 1
 
 The root type is synthesized when it has not been declared explicitly. A
 zero-argument root resolver takes `unit`; a resolver with inputs can use only
-labelled arguments. Defaults, descriptions, deprecations, directives, context,
-`resolveInfo`, authorization, and subscription return validation work exactly
-as they do for `@gql.field` resolvers.
+labelled arguments. When `@gql.schema` maps an operation to a custom root type,
+the shorthand field is attached to that mapped root. Defaults, descriptions,
+deprecations, directives, context, `resolveInfo`, authorization, and
+subscription return validation work exactly as they do for `@gql.field`
+resolvers.
 
 ### Adding arguments to your fields
 
