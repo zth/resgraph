@@ -8,6 +8,7 @@
   },
   "private": true,
   "devDependencies": {
+    "@graphql-tools/utils": "^11.2.2",
     "@rescript/react": "^0.14.0",
     "nodemon": "^2.0.22"
   },

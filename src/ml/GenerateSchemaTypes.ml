@@ -96,11 +96,91 @@ type typeLocation =
 
 type diagnostic = {loc: Location.t; fileUri: Uri.t; message: string}
 
+type gqlConstValue =
+  | ConstNull
+  | ConstInt of string
+  | ConstFloat of string
+  | ConstString of string
+  | ConstBoolean of bool
+  | ConstEnum of string
+  | ConstList of gqlConstValue list
+  | ConstObject of (string * gqlConstValue) list
+
+type gqlDirectiveLocation =
+  | LocationQuery
+  | LocationMutation
+  | LocationSubscription
+  | LocationField
+  | LocationFragmentDefinition
+  | LocationFragmentSpread
+  | LocationInlineFragment
+  | LocationVariableDefinition
+  | LocationSchema
+  | LocationScalar
+  | LocationObject
+  | LocationFieldDefinition
+  | LocationArgumentDefinition
+  | LocationInterface
+  | LocationUnion
+  | LocationEnum
+  | LocationEnumValue
+  | LocationInputObject
+  | LocationInputFieldDefinition
+
+type gqlDirectiveTarget =
+  | DirectiveSchema
+  | DirectiveScalar of string
+  | DirectiveObject of string
+  | DirectiveFieldDefinition of {parentTypeName: string; fieldName: string}
+  | DirectiveArgumentDefinition of {
+      parentTypeName: string;
+      fieldName: string;
+      argumentName: string;
+    }
+  | DirectiveDirectiveArgumentDefinition of {
+      directiveName: string;
+      argumentName: string;
+    }
+  | DirectiveInterface of string
+  | DirectiveUnion of string
+  | DirectiveEnum of string
+  | DirectiveEnumValue of {enumName: string; valueName: string}
+  | DirectiveInputObject of string
+  | DirectiveInputFieldDefinition of {
+      inputObjectName: string;
+      fieldName: string;
+    }
+
+type gqlDirectiveApplication = {
+  name: string;
+  arguments: (string * gqlConstValue) list;
+  loc: Location.t;
+  fileUri: Uri.t;
+}
+
 type gqlArg = {
   name: string;
   isOptionLabelled: bool;
       (* If the argument in ReScript is an optional label. *)
   typ: graphqlType; (* TODO: Default value. *)
+}
+
+type gqlDirectiveArgument = {
+  name: string;
+  typ: graphqlType;
+  description: string option;
+  defaultValue: gqlConstValue option;
+  deprecationReason: string option;
+  loc: Location.t;
+}
+
+type gqlDirectiveDefinition = {
+  name: string;
+  description: string option;
+  arguments: gqlDirectiveArgument list;
+  locations: gqlDirectiveLocation list;
+  repeatable: bool;
+  typeLocation: typeLocationLoc;
 }
 
 type gqlInterfaceIdentifier = {id: string; displayName: string}
@@ -230,6 +310,9 @@ type schemaState = {
   unions: (string, gqlUnion) Hashtbl.t;
   interfaces: (string, gqlInterface) Hashtbl.t;
   scalars: (string, gqlScalar) Hashtbl.t;
+  directiveDefinitions: (string, gqlDirectiveDefinition) Hashtbl.t;
+  appliedDirectives:
+    (gqlDirectiveTarget, gqlDirectiveApplication list) Hashtbl.t;
   processedFiles: (string, bool) Hashtbl.t;
   authorizationConfig: authorizationConfig;
   authorizationDeclarations: (string, declaredAuthorization) Hashtbl.t;
@@ -263,3 +346,4 @@ type gqlAttributes =
   | Enum
   | Union
   | Scalar
+  | Directive

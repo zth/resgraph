@@ -8,9 +8,14 @@ let variantCasesToEnumValues ~schemaState ~(env : SharedTypes.QueryEnv.t)
   |> List.filter_map (fun (case : SharedTypes.Constructor.t) ->
       match case.args with
       | Args [] ->
+        let enumName = case.typeDecl |> fst |> capitalizeFirstChar in
+        let value = nameFromAttribute case.attributes ~default:case.cname.txt in
+        registerDirectiveApplications
+          ~target:(DirectiveEnumValue {enumName; valueName = value})
+          ~attributes:case.attributes ~schemaState ~env;
         Some
           {
-            value = nameFromAttribute case.attributes ~default:case.cname.txt;
+            value;
             description = case.attributes |> attributesToDocstring;
             deprecationReason = case.deprecated;
             loc = case.cname.loc;
@@ -848,6 +853,11 @@ and inputObjectFieldsOfRecordFields ~objectTypeName ~env ~debug ~schemaState
                };
         None
       | Some typ ->
+        registerDirectiveApplications
+          ~target:
+            (DirectiveInputFieldDefinition
+               {inputObjectName = objectTypeName; fieldName = name})
+          ~attributes:field.attributes ~schemaState ~env;
         Some
           {
             name;
@@ -862,6 +872,62 @@ and inputObjectFieldsOfRecordFields ~objectTypeName ~env ~debug ~schemaState
             onType = None;
             inheritedFromInterface = None;
           })
+
+and directiveArgumentsOfRecordFields ~directiveName ~env ~debug ~schemaState
+    ~(full : SharedTypes.full) (fields : SharedTypes.field list) =
+  let rec isInputType = function
+    | List inner | Nullable inner | RescriptNullable inner -> isInputType inner
+    | Scalar _ | GraphQLInputObject _ | GraphQLInputUnion _ | GraphQLEnum _
+    | GraphQLScalar _ ->
+      true
+    | EmptyPayload | InjectContext | InjectInfo | InjectInterfaceTypename _
+    | GraphQLObjectType _ | GraphQLUnion _ | GraphQLInterface _ ->
+      false
+  in
+  fields
+  |> List.filter_map (fun (field : SharedTypes.field) ->
+      let name = nameFromAttribute field.attributes ~default:field.fname.txt in
+      match
+        findGraphQLType field.typ ~debug ~loc:field.fname.loc ~full ~env
+          ~schemaState
+          ~typeContext:
+            (ArgumentType
+               {
+                 fieldParentTypeName = "@" ^ directiveName;
+                 fieldName = directiveName;
+                 argumentName = name;
+               })
+      with
+      | Some typ when isInputType typ ->
+        registerDirectiveApplications
+          ~target:
+            (DirectiveDirectiveArgumentDefinition
+               {directiveName; argumentName = name})
+          ~attributes:field.attributes ~schemaState ~env;
+        Some
+          {
+            name;
+            typ;
+            description = field.attributes |> attributesToDocstring;
+            defaultValue =
+              field.attributes |> defaultValueFromAttributes ~schemaState ~env;
+            deprecationReason = field.deprecated;
+            loc = field.fname.loc;
+          }
+      | Some _ ->
+        schemaState
+        |> addDiagnostic
+             ~diagnostic:
+               {
+                 fileUri = env.file.uri;
+                 loc = field.fname.loc;
+                 message =
+                   Printf.sprintf
+                     "Directive argument `%s` must use a GraphQL input type."
+                     name;
+               };
+        None
+      | None -> None)
 
 and variantCasesToUnionValues ~env ~debug ~schemaState ~full ~ownerName
     (cases : SharedTypes.Constructor.t list) =
@@ -949,6 +1015,12 @@ and variantCasesToInputUnionValues ~env ~debug ~schemaState ~full ~ownerName
     (cases : SharedTypes.Constructor.t list) =
   cases
   |> List.filter_map (fun (case : SharedTypes.Constructor.t) ->
+      let fieldName = uncapitalizeFirstChar case.cname.txt in
+      registerDirectiveApplications
+        ~target:
+          (DirectiveInputFieldDefinition
+             {inputObjectName = ownerName; fieldName})
+        ~attributes:case.attributes ~schemaState ~env;
       match case.args with
       | InlineRecord fields ->
         let syntheticTypeName = ownerName ^ case.cname.txt in
@@ -971,7 +1043,7 @@ and variantCasesToInputUnionValues ~env ~debug ~schemaState ~full ~ownerName
         let member : gqlInputUnionMember =
           {
             typ = GraphQLInputObject {displayName; id};
-            fieldName = uncapitalizeFirstChar case.cname.txt;
+            fieldName;
             loc = case.cname.loc;
             description = case.attributes |> ProcessAttributes.findDocAttribute;
             constructorName = case.cname.txt;
@@ -982,7 +1054,7 @@ and variantCasesToInputUnionValues ~env ~debug ~schemaState ~full ~ownerName
         Some
           {
             typ = EmptyPayload;
-            fieldName = uncapitalizeFirstChar case.cname.txt;
+            fieldName;
             loc = case.cname.loc;
             description = case.attributes |> ProcessAttributes.findDocAttribute;
             constructorName = case.cname.txt;
@@ -999,7 +1071,7 @@ and variantCasesToInputUnionValues ~env ~debug ~schemaState ~full ~ownerName
           Some
             {
               typ;
-              fieldName = uncapitalizeFirstChar case.cname.txt;
+              fieldName;
               loc = case.cname.loc;
               description =
                 case.attributes |> ProcessAttributes.findDocAttribute;
@@ -1077,6 +1149,11 @@ and objectTypeFieldsOfRecordFields ~objectTypeName ~env ~schemaState ~debug
                };
         None
       | Some typ ->
+        registerDirectiveApplications
+          ~target:
+            (DirectiveFieldDefinition
+               {parentTypeName = objectTypeName; fieldName = name})
+          ~attributes:field.attributes ~schemaState ~env;
         Some
           {
             name;
@@ -1127,6 +1204,11 @@ and objectTypeFieldsOfInlineRecordFields ~objectTypeName ~env ~schemaState
                };
         None
       | Some typ ->
+        registerDirectiveApplications
+          ~target:
+            (DirectiveFieldDefinition
+               {parentTypeName = objectTypeName; fieldName = name})
+          ~attributes:field.attributes ~schemaState ~env;
         Some
           {
             name;
@@ -1281,6 +1363,44 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
         let gqlImplementsAttributes =
           attributes |> extractGqlImplementsAttributes ~schemaState ~env
         in
+        let registerDirectives target =
+          registerDirectiveApplications ~target ~attributes ~schemaState ~env
+        in
+        let registerDirectiveDefinition arguments =
+          match directiveConfigFromAttributes ~schemaState ~env attributes with
+          | Some (Some {locations; repeatable}) ->
+            let name = nameFromAttribute attributes ~default:item.name in
+            if Hashtbl.mem schemaState.directiveDefinitions name then
+              schemaState
+              |> addDiagnostic
+                   ~diagnostic:
+                     {
+                       loc = item.loc;
+                       fileUri = env.file.uri;
+                       message =
+                         Printf.sprintf
+                           "A directive named `@%s` has already been defined."
+                           name;
+                     }
+            else
+              Hashtbl.add schemaState.directiveDefinitions name
+                {
+                  name;
+                  description = attributesToDocstring attributes;
+                  arguments;
+                  locations;
+                  repeatable;
+                  typeLocation =
+                    {
+                      fileName = env.file.moduleName;
+                      modulePath = List.rev modulePath;
+                      typeName = item.name;
+                      loc = item.loc;
+                      fileUri = env.file.uri;
+                    };
+                }
+          | Some None | None -> ()
+        in
         (if List.length gqlImplementsAttributes > 0 then
            match (item.kind, gqlAttribute) with
            | Type ({kind = Record _}, _), Some (ObjectType | Interface) -> ()
@@ -1314,6 +1434,13 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
           traverseStructure ~implStructure
             ~modulePath:(intfStructure.name :: modulePath)
             ~schemaState ~env ~full ~debug intfStructure
+        | Type ({kind = Abstract None; _}, _), Some Directive ->
+          registerDirectiveDefinition []
+        | Type ({kind = Record fields; _}, _), Some Directive ->
+          let directiveName = nameFromAttribute attributes ~default:item.name in
+          registerDirectiveDefinition
+            (directiveArgumentsOfRecordFields ~directiveName ~env ~debug
+               ~schemaState ~full fields)
         | ( Type
               ( {
                   name = "query" | "mutation" | "subscription";
@@ -1328,6 +1455,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
           (* @gql.type type subscription *)
           let id = item.name in
           let displayName = capitalizeFirstChar item.name in
+          registerDirectives (DirectiveObject displayName);
           registerAuthorizationAttributes ~coordinate:displayName
             ~allowPublic:false ~attributes ~schemaState ~env;
           noticeObjectType ~env ~loc:decl.type_loc ~schemaState
@@ -1339,6 +1467,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
           (* @gql.type type someType = {...} *)
           let id = item.name in
           let displayName = capitalizeFirstChar item.name in
+          registerDirectives (DirectiveObject displayName);
           registerAuthorizationAttributes ~coordinate:displayName
             ~allowPublic:false ~attributes ~schemaState ~env;
           noticeObjectType ~env ~loc:decl.type_loc ~schemaState
@@ -1353,6 +1482,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
           (* @gql.inputObject type someInputObject = {...} *)
           let id = item.name in
           let displayName = capitalizeFirstChar item.name in
+          registerDirectives (DirectiveInputObject displayName);
           addInputObject id ~schemaState ~debug ~makeInputObject:(fun () ->
               {
                 id;
@@ -1371,6 +1501,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
           (* @gql.interface type hasName = {...} *)
           let id = item.name in
           let displayName = capitalizeFirstChar item.name in
+          registerDirectives (DirectiveInterface displayName);
           registerAuthorizationAttributes ~coordinate:displayName
             ~allowPublic:false ~attributes ~schemaState ~env;
           addInterface id ~schemaState ~debug ~makeInterface:(fun () ->
@@ -1390,10 +1521,12 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
         | Type (({kind = Variant cases} as item), _), Some Enum ->
           (* @gql.enum type someEnum = Online | Offline | Idle *)
           (* TODO: Can inline all type locs *)
+          let displayName = capitalizeFirstChar item.name in
+          registerDirectives (DirectiveEnum displayName);
           addEnum item.name ~schemaState ~debug ~makeEnum:(fun () ->
               {
                 id = item.name;
-                displayName = capitalizeFirstChar item.name;
+                displayName;
                 values = variantCasesToEnumValues ~schemaState ~env cases;
                 description = attributes |> attributesToDocstring;
                 typeLocation =
@@ -1404,6 +1537,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
         | Type (({kind = Variant cases} as item), _), Some Union ->
           (* @gql.union type userOrGroup = User(user) | Group(group) *)
           let displayName = capitalizeFirstChar item.name in
+          registerDirectives (DirectiveUnion displayName);
           addUnion item.name
             ~makeUnion:(fun () ->
               {
@@ -1423,6 +1557,7 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
         | Type (({kind = Variant cases} as item), _), Some InputUnion ->
           (* @gql.inputUnion type location = Coordinates(coordinates) | Address(address) *)
           let displayName = capitalizeFirstChar item.name in
+          registerDirectives (DirectiveInputObject displayName);
           addInputUnion item.name
             ~makeInputUnion:(fun () ->
               {
@@ -1441,6 +1576,10 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
           (* module Timestamp = { @gql.scalar type t = string } *)
           (* module Timestamp: {@gql.scalar type t } = { type t = string } *)
           let typeName = modulePath |> List.hd in
+          registerDirectives (DirectiveScalar typeName);
+          let specifiedByUrl =
+            specifiedByUrlFromAttributes ~schemaState ~env attributes
+          in
           let typeLoc =
             {
               fileName = env.file.moduleName;
@@ -1496,8 +1635,8 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
             (* Has parsers, always add them *)
             addScalar typeName
               ?description:(attributes |> attributesToDocstring)
-              ~encoderDecoderLoc:typeLoc ~typeLocation:typeLoc ~schemaState
-              ~debug
+              ?specifiedByUrl ~encoderDecoderLoc:typeLoc ~typeLocation:typeLoc
+              ~schemaState ~debug
           | true, false, true | true, true, false | true, false, false ->
             (* Needs parsing, but missing one of the assets *)
             schemaState
@@ -1522,15 +1661,21 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
             (* Does not need parsing, and don't have assets *)
             addScalar typeName
               ?description:(attributes |> attributesToDocstring)
-              ~typeLocation:typeLoc ~schemaState ~debug)
+              ?specifiedByUrl ~typeLocation:typeLoc ~schemaState ~debug)
         | Type (({kind = Abstract (Some (path, typs))} as item), _), Some Scalar
           -> (
           (* @gql.scalar type someScalar = string *)
+          let displayName = capitalizeFirstChar item.name in
+          registerDirectives (DirectiveScalar displayName);
+          let specifiedByUrl =
+            specifiedByUrlFromAttributes ~schemaState ~env attributes
+          in
           let asTypExpr = Ctype.newconstr path typs in
           match validateCustomScalar ~env ~package:full.package asTypExpr with
           | DoesNotNeedParsing ->
             addScalar item.name
               ?description:(attributes |> attributesToDocstring)
+              ?specifiedByUrl
               ~typeLocation:
                 (findTypeLocation ~loc:item.decl.type_loc ~env ~schemaState
                    ~expectedType:Scalar item.name)
@@ -1593,6 +1738,11 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                             functions adding fields to interfaces."
                            name;
                      });
+            registerDirectiveApplications
+              ~target:
+                (DirectiveFieldDefinition
+                   {parentTypeName = displayName; fieldName = item.name})
+              ~attributes ~schemaState ~env;
             let field =
               {
                 loc = item.loc;
@@ -1654,6 +1804,11 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                            (interfaceHelperModuleForId helperModule id);
                      }
             | _ -> ());
+            registerDirectiveApplications
+              ~target:
+                (DirectiveFieldDefinition
+                   {parentTypeName = displayName; fieldName = item.name})
+              ~attributes ~schemaState ~env;
             let field =
               {
                 loc = item.loc;
@@ -1793,6 +1948,16 @@ and traverseStructure ?(modulePath = []) ?implStructure ?originModule
                       "This type is annotated with @gql.interface, but is not \
                        a record. Only records can represent GraphQL \
                        interfaces.";
+                }
+          | Some Directive ->
+            add
+              ~diagnostic:
+                {
+                  baseDiagnostic with
+                  message =
+                    "This type is annotated with @gql.directive, but is not an \
+                     abstract type or record. Directive records define typed \
+                     arguments.";
                 }
           | Some (InterfaceResolver _) ->
             add

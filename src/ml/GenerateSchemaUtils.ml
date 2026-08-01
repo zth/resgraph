@@ -41,6 +41,9 @@ let validAttributes =
     ("gql.inputObject", "");
     ("gql.inputUnion", "");
     ("gql.scalar", "");
+    ("gql.directive", "Defines a typed GraphQL directive.");
+    ("gql.annotate", "Applies a GraphQL directive to a schema element.");
+    ("gql.default", "Defines a GraphQL constant default value.");
     ("gql.authorize", "Attaches a typed authorization function.");
     ("gql.public", "Marks a field public with a required reason.");
   ]
@@ -93,7 +96,12 @@ let extractGqlAttribute ~(schemaState : GenerateSchemaTypes.schemaState)
       | ["gql"; "union"] -> Some Union
       | ["gql"; "inputObject"] -> Some InputObject
       | ["gql"; "inputUnion"] -> Some InputUnion
-      | ["gql"; "authorize"] | ["gql"; "public"] -> None
+      | ["gql"; "directive"] -> Some Directive
+      | ["gql"; "annotate"]
+      | ["gql"; "default"]
+      | ["gql"; "authorize"]
+      | ["gql"; "public"] ->
+        None
       | "gql" :: _ ->
         schemaState
         |> addDiagnostic
@@ -111,6 +119,322 @@ let extractGqlAttribute ~(schemaState : GenerateSchemaTypes.schemaState)
                };
         None
       | _ -> None)
+
+let addDirectiveDiagnostic ~(schemaState : schemaState)
+    ~(env : SharedTypes.QueryEnv.t) ~loc message =
+  schemaState
+  |> addDiagnostic ~diagnostic:{loc; fileUri = env.file.uri; message}
+
+let payloadExpressions (payload : Parsetree.payload) =
+  match payload with
+  | PStr [{pstr_desc = Pstr_eval (expression, _)}] -> (
+    match expression.pexp_desc with
+    | Pexp_tuple expressions -> expressions
+    | _ -> [expression])
+  | _ -> []
+
+let rec constValueFromExpression (expression : Parsetree.expression) =
+  let open Parsetree in
+  match expression.pexp_desc with
+  | Pexp_constant (Pconst_integer (value, _)) -> Ok (ConstInt value)
+  | Pexp_constant (Pconst_float (value, _)) -> Ok (ConstFloat value)
+  | Pexp_constant (Pconst_string (value, _)) -> Ok (ConstString value)
+  | Pexp_construct ({txt = Lident "true"}, None)
+  | Pexp_ident {txt = Lident "true"} ->
+    Ok (ConstBoolean true)
+  | Pexp_construct ({txt = Lident "false"}, None)
+  | Pexp_ident {txt = Lident "false"} ->
+    Ok (ConstBoolean false)
+  | Pexp_construct ({txt = Lident ("None" | "null")}, None)
+  | Pexp_ident {txt = Lident "null"} ->
+    Ok ConstNull
+  | Pexp_variant (name, None) -> Ok (ConstEnum name)
+  | Pexp_construct ({txt = constructor}, None) | Pexp_ident {txt = constructor}
+    ->
+    Ok (ConstEnum (Longident.last constructor))
+  | Pexp_array values ->
+    values
+    |> List.fold_left
+         (fun result value ->
+           match (result, constValueFromExpression value) with
+           | Ok values, Ok value -> Ok (value :: values)
+           | Error message, _ | _, Error message -> Error message)
+         (Ok [])
+    |> Result.map (fun values -> ConstList (List.rev values))
+  | Pexp_record (fields, None) ->
+    fields
+    |> List.fold_left
+         (fun result (field : Parsetree.expression Parsetree.record_element) ->
+           match (result, constValueFromExpression field.x) with
+           | Ok fields, Ok value ->
+             Ok ((Longident.last field.lid.txt, value) :: fields)
+           | Error message, _ | _, Error message -> Error message)
+         (Ok [])
+    |> Result.map (fun fields -> ConstObject (List.rev fields))
+  | Pexp_apply
+      {
+        funct = {pexp_desc = Pexp_ident {txt = Lident ("~-" | "~-." | "-")}};
+        args = [(_, value)];
+      } -> (
+    match constValueFromExpression value with
+    | Ok (ConstInt value) -> Ok (ConstInt ("-" ^ value))
+    | Ok (ConstFloat value) -> Ok (ConstFloat ("-" ^ value))
+    | _ -> Error "Only numeric GraphQL constant values can be negated.")
+  | _ ->
+    Error
+      "Expected a GraphQL constant: null, a boolean, number, string, enum, \
+       array, or record."
+
+type directiveConfig = {locations: gqlDirectiveLocation list; repeatable: bool}
+
+let directiveConfigFromAttributes ~schemaState ~(env : SharedTypes.QueryEnv.t)
+    attributes =
+  let directiveAttributes =
+    attributes
+    |> List.filter (fun ((name, _) : Parsetree.attribute) ->
+           name.txt = "gql.directive")
+  in
+  (match directiveAttributes with
+  | _ :: (name, _) :: _ ->
+    addDirectiveDiagnostic ~schemaState ~env ~loc:name.loc
+      "Only one `@gql.directive` annotation is allowed."
+  | _ -> ());
+  directiveAttributes
+  |> List.find_map (fun ((name, payload) : Parsetree.attribute) ->
+        let invalid message =
+          addDirectiveDiagnostic ~schemaState ~env ~loc:name.loc message;
+          Some None
+        in
+        match payloadExpressions payload with
+        | [{pexp_desc = Pexp_record (fields, None)}] -> (
+          let fields =
+            fields
+            |> List.map
+                 (fun (field : Parsetree.expression Parsetree.record_element) ->
+                   (Longident.last field.lid.txt, field.x))
+          in
+          let unknownFields =
+            fields
+            |> List.filter_map (fun (fieldName, _) ->
+                if fieldName = "locations" || fieldName = "repeatable" then None
+                else Some fieldName)
+          in
+          if unknownFields <> [] then
+            invalid
+              (Printf.sprintf
+                 "Unknown `@gql.directive` configuration field%s: %s."
+                 (if List.length unknownFields = 1 then "" else "s")
+                 (String.concat ", " unknownFields))
+          else
+            let repeatable =
+              match List.assoc_opt "repeatable" fields with
+              | None -> Ok false
+              | Some
+                  {
+                    pexp_desc =
+                      ( Pexp_construct ({txt = Lident "true"}, None)
+                      | Pexp_ident {txt = Lident "true"} );
+                  } ->
+                Ok true
+              | Some
+                  {
+                    pexp_desc =
+                      ( Pexp_construct ({txt = Lident "false"}, None)
+                      | Pexp_ident {txt = Lident "false"} );
+                  } ->
+                Ok false
+              | Some _ -> Error "`repeatable` must be a boolean literal."
+            in
+            let locations =
+              match List.assoc_opt "locations" fields with
+              | Some {pexp_desc = Pexp_array values} ->
+                values
+                |> List.fold_left
+                     (fun result (value : Parsetree.expression) ->
+                       match (result, value.pexp_desc) with
+                       | ( Ok locations,
+                           Pexp_constant (Pconst_string (location, _)) ) -> (
+                         match
+                           GenerateSchemaDirectiveUtils.locationOfString
+                             location
+                         with
+                         | Some location -> Ok (location :: locations)
+                         | None ->
+                           Error
+                             (Printf.sprintf
+                                "`%s` is not a GraphQL directive location."
+                                location))
+                       | Error message, _ -> Error message
+                       | _ ->
+                         Error "`locations` must contain only string literals.")
+                     (Ok [])
+                |> Result.map List.rev
+              | Some _ -> Error "`locations` must be an array of strings."
+              | None -> Error "`@gql.directive` requires `locations`."
+            in
+            match (locations, repeatable) with
+            | Ok [], _ -> invalid "`@gql.directive` requires a location."
+            | Ok locations, Ok repeatable -> Some (Some {locations; repeatable})
+            | Error message, _ | _, Error message -> invalid message)
+        | _ ->
+          invalid
+            "`@gql.directive` requires a record payload, for example \
+             `@gql.directive({locations: [\"FIELD_DEFINITION\"]})`.")
+
+let defaultValueFromAttributes ~schemaState ~(env : SharedTypes.QueryEnv.t)
+    attributes =
+  let defaults =
+    attributes
+    |> List.filter (fun ((name, _) : Parsetree.attribute) ->
+        name.txt = "gql.default")
+  in
+  match defaults with
+  | [] -> None
+  | (name, payload) :: rest -> (
+    if rest <> [] then
+      addDirectiveDiagnostic ~schemaState ~env ~loc:name.loc
+        "Only one `@gql.default` annotation is allowed.";
+    match payloadExpressions payload with
+    | [expression] -> (
+      match constValueFromExpression expression with
+      | Ok value -> Some value
+      | Error message ->
+        addDirectiveDiagnostic ~schemaState ~env ~loc:name.loc message;
+        None)
+    | _ ->
+      addDirectiveDiagnostic ~schemaState ~env ~loc:name.loc
+        "`@gql.default` requires exactly one GraphQL constant value.";
+      None)
+
+let specifiedByUrlFromAttributes ~schemaState ~(env : SharedTypes.QueryEnv.t)
+    attributes =
+  attributes
+  |> List.find_map (fun ((name, payload) : Parsetree.attribute) ->
+      if name.txt <> "specifiedBy" then None
+      else
+        match payloadExpressions payload with
+        | [{pexp_desc = Pexp_constant (Pconst_string (url, _))}] -> Some url
+        | _ ->
+          addDirectiveDiagnostic ~schemaState ~env ~loc:name.loc
+            "`@specifiedBy` requires a string URL.";
+          None)
+
+let directiveApplicationsFromAttributes ~schemaState
+    ~(env : SharedTypes.QueryEnv.t) attributes =
+  let parseArgumentFields fields =
+    fields
+    |> List.fold_left
+         (fun result (field : Parsetree.expression Parsetree.record_element) ->
+           match (result, constValueFromExpression field.x) with
+           | Ok arguments, Ok value ->
+             Ok ((Longident.last field.lid.txt, value) :: arguments)
+           | Error message, _ | _, Error message -> Error message)
+         (Ok [])
+    |> Result.map List.rev
+  in
+  let parseArguments = function
+    | None -> Ok []
+    | Some {Parsetree.pexp_desc = Pexp_record (fields, None)} ->
+      parseArgumentFields fields
+    | Some _ -> Error "`args` must be a record of GraphQL constant values."
+  in
+  attributes
+  |> List.filter_map (fun ((attributeName, payload) : Parsetree.attribute) ->
+      if attributeName.txt <> "gql.annotate" then None
+      else
+        let invalid message =
+          addDirectiveDiagnostic ~schemaState ~env ~loc:attributeName.loc
+            message;
+          None
+        in
+        match payloadExpressions payload with
+        | [{pexp_desc = Pexp_constant (Pconst_string (name, _))}] ->
+          Some
+            {
+              name;
+              arguments = [];
+              loc = attributeName.loc;
+              fileUri = env.file.uri;
+            }
+        | [{pexp_desc = Pexp_record (fields, None)}] -> (
+          let fields =
+            fields
+            |> List.map
+                 (fun (field : Parsetree.expression Parsetree.record_element) ->
+                   (Longident.last field.lid.txt, field.x))
+          in
+          let unknownFields =
+            fields
+            |> List.filter_map (fun (name, _) ->
+                if name = "name" || name = "args" then None else Some name)
+          in
+          if unknownFields <> [] then
+            invalid
+              (Printf.sprintf
+                 "Unknown `@gql.annotate` configuration field%s: %s."
+                 (if List.length unknownFields = 1 then "" else "s")
+                 (String.concat ", " unknownFields))
+          else
+            match
+              (List.assoc_opt "name" fields, List.assoc_opt "args" fields)
+            with
+            | ( Some {pexp_desc = Pexp_constant (Pconst_string (name, _))},
+                arguments ) -> (
+              match parseArguments arguments with
+              | Ok arguments ->
+                Some
+                  {
+                    name;
+                    arguments;
+                    loc = attributeName.loc;
+                    fileUri = env.file.uri;
+                  }
+              | Error message -> invalid message)
+            | _ -> invalid "`@gql.annotate` requires a string `name` field.")
+        | [
+         {pexp_desc = Pexp_constant (Pconst_string (name, _))};
+         {pexp_desc = Pexp_record (fields, None)};
+        ] -> (
+          parseArgumentFields fields |> function
+          | Ok arguments ->
+            Some
+              {
+                name;
+                arguments;
+                loc = attributeName.loc;
+                fileUri = env.file.uri;
+              }
+          | Error message -> invalid message)
+        | _ ->
+          invalid
+            "`@gql.annotate` expects `{name: \"directive\"}` with an optional \
+             `args` record of GraphQL constant values.")
+
+let registerDirectiveApplications ~target ~attributes ~schemaState ~env =
+  let applications =
+    directiveApplicationsFromAttributes ~schemaState ~env attributes
+  in
+  match applications with
+  | [] -> ()
+  | applications ->
+    let existing =
+      Hashtbl.find_opt schemaState.appliedDirectives target
+      |> Option.value ~default:[]
+    in
+    let applications =
+      applications
+      |> List.filter (fun (application : gqlDirectiveApplication) ->
+          existing
+          |> List.exists (fun (existingApplication : gqlDirectiveApplication) ->
+              existingApplication.loc = application.loc)
+          |> not)
+    in
+    Hashtbl.replace schemaState.appliedDirectives target
+      (existing @ applications)
+
+let directivesForTarget (schemaState : schemaState) target =
+  Hashtbl.find_opt schemaState.appliedDirectives target
+  |> Option.value ~default:[]
 
 let extractGqlImplementsAttributes
     ~(schemaState : GenerateSchemaTypes.schemaState)
@@ -465,8 +789,8 @@ let addInputUnion id ~(makeInputUnion : unit -> gqlInputUnionType) ~debug
     if debug then Printf.printf "Adding input union %s\n" id;
     Hashtbl.replace schemaState.inputUnions id (makeInputUnion ()))
 
-let addScalar ~debug ~schemaState ?description ~typeLocation ?encoderDecoderLoc
-    id =
+let addScalar ~debug ~schemaState ?description ?specifiedByUrl ~typeLocation
+    ?encoderDecoderLoc id =
   if Hashtbl.mem schemaState.scalars id then ()
   else (
     if debug then Printf.printf "Adding scalar %s\n" id;
@@ -476,7 +800,7 @@ let addScalar ~debug ~schemaState ?description ~typeLocation ?encoderDecoderLoc
         displayName = capitalizeFirstChar id;
         description;
         typeLocation;
-        specifiedByUrl = None;
+        specifiedByUrl;
         encoderDecoderLoc;
       })
 
@@ -540,7 +864,34 @@ let undefinedOrValueAsString ?(escape = false) v =
   | None -> "?(None)"
   | Some v -> Printf.sprintf "\"%s\"" (if escape then Json.escape v else v)
 
-let descriptionAsString v = undefinedOrValueAsString ~escape:true v
+let escapeDescriptionForRescript value =
+  let escaped = Json.escape value in
+  let length = String.length escaped in
+  let buffer = Buffer.create (length + 16) in
+  let rec append index =
+    if index >= length then ()
+    else if
+      index + 5 < length
+      && escaped.[index] = '\\'
+      && escaped.[index + 1] = '"'
+      && escaped.[index + 2] = '\\'
+      && escaped.[index + 3] = '"'
+      && escaped.[index + 4] = '\\'
+      && escaped.[index + 5] = '"'
+    then (
+      Buffer.add_string buffer "\\u0022\\u0022\\u0022";
+      append (index + 6))
+    else (
+      Buffer.add_char buffer escaped.[index];
+      append (index + 1))
+  in
+  append 0;
+  Buffer.contents buffer
+
+let descriptionAsString = function
+  | None -> "?(None)"
+  | Some description ->
+    Printf.sprintf "\"%s\"" (escapeDescriptionForRescript description)
 
 let trimString str =
   let isSpace = function
@@ -1311,7 +1662,7 @@ type persistedLegacySchemaState = {
 }
 
 let stateFileMagic = "RESGRAPH_STATE\000"
-let stateFileVersion = 1
+let stateFileVersion = 2
 
 let validStateName schemaName =
   Str.string_match (Str.regexp "^[A-Za-z0-9_-]+$") schemaName 0

@@ -12,7 +12,43 @@ module GraphQLLiteralValue = {
     | Array(array<t>)
 }
 
+type directiveArguments = Dict.t<GraphQLLiteralValue.t>
+type directiveMap = Dict.t<array<directiveArguments>>
+type directiveArgumentThunk = unit => GraphQLLiteralValue.t
+
+let makeLazyDirectiveArguments: Dict.t<directiveArgumentThunk> => directiveArguments = %raw(`
+  function makeLazyDirectiveArguments(thunks) {
+    const result = {};
+    Object.entries(thunks).forEach(([name, thunk]) => {
+      Object.defineProperty(result, name, {
+        configurable: true,
+        enumerable: true,
+        get() {
+          const value = thunk();
+          Object.defineProperty(result, name, {enumerable: true, value});
+          return value;
+        },
+      });
+    });
+    return result;
+  }
+`)
+
+type appliedDirective = {name: string, args: directiveArguments}
+type resgraphDirectiveExtensions = {appliedDirectives: array<appliedDirective>}
+type directiveExtensions = {
+  directives?: directiveMap,
+  resgraph?: resgraphDirectiveExtensions,
+  oneOf?: bool,
+}
+
 type graphqlType
+
+module GraphQLInput = {
+  @module("graphql")
+  external coerceValue: (GraphQLLiteralValue.t, graphqlType) => GraphQLLiteralValue.t =
+    "coerceInputValue"
+}
 
 @module("graphql") @new external nonNull: graphqlType => graphqlType = "GraphQLNonNull"
 
@@ -40,7 +76,13 @@ module Scalars = {
   @module("graphql") @val external boolean: t = "GraphQLBoolean"
 }
 
-type arg = {@as("type") typ: graphqlType}
+type arg = {
+  @as("type") typ: graphqlType,
+  defaultValue?: GraphQLLiteralValue.t,
+  description?: string,
+  deprecationReason?: string,
+  extensions?: directiveExtensions,
+}
 
 type resolveFn
 
@@ -53,6 +95,7 @@ external makeFields: {..} => fields = "%identity"
 type args
 
 external makeArgs: {..} => args = "%identity"
+external makeArgsDict: Dict.t<arg> => args = "%identity"
 
 type typeField = {
   @as("type") typ: graphqlType,
@@ -61,6 +104,22 @@ type typeField = {
   description?: string,
   deprecationReason?: string,
   subscribe?: resolveFn,
+  extensions?: directiveExtensions,
+}
+
+module GraphQLDirective = {
+  type t
+
+  type config = {
+    name: string,
+    description?: string,
+    locations: array<string>,
+    args?: args,
+    isRepeatable?: bool,
+  }
+
+  @module("graphql") @new external make: config => t = "GraphQLDirective"
+  @module("graphql") @val external specifiedDirectives: array<t> = "specifiedDirectives"
 }
 
 module GraphQLInterfaceType = {
@@ -79,6 +138,7 @@ module GraphQLInterfaceType = {
     fields: unit => fields,
     resolveType: resolveInterfaceTypeFn,
     interfaces?: array<t>,
+    extensions?: directiveExtensions,
   }
   @module("graphql") @new external make: config => t = "GraphQLInterfaceType"
 }
@@ -93,6 +153,8 @@ module GraphQLScalar = {
     description?: string,
     parseValue?: GraphQLLiteralValue.t => option<'t>,
     serialize?: 't => GraphQLLiteralValue.t,
+    specifiedByURL?: string,
+    extensions?: directiveExtensions,
   }
   @module("graphql") @new external make: config<_> => t = "GraphQLScalarType"
 }
@@ -108,6 +170,7 @@ module GraphQLObjectType = {
     description?: string,
     fields: unit => fields,
     interfaces?: array<GraphQLInterfaceType.t>,
+    extensions?: directiveExtensions,
   }
   @module("graphql") @new external make: config => t = "GraphQLObjectType"
 }
@@ -121,16 +184,15 @@ module GraphQLInputObjectType = {
     @as("type") typ: graphqlType,
     description?: string,
     deprecationReason?: string,
+    extensions?: directiveExtensions,
   }
-
-  type extensions = {oneOf?: bool}
 
   type config = {
     name: string,
     astNode?: AstNode.t,
     description?: string,
     fields: unit => fields,
-    extensions?: extensions,
+    extensions?: directiveExtensions,
   }
   @module("graphql") @new external make: config => t = "GraphQLInputObjectType"
 }
@@ -158,6 +220,7 @@ module GraphQLUnionType = {
     types: unit => array<GraphQLObjectType.t>,
     resolveType: resolveUnionTypeFn,
     description?: string,
+    extensions?: directiveExtensions,
   }
   @module("graphql") @new external make: config => t = "GraphQLUnionType"
 }
@@ -175,6 +238,7 @@ module GraphQLEnumType = {
     value?: string,
     deprecationReason?: string,
     description?: string,
+    extensions?: directiveExtensions,
   }
 
   type config = {
@@ -182,6 +246,7 @@ module GraphQLEnumType = {
     astNode?: AstNode.t,
     values: enumValues,
     description?: string,
+    extensions?: directiveExtensions,
   }
   @module("graphql") @new external make: config => t = "GraphQLEnumType"
 }
@@ -189,8 +254,19 @@ module GraphQLEnumType = {
 module GraphQLSchemaType = {
   type t<'appContext>
 
-  @module("graphql") @new
-  external make: {..} => t<_> = "GraphQLSchema"
+  type config = {
+    query: GraphQLObjectType.t,
+    mutation?: GraphQLObjectType.t,
+    subscription?: GraphQLObjectType.t,
+    types?: array<graphqlType>,
+    directives?: array<GraphQLDirective.t>,
+    extensions?: directiveExtensions,
+  }
+
+  // Keep the legacy open-object constructor so previously generated schemas
+  // still compile during an upgrade. New codegen uses the typed constructor.
+  @module("graphql") @new external make: {..} => t<_> = "GraphQLSchema"
+  @module("graphql") @new external makeConfig: config => t<_> = "GraphQLSchema"
 
   @module("graphql") external print: t<_> => string = "printSchema"
 }

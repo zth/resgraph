@@ -106,9 +106,9 @@ t_Query.contents = GraphQLObjectType.make({
   }->makeFields
 })
 
-let schema = GraphQLSchemaType.make({
-  "query": get_Query(),
-  "types": [
+let schema = GraphQLSchemaType.makeConfig({
+  query: get_Query(),
+  types: [
     get_Query()->GraphQLObjectType.toGraphQLType
   ]
 })

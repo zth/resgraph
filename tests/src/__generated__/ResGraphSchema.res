@@ -86,7 +86,12 @@ let applyConversionToInputObject: ('a, array<(string, inputObjectFieldConverterF
   return newObj;
 }`)
 
-let scalar_Uuid = GraphQLScalar.make({name: "Uuid", description: "Custom scalar with specifiedByUrl coverage."})
+let scalar_Uuid: ref<GraphQLScalar.t> = Obj.magic({"contents": null})
+let getScalar_Uuid = () => scalar_Uuid.contents
+let enum_DirectiveStatus: ref<GraphQLEnumType.t> = Obj.magic({"contents": null})
+let getEnum_DirectiveStatus = () => enum_DirectiveStatus.contents
+let enum_ScalarTier: ref<GraphQLEnumType.t> = Obj.magic({"contents": null})
+let getEnum_ScalarTier = () => enum_ScalarTier.contents
 
 let i_CompanyHolder: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
 let get_CompanyHolder = () => i_CompanyHolder.contents
@@ -108,6 +113,8 @@ let i_Ranked: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
 let get_Ranked = () => i_Ranked.contents
 let i_Searchable: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
 let get_Searchable = () => i_Searchable.contents
+let t_DirectiveExample: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
+let get_DirectiveExample = () => t_DirectiveExample.contents
 let t_ExplicitCompany: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_ExplicitCompany = () => t_ExplicitCompany.contents
 let t_ExplicitCompanyHolder: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
@@ -186,14 +193,22 @@ let inputUnion_UpdatableString_conversionInstructions = []
 let input_Res12InputInline: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_Res12InputInline = () => input_Res12InputInline.contents
 let input_Res12InputInline_conversionInstructions = []
+let input_DirectiveInput: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
+let get_DirectiveInput = () => input_DirectiveInput.contents
+let input_DirectiveInput_conversionInstructions = []
 let input_ReservedWordInput: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_ReservedWordInput = () => input_ReservedWordInput.contents
 let input_ReservedWordInput_conversionInstructions = []
+let input_ScalarMetadataInput: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
+let get_ScalarMetadataInput = () => input_ScalarMetadataInput.contents
+let input_ScalarMetadataInput_conversionInstructions = []
 let input_UpdateThingInput: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_UpdateThingInput = () => input_UpdateThingInput.contents
 let input_UpdateThingInput_conversionInstructions = []
 input_Res12InputInline_conversionInstructions->Array.pushMany([])
+input_DirectiveInput_conversionInstructions->Array.pushMany([])
 input_ReservedWordInput_conversionInstructions->Array.pushMany([])
+input_ScalarMetadataInput_conversionInstructions->Array.pushMany([])
 input_UpdateThingInput_conversionInstructions->Array.pushMany([
   (
     "name",
@@ -322,6 +337,25 @@ inputUnion_UpdatableString_conversionInstructions->Array.pushMany([
     makeInputObjectFieldConverterFn((v) => (v->Nullable.toOption))
   ),
 ])
+
+scalar_Uuid.contents = GraphQLScalar.make({name: "Uuid", description: "Custom scalar with specifiedByUrl coverage.", specifiedByURL: "https://example.com/specifiedBy/uuid", extensions: {directives: dict{"scalarMetadata": [makeLazyDirectiveArguments(dict{"config": () => GraphQLInput.coerceValue(GraphQLLiteralValue.Object(dict{"label": GraphQLLiteralValue.String("deferred")}), get_ScalarMetadataInput()->GraphQLInputObjectType.toGraphQLType->nonNull), "tier": () => GraphQLInput.coerceValue(GraphQLLiteralValue.String("Premium"), getEnum_ScalarTier()->GraphQLEnumType.toGraphQLType->nonNull)})], "tag": [makeLazyDirectiveArguments(dict{"name": () => GraphQLInput.coerceValue(GraphQLLiteralValue.String("scalar"), Scalars.string->Scalars.toGraphQLType->nonNull)})]}, resgraph: {appliedDirectives: [{name: "scalarMetadata", args: makeLazyDirectiveArguments(dict{"config": () => GraphQLInput.coerceValue(GraphQLLiteralValue.Object(dict{"label": GraphQLLiteralValue.String("deferred")}), get_ScalarMetadataInput()->GraphQLInputObjectType.toGraphQLType->nonNull), "tier": () => GraphQLInput.coerceValue(GraphQLLiteralValue.String("Premium"), getEnum_ScalarTier()->GraphQLEnumType.toGraphQLType->nonNull)})}, {name: "tag", args: makeLazyDirectiveArguments(dict{"name": () => GraphQLInput.coerceValue(GraphQLLiteralValue.String("scalar"), Scalars.string->Scalars.toGraphQLType->nonNull)})}]}}})
+
+enum_DirectiveStatus.contents = GraphQLEnumType.make({
+  name: "DirectiveStatus",
+  description: ?(None),
+  extensions: {directives: dict{"tag": [makeLazyDirectiveArguments(dict{"name": () => GraphQLInput.coerceValue(GraphQLLiteralValue.String("enum"), Scalars.string->Scalars.toGraphQLType->nonNull)})]}, resgraph: {appliedDirectives: [{name: "tag", args: makeLazyDirectiveArguments(dict{"name": () => GraphQLInput.coerceValue(GraphQLLiteralValue.String("enum"), Scalars.string->Scalars.toGraphQLType->nonNull)})}]}},
+  values: {
+    "Active": {GraphQLEnumType.value: "Active", description: ?(None), deprecationReason: ?(None), extensions: {directives: dict{"tag": [makeLazyDirectiveArguments(dict{"name": () => GraphQLInput.coerceValue(GraphQLLiteralValue.String("enum-value"), Scalars.string->Scalars.toGraphQLType->nonNull)})]}, resgraph: {appliedDirectives: [{name: "tag", args: makeLazyDirectiveArguments(dict{"name": () => GraphQLInput.coerceValue(GraphQLLiteralValue.String("enum-value"), Scalars.string->Scalars.toGraphQLType->nonNull)})}]}}},
+  }->makeEnumValues,
+})
+
+enum_ScalarTier.contents = GraphQLEnumType.make({
+  name: "ScalarTier",
+  description: ?(None),
+  values: {
+    "Premium": {GraphQLEnumType.value: "Premium", description: ?(None), deprecationReason: ?(None)},
+  }->makeEnumValues,
+})
 
 let interface_CompanyHolder_resolveType = (v: Interface_companyHolder.Resolver.t) => resolveInterfaceTypename(v, ["ExplicitCompanyHolder"], "CompanyHolder", "Interface_companyHolder.Resolver.t")
 
@@ -489,12 +523,33 @@ i_Searchable.contents = GraphQLInterfaceType.make({
       typ: Scalars.string->Scalars.toGraphQLType->nonNull,
       description: ?(None),
       deprecationReason: ?(None),
-      args: {
-        "prefix": {typ: Scalars.string->Scalars.toGraphQLType}
-      }->makeArgs,
+      args: dict{
+        "prefix": ({typ: Scalars.string->Scalars.toGraphQLType}: arg)
+      }->makeArgsDict,
     }
   }->makeFields,
   resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Searchable_resolveType)
+})
+t_DirectiveExample.contents = GraphQLObjectType.make({
+  name: "DirectiveExample",
+  description: ?(None),
+  interfaces: [],
+  extensions: {directives: dict{"identifies": [makeLazyDirectiveArguments(dict{"value": () => GraphQLInput.coerceValue(GraphQLLiteralValue.Number(456.), Scalars.id->Scalars.toGraphQLType->nonNull)})], "tag": [makeLazyDirectiveArguments(dict{"name": () => GraphQLInput.coerceValue(GraphQLLiteralValue.String("first"), Scalars.string->Scalars.toGraphQLType->nonNull)}), makeLazyDirectiveArguments(dict{"name": () => GraphQLInput.coerceValue(GraphQLLiteralValue.String("second"), Scalars.string->Scalars.toGraphQLType->nonNull)})], "cacheControl": [makeLazyDirectiveArguments(dict{"maxAge": () => GraphQLInput.coerceValue(GraphQLLiteralValue.Number(30.), Scalars.int->Scalars.toGraphQLType->nonNull)})]}, resgraph: {appliedDirectives: [{name: "identifies", args: makeLazyDirectiveArguments(dict{"value": () => GraphQLInput.coerceValue(GraphQLLiteralValue.Number(456.), Scalars.id->Scalars.toGraphQLType->nonNull)})}, {name: "tag", args: makeLazyDirectiveArguments(dict{"name": () => GraphQLInput.coerceValue(GraphQLLiteralValue.String("first"), Scalars.string->Scalars.toGraphQLType->nonNull)})}, {name: "cacheControl", args: makeLazyDirectiveArguments(dict{"maxAge": () => GraphQLInput.coerceValue(GraphQLLiteralValue.Number(30.), Scalars.int->Scalars.toGraphQLType->nonNull)})}, {name: "tag", args: makeLazyDirectiveArguments(dict{"name": () => GraphQLInput.coerceValue(GraphQLLiteralValue.String("second"), Scalars.string->Scalars.toGraphQLType->nonNull)})}]}},
+  fields: () => {
+    "status": {
+      typ: getEnum_DirectiveStatus()->GraphQLEnumType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["status"]})
+    },
+    "value": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      extensions: {directives: dict{"cacheControl": [makeLazyDirectiveArguments(dict{"maxAge": () => GraphQLInput.coerceValue(GraphQLLiteralValue.Number(10.), Scalars.int->Scalars.toGraphQLType->nonNull), "scope": () => GraphQLInput.coerceValue(GraphQLLiteralValue.String("private"), Scalars.string->Scalars.toGraphQLType)})], "tag": [makeLazyDirectiveArguments(dict{"name": () => GraphQLInput.coerceValue(GraphQLLiteralValue.String("field"), Scalars.string->Scalars.toGraphQLType->nonNull)})]}, resgraph: {appliedDirectives: [{name: "cacheControl", args: makeLazyDirectiveArguments(dict{"maxAge": () => GraphQLInput.coerceValue(GraphQLLiteralValue.Number(10.), Scalars.int->Scalars.toGraphQLType->nonNull), "scope": () => GraphQLInput.coerceValue(GraphQLLiteralValue.String("private"), Scalars.string->Scalars.toGraphQLType)})}, {name: "tag", args: makeLazyDirectiveArguments(dict{"name": () => GraphQLInput.coerceValue(GraphQLLiteralValue.String("field"), Scalars.string->Scalars.toGraphQLType->nonNull)})}]}},
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["value"]})
+    }
+  }->makeFields
 })
 t_ExplicitCompany.contents = GraphQLObjectType.make({
   name: "ExplicitCompany",
@@ -599,9 +654,9 @@ t_ExplicitSearchResult.contents = GraphQLObjectType.make({
       typ: Scalars.string->Scalars.toGraphQLType->nonNull,
       description: ?(None),
       deprecationReason: ?(None),
-      args: {
-        "prefix": {typ: Scalars.string->Scalars.toGraphQLType}
-      }->makeArgs,
+      args: dict{
+        "prefix": ({typ: Scalars.string->Scalars.toGraphQLType}: arg)
+      }->makeArgsDict,
       resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppExplicitInterfaceImplements.label(src, ~prefix=?((args["prefix"]->Nullable.toOption)))})
     }
   }->makeFields
@@ -685,10 +740,10 @@ t_Mutation.contents = GraphQLObjectType.make({
       typ: get_Thing()->GraphQLObjectType.toGraphQLType,
       description: ?(None),
       deprecationReason: ?(None),
-      args: {
-        "input": {typ: get_UpdateThingInput()->GraphQLInputObjectType.toGraphQLType->nonNull},
-        "thingId": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}
-      }->makeArgs,
+      args: dict{
+        "input": ({typ: get_UpdateThingInput()->GraphQLInputObjectType.toGraphQLType->nonNull}: arg),
+        "thingId": ({typ: Scalars.id->Scalars.toGraphQLType->nonNull}: arg)
+      }->makeArgsDict,
       resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); Thing.updateThing(src, ~input=args["input"]->applyConversionToInputObject(input_UpdateThingInput_conversionInstructions), ~thingId=args["thingId"])})
     }
   }->makeFields
@@ -759,6 +814,15 @@ t_Query.contents = GraphQLObjectType.make({
       description: ?(None),
       deprecationReason: ?(None),
       resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppInterfaceReturnRegression.brokenLabelledWrapper(src)})
+    },
+    "directiveExample": {
+      typ: get_DirectiveExample()->GraphQLObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      args: dict{
+        "input": ({typ: get_DirectiveInput()->GraphQLInputObjectType.toGraphQLType->nonNull}: arg)
+      }->makeArgsDict,
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppDirectives.directiveExample(src, ~input=args["input"]->applyConversionToInputObject(input_DirectiveInput_conversionInstructions))})
     },
     "explicitCompany": {
       typ: get_ExplicitCompany()->GraphQLObjectType.toGraphQLType->nonNull,
@@ -842,46 +906,46 @@ t_Query.contents = GraphQLObjectType.make({
       typ: get_Node()->GraphQLInterfaceType.toGraphQLType,
       description: "Fetches an object given its ID.",
       deprecationReason: ?(None),
-      args: {
-        "id": {typ: Scalars.id->Scalars.toGraphQLType->nonNull}
-      }->makeArgs,
+      args: dict{
+        "id": ({typ: Scalars.id->Scalars.toGraphQLType->nonNull}: arg)
+      }->makeArgsDict,
       resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); NodeInterfaceResolver.node(src, ~ctx=ctx, ~id=args["id"])})
     },
     "nodes": {
       typ: GraphQLListType.make(get_Node()->GraphQLInterfaceType.toGraphQLType)->GraphQLListType.toGraphQLType->nonNull,
       description: "Fetches objects given their IDs.",
       deprecationReason: ?(None),
-      args: {
-        "ids": {typ: GraphQLListType.make(Scalars.id->Scalars.toGraphQLType->nonNull)->GraphQLListType.toGraphQLType->nonNull}
-      }->makeArgs,
+      args: dict{
+        "ids": ({typ: GraphQLListType.make(Scalars.id->Scalars.toGraphQLType->nonNull)->GraphQLListType.toGraphQLType->nonNull}: arg)
+      }->makeArgsDict,
       resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); NodeInterfaceResolver.nodes(src, ~ctx=ctx, ~ids=args["ids"])})
     },
     "nullableInterop": {
       typ: get_NullableInterop()->GraphQLObjectType.toGraphQLType->nonNull,
       description: ?(None),
       deprecationReason: ?(None),
-      args: {
-        "nullCount": {typ: Scalars.int->Scalars.toGraphQLType},
-        "nullableName": {typ: Scalars.string->Scalars.toGraphQLType}
-      }->makeArgs,
+      args: dict{
+        "nullCount": ({typ: Scalars.int->Scalars.toGraphQLType}: arg),
+        "nullableName": ({typ: Scalars.string->Scalars.toGraphQLType}: arg)
+      }->makeArgsDict,
       resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppNullableInterop.nullableInterop(src, ~nullCount=args["nullCount"], ~nullableName=args["nullableName"])})
     },
     "reservedWordArgumentEcho": {
       typ: Scalars.string->Scalars.toGraphQLType->nonNull,
       description: ?(None),
       deprecationReason: ?(None),
-      args: {
-        "constraint": {typ: Scalars.string->Scalars.toGraphQLType->nonNull}
-      }->makeArgs,
+      args: dict{
+        "constraint": ({typ: Scalars.string->Scalars.toGraphQLType->nonNull}: arg)
+      }->makeArgsDict,
       resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppReScript12.reservedWordArgumentEcho(src, ~\"constraint"=args["constraint"])})
     },
     "reservedWordInputEcho": {
       typ: Scalars.string->Scalars.toGraphQLType->nonNull,
       description: ?(None),
       deprecationReason: ?(None),
-      args: {
-        "input": {typ: get_ReservedWordInput()->GraphQLInputObjectType.toGraphQLType->nonNull}
-      }->makeArgs,
+      args: dict{
+        "input": ({typ: get_ReservedWordInput()->GraphQLInputObjectType.toGraphQLType->nonNull}: arg)
+      }->makeArgsDict,
       resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppReScript12.reservedWordInputEcho(src, ~input=args["input"]->applyConversionToInputObject(input_ReservedWordInput_conversionInstructions))})
     },
     "reservedWordRecord": {
@@ -894,10 +958,10 @@ t_Query.contents = GraphQLObjectType.make({
       typ: get_UserConnection()->GraphQLObjectType.toGraphQLType->nonNull,
       description: ?(None),
       deprecationReason: ?(None),
-      args: {
-        "after": {typ: Scalars.string->Scalars.toGraphQLType},
-        "first": {typ: Scalars.int->Scalars.toGraphQLType}
-      }->makeArgs,
+      args: dict{
+        "after": ({typ: Scalars.string->Scalars.toGraphQLType}: arg),
+        "first": ({typ: Scalars.int->Scalars.toGraphQLType}: arg)
+      }->makeArgsDict,
       resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppConnections.userConnection(src, ~after=?((args["after"]->Nullable.toOption)), ~first=?((args["first"]->Nullable.toOption)))})
     },
     "userDefinedNullable": {
@@ -988,7 +1052,7 @@ t_ScalarHolder.contents = GraphQLObjectType.make({
   interfaces: [],
   fields: () => {
     "id": {
-      typ: scalar_Uuid->GraphQLScalar.toGraphQLType->nonNull,
+      typ: getScalar_Uuid()->GraphQLScalar.toGraphQLType->nonNull,
       description: ?(None),
       deprecationReason: ?(None),
       resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["id"]})
@@ -1179,9 +1243,22 @@ input_Res12InputInline.contents = GraphQLInputObjectType.make({
     "payload": {
       GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
       description: "Field doc on inline record.",
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     }
   }->makeFields
+})
+input_DirectiveInput.contents = GraphQLInputObjectType.make({
+  name: "DirectiveInput",
+  description: ?(None),
+  fields: () => {
+    "value": {
+      GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      extensions: {directives: dict{"tag": [makeLazyDirectiveArguments(dict{"name": () => GraphQLInput.coerceValue(GraphQLLiteralValue.String("input-field"), Scalars.string->Scalars.toGraphQLType->nonNull)})]}, resgraph: {appliedDirectives: [{name: "tag", args: makeLazyDirectiveArguments(dict{"name": () => GraphQLInput.coerceValue(GraphQLLiteralValue.String("input-field"), Scalars.string->Scalars.toGraphQLType->nonNull)})}]}}
+    }
+  }->makeFields,
+  extensions: {directives: dict{"tag": [makeLazyDirectiveArguments(dict{"name": () => GraphQLInput.coerceValue(GraphQLLiteralValue.String("input"), Scalars.string->Scalars.toGraphQLType->nonNull)})]}, resgraph: {appliedDirectives: [{name: "tag", args: makeLazyDirectiveArguments(dict{"name": () => GraphQLInput.coerceValue(GraphQLLiteralValue.String("input"), Scalars.string->Scalars.toGraphQLType->nonNull)})}]}}
 })
 input_ReservedWordInput.contents = GraphQLInputObjectType.make({
   name: "ReservedWordInput",
@@ -1190,12 +1267,23 @@ input_ReservedWordInput.contents = GraphQLInputObjectType.make({
     "constraint": {
       GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     },
     "type": {
       GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
+    }
+  }->makeFields
+})
+input_ScalarMetadataInput.contents = GraphQLInputObjectType.make({
+  name: "ScalarMetadataInput",
+  description: ?(None),
+  fields: () => {
+    "label": {
+      GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
     }
   }->makeFields
 })
@@ -1206,27 +1294,27 @@ input_UpdateThingInput.contents = GraphQLInputObjectType.make({
     "age": {
       GraphQLInputObjectType.typ: get_UpdatableInt()->GraphQLInputObjectType.toGraphQLType->nonNull,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     },
     "favoriteColor": {
       GraphQLInputObjectType.typ: get_UpdatableNullableString()->GraphQLInputObjectType.toGraphQLType->nonNull,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     },
     "height": {
       GraphQLInputObjectType.typ: get_UpdatableNullableFloat()->GraphQLInputObjectType.toGraphQLType->nonNull,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     },
     "isAdmin": {
       GraphQLInputObjectType.typ: get_UpdatableNullableBool()->GraphQLInputObjectType.toGraphQLType->nonNull,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     },
     "name": {
       GraphQLInputObjectType.typ: get_UpdatableString()->GraphQLInputObjectType.toGraphQLType->nonNull,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     }
   }->makeFields
 })
@@ -1237,12 +1325,12 @@ inputUnion_Res12Input.contents = GraphQLInputObjectType.make({
     "empty": {
       GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     },
     "inline": {
       GraphQLInputObjectType.typ: get_Res12InputInline()->GraphQLInputObjectType.toGraphQLType,
       description: " Inline record doc is preserved. ",
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     }
   }->makeFields,
   extensions: {oneOf: true}
@@ -1254,12 +1342,12 @@ inputUnion_UpdatableBool.contents = GraphQLInputObjectType.make({
     "leaveUnchanged": {
       GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     },
     "updateValue": {
       GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     }
   }->makeFields,
   extensions: {oneOf: true}
@@ -1271,12 +1359,12 @@ inputUnion_UpdatableFloat.contents = GraphQLInputObjectType.make({
     "leaveUnchanged": {
       GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     },
     "updateValue": {
       GraphQLInputObjectType.typ: Scalars.float->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     }
   }->makeFields,
   extensions: {oneOf: true}
@@ -1288,12 +1376,12 @@ inputUnion_UpdatableInt.contents = GraphQLInputObjectType.make({
     "leaveUnchanged": {
       GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     },
     "updateValue": {
       GraphQLInputObjectType.typ: Scalars.int->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     }
   }->makeFields,
   extensions: {oneOf: true}
@@ -1305,17 +1393,17 @@ inputUnion_UpdatableNullableBool.contents = GraphQLInputObjectType.make({
     "leaveUnchanged": {
       GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     },
     "unsetValue": {
       GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     },
     "updateValue": {
       GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     }
   }->makeFields,
   extensions: {oneOf: true}
@@ -1327,17 +1415,17 @@ inputUnion_UpdatableNullableFloat.contents = GraphQLInputObjectType.make({
     "leaveUnchanged": {
       GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     },
     "unsetValue": {
       GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     },
     "updateValue": {
       GraphQLInputObjectType.typ: Scalars.float->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     }
   }->makeFields,
   extensions: {oneOf: true}
@@ -1349,17 +1437,17 @@ inputUnion_UpdatableNullableInt.contents = GraphQLInputObjectType.make({
     "leaveUnchanged": {
       GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     },
     "unsetValue": {
       GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     },
     "updateValue": {
       GraphQLInputObjectType.typ: Scalars.int->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     }
   }->makeFields,
   extensions: {oneOf: true}
@@ -1371,17 +1459,17 @@ inputUnion_UpdatableNullableString.contents = GraphQLInputObjectType.make({
     "leaveUnchanged": {
       GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     },
     "unsetValue": {
       GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     },
     "updateValue": {
       GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     }
   }->makeFields,
   extensions: {oneOf: true}
@@ -1393,22 +1481,94 @@ inputUnion_UpdatableString.contents = GraphQLInputObjectType.make({
     "leaveUnchanged": {
       GraphQLInputObjectType.typ: Scalars.boolean->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     },
     "updateValue": {
       GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType,
       description: ?(None),
-      deprecationReason: ?(None)
+      deprecationReason: ?(None),
     }
   }->makeFields,
   extensions: {oneOf: true}
 })
 
-let schema = GraphQLSchemaType.make({
-  "query": get_Query(),
-  "mutation": get_Mutation(),
-  "subscription": get_Subscription(),
-  "types": [
+let directive_cacheControl = GraphQLDirective.make({
+  name: "cacheControl",
+  description: "Caching metadata consumed by a \u0022\u0022\u0022schema transform\u0022\u0022\u0022.",
+  locations: ["OBJECT", "FIELD_DEFINITION"],
+  args: dict{
+    "maxAge": ({
+      typ: Scalars.int->Scalars.toGraphQLType->nonNull,
+      defaultValue: GraphQLInput.coerceValue(GraphQLLiteralValue.Number(60.), Scalars.int->Scalars.toGraphQLType->nonNull),
+      description: "Maximum cache lifetime in seconds.",
+      deprecationReason: ?(None),
+    }: arg),
+    "scope": ({
+      typ: Scalars.string->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: ?(None),
+    }: arg),
+    "legacyScope": ({
+      typ: Scalars.string->Scalars.toGraphQLType,
+      description: ?(None),
+      deprecationReason: "Use \"scope\" instead.",
+    }: arg)
+  }->makeArgsDict,
+  isRepeatable: false
+})
+let directive_identifies = GraphQLDirective.make({
+  name: "identifies",
+  description: ?(None),
+  locations: ["OBJECT"],
+  args: dict{
+    "value": ({
+      typ: Scalars.id->Scalars.toGraphQLType->nonNull,
+      defaultValue: GraphQLInput.coerceValue(GraphQLLiteralValue.Number(123.), Scalars.id->Scalars.toGraphQLType->nonNull),
+      description: ?(None),
+      deprecationReason: ?(None),
+    }: arg)
+  }->makeArgsDict,
+  isRepeatable: false
+})
+let directive_scalarMetadata = GraphQLDirective.make({
+  name: "scalarMetadata",
+  description: ?(None),
+  locations: ["SCALAR"],
+  args: dict{
+    "config": ({
+      typ: get_ScalarMetadataInput()->GraphQLInputObjectType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+    }: arg),
+    "tier": ({
+      typ: getEnum_ScalarTier()->GraphQLEnumType.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+    }: arg)
+  }->makeArgsDict,
+  isRepeatable: false
+})
+let directive_tag = GraphQLDirective.make({
+  name: "tag",
+  description: "Repeatable labels for schema elements.",
+  locations: ["SCALAR", "OBJECT", "FIELD_DEFINITION", "ENUM", "ENUM_VALUE", "INPUT_OBJECT", "INPUT_FIELD_DEFINITION"],
+  args: dict{
+    "name": ({
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+    }: arg)
+  }->makeArgsDict,
+  isRepeatable: true
+})
+
+let schema = GraphQLSchemaType.makeConfig({
+  query: get_Query(),
+  mutation: get_Mutation(),
+  subscription: get_Subscription(),
+  directives: [...GraphQLDirective.specifiedDirectives, directive_cacheControl, directive_identifies, directive_scalarMetadata, directive_tag],
+  types: [
+    get_DirectiveExample()->GraphQLObjectType.toGraphQLType,
     get_ExplicitCompany()->GraphQLObjectType.toGraphQLType,
     get_ExplicitCompanyHolder()->GraphQLObjectType.toGraphQLType,
     get_ExplicitContextOverrideResult()->GraphQLObjectType.toGraphQLType,
@@ -1453,7 +1613,11 @@ let schema = GraphQLSchemaType.make({
     get_UpdatableNullableString()->GraphQLInputObjectType.toGraphQLType,
     get_UpdatableString()->GraphQLInputObjectType.toGraphQLType,
     get_Res12InputInline()->GraphQLInputObjectType.toGraphQLType,
+    get_DirectiveInput()->GraphQLInputObjectType.toGraphQLType,
     get_ReservedWordInput()->GraphQLInputObjectType.toGraphQLType,
-    get_UpdateThingInput()->GraphQLInputObjectType.toGraphQLType
+    get_ScalarMetadataInput()->GraphQLInputObjectType.toGraphQLType,
+    get_UpdateThingInput()->GraphQLInputObjectType.toGraphQLType,
+    getEnum_DirectiveStatus()->GraphQLEnumType.toGraphQLType,
+    getEnum_ScalarTier()->GraphQLEnumType.toGraphQLType
   ]
 })

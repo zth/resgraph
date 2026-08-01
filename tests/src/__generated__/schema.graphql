@@ -1,5 +1,38 @@
+"""Caching metadata consumed by a \"""schema transform\"""."""
+directive @cacheControl(
+
+  """Maximum cache lifetime in seconds."""
+  maxAge: Int! = 60
+  scope: String
+  legacyScope: String @deprecated(reason: "Use \"scope\" instead.")
+) on OBJECT | FIELD_DEFINITION
+
+directive @identifies(
+  value: ID! = 123
+) on OBJECT
+
+directive @scalarMetadata(
+  config: ScalarMetadataInput!
+  tier: ScalarTier!
+) on SCALAR
+
+
+"""Repeatable labels for schema elements."""
+directive @tag(
+  name: String!
+) repeatable on SCALAR | OBJECT | FIELD_DEFINITION | ENUM | ENUM_VALUE | INPUT_OBJECT | INPUT_FIELD_DEFINITION
+
+
 """Custom scalar with specifiedByUrl coverage."""
-scalar Uuid
+scalar Uuid @specifiedBy(url: "https://example.com/specifiedBy/uuid") @scalarMetadata(config: {label: "deferred"}, tier: Premium) @tag(name: "scalar")
+
+enum DirectiveStatus @tag(name: "enum") {
+  Active @tag(name: "enum-value")
+}
+
+enum ScalarTier {
+  Premium
+}
 
 input Res12InputInline {
 
@@ -7,9 +40,17 @@ input Res12InputInline {
   payload: String!
 }
 
+input DirectiveInput @tag(name: "input") {
+  value: String! @tag(name: "input-field")
+}
+
 input ReservedWordInput {
   constraint: String!
   type: String!
+}
+
+input ScalarMetadataInput {
+  label: String!
 }
 
 input UpdateThingInput {
@@ -119,6 +160,11 @@ interface Searchable {
   id: String!
 }
 
+type DirectiveExample @identifies(value: 456) @tag(name: "first") @cacheControl(maxAge: 30) @tag(name: "second") {
+  value: String! @cacheControl(maxAge: 10, scope: "private") @tag(name: "field")
+  status: DirectiveStatus!
+}
+
 type ExplicitCompany implements NamedEntity & Named & NullableNamed & Ranked {
   name: String!
   entityKind: String!
@@ -216,6 +262,7 @@ type Query {
   explicitSearchResult: ExplicitSearchResult!
   explicitCompanyHolder: ExplicitCompanyHolder!
   explicitCompany: ExplicitCompany!
+  directiveExample(input: DirectiveInput!): DirectiveExample!
   getScalarHolder: ScalarHolder!
   nestedConnection: StringConnection!
   userConnection(first: Int, after: String): UserConnection!

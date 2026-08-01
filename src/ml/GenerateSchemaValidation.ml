@@ -18,12 +18,43 @@ let emptyLoc =
 let mkTypeLocation ~typeName ~fileName ~fileUri ~loc =
   Concrete {fileName; fileUri; modulePath = []; typeName; loc}
 
+let isGraphQLNameStart character =
+  let code = Char.code character in
+  character = '_'
+  || (code >= Char.code 'A' && code <= Char.code 'Z')
+  || (code >= Char.code 'a' && code <= Char.code 'z')
+
+let isGraphQLNameContinue character =
+  let code = Char.code character in
+  isGraphQLNameStart character
+  || (code >= Char.code '0' && code <= Char.code '9')
+
+let isValidGraphQLName name =
+  let length = String.length name in
+  length > 0
+  && isGraphQLNameStart name.[0]
+  && String.to_seq name |> Seq.for_all isGraphQLNameContinue
+
 let validateName ~name ~(typeLocation : typeLocation)
     (schemaState : schemaState) =
   match typeLocation with
   | Synthetic _ -> ()
   | Concrete typeLocation ->
-    if Utils.startsWith name "__" then
+    if not (isValidGraphQLName name) then
+      schemaState
+      |> addDiagnostic
+           ~diagnostic:
+             {
+               loc = typeLocation.loc;
+               fileUri = typeLocation.fileUri;
+               message =
+                 Printf.sprintf
+                   "Name \"%s\" is not a valid GraphQL name. Names must start \
+                    with a letter or underscore and contain only letters, \
+                    digits, and underscores."
+                   name;
+             }
+    else if Utils.startsWith name "__" then
       schemaState
       |> addDiagnostic
            ~diagnostic:
@@ -98,6 +129,338 @@ let rec graphqlTypeToString ?(nullable = false) (typ : graphqlType) =
   | GraphQLInterface {displayName}
   | GraphQLScalar {displayName} ->
     displayName ^ nullableSuffix
+
+let isNullableType = function
+  | Nullable _ | RescriptNullable _ -> true
+  | _ -> false
+
+let isGraphQLInt value =
+  try
+    let value = Int64.of_string value in
+    Int64.compare value (-2147483648L) >= 0
+    && Int64.compare value 2147483647L <= 0
+  with Failure _ -> false
+
+let rec validateConstValue ~(schemaState : schemaState) typ value =
+  let expected () =
+    Some
+      (Printf.sprintf "Expected a value coercible to `%s`."
+         (graphqlTypeToString typ))
+  in
+  match (typ, value) with
+  | (Nullable _ | RescriptNullable _), ConstNull -> None
+  | (Nullable inner | RescriptNullable inner), value ->
+    validateConstValue ~schemaState inner value
+  | _, ConstNull -> expected ()
+  | List inner, ConstList values ->
+    values |> List.find_map (validateConstValue ~schemaState inner)
+  | List inner, value -> validateConstValue ~schemaState inner value
+  | Scalar Int, ConstInt value when isGraphQLInt value -> None
+  | Scalar Float, (ConstInt _ | ConstFloat _) -> None
+  | Scalar String, ConstString _ -> None
+  | Scalar Boolean, ConstBoolean _ -> None
+  | Scalar ID, (ConstInt _ | ConstString _) -> None
+  | GraphQLEnum {id}, ConstEnum value -> (
+    match Hashtbl.find_opt schemaState.enums id with
+    | Some enum
+      when enum.values
+           |> List.exists (fun (enumValue : gqlEnumValue) ->
+               enumValue.value = value) ->
+      None
+    | Some enum ->
+      Some
+        (Printf.sprintf "`%s` is not a value of enum `%s`." value
+           enum.displayName)
+    | None -> expected ())
+  | GraphQLInputObject {id}, ConstObject fields -> (
+    match Hashtbl.find_opt schemaState.inputObjects id with
+    | None -> expected ()
+    | Some inputObject -> (
+      let unknownField =
+        fields
+        |> List.find_opt (fun (name, _) ->
+            inputObject.fields
+            |> List.exists (fun (field : gqlField) -> field.name = name)
+            |> not)
+      in
+      match unknownField with
+      | Some (name, _) ->
+        Some
+          (Printf.sprintf "Input object `%s` has no field named `%s`."
+             inputObject.displayName name)
+      | None -> (
+        let missingRequiredField =
+          inputObject.fields
+          |> List.find_opt (fun (field : gqlField) ->
+              (not (isNullableType field.typ))
+              && fields |> List.mem_assoc field.name |> not)
+        in
+        match missingRequiredField with
+        | Some field ->
+          Some
+            (Printf.sprintf "Required input field `%s.%s` is missing."
+               inputObject.displayName field.name)
+        | None ->
+          fields
+          |> List.find_map (fun (name, value) ->
+              match
+                inputObject.fields
+                |> List.find_opt (fun (field : gqlField) -> field.name = name)
+              with
+              | None -> None
+              | Some field -> validateConstValue ~schemaState field.typ value)))
+    )
+  | GraphQLInputUnion {id}, ConstObject fields -> (
+    match Hashtbl.find_opt schemaState.inputUnions id with
+    | None -> expected ()
+    | Some inputUnion -> (
+      let nonNullFields =
+        fields |> List.filter (fun (_, value) -> value <> ConstNull)
+      in
+      if List.length nonNullFields <> 1 then
+        Some
+          (Printf.sprintf
+             "OneOf input `%s` requires exactly one non-null field."
+             inputUnion.displayName)
+      else
+        let unknownField =
+          fields
+          |> List.find_opt (fun (name, _) ->
+              inputUnion.members
+              |> List.exists (fun (member : gqlInputUnionMember) ->
+                  member.fieldName = name)
+              |> not)
+        in
+        match unknownField with
+        | Some (name, _) ->
+          Some
+            (Printf.sprintf "OneOf input `%s` has no field named `%s`."
+               inputUnion.displayName name)
+        | None ->
+          nonNullFields
+          |> List.find_map (fun (name, value) ->
+              match
+                inputUnion.members
+                |> List.find_opt (fun (member : gqlInputUnionMember) ->
+                    member.fieldName = name)
+              with
+              | None -> None
+              | Some member -> validateConstValue ~schemaState member.typ value)
+      ))
+  | GraphQLScalar _, _ -> None
+  | EmptyPayload, ConstBoolean _ -> None
+  | ( ( InjectContext | InjectInfo | InjectInterfaceTypename _
+      | GraphQLObjectType _ | GraphQLUnion _ | GraphQLInterface _ ),
+      _ ) ->
+    expected ()
+  | _ -> expected ()
+
+let validateDirectiveDefinitions (schemaState : schemaState) =
+  let reservedNames =
+    ["skip"; "include"; "deprecated"; "specifiedBy"; "oneOf"]
+  in
+  schemaState.directiveDefinitions
+  |> Hashtbl.iter (fun _name (definition : gqlDirectiveDefinition) ->
+      validateName ~name:definition.name
+        ~typeLocation:(Concrete definition.typeLocation) schemaState;
+      if List.mem definition.name reservedNames then
+        schemaState
+        |> addDiagnostic
+             ~diagnostic:
+               {
+                 loc = definition.typeLocation.loc;
+                 fileUri = definition.typeLocation.fileUri;
+                 message =
+                   Printf.sprintf
+                     "`@%s` is a GraphQL-specified directive and cannot be \
+                      redefined."
+                     definition.name;
+               };
+      if definition.name = "sourceLoc" then
+        schemaState
+        |> addDiagnostic
+             ~diagnostic:
+               {
+                 loc = definition.typeLocation.loc;
+                 fileUri = definition.typeLocation.fileUri;
+                 message =
+                   "`@sourceLoc` is reserved for ResGraph's generated schema \
+                    metadata and cannot be redefined.";
+               };
+      let seenLocations = Hashtbl.create (List.length definition.locations) in
+      definition.locations
+      |> List.iter (fun location ->
+          if Hashtbl.mem seenLocations location then
+            schemaState
+            |> addDiagnostic
+                 ~diagnostic:
+                   {
+                     loc = definition.typeLocation.loc;
+                     fileUri = definition.typeLocation.fileUri;
+                     message =
+                       Printf.sprintf
+                         "Directive `@%s` declares location `%s` more than \
+                          once."
+                         definition.name
+                         (GenerateSchemaDirectiveUtils.locationToString location);
+                   }
+          else Hashtbl.add seenLocations location ());
+      definition.arguments
+      |> List.iter (fun (argument : gqlDirectiveArgument) ->
+          validateName ~name:argument.name
+            ~typeLocation:
+              (mkTypeLocation ~typeName:argument.name
+                 ~fileName:definition.typeLocation.fileName
+                 ~fileUri:definition.typeLocation.fileUri ~loc:argument.loc)
+            schemaState;
+          (match argument.defaultValue with
+          | None -> ()
+          | Some value -> (
+            match validateConstValue ~schemaState argument.typ value with
+            | None -> ()
+            | Some message ->
+              schemaState
+              |> addDiagnostic
+                   ~diagnostic:
+                     {
+                       loc = argument.loc;
+                       fileUri = definition.typeLocation.fileUri;
+                       message =
+                         Printf.sprintf
+                           "Invalid default for directive argument `@%s(%s:)`: \
+                            %s"
+                           definition.name argument.name message;
+                     }));
+          if
+            Option.is_some argument.deprecationReason
+            && (not (isNullableType argument.typ))
+            && Option.is_none argument.defaultValue
+          then
+            schemaState
+            |> addDiagnostic
+                 ~diagnostic:
+                   {
+                     loc = argument.loc;
+                     fileUri = definition.typeLocation.fileUri;
+                     message =
+                       Printf.sprintf
+                         "Required directive argument `@%s(%s:)` cannot be \
+                          deprecated without a default value."
+                         definition.name argument.name;
+                   }))
+
+let validateDirectiveApplications (schemaState : schemaState) =
+  schemaState.appliedDirectives
+  |> Hashtbl.iter (fun target applications ->
+      let counts = Hashtbl.create (List.length applications) in
+      applications
+      |> List.iter (fun (application : gqlDirectiveApplication) ->
+          match
+            Hashtbl.find_opt schemaState.directiveDefinitions application.name
+          with
+          | None ->
+            schemaState
+            |> addDiagnostic
+                 ~diagnostic:
+                   {
+                     loc = application.loc;
+                     fileUri = application.fileUri;
+                     message =
+                       Printf.sprintf
+                         "Directive `@%s` is not defined in this schema."
+                         application.name;
+                   }
+          | Some definition ->
+            let location =
+              GenerateSchemaDirectiveUtils.locationForTarget target
+            in
+            if not (List.mem location definition.locations) then
+              schemaState
+              |> addDiagnostic
+                   ~diagnostic:
+                     {
+                       loc = application.loc;
+                       fileUri = application.fileUri;
+                       message =
+                         Printf.sprintf
+                           "Directive `@%s` cannot be used on `%s`; its \
+                            definition does not include `%s`."
+                           application.name
+                           (GenerateSchemaDirectiveUtils.targetToString target)
+                           (GenerateSchemaDirectiveUtils.locationToString
+                              location);
+                     };
+            let previousCount =
+              Hashtbl.find_opt counts application.name
+              |> Option.value ~default:0
+            in
+            Hashtbl.replace counts application.name (previousCount + 1);
+            if previousCount > 0 && not definition.repeatable then
+              schemaState
+              |> addDiagnostic
+                   ~diagnostic:
+                     {
+                       loc = application.loc;
+                       fileUri = application.fileUri;
+                       message =
+                         Printf.sprintf
+                           "Directive `@%s` is not repeatable on `%s`."
+                           application.name
+                           (GenerateSchemaDirectiveUtils.targetToString target);
+                     };
+            application.arguments
+            |> List.iter (fun (name, value) ->
+                match
+                  definition.arguments
+                  |> List.find_opt (fun (argument : gqlDirectiveArgument) ->
+                      argument.name = name)
+                with
+                | None ->
+                  schemaState
+                  |> addDiagnostic
+                       ~diagnostic:
+                         {
+                           loc = application.loc;
+                           fileUri = application.fileUri;
+                           message =
+                             Printf.sprintf
+                               "Directive `@%s` has no argument named `%s`."
+                               application.name name;
+                         }
+                | Some argument -> (
+                  match validateConstValue ~schemaState argument.typ value with
+                  | None -> ()
+                  | Some message ->
+                    schemaState
+                    |> addDiagnostic
+                         ~diagnostic:
+                           {
+                             loc = application.loc;
+                             fileUri = application.fileUri;
+                             message =
+                               Printf.sprintf "Invalid value for `@%s(%s:)`: %s"
+                                 application.name name message;
+                           }));
+            definition.arguments
+            |> List.iter (fun (argument : gqlDirectiveArgument) ->
+                if
+                  (not (isNullableType argument.typ))
+                  && Option.is_none argument.defaultValue
+                  && application.arguments
+                     |> List.mem_assoc argument.name
+                     |> not
+                then
+                  schemaState
+                  |> addDiagnostic
+                       ~diagnostic:
+                         {
+                           loc = application.loc;
+                           fileUri = application.fileUri;
+                           message =
+                             Printf.sprintf
+                               "Directive `@%s` requires argument `%s`."
+                               application.name argument.name;
+                         })))
 
 let nullableInner (typ : graphqlType) =
   match typ with
@@ -317,6 +680,8 @@ let validateInterfaceImplementationCycles (schemaState : schemaState) =
 let validateSchema (schemaState : schemaState) =
   validateRootTypes schemaState;
   validateInterfaceImplementationCycles schemaState;
+  validateDirectiveDefinitions schemaState;
+  validateDirectiveApplications schemaState;
 
   schemaState.scalars
   |> Hashtbl.iter (fun _name (typ : gqlScalar) ->
@@ -325,11 +690,25 @@ let validateSchema (schemaState : schemaState) =
 
   schemaState.types
   |> Hashtbl.iter (fun _name (typ : gqlObjectType) ->
+      (match typ.typeLocation with
+      | Some typeLocation ->
+        validateName ~name:typ.displayName ~typeLocation schemaState
+      | None -> ());
       validateFields ~schemaState ~parentTypeName:typ.displayName typ.fields);
 
   schemaState.inputObjects
   |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
+      (match typ.typeLocation with
+      | Some typeLocation ->
+        validateName ~name:typ.displayName
+          ~typeLocation:(Concrete typeLocation) schemaState
+      | None -> ());
       validateFields ~schemaState ~parentTypeName:typ.displayName typ.fields);
+
+  schemaState.inputUnions
+  |> Hashtbl.iter (fun _name (typ : gqlInputUnionType) ->
+      validateName ~name:typ.displayName
+        ~typeLocation:(Concrete typ.typeLocation) schemaState);
 
   schemaState.enums
   |> Hashtbl.iter (fun _name (typ : gqlEnum) ->
@@ -347,4 +726,6 @@ let validateSchema (schemaState : schemaState) =
   |> Hashtbl.iter (fun _name (typ : gqlInterface) ->
       (* Subtype rules etc for interface fields are a bit complicated, so we
             let graphql-js do it at runtime instead. *)
+      validateName ~name:typ.displayName
+        ~typeLocation:(Concrete typ.typeLocation) schemaState;
       validateFields ~schemaState ~parentTypeName:typ.displayName typ.fields)
