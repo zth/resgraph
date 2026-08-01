@@ -114,6 +114,8 @@ let i_ContextOverride: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null
 let get_ContextOverride = () => i_ContextOverride.contents
 let i_Contextual: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
 let get_Contextual = () => i_Contextual.contents
+let i_Defaultable: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
+let get_Defaultable = () => i_Defaultable.contents
 let i_Labelled: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
 let get_Labelled = () => i_Labelled.contents
 let i_Named: ref<GraphQLInterfaceType.t> = Obj.magic({"contents": null})
@@ -140,6 +142,8 @@ let t_ExplicitContextOverrideResult: ref<GraphQLObjectType.t> = Obj.magic({"cont
 let get_ExplicitContextOverrideResult = () => t_ExplicitContextOverrideResult.contents
 let t_ExplicitContextResult: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_ExplicitContextResult = () => t_ExplicitContextResult.contents
+let t_ExplicitDefaultable: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
+let get_ExplicitDefaultable = () => t_ExplicitDefaultable.contents
 let t_ExplicitSearchResult: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
 let get_ExplicitSearchResult = () => t_ExplicitSearchResult.contents
 let t_FunctionFieldRegression: ref<GraphQLObjectType.t> = Obj.magic({"contents": null})
@@ -361,6 +365,8 @@ let interface_ContextOverride_resolveType = (v: Interface_contextOverride.Resolv
 
 let interface_Contextual_resolveType = (v: Interface_contextual.Resolver.t) => resolveInterfaceTypename(v, ["ExplicitContextResult"], "Contextual", "Interface_contextual.Resolver.t")
 
+let interface_Defaultable_resolveType = (v: Interface_defaultable.Resolver.t) => resolveInterfaceTypename(v, ["ExplicitDefaultable"], "Defaultable", "Interface_defaultable.Resolver.t")
+
 let interface_Labelled_resolveType = (v: Interface_labelled.Resolver.t) => resolveInterfaceTypename(v, ["LabelledAlpha", "LabelledBeta"], "Labelled", "Interface_labelled.Resolver.t")
 
 let interface_Named_resolveType = (v: Interface_named.Resolver.t) => resolveInterfaceTypename(v, ["ExplicitCompany"], "Named", "Interface_named.Resolver.t")
@@ -423,6 +429,24 @@ i_Contextual.contents = GraphQLInterfaceType.make({
     }
   }->makeFields,
   resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Contextual_resolveType)
+})
+i_Defaultable.contents = GraphQLInterfaceType.make({
+  name: "Defaultable",
+  description: ?(None),
+  interfaces: [],
+  fields: () => {
+    "format": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+    },
+    "id": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+    }
+  }->makeFields,
+  resolveType: GraphQLInterfaceType.makeResolveInterfaceTypeFn(interface_Defaultable_resolveType)
 })
 i_Labelled.contents = GraphQLInterfaceType.make({
   name: "Labelled",
@@ -641,6 +665,31 @@ t_ExplicitContextResult.contents = GraphQLObjectType.make({
       description: ?(None),
       deprecationReason: ?(None),
       resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppExplicitInterfaceImplements.contextLabel(src)})
+    },
+    "id": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["id"]})
+    }
+  }->makeFields
+})
+t_ExplicitDefaultable.contents = GraphQLObjectType.make({
+  name: "ExplicitDefaultable",
+  description: ?(None),
+  interfaces: [get_Defaultable()],
+  fields: () => {
+    "format": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      args: dict{
+        "suffix": ({
+          typ: Scalars.string->Scalars.toGraphQLType,
+          defaultValue: GraphQLLiteralValue.String("!"),
+        }: arg)
+      }->makeArgsDict,
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppExplicitInterfaceImplements.ExplicitDefaultableFields.format(src, ~suffix=?((args["suffix"]->Nullable.toOption)))})
     },
     "id": {
       typ: Scalars.string->Scalars.toGraphQLType->nonNull,
@@ -1033,6 +1082,18 @@ t_Query.contents = GraphQLObjectType.make({
       description: "A root query without an unused source argument.",
       deprecationReason: ?(None),
       resolve: makeResolveFn((_src, args, ctx, info) => {AppRootShorthand.shorthandGreeting(())})
+    },
+    "signatureMetadata": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      args: dict{
+        "value": ({
+          typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+          description: "Metadata loaded from the implementation source.",
+        }: arg)
+      }->makeArgsDict,
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppSignatureMetadata.signatureMetadata(src, ~value=args["value"])})
     },
     "userConnection": {
       typ: get_UserConnection()->GraphQLObjectType.toGraphQLType->nonNull,
@@ -1641,6 +1702,7 @@ let schema = GraphQLSchemaType.makeConfig({
     get_ExplicitCompanyHolder()->GraphQLObjectType.toGraphQLType,
     get_ExplicitContextOverrideResult()->GraphQLObjectType.toGraphQLType,
     get_ExplicitContextResult()->GraphQLObjectType.toGraphQLType,
+    get_ExplicitDefaultable()->GraphQLObjectType.toGraphQLType,
     get_ExplicitSearchResult()->GraphQLObjectType.toGraphQLType,
     get_FunctionFieldRegression()->GraphQLObjectType.toGraphQLType,
     get_LabelledAlpha()->GraphQLObjectType.toGraphQLType,
@@ -1664,6 +1726,7 @@ let schema = GraphQLSchemaType.makeConfig({
     get_CompanyHolder()->GraphQLInterfaceType.toGraphQLType,
     get_ContextOverride()->GraphQLInterfaceType.toGraphQLType,
     get_Contextual()->GraphQLInterfaceType.toGraphQLType,
+    get_Defaultable()->GraphQLInterfaceType.toGraphQLType,
     get_Labelled()->GraphQLInterfaceType.toGraphQLType,
     get_Named()->GraphQLInterfaceType.toGraphQLType,
     get_NamedEntity()->GraphQLInterfaceType.toGraphQLType,

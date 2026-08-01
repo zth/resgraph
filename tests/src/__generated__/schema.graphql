@@ -126,6 +126,11 @@ interface Contextual {
   id: String!
 }
 
+interface Defaultable {
+  format: String!
+  id: String!
+}
+
 interface Labelled {
   typenameEcho: String!
 }
@@ -191,6 +196,11 @@ type ExplicitContextResult implements Contextual {
   id: String!
 }
 
+type ExplicitDefaultable implements Defaultable {
+  format(suffix: String = "!"): String!
+  id: String!
+}
+
 type ExplicitSearchResult implements Searchable {
   id: String!
   label(prefix: String): String!
@@ -251,6 +261,10 @@ type Query {
   node(id: ID!): Node
   functionFieldRegression: FunctionFieldRegression!
   userDefinedNullable: T!
+  signatureMetadata(
+    """Metadata loaded from the implementation source."""
+    value: String!
+  ): String!
   shorthandContext: String!
   shorthandEcho(message: String!): String!
 
