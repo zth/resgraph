@@ -46,7 +46,9 @@
     "esbuild": "^0.23.1"
   },
   "files": [
-    "bin/*",
+    "bin/darwin",
+    "bin/darwinarm64",
+    "bin/linux",
     "src/res",
     "lib",
     "cli/*",
