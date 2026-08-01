@@ -162,52 +162,50 @@ let addAuthorizationDiagnostic ~schemaState ~(env : SharedTypes.QueryEnv.t) ~loc
   |> addDiagnostic
        ~diagnostic:{loc; fileUri = env.SharedTypes.QueryEnv.file.uri; message}
 
-let authorizationCoverageFromRecord ~schemaState ~(env : SharedTypes.QueryEnv.t)
+let authorizationScopeFromRecord ~schemaState ~(env : SharedTypes.QueryEnv.t)
     ~attributeLoc fields =
-  let coversFields =
+  let scopeFields =
     fields
     |> List.filter
          (fun (field : Parsetree.expression Parsetree.record_element) ->
-           Longident.last field.lid.txt = "covers")
+           Longident.last field.lid.txt = "scope")
   in
-  match (fields, coversFields) with
+  match (fields, scopeFields) with
   | [_], [field] -> (
     match field.x.pexp_desc with
     | Pexp_construct ({txt = constructor}, None)
-      when Longident.last constructor = "Selection" ->
-      Some AuthorizationSelection
+      when Longident.last constructor = "Fields" ->
+      Some AuthorizationFields
     | _ ->
       addAuthorizationDiagnostic ~schemaState ~env ~loc:attributeLoc
-        "`@gql.authorize` coverage must be the `Selection` constructor, for \
-         example `@gql.authorize((Security.canRead, \
-         {ResGraph.Authorization.covers: Selection}))`.";
+        "`@gql.authorize` scope must be the `Fields` constructor, for example \
+         `@gql.authorize((Security.canRead, {scope: Fields}))`.";
       None)
   | [], _ | _, [] ->
     addAuthorizationDiagnostic ~schemaState ~env ~loc:attributeLoc
-      "`@gql.authorize` coverage requires `{covers: Selection}` in its tuple \
-       payload.";
+      "`@gql.authorize` scope requires `{scope: Fields}` in its tuple payload.";
     None
   | _ ->
     addAuthorizationDiagnostic ~schemaState ~env ~loc:attributeLoc
-      "`@gql.authorize` coverage accepts only `{covers: Selection}`.";
+      "`@gql.authorize` scope accepts only `{scope: Fields}`.";
     None
 
-let functionReferenceFromPayload ~allowSelection ~schemaState
+let functionReferenceFromPayload ~allowFieldsScope ~schemaState
     ~(env : SharedTypes.QueryEnv.t) ~attributeLoc (payload : Parsetree.payload)
     =
-  let reference functionPath covers =
+  let reference functionPath scope =
     let path = Longident.flatten functionPath in
     if List.length path < 2 then (
       addAuthorizationDiagnostic ~schemaState ~env ~loc:attributeLoc
         "`@gql.authorize` requires a module-qualified function path, for \
          example `Security.canRead`.";
       None)
-    else if covers = AuthorizationSelection && not allowSelection then (
+    else if scope = AuthorizationFields && not allowFieldsScope then (
       addAuthorizationDiagnostic ~schemaState ~env ~loc:attributeLoc
-        "`@gql.authorize((..., {covers: Selection}))` can only be used on \
-         output fields or resolver functions, not on a type.";
+        "`@gql.authorize((..., {scope: Fields}))` can only be used on output \
+         fields or resolver functions, not on a type.";
       None)
-    else Some {path; loc = attributeLoc; fileUri = env.file.uri; covers}
+    else Some {path; loc = attributeLoc; fileUri = env.file.uri; scope}
   in
   match payload with
   | PStr
@@ -235,10 +233,10 @@ let functionReferenceFromPayload ~allowSelection ~schemaState
         };
       ] -> (
     match
-      authorizationCoverageFromRecord ~schemaState ~env ~attributeLoc fields
+      authorizationScopeFromRecord ~schemaState ~env ~attributeLoc fields
     with
     | None -> None
-    | Some covers -> reference functionPath covers)
+    | Some scope -> reference functionPath scope)
   | _ ->
     addAuthorizationDiagnostic ~schemaState ~env ~loc:attributeLoc
       "`@gql.authorize` requires a module-qualified function path, for example \
@@ -289,7 +287,7 @@ let extractDeclaredAuthorization ~allowPublic ~schemaState
          match String.split_on_char '.' name.txt with
          | ["gql"; "authorize"] -> (
            match
-             functionReferenceFromPayload ~allowSelection:allowPublic
+             functionReferenceFromPayload ~allowFieldsScope:allowPublic
                ~schemaState ~env ~attributeLoc:name.loc payload
            with
            | None -> declared

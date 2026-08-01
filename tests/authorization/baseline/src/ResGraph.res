@@ -1,8 +1,8 @@
 type resolveInfo = unit
 
 module Authorization = {
-  type coverage = Selection
-  type coverageOptions = {covers: coverage}
+  type scope = Fields
+  type scopeOptions = {scope: scope}
 
   type outcome<'value, 'reason> =
     | Allowed('value)

@@ -59,7 +59,7 @@ grep -F 'switch Security.canReadNamed(Obj.magic(src)' "$tmp_dir/valid/ResGraphSc
 grep -F 'switch Security.first' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 grep -F 'switch Security.Alias.second' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 if [[ "$(grep -c 'switch Security.canLoadSelection' "$tmp_dir/valid/ResGraphSchema.res")" -ne 1 ]]; then
-  echo "Selection policy was not emitted exactly once at its boundary." >&2
+  echo "Fields-scoped policy was not emitted exactly once at its boundary." >&2
   exit 1
 fi
 diff -u "$root_dir/tests/authorization/valid/expected-authorization-manifest.json" \
@@ -123,7 +123,7 @@ grep -F 'has source type `Mutation`, but it is applied to `Query`' \
 grep -F 'must declare `~args` as a ReScript polymorphic object' \
   "$tmp_dir/invalid-result.json" >/dev/null
 grep -F 'has invalid `~ctx`' "$tmp_dir/invalid-result.json" >/dev/null
-grep -F '`@gql.authorize((..., {covers: Selection}))` can only be used on output fields' \
+grep -F '`@gql.authorize((..., {scope: Fields}))` can only be used on output fields' \
   "$tmp_dir/invalid-result.json" >/dev/null
 grep -F 'Field `SharedSelection.value` has no authorization disposition.' \
   "$tmp_dir/invalid-result.json" >/dev/null

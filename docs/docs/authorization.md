@@ -88,16 +88,16 @@ Type, interface, field, and resolver policies compose additively. Interface fiel
 By default, a policy on a field returning an object does not authorize that
 object's child fields. Each output field needs its own disposition.
 
-### Covering a returned selection
+### Scoping authorization to returned fields
 
-A field policy can explicitly cover the selection returned beneath that field.
-This is useful for connection wrappers, mutation payloads, and calculated result
-objects that have no authorization identity independent of the field producing
-them:
+A field policy can explicitly include the fields returned beneath that field in
+its authorization scope. This is useful for connection wrappers, mutation
+payloads, and calculated result objects that have no authorization identity
+independent of the field producing them:
 
 ```rescript
 @gql.authorize(
-  (CampaignSecurity.canList, {ResGraph.Authorization.covers: Selection})
+  (CampaignSecurity.canList, {scope: Fields})
 )
 @gql.field
 let campaigns = async (
@@ -110,19 +110,19 @@ let campaigns = async (
 ```
 
 The inner parentheses form the ReScript tuple consumed by `@gql.authorize`.
-The qualified record label gives ReScript the configuration type, from which it
-infers and checks the `Selection` constructor.
+ReScript infers the scope record from the regular `Fields` constructor, so
+neither the record label nor constructor needs qualification.
 
 The policy runs once on `Query.campaigns`. Required authorization treats fields
-reachable exclusively beneath that result as selection-covered, without
-generating additional policy calls for them. Local type and field policies
-still run and compose additively when present.
+reachable exclusively beneath that result as within its scope, without
+generating additional policy calls for them. Local type and field policies still
+run and compose additively when present.
 
-Selection coverage is path-sensitive. If the same result type is also reachable
-through a path without a selection-covering policy, its otherwise-uncovered
-fields fail required authorization. Public fields and resolver outcomes do not
-establish selection coverage. `covers: Selection` is supported only on output
-fields and resolver functions, not on type policies.
+Field scope is path-sensitive. If the same result type is also reachable through
+a path without a `scope: Fields` policy, its otherwise-uncovered fields fail
+required authorization. Public fields and resolver outcomes do not widen a
+policy's scope. `scope: Fields` is supported only on output fields and resolver
+functions, not on type policies.
 
 ## Resolver outcomes
 
@@ -174,7 +174,7 @@ let onForbidden = (
 
 ## Audit manifest and boundaries
 
-`manifestPath` emits stable, sorted JSON with every concrete field, its disposition, policy order and provenance, inherited selection boundaries, public reason, source locations, resolver-outcome metadata, and mutation status. For a field reachable through multiple covered paths, `selectionCoverage` lists the possible boundary sources; only the boundary on the selected runtime path executes. Commit the manifest when authorization posture should be reviewed through diffs.
+`manifestPath` emits stable, sorted JSON with every concrete field, its disposition, policy order and provenance, inherited scope boundaries, public reason, source locations, resolver-outcome metadata, and mutation status. For a field reachable through multiple scoped paths, `scopeBoundaries` lists the possible boundary sources; only the boundary on the selected runtime path executes. Commit the manifest when authorization posture should be reviewed through diffs.
 
 Fields on inferred union payload objects use the `synthetic` disposition. They
 have no annotation surface and are reachable only after their parent resolver

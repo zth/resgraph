@@ -39,13 +39,13 @@ type authorizationConfig = {
   baselinePath: string option;
 }
 
-type authorizationCoverage = AuthorizationField | AuthorizationSelection
+type authorizationScope = AuthorizationField | AuthorizationFields
 
 type authorizationFunctionReference = {
   path: string list;
   loc: Location.t;
   fileUri: Uri.t;
-  covers: authorizationCoverage;
+  scope: authorizationScope;
 }
 
 type publicAuthorization = {reason: string; loc: Location.t; fileUri: Uri.t}
@@ -79,14 +79,14 @@ type authorizationGapKind =
 
 type effectiveAuthorizationPlan = {
   functions: authorizationFunction list;
-  inheritedSelectionPolicies: inheritedSelectionPolicy list;
+  inheritedScopePolicies: inheritedScopePolicy list;
   public: publicAuthorization option;
   resolverOutcome: resolverOutcome option;
   synthetic: bool;
   baselineGap: authorizationGapKind option;
 }
 
-and inheritedSelectionPolicy = {
+and inheritedScopePolicy = {
   boundaryCoordinate: string;
   fn: authorizationFunction;
 }

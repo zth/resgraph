@@ -1,5 +1,5 @@
 @gql.public({reason: "Types cannot be public"})
-@gql.authorize((Security.good, {ResGraph.Authorization.covers: Selection}))
+@gql.authorize((Security.good, {scope: Fields}))
 @gql.type
 type query
 
@@ -49,7 +49,7 @@ type sharedSelection = {
 }
 
 @gql.authorize(
-  (Security.canSelect, {ResGraph.Authorization.covers: Selection})
+  (Security.canSelect, {scope: Fields})
 )
 @gql.field
 let protectedSelection = (_: query): sharedSelection => {value: "protected"}
