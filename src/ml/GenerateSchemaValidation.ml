@@ -769,14 +769,28 @@ let validateSchema (schemaState : schemaState) =
 
   schemaState.types
   |> Hashtbl.iter (fun _name (typ : gqlObjectType) ->
+      (match typ.typeLocation with
+      | Some typeLocation ->
+        validateName ~name:typ.displayName ~typeLocation schemaState
+      | None -> ());
       validateFields ~schemaState ~parentTypeName:typ.displayName typ.fields;
       validateFieldArguments ~schemaState ~parentTypeName:typ.displayName
         typ.fields);
 
   schemaState.inputObjects
   |> Hashtbl.iter (fun _name (typ : gqlInputObjectType) ->
+      (match typ.typeLocation with
+      | Some typeLocation ->
+        validateName ~name:typ.displayName
+          ~typeLocation:(Concrete typeLocation) schemaState
+      | None -> ());
       validateInputFields ~schemaState ~parentTypeName:typ.displayName
         typ.fields);
+
+  schemaState.inputUnions
+  |> Hashtbl.iter (fun _name (typ : gqlInputUnionType) ->
+      validateName ~name:typ.displayName
+        ~typeLocation:(Concrete typ.typeLocation) schemaState);
 
   schemaState.enums
   |> Hashtbl.iter (fun _name (typ : gqlEnum) ->
@@ -794,6 +808,8 @@ let validateSchema (schemaState : schemaState) =
   |> Hashtbl.iter (fun _name (typ : gqlInterface) ->
       (* Subtype rules etc for interface fields are a bit complicated, so we
             let graphql-js do it at runtime instead. *)
+      validateName ~name:typ.displayName
+        ~typeLocation:(Concrete typ.typeLocation) schemaState;
       validateFields ~schemaState ~parentTypeName:typ.displayName typ.fields;
       validateFieldArguments ~schemaState ~parentTypeName:typ.displayName
         typ.fields)
