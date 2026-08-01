@@ -32,3 +32,21 @@ module LiteralText = {
 
 @gql.query
 let literalText = (~value: LiteralText.t): LiteralText.t => value
+
+module DefaultText = {
+  @gql.scalar
+  type t = string
+
+  let parseValue = value =>
+    switch value {
+    | ResGraph.GraphQLLiteralValue.String(value) => Some("parsed:" ++ value)
+    | _ => None
+    }
+
+  let parseLiteral = node => node->ResGraph.GraphQLValueNode.toLiteralValue->parseValue
+
+  let serialize = value => ResGraph.GraphQLLiteralValue.String(value)
+}
+
+@gql.query
+let defaultText = (~value: DefaultText.t="source"): DefaultText.t => value

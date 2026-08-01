@@ -46,6 +46,12 @@ type directiveInput = {
   label: string,
 }
 
+@gql.inputObject
+type coercedDefaultInput = {
+  @gql.default(123)
+  identifiers: array<ResGraph.id>,
+}
+
 @gql.annotate({name: "tag", args: {name: "enum"}})
 @gql.enum
 type directiveStatus =
@@ -90,3 +96,7 @@ let directiveArgumentMetadata = (
   @deprecated("Use pageSize instead.")
   ~limit: int=25,
 ) => limit
+
+@gql.field
+let coercedInputDefault = (_: Query.query, ~input: coercedDefaultInput) =>
+  input.identifiers->Array.map(ResGraph.idToString)->Array.join(",")

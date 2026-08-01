@@ -25,6 +25,8 @@ schema @tag(name: "schema") {
   subscription: Subscription
 }
 
+scalar DefaultText
+
 
 """Text scalar with explicit literal coercion."""
 scalar LiteralText
@@ -45,6 +47,10 @@ input Res12InputInline {
 
   """Field doc on inline record."""
   payload: String!
+}
+
+input CoercedDefaultInput {
+  identifiers: [ID!]! = 123
 }
 
 input DirectiveInput @tag(name: "input") {
@@ -290,12 +296,14 @@ type Query {
   explicitSearchResult: ExplicitSearchResult!
   explicitCompanyHolder: ExplicitCompanyHolder!
   explicitCompany: ExplicitCompany!
+  coercedInputDefault(input: CoercedDefaultInput!): String!
   directiveArgumentMetadata(
     """Maximum number of results."""
     limit: Int = 25 @deprecated(reason: "Use pageSize instead.") @tag(name: "argument")
   ): Int!
   directiveInputDefault(input: DirectiveInput!): String!
   directiveExample(input: DirectiveInput!): DirectiveExample!
+  defaultText(value: DefaultText = "source"): DefaultText!
   literalText(value: LiteralText!): LiteralText!
   getScalarHolder: ScalarHolder!
   nestedConnection: StringConnection!

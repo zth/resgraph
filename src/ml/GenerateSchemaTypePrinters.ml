@@ -435,7 +435,8 @@ let printArg ~schemaState ~parentTypeName ~fieldName (arg : gqlArg) =
         | None -> ()
         | Some value ->
           CodeWriter.line writer
-            (Printf.sprintf "defaultValue: %s," (printConstValue value)));
+            (Printf.sprintf "defaultValue: %s,"
+               (printCoercedValue arg.typ value)));
         (match arg.description with
         | None -> ()
         | Some description ->
@@ -592,7 +593,8 @@ let printInputObjectField ~schemaState ~parentTypeName (field : gqlField) =
       | None -> ()
       | Some value ->
         CodeWriter.line writer
-          (Printf.sprintf "defaultValue: %s," (printConstValue value)));
+          (Printf.sprintf "defaultValue: %s,"
+             (printCoercedValue field.typ value)));
       CodeWriter.line writer
         (Printf.sprintf "deprecationReason: %s,"
            (field.deprecationReason |> undefinedOrValueAsString));

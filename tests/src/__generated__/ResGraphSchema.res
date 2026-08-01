@@ -86,6 +86,17 @@ let applyConversionToInputObject: ('a, array<(string, inputObjectFieldConverterF
   return newObj;
 }`)
 
+let scalar_DefaultText = GraphQLScalar.make({
+  let config: GraphQLScalar.config<AppCustomScalars.DefaultText.t> = {
+    name: "DefaultText",
+    description: ?(None),
+    specifiedByURL: ?(None),
+    parseValue: AppCustomScalars.DefaultText.parseValue,
+    parseLiteral: AppCustomScalars.DefaultText.parseLiteral,
+    serialize: AppCustomScalars.DefaultText.serialize,
+  }
+  config
+})
 let scalar_LiteralText = GraphQLScalar.make({
   let config: GraphQLScalar.config<AppCustomScalars.LiteralText.t> = {
     name: "LiteralText",
@@ -214,6 +225,9 @@ let inputUnion_UpdatableString_conversionInstructions = []
 let input_Res12InputInline: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_Res12InputInline = () => input_Res12InputInline.contents
 let input_Res12InputInline_conversionInstructions = []
+let input_CoercedDefaultInput: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
+let get_CoercedDefaultInput = () => input_CoercedDefaultInput.contents
+let input_CoercedDefaultInput_conversionInstructions = []
 let input_DirectiveInput: ref<GraphQLInputObjectType.t> = Obj.magic({"contents": null})
 let get_DirectiveInput = () => input_DirectiveInput.contents
 let input_DirectiveInput_conversionInstructions = []
@@ -224,6 +238,7 @@ let input_UpdateThingInput: ref<GraphQLInputObjectType.t> = Obj.magic({"contents
 let get_UpdateThingInput = () => input_UpdateThingInput.contents
 let input_UpdateThingInput_conversionInstructions = []
 input_Res12InputInline_conversionInstructions->Array.pushMany([])
+input_CoercedDefaultInput_conversionInstructions->Array.pushMany([])
 input_DirectiveInput_conversionInstructions->Array.pushMany([])
 input_ReservedWordInput_conversionInstructions->Array.pushMany([])
 input_UpdateThingInput_conversionInstructions->Array.pushMany([
@@ -686,7 +701,7 @@ t_ExplicitDefaultable.contents = GraphQLObjectType.make({
       args: dict{
         "suffix": ({
           typ: Scalars.string->Scalars.toGraphQLType,
-          defaultValue: GraphQLLiteralValue.String("!"),
+          defaultValue: GraphQLInput.coerceValue(GraphQLLiteralValue.String("!"), Scalars.string->Scalars.toGraphQLType),
         }: arg)
       }->makeArgsDict,
       resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppExplicitInterfaceImplements.ExplicitDefaultableFields.format(src, ~suffix=?((args["suffix"]->Nullable.toOption)))})
@@ -890,6 +905,27 @@ t_Query.contents = GraphQLObjectType.make({
       deprecationReason: ?(None),
       resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppInterfaceReturnRegression.brokenLabelledWrapper(src)})
     },
+    "coercedInputDefault": {
+      typ: Scalars.string->Scalars.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      args: dict{
+        "input": ({typ: get_CoercedDefaultInput()->GraphQLInputObjectType.toGraphQLType->nonNull}: arg)
+      }->makeArgsDict,
+      resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppDirectives.coercedInputDefault(src, ~input=args["input"]->applyConversionToInputObject(input_CoercedDefaultInput_conversionInstructions))})
+    },
+    "defaultText": {
+      typ: scalar_DefaultText->GraphQLScalar.toGraphQLType->nonNull,
+      description: ?(None),
+      deprecationReason: ?(None),
+      args: dict{
+        "value": ({
+          typ: scalar_DefaultText->GraphQLScalar.toGraphQLType,
+          defaultValue: GraphQLInput.coerceValue(GraphQLLiteralValue.String("source"), scalar_DefaultText->GraphQLScalar.toGraphQLType),
+        }: arg)
+      }->makeArgsDict,
+      resolve: makeResolveFn((_src, args, ctx, info) => {AppCustomScalars.defaultText(~value=?((args["value"]->Nullable.toOption)))})
+    },
     "directiveArgumentMetadata": {
       typ: Scalars.int->Scalars.toGraphQLType->nonNull,
       description: ?(None),
@@ -897,10 +933,10 @@ t_Query.contents = GraphQLObjectType.make({
       args: dict{
         "limit": ({
           typ: Scalars.int->Scalars.toGraphQLType,
-          defaultValue: GraphQLLiteralValue.Number(25.),
+          defaultValue: GraphQLInput.coerceValue(GraphQLLiteralValue.Number(25.), Scalars.int->Scalars.toGraphQLType),
           description: "Maximum number of results.",
           deprecationReason: "Use pageSize instead.",
-          extensions: {directives: dict{"tag": [dict{"name": GraphQLLiteralValue.String("argument")}]}, resgraph: {appliedDirectives: [{name: "tag", args: dict{"name": GraphQLLiteralValue.String("argument")}}]}}
+          extensions: {directives: dict{"tag": [dict{"name": GraphQLInput.coerceValue(GraphQLLiteralValue.String("argument"), Scalars.string->Scalars.toGraphQLType->nonNull)}]}, resgraph: {appliedDirectives: [{name: "tag", args: dict{"name": GraphQLInput.coerceValue(GraphQLLiteralValue.String("argument"), Scalars.string->Scalars.toGraphQLType->nonNull)}}]}}
         }: arg)
       }->makeArgsDict,
       resolve: makeResolveFn((src, args, ctx, info) => {let src = typeUnwrapper(src); AppDirectives.directiveArgumentMetadata(src, ~limit=?((args["limit"]->Nullable.toOption)))})
@@ -1395,6 +1431,18 @@ input_Res12InputInline.contents = GraphQLInputObjectType.make({
     }
   }->makeFields
 })
+input_CoercedDefaultInput.contents = GraphQLInputObjectType.make({
+  name: "CoercedDefaultInput",
+  description: ?(None),
+  fields: () => {
+    "identifiers": {
+      GraphQLInputObjectType.typ: GraphQLListType.make(Scalars.id->Scalars.toGraphQLType->nonNull)->GraphQLListType.toGraphQLType->nonNull,
+      description: ?(None),
+      defaultValue: GraphQLInput.coerceValue(GraphQLLiteralValue.Number(123.), GraphQLListType.make(Scalars.id->Scalars.toGraphQLType->nonNull)->GraphQLListType.toGraphQLType->nonNull),
+      deprecationReason: ?(None),
+    }
+  }->makeFields
+})
 input_DirectiveInput.contents = GraphQLInputObjectType.make({
   name: "DirectiveInput",
   description: ?(None),
@@ -1402,7 +1450,7 @@ input_DirectiveInput.contents = GraphQLInputObjectType.make({
     "label": {
       GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
       description: ?(None),
-      defaultValue: GraphQLLiteralValue.String("fallback"),
+      defaultValue: GraphQLInput.coerceValue(GraphQLLiteralValue.String("fallback"), Scalars.string->Scalars.toGraphQLType->nonNull),
       deprecationReason: ?(None),
     },
     "value": {
@@ -1707,8 +1755,8 @@ let schema = GraphQLSchemaType.makeConfig({
   query: get_Query(),
   mutation: get_Mutation(),
   subscription: get_Subscription(),
-  extensions: {directives: dict{"tag": [dict{"name": GraphQLLiteralValue.String("schema")}]}, resgraph: {appliedDirectives: [{name: "tag", args: dict{"name": GraphQLLiteralValue.String("schema")}}]}},
   directives: [...GraphQLDirective.specifiedDirectives, directive_cacheControl, directive_identifies, directive_tag],
+  extensions: {directives: dict{"tag": [dict{"name": GraphQLInput.coerceValue(GraphQLLiteralValue.String("schema"), Scalars.string->Scalars.toGraphQLType->nonNull)}]}, resgraph: {appliedDirectives: [{name: "tag", args: dict{"name": GraphQLInput.coerceValue(GraphQLLiteralValue.String("schema"), Scalars.string->Scalars.toGraphQLType->nonNull)}}]}},
   types: [
     get_DescribedUnionPayload()->GraphQLObjectType.toGraphQLType,
     get_DirectiveExample()->GraphQLObjectType.toGraphQLType,
@@ -1759,6 +1807,7 @@ let schema = GraphQLSchemaType.makeConfig({
     get_UpdatableNullableString()->GraphQLInputObjectType.toGraphQLType,
     get_UpdatableString()->GraphQLInputObjectType.toGraphQLType,
     get_Res12InputInline()->GraphQLInputObjectType.toGraphQLType,
+    get_CoercedDefaultInput()->GraphQLInputObjectType.toGraphQLType,
     get_DirectiveInput()->GraphQLInputObjectType.toGraphQLType,
     get_ReservedWordInput()->GraphQLInputObjectType.toGraphQLType,
     get_UpdateThingInput()->GraphQLInputObjectType.toGraphQLType,

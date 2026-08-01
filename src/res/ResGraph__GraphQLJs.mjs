@@ -4,6 +4,7 @@
 let GraphQLLiteralValue = {};
 
 let GraphQLValueNode = {};
+
 let GraphQLInput = {};
 
 let AstNode = {};

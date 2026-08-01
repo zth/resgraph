@@ -73,6 +73,15 @@ assert.deepEqual(plain(getDirective(schema, argumentMetadata, "tag")), [
   {name: "argument"},
 ]);
 
+const coercedArgument = schema.getQueryType().getFields().defaultText.args[0];
+assert.equal(coercedArgument.defaultValue, "parsed:source");
+
+const coercedInput = schema.getType("CoercedDefaultInput");
+assert.deepEqual(
+  coercedInput.getFields().identifiers.defaultValue,
+  ["123"],
+);
+
 const signatureMetadata = schema.getQueryType().getFields().signatureMetadata.args[0];
 assert.equal(signatureMetadata.name, "value");
 assert.equal(signatureMetadata.description, "Metadata loaded from the implementation source.");
@@ -118,6 +127,17 @@ const argumentDefaultResult = await execute({
 assert.equal(argumentDefaultResult.errors, undefined);
 assert.deepEqual(plain(argumentDefaultResult.data), {
   directiveArgumentMetadata: 25,
+});
+
+const coercedDefaultsResult = await execute({
+  schema,
+  document: parse(`query { defaultText coercedInputDefault(input: {}) }`),
+});
+
+assert.equal(coercedDefaultsResult.errors, undefined);
+assert.deepEqual(plain(coercedDefaultsResult.data), {
+  defaultText: "parsed:source",
+  coercedInputDefault: "123",
 });
 
 const asyncValuesField = schema.getQueryType().getFields().asyncValues;
