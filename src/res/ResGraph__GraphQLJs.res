@@ -14,6 +14,26 @@ module GraphQLLiteralValue = {
 
 type directiveArguments = Dict.t<GraphQLLiteralValue.t>
 type directiveMap = Dict.t<array<directiveArguments>>
+type directiveArgumentThunk = unit => GraphQLLiteralValue.t
+
+let makeLazyDirectiveArguments: Dict.t<directiveArgumentThunk> => directiveArguments = %raw(`
+  function makeLazyDirectiveArguments(thunks) {
+    const result = {};
+    Object.entries(thunks).forEach(([name, thunk]) => {
+      Object.defineProperty(result, name, {
+        configurable: true,
+        enumerable: true,
+        get() {
+          const value = thunk();
+          Object.defineProperty(result, name, {enumerable: true, value});
+          return value;
+        },
+      });
+    });
+    return result;
+  }
+`)
+
 type appliedDirective = {name: string, args: directiveArguments}
 type resgraphDirectiveExtensions = {appliedDirectives: array<appliedDirective>}
 type directiveExtensions = {

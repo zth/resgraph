@@ -11,6 +11,11 @@ directive @identifies(
   value: ID! = 123
 ) on OBJECT
 
+directive @scalarMetadata(
+  config: ScalarMetadataInput!
+  tier: ScalarTier!
+) on SCALAR
+
 
 """Repeatable labels for schema elements."""
 directive @tag(
@@ -19,10 +24,14 @@ directive @tag(
 
 
 """Custom scalar with specifiedByUrl coverage."""
-scalar Uuid @specifiedBy(url: "https://example.com/specifiedBy/uuid") @tag(name: "scalar")
+scalar Uuid @specifiedBy(url: "https://example.com/specifiedBy/uuid") @scalarMetadata(config: {label: "deferred"}, tier: Premium) @tag(name: "scalar")
 
 enum DirectiveStatus @tag(name: "enum") {
   Active @tag(name: "enum-value")
+}
+
+enum ScalarTier {
+  Premium
 }
 
 input Res12InputInline {
@@ -38,6 +47,10 @@ input DirectiveInput @tag(name: "input") {
 input ReservedWordInput {
   constraint: String!
   type: String!
+}
+
+input ScalarMetadataInput {
+  label: String!
 }
 
 input UpdateThingInput {

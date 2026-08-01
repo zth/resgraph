@@ -54,6 +54,9 @@ assert.deepEqual(plain(getDirective(schema, valueField, "cacheControl")), [
 const uuid = schema.getType("Uuid");
 assert.equal(uuid.specifiedByURL, "https://example.com/specifiedBy/uuid");
 assert.deepEqual(plain(getDirective(schema, uuid, "tag")), [{ name: "scalar" }]);
+assert.deepEqual(plain(getDirective(schema, uuid, "scalarMetadata")), [
+  {config: {label: "deferred"}, tier: "Premium"},
+]);
 
 const result = await execute({
   schema,
