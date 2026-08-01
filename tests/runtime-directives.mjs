@@ -20,6 +20,9 @@ assert.equal(
   'Use "scope" instead.',
 );
 
+const identifies = schema.getDirective("identifies");
+assert.equal(identifies.args.find(argument => argument.name === "value").defaultValue, "123");
+
 const tag = schema.getDirective("tag");
 assert.ok(tag);
 assert.equal(tag.isRepeatable, true);
@@ -31,12 +34,16 @@ assert.deepEqual(plain(getDirective(schema, directiveExample, "tag")), [
 ]);
 assert.deepEqual(
   getDirectives(schema, directiveExample).map(directive => directive.name),
-  ["tag", "tag", "cacheControl"],
+  ["identifies", "tag", "tag", "cacheControl"],
 );
 assert.deepEqual(plain(directiveExample.extensions.resgraph.appliedDirectives), [
+  { name: "identifies", args: { value: "456" } },
   { name: "tag", args: { name: "first" } },
   { name: "cacheControl", args: { maxAge: 30 } },
   { name: "tag", args: { name: "second" } },
+]);
+assert.deepEqual(plain(getDirective(schema, directiveExample, "identifies")), [
+  {value: "456"},
 ]);
 
 const valueField = directiveExample.getFields().value;

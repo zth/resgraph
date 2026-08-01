@@ -218,11 +218,28 @@ let rec printConstValue = function
           Printf.sprintf "\"%s\": %s" name (printConstValue value))
       |> String.concat ", ")
 
-let printDirectiveArguments arguments =
+let printCoercedValue typ value =
+  Printf.sprintf "GraphQLInput.coerceValue(%s, %s)" (printConstValue value)
+    (printGraphQLType typ)
+
+let printDirectiveValue schemaState directiveName argumentName value =
+  match
+    Option.bind
+      (Hashtbl.find_opt schemaState.directiveDefinitions directiveName)
+      (fun (definition : gqlDirectiveDefinition) ->
+        definition.arguments
+        |> List.find_opt (fun (argument : gqlDirectiveArgument) ->
+            argument.name = argumentName))
+  with
+  | Some argument -> printCoercedValue argument.typ value
+  | None -> printConstValue value
+
+let printDirectiveArguments schemaState directiveName arguments =
   Printf.sprintf "dict{%s}"
     (arguments
     |> List.map (fun (name, value) ->
-        Printf.sprintf "\"%s\": %s" name (printConstValue value))
+        Printf.sprintf "\"%s\": %s" name
+          (printDirectiveValue schemaState directiveName name value))
     |> String.concat ", ")
 
 let groupDirectiveApplications applications =
@@ -251,7 +268,7 @@ let printDirectiveExtensions ?(oneOf = false) schemaState target =
          |> List.map (fun (name, argumentSets) ->
              Printf.sprintf "\"%s\": [%s]" name
                (argumentSets
-               |> List.map printDirectiveArguments
+               |> List.map (printDirectiveArguments schemaState name)
                |> String.concat ", "))
          |> String.concat ", "
        in
@@ -259,7 +276,8 @@ let printDirectiveExtensions ?(oneOf = false) schemaState target =
          applications
          |> List.map (fun (application : gqlDirectiveApplication) ->
              Printf.sprintf "{name: \"%s\", args: %s}" application.name
-               (printDirectiveArguments application.arguments))
+               (printDirectiveArguments schemaState application.name
+                  application.arguments))
          |> String.concat ", "
        in
        fields :=
@@ -415,7 +433,8 @@ let printDirectiveArgument schemaState directiveName
       | None -> ()
       | Some value ->
         CodeWriter.line writer
-          (Printf.sprintf "defaultValue: %s," (printConstValue value)));
+          (Printf.sprintf "defaultValue: %s,"
+             (printCoercedValue argument.typ value)));
       CodeWriter.line writer
         (Printf.sprintf "description: %s,"
            (descriptionAsString argument.description));

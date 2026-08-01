@@ -24,6 +24,12 @@ type directiveExtensions = {
 
 type graphqlType
 
+module GraphQLInput = {
+  @module("graphql")
+  external coerceValue: (GraphQLLiteralValue.t, graphqlType) => GraphQLLiteralValue.t =
+    "coerceInputValue"
+}
+
 @module("graphql") @new external nonNull: graphqlType => graphqlType = "GraphQLNonNull"
 
 module AstNode = {

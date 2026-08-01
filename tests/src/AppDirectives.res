@@ -9,6 +9,12 @@ type cacheControl = {
   legacyScope: option<string>,
 }
 
+@gql.directive({locations: ["OBJECT"]})
+type identifies = {
+  @gql.default(123)
+  value: ResGraph.id,
+}
+
 /** Repeatable labels for schema elements. */
 @gql.directive({
   locations: [
@@ -36,6 +42,7 @@ type directiveInput = {
 type directiveStatus =
   | @gql.annotate({name: "tag", args: {name: "enum-value"}}) Active
 
+@gql.annotate({name: "identifies", args: {value: 456}})
 @gql.annotate({name: "tag", args: {name: "first"}})
 @gql.annotate({name: "cacheControl", args: {maxAge: 30}})
 @gql.annotate({name: "tag", args: {name: "second"}})

@@ -3,6 +3,8 @@
 
 let GraphQLLiteralValue = {};
 
+let GraphQLInput = {};
+
 let AstNode = {};
 
 let Scalars = {};
@@ -27,6 +29,7 @@ let GraphQLSchemaType = {};
 
 export {
   GraphQLLiteralValue,
+  GraphQLInput,
   AstNode,
   Scalars,
   GraphQLDirective,

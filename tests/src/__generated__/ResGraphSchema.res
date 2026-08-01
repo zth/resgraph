@@ -86,14 +86,14 @@ let applyConversionToInputObject: ('a, array<(string, inputObjectFieldConverterF
   return newObj;
 }`)
 
-let scalar_Uuid = GraphQLScalar.make({name: "Uuid", description: "Custom scalar with specifiedByUrl coverage.", specifiedByURL: "https://example.com/specifiedBy/uuid", extensions: {directives: dict{"tag": [dict{"name": GraphQLLiteralValue.String("scalar")}]}, resgraph: {appliedDirectives: [{name: "tag", args: dict{"name": GraphQLLiteralValue.String("scalar")}}]}}})
+let scalar_Uuid = GraphQLScalar.make({name: "Uuid", description: "Custom scalar with specifiedByUrl coverage.", specifiedByURL: "https://example.com/specifiedBy/uuid", extensions: {directives: dict{"tag": [dict{"name": GraphQLInput.coerceValue(GraphQLLiteralValue.String("scalar"), Scalars.string->Scalars.toGraphQLType->nonNull)}]}, resgraph: {appliedDirectives: [{name: "tag", args: dict{"name": GraphQLInput.coerceValue(GraphQLLiteralValue.String("scalar"), Scalars.string->Scalars.toGraphQLType->nonNull)}}]}}})
 
 let enum_DirectiveStatus = GraphQLEnumType.make({
   name: "DirectiveStatus",
   description: ?(None),
-  extensions: {directives: dict{"tag": [dict{"name": GraphQLLiteralValue.String("enum")}]}, resgraph: {appliedDirectives: [{name: "tag", args: dict{"name": GraphQLLiteralValue.String("enum")}}]}},
+  extensions: {directives: dict{"tag": [dict{"name": GraphQLInput.coerceValue(GraphQLLiteralValue.String("enum"), Scalars.string->Scalars.toGraphQLType->nonNull)}]}, resgraph: {appliedDirectives: [{name: "tag", args: dict{"name": GraphQLInput.coerceValue(GraphQLLiteralValue.String("enum"), Scalars.string->Scalars.toGraphQLType->nonNull)}}]}},
   values: {
-    "Active": {GraphQLEnumType.value: "Active", description: ?(None), deprecationReason: ?(None), extensions: {directives: dict{"tag": [dict{"name": GraphQLLiteralValue.String("enum-value")}]}, resgraph: {appliedDirectives: [{name: "tag", args: dict{"name": GraphQLLiteralValue.String("enum-value")}}]}}},
+    "Active": {GraphQLEnumType.value: "Active", description: ?(None), deprecationReason: ?(None), extensions: {directives: dict{"tag": [dict{"name": GraphQLInput.coerceValue(GraphQLLiteralValue.String("enum-value"), Scalars.string->Scalars.toGraphQLType->nonNull)}]}, resgraph: {appliedDirectives: [{name: "tag", args: dict{"name": GraphQLInput.coerceValue(GraphQLLiteralValue.String("enum-value"), Scalars.string->Scalars.toGraphQLType->nonNull)}}]}}},
   }->makeEnumValues,
 })
 
@@ -515,7 +515,7 @@ t_DirectiveExample.contents = GraphQLObjectType.make({
   name: "DirectiveExample",
   description: ?(None),
   interfaces: [],
-  extensions: {directives: dict{"tag": [dict{"name": GraphQLLiteralValue.String("first")}, dict{"name": GraphQLLiteralValue.String("second")}], "cacheControl": [dict{"maxAge": GraphQLLiteralValue.Number(30.)}]}, resgraph: {appliedDirectives: [{name: "tag", args: dict{"name": GraphQLLiteralValue.String("first")}}, {name: "cacheControl", args: dict{"maxAge": GraphQLLiteralValue.Number(30.)}}, {name: "tag", args: dict{"name": GraphQLLiteralValue.String("second")}}]}},
+  extensions: {directives: dict{"identifies": [dict{"value": GraphQLInput.coerceValue(GraphQLLiteralValue.Number(456.), Scalars.id->Scalars.toGraphQLType->nonNull)}], "tag": [dict{"name": GraphQLInput.coerceValue(GraphQLLiteralValue.String("first"), Scalars.string->Scalars.toGraphQLType->nonNull)}, dict{"name": GraphQLInput.coerceValue(GraphQLLiteralValue.String("second"), Scalars.string->Scalars.toGraphQLType->nonNull)}], "cacheControl": [dict{"maxAge": GraphQLInput.coerceValue(GraphQLLiteralValue.Number(30.), Scalars.int->Scalars.toGraphQLType->nonNull)}]}, resgraph: {appliedDirectives: [{name: "identifies", args: dict{"value": GraphQLInput.coerceValue(GraphQLLiteralValue.Number(456.), Scalars.id->Scalars.toGraphQLType->nonNull)}}, {name: "tag", args: dict{"name": GraphQLInput.coerceValue(GraphQLLiteralValue.String("first"), Scalars.string->Scalars.toGraphQLType->nonNull)}}, {name: "cacheControl", args: dict{"maxAge": GraphQLInput.coerceValue(GraphQLLiteralValue.Number(30.), Scalars.int->Scalars.toGraphQLType->nonNull)}}, {name: "tag", args: dict{"name": GraphQLInput.coerceValue(GraphQLLiteralValue.String("second"), Scalars.string->Scalars.toGraphQLType->nonNull)}}]}},
   fields: () => {
     "status": {
       typ: enum_DirectiveStatus->GraphQLEnumType.toGraphQLType->nonNull,
@@ -527,7 +527,7 @@ t_DirectiveExample.contents = GraphQLObjectType.make({
       typ: Scalars.string->Scalars.toGraphQLType->nonNull,
       description: ?(None),
       deprecationReason: ?(None),
-      extensions: {directives: dict{"cacheControl": [dict{"maxAge": GraphQLLiteralValue.Number(10.), "scope": GraphQLLiteralValue.String("private")}], "tag": [dict{"name": GraphQLLiteralValue.String("field")}]}, resgraph: {appliedDirectives: [{name: "cacheControl", args: dict{"maxAge": GraphQLLiteralValue.Number(10.), "scope": GraphQLLiteralValue.String("private")}}, {name: "tag", args: dict{"name": GraphQLLiteralValue.String("field")}}]}},
+      extensions: {directives: dict{"cacheControl": [dict{"maxAge": GraphQLInput.coerceValue(GraphQLLiteralValue.Number(10.), Scalars.int->Scalars.toGraphQLType->nonNull), "scope": GraphQLInput.coerceValue(GraphQLLiteralValue.String("private"), Scalars.string->Scalars.toGraphQLType)}], "tag": [dict{"name": GraphQLInput.coerceValue(GraphQLLiteralValue.String("field"), Scalars.string->Scalars.toGraphQLType->nonNull)}]}, resgraph: {appliedDirectives: [{name: "cacheControl", args: dict{"maxAge": GraphQLInput.coerceValue(GraphQLLiteralValue.Number(10.), Scalars.int->Scalars.toGraphQLType->nonNull), "scope": GraphQLInput.coerceValue(GraphQLLiteralValue.String("private"), Scalars.string->Scalars.toGraphQLType)}}, {name: "tag", args: dict{"name": GraphQLInput.coerceValue(GraphQLLiteralValue.String("field"), Scalars.string->Scalars.toGraphQLType->nonNull)}}]}},
       resolve: makeResolveFn((src, _args, _ctx, _info) => {let src = typeUnwrapper(src); src["value"]})
     }
   }->makeFields
@@ -1236,10 +1236,10 @@ input_DirectiveInput.contents = GraphQLInputObjectType.make({
       GraphQLInputObjectType.typ: Scalars.string->Scalars.toGraphQLType->nonNull,
       description: ?(None),
       deprecationReason: ?(None),
-      extensions: {directives: dict{"tag": [dict{"name": GraphQLLiteralValue.String("input-field")}]}, resgraph: {appliedDirectives: [{name: "tag", args: dict{"name": GraphQLLiteralValue.String("input-field")}}]}}
+      extensions: {directives: dict{"tag": [dict{"name": GraphQLInput.coerceValue(GraphQLLiteralValue.String("input-field"), Scalars.string->Scalars.toGraphQLType->nonNull)}]}, resgraph: {appliedDirectives: [{name: "tag", args: dict{"name": GraphQLInput.coerceValue(GraphQLLiteralValue.String("input-field"), Scalars.string->Scalars.toGraphQLType->nonNull)}}]}}
     }
   }->makeFields,
-  extensions: {directives: dict{"tag": [dict{"name": GraphQLLiteralValue.String("input")}]}, resgraph: {appliedDirectives: [{name: "tag", args: dict{"name": GraphQLLiteralValue.String("input")}}]}}
+  extensions: {directives: dict{"tag": [dict{"name": GraphQLInput.coerceValue(GraphQLLiteralValue.String("input"), Scalars.string->Scalars.toGraphQLType->nonNull)}]}, resgraph: {appliedDirectives: [{name: "tag", args: dict{"name": GraphQLInput.coerceValue(GraphQLLiteralValue.String("input"), Scalars.string->Scalars.toGraphQLType->nonNull)}}]}}
 })
 input_ReservedWordInput.contents = GraphQLInputObjectType.make({
   name: "ReservedWordInput",
@@ -1469,7 +1469,7 @@ let directive_cacheControl = GraphQLDirective.make({
   args: dict{
     "maxAge": ({
       typ: Scalars.int->Scalars.toGraphQLType->nonNull,
-      defaultValue: GraphQLLiteralValue.Number(60.),
+      defaultValue: GraphQLInput.coerceValue(GraphQLLiteralValue.Number(60.), Scalars.int->Scalars.toGraphQLType->nonNull),
       description: "Maximum cache lifetime in seconds.",
       deprecationReason: ?(None),
     }: arg),
@@ -1482,6 +1482,20 @@ let directive_cacheControl = GraphQLDirective.make({
       typ: Scalars.string->Scalars.toGraphQLType,
       description: ?(None),
       deprecationReason: "Use \"scope\" instead.",
+    }: arg)
+  }->makeArgsDict,
+  isRepeatable: false
+})
+let directive_identifies = GraphQLDirective.make({
+  name: "identifies",
+  description: ?(None),
+  locations: ["OBJECT"],
+  args: dict{
+    "value": ({
+      typ: Scalars.id->Scalars.toGraphQLType->nonNull,
+      defaultValue: GraphQLInput.coerceValue(GraphQLLiteralValue.Number(123.), Scalars.id->Scalars.toGraphQLType->nonNull),
+      description: ?(None),
+      deprecationReason: ?(None),
     }: arg)
   }->makeArgsDict,
   isRepeatable: false
@@ -1504,7 +1518,7 @@ let schema = GraphQLSchemaType.makeConfig({
   query: get_Query(),
   mutation: get_Mutation(),
   subscription: get_Subscription(),
-  directives: [...GraphQLDirective.specifiedDirectives, directive_cacheControl, directive_tag],
+  directives: [...GraphQLDirective.specifiedDirectives, directive_cacheControl, directive_identifies, directive_tag],
   types: [
     get_DirectiveExample()->GraphQLObjectType.toGraphQLType,
     get_ExplicitCompany()->GraphQLObjectType.toGraphQLType,
