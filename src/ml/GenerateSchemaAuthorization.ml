@@ -610,18 +610,20 @@ let fieldOutputTypeIds ~processedSchema (schemaState : schemaState)
   in
   ids field.typ |> List.sort_uniq String.compare
 
+let localPolicyBoundaries coordinate (plan : effectiveAuthorizationPlan) =
+  plan.functions
+  |> List.map (fun fn -> AncestorPolicy {boundaryCoordinate = coordinate; fn})
+  |> AncestorAuthorizationBoundaries.of_list
+
 let localAuthorizationBoundaries coordinate (plan : effectiveAuthorizationPlan)
     =
-  let boundaries =
-    plan.functions
-    |> List.map (fun fn -> AncestorPolicy {boundaryCoordinate = coordinate; fn})
-  in
+  let boundaries = localPolicyBoundaries coordinate plan in
   match plan.resolverOutcome with
-  | None -> boundaries |> AncestorAuthorizationBoundaries.of_list
+  | None -> boundaries
   | Some outcome ->
-    AncestorResolverOutcome {boundaryCoordinate = coordinate; outcome}
-    :: boundaries
-    |> AncestorAuthorizationBoundaries.of_list
+    boundaries
+    |> AncestorAuthorizationBoundaries.add
+         (AncestorResolverOutcome {boundaryCoordinate = coordinate; outcome})
 
 let updateReachability reachability typeId incoming =
   match Hashtbl.find_opt reachability typeId with
@@ -681,6 +683,8 @@ let ancestorReachability ~processedSchema (schemaState : schemaState) =
           let localBoundaries =
             if typ.id = "subscription" then
               AncestorAuthorizationBoundaries.empty
+            else if typ.id = "mutation" then
+              localPolicyBoundaries coordinate plan
             else localAuthorizationBoundaries coordinate plan
           in
           let outgoing =

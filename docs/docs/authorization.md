@@ -138,8 +138,9 @@ types therefore cannot hide an unsafe subscription path.
 
 The annotation generates no runtime check. Upstream policies run only where
 they are declared, so expensive authorization is not reevaluated for structural
-child fields. Mutation root fields still require a pre-resolver policy; a
-payload type may then use `byAncestor`.
+child fields. Mutation root fields still require a pre-resolver policy before a
+payload type may use `byAncestor`; a mutation's post-resolver outcome does not
+serve as that ancestor boundary.
 
 ## Resolver outcomes
 

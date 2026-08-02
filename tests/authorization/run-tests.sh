@@ -100,6 +100,8 @@ mkdir -p "$tmp_dir/cache-bypass"
   "$root_dir/tests/authorization/invalid/src" \
   "$tmp_dir/cache-bypass" false \
   >"$tmp_dir/cache-bypass-optional-result.json"
+grep -F 'Field `OutcomeOnlyPayload.value` uses `@gql.authorize.byAncestor`' \
+  "$tmp_dir/cache-bypass-optional-result.json" >/dev/null
 "$resgraph_bin" generate-schema \
   "$root_dir/tests/authorization/invalid/src" \
   "$tmp_dir/cache-bypass" false required - \
@@ -128,6 +130,8 @@ grep -F 'must return `ResGraph.Authorization.outcome' \
   "$tmp_dir/invalid-result.json" >/dev/null
 grep -F 'Public coverage cannot be combined' "$tmp_dir/invalid-result.json" >/dev/null
 grep -F 'Mutation field `Mutation.outcomeOnly` requires at least one pre-resolver' \
+  "$tmp_dir/invalid-result.json" >/dev/null
+grep -F 'Field `OutcomeOnlyPayload.value` uses `@gql.authorize.byAncestor`' \
   "$tmp_dir/invalid-result.json" >/dev/null
 grep -F 'Only one `@gql.public` annotation is allowed per field.' \
   "$tmp_dir/invalid-result.json" >/dev/null
