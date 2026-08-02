@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.3.1
+
 - Add explicit `@gql.authorize.byAncestor({reason})` dispositions with static
   path-dominance validation, audit-manifest provenance, and no repeated runtime
   policy evaluation.
