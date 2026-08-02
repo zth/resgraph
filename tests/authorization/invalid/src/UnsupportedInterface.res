@@ -1,6 +1,9 @@
-@gql.authorize.byAncestor({reason: "Interface fields rely on an upstream policy"}) @gql.interface
+@gql.authorize.byAncestor({
+  reason: "Interface fields require a protected concrete entry path",
+})
+@gql.interface
 type unsupportedAncestor = {
-  @gql.authorize.byAncestor({reason: "Interface field relies on an upstream policy"}) @gql.field
+  @gql.field
   value: string,
 }
 
@@ -9,3 +12,6 @@ type unsupportedConcrete = {
   @gql.field
   value: string,
 }
+
+@gql.public({reason: "This unprotected path must invalidate the interface assertion"}) @gql.field
+let unsupportedInterfaceAncestor = (_: Query.query): unsupportedConcrete => {value: "unsafe"}

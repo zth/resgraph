@@ -116,13 +116,20 @@ let campaigns = async (
 }
 ```
 
-On a concrete object type, `@gql.authorize.byAncestor` is a default for each
-immediate GraphQL field, including separately declared resolver fields. It is
-not recursively copied to returned object types: `campaignEdge` must declare
-its own disposition. The annotation can also be placed directly on one field.
-A direct field policy, public declaration, or resolver outcome overrides a type
+On an object or interface type, `@gql.authorize.byAncestor` is a default for
+each immediate GraphQL field, including separately declared resolver fields.
+It is not recursively copied to returned object types: `campaignEdge` must
+declare its own disposition. The annotation can also be placed directly on one
+field. An interface default is inherited by each concrete implementation and
+is proven independently for each concrete field coordinate. This also works
+through interfaces implementing other interfaces.
+
+A concrete type default overrides an inherited interface default. A direct
+field policy, public declaration, or resolver outcome overrides either type
 default. A field-level `byAncestor` annotation cannot be combined with one of
-those direct dispositions.
+those direct dispositions. These rules allow one implementation to inherit an
+interface assertion while another explicitly declares its fields public or
+protects them with policies.
 
 ResGraph statically proves that every root-to-field path crosses an ordinary
 `@gql.authorize(...)` policy or an allowed resolver outcome before the annotated
@@ -130,11 +137,10 @@ field. A public field is not an authorization boundary. If the same object type
 is reachable through an unprotected path, generation fails at the
 `byAncestor` annotation. Lists and nullability are transparent to the proof;
 unions and interface return types fan out to their concrete object types.
-`byAncestor` is currently supported on concrete object types and fields, not
-on interfaces or subscription paths. Paths from subscription roots are treated
-as unprotected even when the subscription field declares a policy, because
-ResGraph cannot yet enforce that policy for each delivered event. Shared return
-types therefore cannot hide an unsafe subscription path.
+`byAncestor` is not supported on subscription paths. Paths from subscription
+roots are treated as unprotected even when the subscription field declares a
+policy, because ResGraph cannot yet enforce that policy for each delivered
+event. Shared return types therefore cannot hide an unsafe subscription path.
 
 The annotation generates no runtime check. Upstream policies run only where
 they are declared, so expensive authorization is not reevaluated for structural

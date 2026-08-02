@@ -319,31 +319,32 @@ let interfacePublic schemaState (typ : gqlObjectType) fieldName =
               ~parentTypeName:intf.displayName ~fieldName))
           .public)
 
-let addUnsupportedInterfaceAncestorDiagnostics (schemaState : schemaState) =
-  let check coordinate =
-    match (declaration schemaState coordinate).byAncestor with
-    | None -> ()
-    | Some byAncestor ->
-      schemaState
-      |> addDiagnostic
-           ~diagnostic:
-             {
-               loc = byAncestor.loc;
-               fileUri = byAncestor.fileUri;
-               message =
-                 "`@gql.authorize.byAncestor` is currently supported on \
-                  concrete object types and their fields, not interfaces.";
-             }
+let interfaceByAncestor schemaState (typ : gqlObjectType) fieldName =
+  let interfaces : gqlInterface list =
+    typ.interfaces
+    |> List.filter_map (fun interfaceId ->
+        match Hashtbl.find_opt schemaState.interfaces interfaceId with
+        | Some intf
+          when intf.fields
+               |> List.exists (fun (field : gqlField) -> field.name = fieldName)
+          ->
+          Some intf
+        | Some _ | None -> None)
   in
-  schemaState.interfaces
-  |> GenerateSchemaUtils.iterHashtblAlphabetically
-       (fun _ (intf : gqlInterface) ->
-         check intf.displayName;
-         intf.fields
-         |> List.iter (fun field ->
-             check
-               (GenerateSchemaUtils.authorizationCoordinate
-                  ~parentTypeName:intf.displayName ~fieldName:field.name)))
+  match
+    interfaces
+    |> List.find_map (fun (intf : gqlInterface) ->
+        (declaration schemaState
+           (GenerateSchemaUtils.authorizationCoordinate
+              ~parentTypeName:intf.displayName ~fieldName))
+          .byAncestor)
+  with
+  | Some byAncestor -> Some byAncestor
+  | None ->
+    interfaces
+    |> List.find_map (fun (intf : gqlInterface) ->
+        (declaration schemaState intf.displayName).byAncestor)
+
 module BaselineEntry = struct
   type t = string * authorizationGapKind
 
@@ -522,6 +523,7 @@ let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
   let hasDirectDisposition =
     hasPolicies || Option.is_some public || Option.is_some resolverOutcome
   in
+  let inheritedByAncestor = interfaceByAncestor schemaState typ field.name in
   let byAncestor =
     match fieldDeclaration.byAncestor with
     | Some byAncestor when hasDirectDisposition ->
@@ -547,7 +549,10 @@ let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
       None
     | Some byAncestor -> Some byAncestor
     | None when hasDirectDisposition -> None
-    | None -> typeDeclaration.byAncestor
+    | None -> (
+      match typeDeclaration.byAncestor with
+      | Some byAncestor -> Some byAncestor
+      | None -> inheritedByAncestor)
   in
   Hashtbl.replace schemaState.authorizationPlans coordinate
     {
@@ -817,7 +822,6 @@ let buildPlans ~loader ~package ~processedSchema (schemaState : schemaState) =
         (None, true))
     | _ -> (None, false)
   in
-  addUnsupportedInterfaceAncestorDiagnostics schemaState;
   schemaState.types
   |> GenerateSchemaUtils.iterHashtblAlphabetically
        (fun _ (typ : gqlObjectType) ->
