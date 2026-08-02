@@ -66,7 +66,22 @@ diff -u "$root_dir/tests/authorization/valid/expected-authorization-manifest.jso
   "$tmp_dir/valid/authorization-manifest.json"
 jq -e '
   . as $manifest |
-  ([$manifest.fields[] | select(.disposition == "authorizedByAncestor")] | length) == 9 and
+  ([$manifest.fields[] | select(.disposition == "authorizedByAncestor")] | length) == 12 and
+  ($manifest.fields[] | select(.coordinate == "ProtectedAncestorNamed.name") |
+    .byAncestor.reason == "Interface fields rely on a protected concrete entry path" and
+    .byAncestor.file == "src/AncestorInterface.res" and
+    [.ancestorBoundaries[].coordinate] == ["Query.protectedAncestorNamed"]) and
+  ($manifest.fields[] | select(.coordinate == "ProtectedAncestorNamed.detail") |
+    .byAncestor.reason == "Interface field relies on a protected concrete entry path" and
+    [.ancestorBoundaries[].coordinate] == ["Query.protectedAncestorNamed"]) and
+  ($manifest.fields[] | select(.coordinate == "ProtectedAncestorNamed.publicOverride") |
+    .disposition == "public" and .byAncestor == null) and
+  ([$manifest.fields[] |
+    select(.coordinate | startswith("PublicAncestorNamed.")) |
+    select(.disposition == "public" and .byAncestor == null)] | length) == 3 and
+  ($manifest.fields[] | select(.coordinate == "NestedAncestorConcrete.inherited") |
+    .byAncestor.reason == "Parent interface fields propagate through child interfaces" and
+    [.ancestorBoundaries[].coordinate] == ["Query.nestedAncestor"]) and
   ($manifest.fields[] | select(.coordinate == "OutcomePayload.value") |
     .ancestorBoundaries == [{
       "coordinate": "Query.outcomePayload",
@@ -156,7 +171,7 @@ grep -F 'Field `SharedSelection.value` uses `@gql.authorize.byAncestor`' \
   "$tmp_dir/invalid-result.json" >/dev/null
 grep -F 'Field `SubscriptionEvent.value` uses `@gql.authorize.byAncestor`' \
   "$tmp_dir/invalid-result.json" >/dev/null
-grep -F '`@gql.authorize.byAncestor` is currently supported on concrete object types' \
+grep -F 'Field `UnsupportedConcrete.value` uses `@gql.authorize.byAncestor`' \
   "$tmp_dir/invalid-result.json" >/dev/null
 grep -F 'Required authorization coverage does not support subscription field `Subscription.events` yet.' \
   "$tmp_dir/invalid-result.json" >/dev/null
