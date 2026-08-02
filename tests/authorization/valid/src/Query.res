@@ -44,3 +44,15 @@ type declaredResult = Success({value: string}) | Failure({message: string})
 
 @gql.authorize(Security.first) @gql.field
 let declared = (_: query): declaredResult => Success({value: "visible"})
+
+@gql.authorize(Security.canLoadSelection) @gql.field
+let selection = (_: query): SelectionCoverage.selectionConnection => {
+  edges: [{cursor: "cursor", node: {value: "selected", secret: "secret"}}],
+  label: "selection",
+}
+
+@gql.field
+let outcomePayload = (_: query): ResGraph.Authorization.outcome<
+  SelectionCoverage.outcomePayload,
+  string,
+> => ResGraph.Authorization.Allowed({value: "outcome protected"})

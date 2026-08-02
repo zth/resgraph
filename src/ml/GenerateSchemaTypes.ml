@@ -47,9 +47,12 @@ type authorizationFunctionReference = {
 
 type publicAuthorization = {reason: string; loc: Location.t; fileUri: Uri.t}
 
+type ancestorAuthorization = {reason: string; loc: Location.t; fileUri: Uri.t}
+
 type declaredAuthorization = {
   functions: authorizationFunctionReference list;
   public: publicAuthorization option;
+  byAncestor: ancestorAuthorization option;
 }
 
 type authorizationInjection = AuthorizationContext | AuthorizationInfo
@@ -76,11 +79,20 @@ type authorizationGapKind =
 
 type effectiveAuthorizationPlan = {
   functions: authorizationFunction list;
+  byAncestor: ancestorAuthorization option;
+  ancestorBoundaries: ancestorAuthorizationBoundary list;
   public: publicAuthorization option;
   resolverOutcome: resolverOutcome option;
   synthetic: bool;
   baselineGap: authorizationGapKind option;
 }
+
+and ancestorAuthorizationBoundary =
+  | AncestorPolicy of {boundaryCoordinate: string; fn: authorizationFunction}
+  | AncestorResolverOutcome of {
+      boundaryCoordinate: string;
+      outcome: resolverOutcome;
+    }
 
 type typeLocationLoc = {
   fileName: string;

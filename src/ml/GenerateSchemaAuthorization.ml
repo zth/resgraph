@@ -267,7 +267,7 @@ let validateFunction ~loader ~(package : SharedTypes.package) ~schemaState
 let declaration schemaState coordinate =
   match Hashtbl.find_opt schemaState.authorizationDeclarations coordinate with
   | Some declaration -> declaration
-  | None -> {functions = []; public = None}
+  | None -> {functions = []; public = None; byAncestor = None}
 
 type plannedReference = {
   reference: authorizationFunctionReference;
@@ -319,6 +319,31 @@ let interfacePublic schemaState (typ : gqlObjectType) fieldName =
               ~parentTypeName:intf.displayName ~fieldName))
           .public)
 
+let addUnsupportedInterfaceAncestorDiagnostics (schemaState : schemaState) =
+  let check coordinate =
+    match (declaration schemaState coordinate).byAncestor with
+    | None -> ()
+    | Some byAncestor ->
+      schemaState
+      |> addDiagnostic
+           ~diagnostic:
+             {
+               loc = byAncestor.loc;
+               fileUri = byAncestor.fileUri;
+               message =
+                 "`@gql.authorize.byAncestor` is currently supported on \
+                  concrete object types and their fields, not interfaces.";
+             }
+  in
+  schemaState.interfaces
+  |> GenerateSchemaUtils.iterHashtblAlphabetically
+       (fun _ (intf : gqlInterface) ->
+         check intf.displayName;
+         intf.fields
+         |> List.iter (fun field ->
+             check
+               (GenerateSchemaUtils.authorizationCoordinate
+                  ~parentTypeName:intf.displayName ~fieldName:field.name)))
 module BaselineEntry = struct
   type t = string * authorizationGapKind
 
@@ -394,7 +419,7 @@ let loadBaseline path =
            BaselineEntries.empty
 
 let gapForField ~(typ : gqlObjectType) ~(field : gqlField) ~synthetic ~public
-    ~references ~resolverOutcome =
+    ~references ~byAncestor ~resolverOutcome =
   let coordinate =
     GenerateSchemaUtils.authorizationCoordinate ~parentTypeName:typ.displayName
       ~fieldName:field.name
@@ -402,7 +427,8 @@ let gapForField ~(typ : gqlObjectType) ~(field : gqlField) ~synthetic ~public
   if typ.id = "subscription" then Some (coordinate, UnsupportedSubscription)
   else if synthetic then None
   else if
-    Option.is_none public && references = [] && Option.is_none resolverOutcome
+    Option.is_none public && references = [] && Option.is_none byAncestor
+    && Option.is_none resolverOutcome
   then Some (coordinate, UncoveredField)
   else if typ.id = "mutation" && Option.is_none public && references = [] then
     Some (coordinate, MutationPreResolverPolicy)
@@ -434,8 +460,7 @@ let addGapDiagnostic schemaState ~(field : gqlField) (coordinate, kind) =
        ~diagnostic:{loc = field.loc; fileUri = field.fileUri; message}
 
 let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
-    ~baselineEntries ~skipGapDiagnostics ~(typ : gqlObjectType)
-    ~(field : gqlField) =
+    ~(typ : gqlObjectType) ~(field : gqlField) =
   let coordinate =
     GenerateSchemaUtils.authorizationCoordinate ~parentTypeName:typ.displayName
       ~fieldName:field.name
@@ -494,8 +519,247 @@ let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
                  coordinate;
            }
   | _ -> ());
+  let hasDirectDisposition =
+    hasPolicies || Option.is_some public || Option.is_some resolverOutcome
+  in
+  let byAncestor =
+    match fieldDeclaration.byAncestor with
+    | Some byAncestor when hasDirectDisposition ->
+      let conflictAlreadyDiagnosed =
+        fieldDeclaration.functions <> []
+        || Option.is_some fieldDeclaration.public
+      in
+      if not conflictAlreadyDiagnosed then
+        schemaState
+        |> addDiagnostic
+             ~diagnostic:
+               {
+                 loc = byAncestor.loc;
+                 fileUri = byAncestor.fileUri;
+                 message =
+                   Printf.sprintf
+                     "`%s` is authorized by an ancestor but also has a direct \
+                      authorization disposition. Field-level direct policies, \
+                      public declarations, and resolver outcomes cannot be \
+                      combined with `@gql.authorize.byAncestor`."
+                     coordinate;
+               };
+      None
+    | Some byAncestor -> Some byAncestor
+    | None when hasDirectDisposition -> None
+    | None -> typeDeclaration.byAncestor
+  in
+  Hashtbl.replace schemaState.authorizationPlans coordinate
+    {
+      functions;
+      byAncestor;
+      ancestorBoundaries = [];
+      public;
+      resolverOutcome;
+      synthetic;
+      baselineGap = None;
+    }
+
+module AncestorAuthorizationBoundary = struct
+  type t = ancestorAuthorizationBoundary
+
+  let compare = Stdlib.compare
+end
+
+module AncestorAuthorizationBoundaries = Set.Make (AncestorAuthorizationBoundary)
+
+type ancestorReachability = {
+  hasUnprotectedPath: bool;
+  boundaries: AncestorAuthorizationBoundaries.t;
+}
+
+let rec outputTypeIds ~processedSchema = function
+  | List inner | Nullable inner | RescriptNullable inner ->
+    outputTypeIds ~processedSchema inner
+  | GraphQLObjectType {id} -> [id]
+  | GraphQLUnion _ -> []
+  | GraphQLInterface {id} -> (
+    match Hashtbl.find_opt processedSchema.interfaceImplementedBy id with
+    | None -> []
+    | Some implementations ->
+      implementations
+      |> List.filter_map (fun (implementation : interfaceImplementedBy) ->
+          match implementation with
+          | ObjectType typ -> Some typ.id
+          | Interface _ -> None))
+  | Scalar _ | EmptyPayload | InjectContext | InjectInfo
+  | InjectInterfaceTypename _ | GraphQLInputObject _ | GraphQLInputUnion _
+  | GraphQLEnum _ | GraphQLScalar _ ->
+    []
+
+let unionMemberIds (schemaState : schemaState) = function
+  | GraphQLUnion {id} -> (
+    match Hashtbl.find_opt schemaState.unions id with
+    | None -> []
+    | Some union ->
+      union.types
+      |> List.map (fun (member : gqlUnionMember) -> member.objectTypeId))
+  | _ -> []
+
+let fieldOutputTypeIds ~processedSchema (schemaState : schemaState)
+    (field : gqlField) =
+  let rec ids = function
+    | List inner | Nullable inner | RescriptNullable inner -> ids inner
+    | GraphQLUnion _ as union -> unionMemberIds schemaState union
+    | typ -> outputTypeIds ~processedSchema typ
+  in
+  ids field.typ |> List.sort_uniq String.compare
+
+let localPolicyBoundaries coordinate (plan : effectiveAuthorizationPlan) =
+  plan.functions
+  |> List.map (fun fn -> AncestorPolicy {boundaryCoordinate = coordinate; fn})
+  |> AncestorAuthorizationBoundaries.of_list
+
+let localAuthorizationBoundaries coordinate (plan : effectiveAuthorizationPlan)
+    =
+  let boundaries = localPolicyBoundaries coordinate plan in
+  match plan.resolverOutcome with
+  | None -> boundaries
+  | Some outcome ->
+    boundaries
+    |> AncestorAuthorizationBoundaries.add
+         (AncestorResolverOutcome {boundaryCoordinate = coordinate; outcome})
+
+let updateReachability reachability typeId incoming =
+  match Hashtbl.find_opt reachability typeId with
+  | None ->
+    Hashtbl.add reachability typeId incoming;
+    true
+  | Some existing ->
+    let merged =
+      {
+        hasUnprotectedPath =
+          existing.hasUnprotectedPath || incoming.hasUnprotectedPath;
+        boundaries =
+          AncestorAuthorizationBoundaries.union existing.boundaries
+            incoming.boundaries;
+      }
+    in
+    if
+      Bool.equal merged.hasUnprotectedPath existing.hasUnprotectedPath
+      && AncestorAuthorizationBoundaries.equal merged.boundaries
+           existing.boundaries
+    then false
+    else (
+      Hashtbl.replace reachability typeId merged;
+      true)
+
+let ancestorReachability ~processedSchema (schemaState : schemaState) =
+  let reachability = Hashtbl.create 50 in
+  let pending = Queue.create () in
+  let enqueueRoot = function
+    | None -> ()
+    | Some (typ : gqlObjectType) ->
+      if
+        updateReachability reachability typ.id
+          {
+            hasUnprotectedPath = true;
+            boundaries = AncestorAuthorizationBoundaries.empty;
+          }
+      then Queue.add typ.id pending
+  in
+  enqueueRoot schemaState.query;
+  enqueueRoot schemaState.mutation;
+  enqueueRoot schemaState.subscription;
+  while not (Queue.is_empty pending) do
+    let typeId = Queue.take pending in
+    match
+      ( Hashtbl.find_opt schemaState.types typeId,
+        Hashtbl.find_opt reachability typeId )
+    with
+    | Some typ, Some incoming ->
+      typ.fields
+      |> List.iter (fun field ->
+          let coordinate =
+            GenerateSchemaUtils.authorizationCoordinate
+              ~parentTypeName:typ.displayName ~fieldName:field.name
+          in
+          let plan = Hashtbl.find schemaState.authorizationPlans coordinate in
+          let localBoundaries =
+            if typ.id = "subscription" then
+              AncestorAuthorizationBoundaries.empty
+            else if typ.id = "mutation" then
+              localPolicyBoundaries coordinate plan
+            else localAuthorizationBoundaries coordinate plan
+          in
+          let outgoing =
+            {
+              hasUnprotectedPath =
+                incoming.hasUnprotectedPath
+                && AncestorAuthorizationBoundaries.is_empty localBoundaries;
+              boundaries =
+                (if AncestorAuthorizationBoundaries.is_empty localBoundaries
+                 then incoming.boundaries
+                 else localBoundaries);
+            }
+          in
+          fieldOutputTypeIds ~processedSchema schemaState field
+          |> List.iter (fun outputTypeId ->
+              if updateReachability reachability outputTypeId outgoing then
+                Queue.add outputTypeId pending))
+    | _ -> ()
+  done;
+  reachability
+
+let applyAncestorAuthorization ~processedSchema (schemaState : schemaState) =
+  let reachability = ancestorReachability ~processedSchema schemaState in
+  schemaState.types
+  |> Hashtbl.iter (fun typeId (typ : gqlObjectType) ->
+      typ.fields
+      |> List.iter (fun field ->
+          let coordinate =
+            GenerateSchemaUtils.authorizationCoordinate
+              ~parentTypeName:typ.displayName ~fieldName:field.name
+          in
+          match Hashtbl.find_opt schemaState.authorizationPlans coordinate with
+          | None -> ()
+          | Some {byAncestor = None} -> ()
+          | Some ({byAncestor = Some byAncestor} as plan) -> (
+            match Hashtbl.find_opt reachability typeId with
+            | Some {hasUnprotectedPath = false; boundaries}
+              when not (AncestorAuthorizationBoundaries.is_empty boundaries) ->
+              Hashtbl.replace schemaState.authorizationPlans coordinate
+                {
+                  plan with
+                  ancestorBoundaries =
+                    AncestorAuthorizationBoundaries.elements boundaries;
+                }
+            | _ ->
+              schemaState
+              |> addDiagnostic
+                   ~diagnostic:
+                     {
+                       loc = byAncestor.loc;
+                       fileUri = byAncestor.fileUri;
+                       message =
+                         Printf.sprintf
+                           "Field `%s` uses `@gql.authorize.byAncestor`, but \
+                            ResGraph cannot prove that every path to it \
+                            crosses a preceding authorization policy or \
+                            resolver outcome."
+                           coordinate;
+                     })))
+
+let finalizeFieldPlan ~(schemaState : schemaState) ~baselineEntries
+    ~skipGapDiagnostics ~(typ : gqlObjectType) ~(field : gqlField) =
+  let coordinate =
+    GenerateSchemaUtils.authorizationCoordinate ~parentTypeName:typ.displayName
+      ~fieldName:field.name
+  in
+  let plan = Hashtbl.find schemaState.authorizationPlans coordinate in
+  let references =
+    plan.functions
+    |> List.map (fun (fn : authorizationFunction) -> fn.reference)
+  in
   let gap =
-    gapForField ~typ ~field ~synthetic ~public ~references ~resolverOutcome
+    gapForField ~typ ~field ~synthetic:plan.synthetic ~public:plan.public
+      ~references ~byAncestor:plan.byAncestor
+      ~resolverOutcome:plan.resolverOutcome
   in
   let baselineGap =
     match (schemaState.authorizationConfig.mode, gap, baselineEntries) with
@@ -506,7 +770,7 @@ let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
     | _ -> None
   in
   Hashtbl.replace schemaState.authorizationPlans coordinate
-    {functions; public; resolverOutcome; synthetic; baselineGap};
+    {plan with baselineGap};
   (match gap with
   | Some entry ->
     schemaState.authorizationGaps <- entry :: schemaState.authorizationGaps
@@ -537,7 +801,7 @@ let addStaleBaselineDiagnostics schemaState ~path ~baselineEntries =
                    (authorizationGapKindToString kind);
              })
 
-let buildPlans ~loader ~package (schemaState : schemaState) =
+let buildPlans ~loader ~package ~processedSchema (schemaState : schemaState) =
   let baselineEntries, baselineLoadFailed =
     match
       ( schemaState.authorizationConfig.mode,
@@ -553,12 +817,20 @@ let buildPlans ~loader ~package (schemaState : schemaState) =
         (None, true))
     | _ -> (None, false)
   in
+  addUnsupportedInterfaceAncestorDiagnostics schemaState;
   schemaState.types
   |> GenerateSchemaUtils.iterHashtblAlphabetically
        (fun _ (typ : gqlObjectType) ->
          typ.fields
          |> List.iter (fun field ->
-             buildFieldPlan ~loader ~package ~schemaState ~baselineEntries
+             buildFieldPlan ~loader ~package ~schemaState ~typ ~field));
+  applyAncestorAuthorization ~processedSchema schemaState;
+  schemaState.types
+  |> GenerateSchemaUtils.iterHashtblAlphabetically
+       (fun _ (typ : gqlObjectType) ->
+         typ.fields
+         |> List.iter (fun field ->
+             finalizeFieldPlan ~schemaState ~baselineEntries
                ~skipGapDiagnostics:baselineLoadFailed ~typ ~field));
   match (baselineEntries, schemaState.authorizationConfig.baselinePath) with
   | Some entries, Some path ->
@@ -590,6 +862,17 @@ let manifestPolicy ~package (fn : authorizationFunction) =
     (jsonString (Loc.toString fn.reference.loc))
     (if fn.isAsync then "true" else "false")
 
+let manifestAncestorBoundary ~package = function
+  | AncestorPolicy {boundaryCoordinate; fn} ->
+    Printf.sprintf "{\"coordinate\":%s,\"kind\":\"policy\",\"policy\":%s}"
+      (jsonString boundaryCoordinate)
+      (manifestPolicy ~package fn)
+  | AncestorResolverOutcome {boundaryCoordinate; outcome = {isAsync}} ->
+    Printf.sprintf
+      "{\"coordinate\":%s,\"kind\":\"resolverOutcome\",\"resolverOutcome\":{\"async\":%s}}"
+      (jsonString boundaryCoordinate)
+      (if isAsync then "true" else "false")
+
 let manifestField ~package coordinate (plan : effectiveAuthorizationPlan) =
   let disposition =
     match
@@ -597,14 +880,16 @@ let manifestField ~package coordinate (plan : effectiveAuthorizationPlan) =
         plan.synthetic,
         plan.public,
         plan.functions,
+        plan.byAncestor,
         plan.resolverOutcome )
     with
-    | Some _, _, _, _, _ -> "baseline"
-    | None, true, _, _, _ -> "synthetic"
-    | None, false, Some _, _, _ -> "public"
-    | None, false, None, _ :: _, _ -> "policies"
-    | None, false, None, [], Some _ -> "resolverOutcome"
-    | None, false, None, [], None -> "uncovered"
+    | Some _, _, _, _, _, _ -> "baseline"
+    | None, true, _, _, _, _ -> "synthetic"
+    | None, false, Some _, _, _, _ -> "public"
+    | None, false, None, _ :: _, _, _ -> "policies"
+    | None, false, None, [], _, Some _ -> "resolverOutcome"
+    | None, false, None, [], Some _, None -> "authorizedByAncestor"
+    | None, false, None, [], None, None -> "uncovered"
   in
   let publicJson =
     match plan.public with
@@ -615,19 +900,37 @@ let manifestField ~package coordinate (plan : effectiveAuthorizationPlan) =
         (jsonString (relativeSourcePath ~package public.fileUri))
         (jsonString (Loc.toString public.loc))
   in
+  let byAncestorJson =
+    match plan.byAncestor with
+    | None -> "null"
+    | Some byAncestor ->
+      Printf.sprintf "{\"reason\":%s,\"file\":%s,\"location\":%s}"
+        (jsonString byAncestor.reason)
+        (jsonString (relativeSourcePath ~package byAncestor.fileUri))
+        (jsonString (Loc.toString byAncestor.loc))
+  in
   let resolverOutcomeJson =
     match plan.resolverOutcome with
     | None -> "null"
     | Some {isAsync} ->
       Printf.sprintf "{\"async\":%s}" (if isAsync then "true" else "false")
   in
+  let ancestorBoundariesJson =
+    match plan.ancestorBoundaries with
+    | [] -> ""
+    | boundaries ->
+      Printf.sprintf ",\"ancestorBoundaries\":[%s]"
+        (boundaries
+        |> List.map (manifestAncestorBoundary ~package)
+        |> String.concat ",")
+  in
   Printf.sprintf
-    "{\"coordinate\":%s,\"disposition\":%s,\"mutation\":%s,\"policies\":[%s],\"public\":%s,\"resolverOutcome\":%s}"
+    "{\"coordinate\":%s,\"disposition\":%s,\"mutation\":%s,\"policies\":[%s],\"public\":%s,\"byAncestor\":%s,\"resolverOutcome\":%s%s}"
     (jsonString coordinate) (jsonString disposition)
     (if String.starts_with coordinate ~prefix:"Mutation." then "true"
      else "false")
     (plan.functions |> List.map (manifestPolicy ~package) |> String.concat ",")
-    publicJson resolverOutcomeJson
+    publicJson byAncestorJson resolverOutcomeJson ancestorBoundariesJson
 
 let rec ensureDirectory path =
   if path = "" || path = "." || Sys.file_exists path then ()
@@ -639,7 +942,7 @@ let generatedManifest ~status ~fields =
   Printf.sprintf
     "{\n\
     \  \"generatedBy\": \"resgraph\",\n\
-    \  \"version\": 1,\n\
+    \  \"version\": 2,\n\
     \  \"status\": \"%s\",\n\
     \  \"fields\": [\n\
     \    %s\n\
@@ -655,8 +958,9 @@ let isGeneratedManifest path =
     | None -> false
     | Some json ->
       let status = Option.bind (Json.get "status" json) Json.string in
+      let version = Option.bind (Json.get "version" json) Json.number in
       Option.bind (Json.get "generatedBy" json) Json.string = Some "resgraph"
-      && Option.bind (Json.get "version" json) Json.number = Some 1.
+      && (version = Some 1. || version = Some 2.)
       && (status = Some "generationFailed" || status = Some "success")
       && Option.is_some (Option.bind (Json.get "fields" json) Json.array))
 

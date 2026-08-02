@@ -43,6 +43,8 @@ let validAttributes =
     ("gql.scalar", "");
     ("gql.authorize", "Attaches a typed authorization function.");
     ("gql.public", "Marks a field public with a required reason.");
+    ( "gql.authorize.byAncestor",
+      "Marks a field as authorized by a policy on every path to it." );
   ]
 
 let hasGqlAnnotation attributes =
@@ -93,7 +95,10 @@ let extractGqlAttribute ~(schemaState : GenerateSchemaTypes.schemaState)
       | ["gql"; "union"] -> Some Union
       | ["gql"; "inputObject"] -> Some InputObject
       | ["gql"; "inputUnion"] -> Some InputUnion
-      | ["gql"; "authorize"] | ["gql"; "public"] -> None
+      | ["gql"; "authorize"]
+      | ["gql"; "authorize"; "byAncestor"]
+      | ["gql"; "public"] ->
+        None
       | "gql" :: _ ->
         schemaState
         |> addDiagnostic
@@ -148,7 +153,7 @@ let extractGqlImplementsAttributes
       | _ -> None)
 
 let emptyDeclaredAuthorization : declaredAuthorization =
-  {functions = []; public = None}
+  {functions = []; public = None; byAncestor = None}
 
 let authorizationCoordinate ~parentTypeName ~fieldName =
   parentTypeName ^ "." ^ fieldName
@@ -164,6 +169,15 @@ let addAuthorizationDiagnostic ~schemaState ~(env : SharedTypes.QueryEnv.t) ~loc
 
 let functionReferenceFromPayload ~schemaState ~(env : SharedTypes.QueryEnv.t)
     ~attributeLoc (payload : Parsetree.payload) =
+  let reference functionPath =
+    let path = Longident.flatten functionPath in
+    if List.length path < 2 then (
+      addAuthorizationDiagnostic ~schemaState ~env ~loc:attributeLoc
+        "`@gql.authorize` requires a module-qualified function path, for \
+         example `Security.canRead`.";
+      None)
+    else Some {path; loc = attributeLoc; fileUri = env.file.uri}
+  in
   match payload with
   | PStr
       [
@@ -172,21 +186,16 @@ let functionReferenceFromPayload ~schemaState ~(env : SharedTypes.QueryEnv.t)
             Pstr_eval ({pexp_desc = Pexp_ident {txt = functionPath}}, _);
         };
       ] ->
-    let path = Longident.flatten functionPath in
-    if List.length path < 2 then (
-      addAuthorizationDiagnostic ~schemaState ~env ~loc:attributeLoc
-        "`@gql.authorize` requires a module-qualified function path, for \
-         example `Security.canRead`.";
-      None)
-    else Some {path; loc = attributeLoc; fileUri = env.file.uri}
+    reference functionPath
   | _ ->
     addAuthorizationDiagnostic ~schemaState ~env ~loc:attributeLoc
       "`@gql.authorize` requires a module-qualified function path, for example \
        `Security.canRead`.";
     None
 
-let publicReasonFromPayload ~schemaState ~(env : SharedTypes.QueryEnv.t)
-    ~attributeLoc (payload : Parsetree.payload) =
+let reasonStringFromPayload ~annotation ~schemaState
+    ~(env : SharedTypes.QueryEnv.t) ~attributeLoc (payload : Parsetree.payload)
+    =
   let reason =
     match payload with
     | PStr
@@ -211,54 +220,91 @@ let publicReasonFromPayload ~schemaState ~(env : SharedTypes.QueryEnv.t)
          0
   in
   match reason with
-  | Some reason when nonWhitespaceLength reason >= 3 ->
-    Some {reason; loc = attributeLoc; fileUri = env.file.uri}
+  | Some reason when nonWhitespaceLength reason >= 3 -> Some reason
   | _ ->
     addAuthorizationDiagnostic ~schemaState ~env ~loc:attributeLoc
-      "`@gql.public` requires a reason with at least 3 non-whitespace \
-       characters, for example `@gql.public({reason: \"Public profile \
-       data\"})`.";
+      (Printf.sprintf
+         "`%s` requires a reason with at least 3 non-whitespace characters, \
+          for example `%s({reason: \"Reviewed authorization disposition\"})`."
+         annotation annotation);
     None
 
 let extractDeclaredAuthorization ~allowPublic ~schemaState
     ~(env : SharedTypes.QueryEnv.t) (attributes : Parsetree.attributes) =
-  attributes
-  |> List.fold_left
-       (fun (declared : declaredAuthorization)
-            ((name, payload) : Parsetree.attribute) ->
-         match String.split_on_char '.' name.txt with
-         | ["gql"; "authorize"] -> (
-           match
-             functionReferenceFromPayload ~schemaState ~env
-               ~attributeLoc:name.loc payload
-           with
-           | None -> declared
-           | Some fn -> {declared with functions = declared.functions @ [fn]})
-         | ["gql"; "public"] -> (
-           if not allowPublic then (
-             addAuthorizationDiagnostic ~schemaState ~env ~loc:name.loc
-               "`@gql.public` can only be used on output fields or resolver \
-                functions, not on a type.";
-             declared)
-           else
+  let declared =
+    attributes
+    |> List.fold_left
+         (fun (declared : declaredAuthorization)
+              ((name, payload) : Parsetree.attribute) ->
+           match String.split_on_char '.' name.txt with
+           | ["gql"; "authorize"] -> (
              match
-               publicReasonFromPayload ~schemaState ~env ~attributeLoc:name.loc
-                 payload
+               functionReferenceFromPayload ~schemaState ~env
+                 ~attributeLoc:name.loc payload
              with
              | None -> declared
-             | Some public -> (
-               match declared.public with
-               | None -> {declared with public = Some public}
+             | Some fn -> {declared with functions = declared.functions @ [fn]})
+           | ["gql"; "authorize"; "byAncestor"] -> (
+             match
+               reasonStringFromPayload ~annotation:"@gql.authorize.byAncestor"
+                 ~schemaState ~env ~attributeLoc:name.loc payload
+             with
+             | None -> declared
+             | Some reason -> (
+               match declared.byAncestor with
+               | None ->
+                 {
+                   declared with
+                   byAncestor =
+                     Some {reason; loc = name.loc; fileUri = env.file.uri};
+                 }
                | Some _ ->
                  addAuthorizationDiagnostic ~schemaState ~env ~loc:name.loc
-                   "Only one `@gql.public` annotation is allowed per field.";
+                   "Only one `@gql.authorize.byAncestor` annotation is allowed \
+                    per field or type.";
                  declared))
-         | _ -> declared)
-       emptyDeclaredAuthorization
+           | ["gql"; "public"] -> (
+             if not allowPublic then (
+               addAuthorizationDiagnostic ~schemaState ~env ~loc:name.loc
+                 "`@gql.public` can only be used on output fields or resolver \
+                  functions, not on a type.";
+               declared)
+             else
+               match
+                 reasonStringFromPayload ~annotation:"@gql.public" ~schemaState
+                   ~env ~attributeLoc:name.loc payload
+               with
+               | None -> declared
+               | Some reason -> (
+                 match declared.public with
+                 | None ->
+                   {
+                     declared with
+                     public =
+                       Some {reason; loc = name.loc; fileUri = env.file.uri};
+                   }
+                 | Some _ ->
+                   addAuthorizationDiagnostic ~schemaState ~env ~loc:name.loc
+                     "Only one `@gql.public` annotation is allowed per field.";
+                   declared))
+           | _ -> declared)
+         emptyDeclaredAuthorization
+  in
+  (match (declared.byAncestor, declared.functions, declared.public) with
+  | Some byAncestor, _ :: _, _ | Some byAncestor, _, Some _ ->
+    addAuthorizationDiagnostic ~schemaState ~env ~loc:byAncestor.loc
+      "`@gql.authorize.byAncestor` cannot be combined with \
+       `@gql.authorize(...)` or `@gql.public` on the same field or type."
+  | _ -> ());
+  declared
 
 let registerAuthorizationDeclaration ~coordinate
     (declared : declaredAuthorization) ~(schemaState : schemaState) =
-  if declared.functions = [] && Option.is_none declared.public then ()
+  if
+    declared.functions = []
+    && Option.is_none declared.public
+    && Option.is_none declared.byAncestor
+  then ()
   else
     match Hashtbl.find_opt schemaState.authorizationDeclarations coordinate with
     | None ->
@@ -275,6 +321,10 @@ let registerAuthorizationDeclaration ~coordinate
             (match (existing.public, declared.public) with
             | Some public, _ -> Some public
             | None, public -> public);
+          byAncestor =
+            (match (existing.byAncestor, declared.byAncestor) with
+            | Some byAncestor, _ -> Some byAncestor
+            | None, byAncestor -> byAncestor);
         }
 
 let registerAuthorizationAttributes ~coordinate ~allowPublic ~attributes
@@ -1311,7 +1361,7 @@ type persistedLegacySchemaState = {
 }
 
 let stateFileMagic = "RESGRAPH_STATE\000"
-let stateFileVersion = 1
+let stateFileVersion = 2
 
 let validStateName schemaName =
   Str.string_match (Str.regexp "^[A-Za-z0-9_-]+$") schemaName 0

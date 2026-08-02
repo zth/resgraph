@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add explicit `@gql.authorize.byAncestor({reason})` dispositions with static
+  path-dominance validation, audit-manifest provenance, and no repeated runtime
+  policy evaluation.
+
 ## 1.3.0
 
 - Add opt-in required authorization coverage with typed `.authorize` policies, explicit `.public` dispositions, resolver outcomes, mutation prechecks, interface policy inheritance, custom forbidden handlers, and deterministic audit manifests.

@@ -85,7 +85,62 @@ A policy must have:
 
 Type, interface, field, and resolver policies compose additively. Interface field public dispositions and interface resolver outcomes also propagate to concrete implementations. Policies execute in declaration order with AND semantics and stop at the first `Forbidden`. Converted field arguments are constructed once and shared by every policy and the resolver. Async code is generated only when a policy or outcome is promise-backed.
 
-A policy on a field returning an object does not authorize that object's child fields. Each output field needs its own disposition.
+By default, a policy on a field returning an object does not authorize that
+object's child fields. Each output field needs its own disposition.
+
+### Authorization by an ancestor
+
+Connection wrappers, mutation payloads, and calculated result objects often
+have no authorization identity independent of the field that produced them.
+After reviewing that relationship, mark their fields as authorized by an
+ancestor:
+
+```rescript
+@gql.authorize.byAncestor({
+  reason: "Connection fields expose only the authorized campaign result",
+})
+@gql.type
+type campaignConnection = {
+  @gql.field
+  edges: array<campaignEdge>,
+}
+
+@gql.authorize(CampaignSecurity.canList)
+@gql.field
+let campaigns = async (
+  _: query,
+  ~organizationId: string,
+  ~ctx: ResGraphContext.context,
+): campaignConnection => {
+  await ctx.dataLoaders.campaigns.load(~organizationId)
+}
+```
+
+On a concrete object type, `@gql.authorize.byAncestor` is a default for each
+immediate GraphQL field, including separately declared resolver fields. It is
+not recursively copied to returned object types: `campaignEdge` must declare
+its own disposition. The annotation can also be placed directly on one field.
+A direct field policy, public declaration, or resolver outcome overrides a type
+default. A field-level `byAncestor` annotation cannot be combined with one of
+those direct dispositions.
+
+ResGraph statically proves that every root-to-field path crosses an ordinary
+`@gql.authorize(...)` policy or an allowed resolver outcome before the annotated
+field. A public field is not an authorization boundary. If the same object type
+is reachable through an unprotected path, generation fails at the
+`byAncestor` annotation. Lists and nullability are transparent to the proof;
+unions and interface return types fan out to their concrete object types.
+`byAncestor` is currently supported on concrete object types and fields, not
+on interfaces or subscription paths. Paths from subscription roots are treated
+as unprotected even when the subscription field declares a policy, because
+ResGraph cannot yet enforce that policy for each delivered event. Shared return
+types therefore cannot hide an unsafe subscription path.
+
+The annotation generates no runtime check. Upstream policies run only where
+they are declared, so expensive authorization is not reevaluated for structural
+child fields. Mutation root fields still require a pre-resolver policy before a
+payload type may use `byAncestor`; a mutation's post-resolver outcome does not
+serve as that ancestor boundary.
 
 ## Resolver outcomes
 
@@ -137,7 +192,7 @@ let onForbidden = (
 
 ## Audit manifest and boundaries
 
-`manifestPath` emits stable, sorted JSON with every concrete field, its disposition, policy order and provenance, public reason, source locations, resolver-outcome metadata, and mutation status. Commit it when authorization posture should be reviewed through diffs.
+`manifestPath` emits stable, sorted JSON with every concrete field, its disposition, policy order and provenance, public or `byAncestor` review reason, source locations, resolver-outcome metadata, and mutation status. For an `authorizedByAncestor` field, `ancestorBoundaries` lists the nearest possible policy or resolver-outcome boundaries across its protected paths. Only policies declared on the selected runtime path execute. Commit the manifest when authorization posture should be reviewed through diffs.
 
 Fields on inferred union payload objects use the `synthetic` disposition. They
 have no annotation surface and are reachable only after their parent resolver
