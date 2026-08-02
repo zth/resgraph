@@ -88,17 +88,24 @@ Type, interface, field, and resolver policies compose additively. Interface fiel
 By default, a policy on a field returning an object does not authorize that
 object's child fields. Each output field needs its own disposition.
 
-### Scoping authorization to returned fields
+### Authorization by an ancestor
 
-A field policy can explicitly include the fields returned beneath that field in
-its authorization scope. This is useful for connection wrappers, mutation
-payloads, and calculated result objects that have no authorization identity
-independent of the field producing them:
+Connection wrappers, mutation payloads, and calculated result objects often
+have no authorization identity independent of the field that produced them.
+After reviewing that relationship, mark their fields as authorized by an
+ancestor:
 
 ```rescript
-@gql.authorize(
-  (CampaignSecurity.canList, {scope: Fields})
-)
+@gql.authorize.byAncestor({
+  reason: "Connection fields expose only the authorized campaign result",
+})
+@gql.type
+type campaignConnection = {
+  @gql.field
+  edges: array<campaignEdge>,
+}
+
+@gql.authorize(CampaignSecurity.canList)
 @gql.field
 let campaigns = async (
   _: query,
@@ -109,20 +116,27 @@ let campaigns = async (
 }
 ```
 
-The inner parentheses form the ReScript tuple consumed by `@gql.authorize`.
-ReScript infers the scope record from the regular `Fields` constructor, so
-neither the record label nor constructor needs qualification.
+On a concrete object type, `@gql.authorize.byAncestor` is a default for each
+immediate GraphQL field, including separately declared resolver fields. It is
+not recursively copied to returned object types: `campaignEdge` must declare
+its own disposition. The annotation can also be placed directly on one field.
+A direct field policy, public declaration, or resolver outcome overrides a type
+default. A field-level `byAncestor` annotation cannot be combined with one of
+those direct dispositions.
 
-The policy runs once on `Query.campaigns`. Required authorization treats fields
-reachable exclusively beneath that result as within its scope, without
-generating additional policy calls for them. Local type and field policies still
-run and compose additively when present.
+ResGraph statically proves that every root-to-field path crosses an ordinary
+`@gql.authorize(...)` policy or an allowed resolver outcome before the annotated
+field. A public field is not an authorization boundary. If the same object type
+is reachable through an unprotected path, generation fails at the
+`byAncestor` annotation. Lists and nullability are transparent to the proof;
+unions and interface return types fan out to their concrete object types.
+`byAncestor` is currently supported on concrete object types and fields, not on
+interfaces or subscriptions.
 
-Field scope is path-sensitive. If the same result type is also reachable through
-a path without a `scope: Fields` policy, its otherwise-uncovered fields fail
-required authorization. Public fields and resolver outcomes do not widen a
-policy's scope. `scope: Fields` is supported only on output fields and resolver
-functions, not on type policies.
+The annotation generates no runtime check. Upstream policies run only where
+they are declared, so expensive authorization is not reevaluated for structural
+child fields. Mutation root fields still require a pre-resolver policy; a
+payload type may then use `byAncestor`.
 
 ## Resolver outcomes
 
@@ -174,7 +188,7 @@ let onForbidden = (
 
 ## Audit manifest and boundaries
 
-`manifestPath` emits stable, sorted JSON with every concrete field, its disposition, policy order and provenance, inherited scope boundaries, public reason, source locations, resolver-outcome metadata, and mutation status. For a field reachable through multiple scoped paths, `scopeBoundaries` lists the possible boundary sources; only the boundary on the selected runtime path executes. Commit the manifest when authorization posture should be reviewed through diffs.
+`manifestPath` emits stable, sorted JSON with every concrete field, its disposition, policy order and provenance, public or `byAncestor` review reason, source locations, resolver-outcome metadata, and mutation status. For an `authorizedByAncestor` field, `ancestorBoundaries` lists the nearest possible policy or resolver-outcome boundaries across its protected paths. Only policies declared on the selected runtime path execute. Commit the manifest when authorization posture should be reviewed through diffs.
 
 Fields on inferred union payload objects use the `synthetic` disposition. They
 have no annotation surface and are reachable only after their parent resolver

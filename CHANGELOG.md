@@ -2,9 +2,9 @@
 
 ## Unreleased
 
-- Allow field authorization policies to include their returned fields with
-  `{scope: Fields}`, including statically validated path coverage and
-  authorization-manifest provenance without repeated policy evaluation.
+- Add explicit `@gql.authorize.byAncestor({reason})` dispositions with static
+  path-dominance validation, audit-manifest provenance, and no repeated runtime
+  policy evaluation.
 
 ## 1.3.0
 

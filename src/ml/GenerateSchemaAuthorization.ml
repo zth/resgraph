@@ -267,7 +267,7 @@ let validateFunction ~loader ~(package : SharedTypes.package) ~schemaState
 let declaration schemaState coordinate =
   match Hashtbl.find_opt schemaState.authorizationDeclarations coordinate with
   | Some declaration -> declaration
-  | None -> {functions = []; public = None}
+  | None -> {functions = []; public = None; byAncestor = None}
 
 type plannedReference = {
   reference: authorizationFunctionReference;
@@ -319,6 +319,31 @@ let interfacePublic schemaState (typ : gqlObjectType) fieldName =
               ~parentTypeName:intf.displayName ~fieldName))
           .public)
 
+let addUnsupportedInterfaceAncestorDiagnostics (schemaState : schemaState) =
+  let check coordinate =
+    match (declaration schemaState coordinate).byAncestor with
+    | None -> ()
+    | Some byAncestor ->
+      schemaState
+      |> addDiagnostic
+           ~diagnostic:
+             {
+               loc = byAncestor.loc;
+               fileUri = byAncestor.fileUri;
+               message =
+                 "`@gql.authorize.byAncestor` is currently supported on \
+                  concrete object types and their fields, not interfaces.";
+             }
+  in
+  schemaState.interfaces
+  |> GenerateSchemaUtils.iterHashtblAlphabetically
+       (fun _ (intf : gqlInterface) ->
+         check intf.displayName;
+         intf.fields
+         |> List.iter (fun field ->
+             check
+               (GenerateSchemaUtils.authorizationCoordinate
+                  ~parentTypeName:intf.displayName ~fieldName:field.name)))
 module BaselineEntry = struct
   type t = string * authorizationGapKind
 
@@ -394,7 +419,7 @@ let loadBaseline path =
            BaselineEntries.empty
 
 let gapForField ~(typ : gqlObjectType) ~(field : gqlField) ~synthetic ~public
-    ~references ~inheritedScopePolicies ~resolverOutcome =
+    ~references ~byAncestor ~resolverOutcome =
   let coordinate =
     GenerateSchemaUtils.authorizationCoordinate ~parentTypeName:typ.displayName
       ~fieldName:field.name
@@ -402,8 +427,7 @@ let gapForField ~(typ : gqlObjectType) ~(field : gqlField) ~synthetic ~public
   if typ.id = "subscription" then Some (coordinate, UnsupportedSubscription)
   else if synthetic then None
   else if
-    Option.is_none public && references = []
-    && inheritedScopePolicies = []
+    Option.is_none public && references = [] && Option.is_none byAncestor
     && Option.is_none resolverOutcome
   then Some (coordinate, UncoveredField)
   else if typ.id = "mutation" && Option.is_none public && references = [] then
@@ -495,27 +519,58 @@ let buildFieldPlan ~loader ~package ~(schemaState : schemaState)
                  coordinate;
            }
   | _ -> ());
+  let hasDirectDisposition =
+    hasPolicies || Option.is_some public || Option.is_some resolverOutcome
+  in
+  let byAncestor =
+    match fieldDeclaration.byAncestor with
+    | Some byAncestor when hasDirectDisposition ->
+      let conflictAlreadyDiagnosed =
+        fieldDeclaration.functions <> []
+        || Option.is_some fieldDeclaration.public
+      in
+      if not conflictAlreadyDiagnosed then
+        schemaState
+        |> addDiagnostic
+             ~diagnostic:
+               {
+                 loc = byAncestor.loc;
+                 fileUri = byAncestor.fileUri;
+                 message =
+                   Printf.sprintf
+                     "`%s` is authorized by an ancestor but also has a direct \
+                      authorization disposition. Field-level direct policies, \
+                      public declarations, and resolver outcomes cannot be \
+                      combined with `@gql.authorize.byAncestor`."
+                     coordinate;
+               };
+      None
+    | Some byAncestor -> Some byAncestor
+    | None when hasDirectDisposition -> None
+    | None -> typeDeclaration.byAncestor
+  in
   Hashtbl.replace schemaState.authorizationPlans coordinate
     {
       functions;
-      inheritedScopePolicies = [];
+      byAncestor;
+      ancestorBoundaries = [];
       public;
       resolverOutcome;
       synthetic;
       baselineGap = None;
     }
 
-module InheritedScopePolicy = struct
-  type t = inheritedScopePolicy
+module AncestorAuthorizationBoundary = struct
+  type t = ancestorAuthorizationBoundary
 
   let compare = Stdlib.compare
 end
 
-module InheritedScopePolicies = Set.Make (InheritedScopePolicy)
+module AncestorAuthorizationBoundaries = Set.Make (AncestorAuthorizationBoundary)
 
-type scopeReachability = {
+type ancestorReachability = {
   hasUnprotectedPath: bool;
-  policies: InheritedScopePolicies.t;
+  boundaries: AncestorAuthorizationBoundaries.t;
 }
 
 let rec outputTypeIds ~processedSchema = function
@@ -555,13 +610,18 @@ let fieldOutputTypeIds ~processedSchema (schemaState : schemaState)
   in
   ids field.typ |> List.sort_uniq String.compare
 
-let scopePolicies coordinate (plan : effectiveAuthorizationPlan) =
-  plan.functions
-  |> List.filter_map (fun (fn : authorizationFunction) ->
-      match fn.reference.scope with
-      | AuthorizationField -> None
-      | AuthorizationFields -> Some {boundaryCoordinate = coordinate; fn})
-  |> InheritedScopePolicies.of_list
+let localAuthorizationBoundaries coordinate (plan : effectiveAuthorizationPlan)
+    =
+  let boundaries =
+    plan.functions
+    |> List.map (fun fn -> AncestorPolicy {boundaryCoordinate = coordinate; fn})
+  in
+  match plan.resolverOutcome with
+  | None -> boundaries |> AncestorAuthorizationBoundaries.of_list
+  | Some outcome ->
+    AncestorResolverOutcome {boundaryCoordinate = coordinate; outcome}
+    :: boundaries
+    |> AncestorAuthorizationBoundaries.of_list
 
 let updateReachability reachability typeId incoming =
   match Hashtbl.find_opt reachability typeId with
@@ -573,16 +633,21 @@ let updateReachability reachability typeId incoming =
       {
         hasUnprotectedPath =
           existing.hasUnprotectedPath || incoming.hasUnprotectedPath;
-        policies =
-          InheritedScopePolicies.union existing.policies incoming.policies;
+        boundaries =
+          AncestorAuthorizationBoundaries.union existing.boundaries
+            incoming.boundaries;
       }
     in
-    if merged = existing then false
+    if
+      Bool.equal merged.hasUnprotectedPath existing.hasUnprotectedPath
+      && AncestorAuthorizationBoundaries.equal merged.boundaries
+           existing.boundaries
+    then false
     else (
       Hashtbl.replace reachability typeId merged;
       true)
 
-let scopeReachability ~processedSchema (schemaState : schemaState) =
+let ancestorReachability ~processedSchema (schemaState : schemaState) =
   let reachability = Hashtbl.create 50 in
   let pending = Queue.create () in
   let enqueueRoot = function
@@ -590,7 +655,10 @@ let scopeReachability ~processedSchema (schemaState : schemaState) =
     | Some (typ : gqlObjectType) ->
       if
         updateReachability reachability typ.id
-          {hasUnprotectedPath = true; policies = InheritedScopePolicies.empty}
+          {
+            hasUnprotectedPath = true;
+            boundaries = AncestorAuthorizationBoundaries.empty;
+          }
       then Queue.add typ.id pending
   in
   enqueueRoot schemaState.query;
@@ -610,14 +678,16 @@ let scopeReachability ~processedSchema (schemaState : schemaState) =
               ~parentTypeName:typ.displayName ~fieldName:field.name
           in
           let plan = Hashtbl.find schemaState.authorizationPlans coordinate in
-          let localPolicies = scopePolicies coordinate plan in
+          let localBoundaries = localAuthorizationBoundaries coordinate plan in
           let outgoing =
             {
               hasUnprotectedPath =
                 incoming.hasUnprotectedPath
-                && InheritedScopePolicies.is_empty localPolicies;
-              policies =
-                InheritedScopePolicies.union incoming.policies localPolicies;
+                && AncestorAuthorizationBoundaries.is_empty localBoundaries;
+              boundaries =
+                (if AncestorAuthorizationBoundaries.is_empty localBoundaries
+                 then incoming.boundaries
+                 else localBoundaries);
             }
           in
           fieldOutputTypeIds ~processedSchema schemaState field
@@ -628,17 +698,10 @@ let scopeReachability ~processedSchema (schemaState : schemaState) =
   done;
   reachability
 
-let applyInheritedScopePolicies ~processedSchema (schemaState : schemaState) =
-  let reachability = scopeReachability ~processedSchema schemaState in
+let applyAncestorAuthorization ~processedSchema (schemaState : schemaState) =
+  let reachability = ancestorReachability ~processedSchema schemaState in
   schemaState.types
   |> Hashtbl.iter (fun typeId (typ : gqlObjectType) ->
-      let inheritedScopePolicies =
-        match Hashtbl.find_opt reachability typeId with
-        | Some {hasUnprotectedPath = false; policies}
-          when not (InheritedScopePolicies.is_empty policies) ->
-          InheritedScopePolicies.elements policies
-        | _ -> []
-      in
       typ.fields
       |> List.iter (fun field ->
           let coordinate =
@@ -647,9 +710,32 @@ let applyInheritedScopePolicies ~processedSchema (schemaState : schemaState) =
           in
           match Hashtbl.find_opt schemaState.authorizationPlans coordinate with
           | None -> ()
-          | Some plan ->
-            Hashtbl.replace schemaState.authorizationPlans coordinate
-              {plan with inheritedScopePolicies}))
+          | Some {byAncestor = None} -> ()
+          | Some ({byAncestor = Some byAncestor} as plan) -> (
+            match Hashtbl.find_opt reachability typeId with
+            | Some {hasUnprotectedPath = false; boundaries}
+              when not (AncestorAuthorizationBoundaries.is_empty boundaries) ->
+              Hashtbl.replace schemaState.authorizationPlans coordinate
+                {
+                  plan with
+                  ancestorBoundaries =
+                    AncestorAuthorizationBoundaries.elements boundaries;
+                }
+            | _ ->
+              schemaState
+              |> addDiagnostic
+                   ~diagnostic:
+                     {
+                       loc = byAncestor.loc;
+                       fileUri = byAncestor.fileUri;
+                       message =
+                         Printf.sprintf
+                           "Field `%s` uses `@gql.authorize.byAncestor`, but \
+                            ResGraph cannot prove that every path to it \
+                            crosses a preceding authorization policy or \
+                            resolver outcome."
+                           coordinate;
+                     })))
 
 let finalizeFieldPlan ~(schemaState : schemaState) ~baselineEntries
     ~skipGapDiagnostics ~(typ : gqlObjectType) ~(field : gqlField) =
@@ -664,7 +750,7 @@ let finalizeFieldPlan ~(schemaState : schemaState) ~baselineEntries
   in
   let gap =
     gapForField ~typ ~field ~synthetic:plan.synthetic ~public:plan.public
-      ~references ~inheritedScopePolicies:plan.inheritedScopePolicies
+      ~references ~byAncestor:plan.byAncestor
       ~resolverOutcome:plan.resolverOutcome
   in
   let baselineGap =
@@ -723,13 +809,14 @@ let buildPlans ~loader ~package ~processedSchema (schemaState : schemaState) =
         (None, true))
     | _ -> (None, false)
   in
+  addUnsupportedInterfaceAncestorDiagnostics schemaState;
   schemaState.types
   |> GenerateSchemaUtils.iterHashtblAlphabetically
        (fun _ (typ : gqlObjectType) ->
          typ.fields
          |> List.iter (fun field ->
              buildFieldPlan ~loader ~package ~schemaState ~typ ~field));
-  applyInheritedScopePolicies ~processedSchema schemaState;
+  applyAncestorAuthorization ~processedSchema schemaState;
   schemaState.types
   |> GenerateSchemaUtils.iterHashtblAlphabetically
        (fun _ (typ : gqlObjectType) ->
@@ -759,24 +846,24 @@ let provenanceToString = function
   | FieldPolicy coordinate -> "field:" ^ coordinate
 
 let manifestPolicy ~package (fn : authorizationFunction) =
-  let scope =
-    match fn.reference.scope with
-    | AuthorizationField -> ""
-    | AuthorizationFields -> ",\"scope\":\"fields\""
-  in
   Printf.sprintf
-    "{\"path\":%s,\"provenance\":%s,\"file\":%s,\"location\":%s,\"async\":%s%s}"
+    "{\"path\":%s,\"provenance\":%s,\"file\":%s,\"location\":%s,\"async\":%s}"
     (jsonString (GenerateSchemaUtils.authorizationFunctionName fn.reference))
     (jsonString (provenanceToString fn.provenance))
     (jsonString (relativeSourcePath ~package fn.reference.fileUri))
     (jsonString (Loc.toString fn.reference.loc))
     (if fn.isAsync then "true" else "false")
-    scope
 
-let manifestScopeBoundary ~package (policy : inheritedScopePolicy) =
-  Printf.sprintf "{\"boundary\":%s,\"policy\":%s}"
-    (jsonString policy.boundaryCoordinate)
-    (manifestPolicy ~package policy.fn)
+let manifestAncestorBoundary ~package = function
+  | AncestorPolicy {boundaryCoordinate; fn} ->
+    Printf.sprintf "{\"coordinate\":%s,\"kind\":\"policy\",\"policy\":%s}"
+      (jsonString boundaryCoordinate)
+      (manifestPolicy ~package fn)
+  | AncestorResolverOutcome {boundaryCoordinate; outcome = {isAsync}} ->
+    Printf.sprintf
+      "{\"coordinate\":%s,\"kind\":\"resolverOutcome\",\"resolverOutcome\":{\"async\":%s}}"
+      (jsonString boundaryCoordinate)
+      (if isAsync then "true" else "false")
 
 let manifestField ~package coordinate (plan : effectiveAuthorizationPlan) =
   let disposition =
@@ -785,7 +872,7 @@ let manifestField ~package coordinate (plan : effectiveAuthorizationPlan) =
         plan.synthetic,
         plan.public,
         plan.functions,
-        plan.inheritedScopePolicies,
+        plan.byAncestor,
         plan.resolverOutcome )
     with
     | Some _, _, _, _, _, _ -> "baseline"
@@ -793,8 +880,8 @@ let manifestField ~package coordinate (plan : effectiveAuthorizationPlan) =
     | None, false, Some _, _, _, _ -> "public"
     | None, false, None, _ :: _, _, _ -> "policies"
     | None, false, None, [], _, Some _ -> "resolverOutcome"
-    | None, false, None, [], _ :: _, None -> "scope"
-    | None, false, None, [], [], None -> "uncovered"
+    | None, false, None, [], Some _, None -> "authorizedByAncestor"
+    | None, false, None, [], None, None -> "uncovered"
   in
   let publicJson =
     match plan.public with
@@ -805,28 +892,37 @@ let manifestField ~package coordinate (plan : effectiveAuthorizationPlan) =
         (jsonString (relativeSourcePath ~package public.fileUri))
         (jsonString (Loc.toString public.loc))
   in
+  let byAncestorJson =
+    match plan.byAncestor with
+    | None -> "null"
+    | Some byAncestor ->
+      Printf.sprintf "{\"reason\":%s,\"file\":%s,\"location\":%s}"
+        (jsonString byAncestor.reason)
+        (jsonString (relativeSourcePath ~package byAncestor.fileUri))
+        (jsonString (Loc.toString byAncestor.loc))
+  in
   let resolverOutcomeJson =
     match plan.resolverOutcome with
     | None -> "null"
     | Some {isAsync} ->
       Printf.sprintf "{\"async\":%s}" (if isAsync then "true" else "false")
   in
-  let inheritedScopeJson =
-    match plan.inheritedScopePolicies with
+  let ancestorBoundariesJson =
+    match plan.ancestorBoundaries with
     | [] -> ""
-    | policies ->
-      Printf.sprintf ",\"scopeBoundaries\":[%s]"
-        (policies
-        |> List.map (manifestScopeBoundary ~package)
+    | boundaries ->
+      Printf.sprintf ",\"ancestorBoundaries\":[%s]"
+        (boundaries
+        |> List.map (manifestAncestorBoundary ~package)
         |> String.concat ",")
   in
   Printf.sprintf
-    "{\"coordinate\":%s,\"disposition\":%s,\"mutation\":%s,\"policies\":[%s],\"public\":%s,\"resolverOutcome\":%s%s}"
+    "{\"coordinate\":%s,\"disposition\":%s,\"mutation\":%s,\"policies\":[%s],\"public\":%s,\"byAncestor\":%s,\"resolverOutcome\":%s%s}"
     (jsonString coordinate) (jsonString disposition)
     (if String.starts_with coordinate ~prefix:"Mutation." then "true"
      else "false")
     (plan.functions |> List.map (manifestPolicy ~package) |> String.concat ",")
-    publicJson resolverOutcomeJson inheritedScopeJson
+    publicJson byAncestorJson resolverOutcomeJson ancestorBoundariesJson
 
 let rec ensureDirectory path =
   if path = "" || path = "." || Sys.file_exists path then ()

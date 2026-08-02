@@ -59,11 +59,28 @@ grep -F 'switch Security.canReadNamed(Obj.magic(src)' "$tmp_dir/valid/ResGraphSc
 grep -F 'switch Security.first' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 grep -F 'switch Security.Alias.second' "$tmp_dir/valid/ResGraphSchema.res" >/dev/null
 if [[ "$(grep -c 'switch Security.canLoadSelection' "$tmp_dir/valid/ResGraphSchema.res")" -ne 1 ]]; then
-  echo "Fields-scoped policy was not emitted exactly once at its boundary." >&2
+  echo "Ancestor policy was not emitted exactly once at its declared field." >&2
   exit 1
 fi
 diff -u "$root_dir/tests/authorization/valid/expected-authorization-manifest.json" \
   "$tmp_dir/valid/authorization-manifest.json"
+jq -e '
+  . as $manifest |
+  ([$manifest.fields[] | select(.disposition == "authorizedByAncestor")] | length) == 9 and
+  ($manifest.fields[] | select(.coordinate == "OutcomePayload.value") |
+    .ancestorBoundaries == [{
+      "coordinate": "Query.outcomePayload",
+      "kind": "resolverOutcome",
+      "resolverOutcome": {"async": false}
+    }]) and
+  ($manifest.fields[] | select(.coordinate == "SelectionConnection.label") |
+    .disposition == "public" and .byAncestor == null) and
+  ($manifest.fields[] | select(.coordinate == "SharedProtected.value") |
+    [.ancestorBoundaries[].coordinate] == [
+      "Query.firstShared",
+      "Query.secondShared"
+    ])' \
+  "$tmp_dir/valid/authorization-manifest.json" >/dev/null
 
 mkdir -p "$tmp_dir/manifest-upgrade"
 cp "$root_dir/tests/authorization/valid/expected-authorization-manifest.json" \
@@ -123,9 +140,17 @@ grep -F 'has source type `Mutation`, but it is applied to `Query`' \
 grep -F 'must declare `~args` as a ReScript polymorphic object' \
   "$tmp_dir/invalid-result.json" >/dev/null
 grep -F 'has invalid `~ctx`' "$tmp_dir/invalid-result.json" >/dev/null
-grep -F '`@gql.authorize((..., {scope: Fields}))` can only be used on output fields' \
+grep -F '`@gql.authorize.byAncestor` cannot be combined with `@gql.authorize(...)`' \
   "$tmp_dir/invalid-result.json" >/dev/null
-grep -F 'Field `SharedSelection.value` has no authorization disposition.' \
+grep -F 'Only one `@gql.authorize.byAncestor` annotation is allowed' \
+  "$tmp_dir/invalid-result.json" >/dev/null
+grep -F '`@gql.authorize.byAncestor` requires a reason with at least 3' \
+  "$tmp_dir/invalid-result.json" >/dev/null
+grep -F 'Field `Query.noAncestor` uses `@gql.authorize.byAncestor`' \
+  "$tmp_dir/invalid-result.json" >/dev/null
+grep -F 'Field `SharedSelection.value` uses `@gql.authorize.byAncestor`' \
+  "$tmp_dir/invalid-result.json" >/dev/null
+grep -F '`@gql.authorize.byAncestor` is currently supported on concrete object types' \
   "$tmp_dir/invalid-result.json" >/dev/null
 grep -F 'Required authorization coverage does not support subscription field `Subscription.events` yet.' \
   "$tmp_dir/invalid-result.json" >/dev/null

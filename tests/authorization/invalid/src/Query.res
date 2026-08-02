@@ -1,6 +1,4 @@
-@gql.public({reason: "Types cannot be public"})
-@gql.authorize((Security.good, {scope: Fields}))
-@gql.type
+@gql.public({reason: "Types cannot be public"}) @gql.type
 type query
 
 @gql.field
@@ -43,16 +41,30 @@ let badContext = (_: query): string => "bad context"
 let nonUnitOutcome = (_: query): string => "bad outcome"
 
 @gql.type
+@gql.authorize.byAncestor({reason: "Shared selection fields rely on their protected entry path"})
 type sharedSelection = {
   @gql.field
   value: string,
 }
 
-@gql.authorize(
-  (Security.canSelect, {scope: Fields})
-)
-@gql.field
+@gql.authorize(Security.canSelect) @gql.field
 let protectedSelection = (_: query): sharedSelection => {value: "protected"}
 
 @gql.public({reason: "Intentionally exercises an unprotected alternate path"}) @gql.field
 let publicSelection = (_: query): sharedSelection => {value: "public"}
+
+@gql.authorize.byAncestor({reason: "Root field incorrectly claims an ancestor policy"}) @gql.field
+let noAncestor = (_: query): string => "no ancestor"
+
+@gql.authorize.byAncestor({reason: "Conflicts with a direct field policy"})
+@gql.authorize(Security.good)
+@gql.field
+let ancestorConflict = (_: query): string => "conflict"
+
+@gql.authorize.byAncestor({reason: "a b"}) @gql.field
+let shortAncestorReason = (_: query): string => "short"
+
+@gql.authorize.byAncestor({reason: "First review"})
+@gql.authorize.byAncestor({reason: "Second review"})
+@gql.field
+let duplicateAncestor = (_: query): string => "duplicate"

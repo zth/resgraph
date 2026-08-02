@@ -16,9 +16,6 @@ module Connections = ResGraph__Connections
 module Utils = ResGraph__Utils
 
 module Authorization = {
-  type scope = Fields
-  type scopeOptions = {scope: scope}
-
   type outcome<'value, 'reason> =
     | Allowed('value)
     | Forbidden('reason)
