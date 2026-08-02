@@ -85,7 +85,7 @@ jq -e '
 mkdir -p "$tmp_dir/manifest-upgrade"
 cp "$root_dir/tests/authorization/valid/expected-authorization-manifest.json" \
   "$tmp_dir/manifest-upgrade/authorization-manifest.json"
-sed -i 's/"version": 2/"version": 1/' \
+sed -i.bak 's/"version": 2/"version": 1/' \
   "$tmp_dir/manifest-upgrade/authorization-manifest.json"
 "$resgraph_bin" generate-schema \
   "$root_dir/tests/authorization/valid/src" \
