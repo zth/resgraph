@@ -50,6 +50,11 @@ type sharedSelection = {
 @gql.authorize(Security.canSelect) @gql.field
 let protectedSelection = (_: query): sharedSelection => {value: "protected"}
 
+@gql.authorize(Security.canSelect) @gql.field
+let protectedSubscriptionEvent = (_: query): SubscriptionEvent.subscriptionEvent => {
+  value: "protected",
+}
+
 @gql.public({reason: "Intentionally exercises an unprotected alternate path"}) @gql.field
 let publicSelection = (_: query): sharedSelection => {value: "public"}
 

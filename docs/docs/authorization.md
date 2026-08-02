@@ -130,8 +130,11 @@ field. A public field is not an authorization boundary. If the same object type
 is reachable through an unprotected path, generation fails at the
 `byAncestor` annotation. Lists and nullability are transparent to the proof;
 unions and interface return types fan out to their concrete object types.
-`byAncestor` is currently supported on concrete object types and fields, not on
-interfaces or subscriptions.
+`byAncestor` is currently supported on concrete object types and fields, not
+on interfaces or subscription paths. Paths from subscription roots are treated
+as unprotected even when the subscription field declares a policy, because
+ResGraph cannot yet enforce that policy for each delivered event. Shared return
+types therefore cannot hide an unsafe subscription path.
 
 The annotation generates no runtime check. Upstream policies run only where
 they are declared, so expensive authorization is not reevaluated for structural

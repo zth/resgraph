@@ -150,6 +150,8 @@ grep -F 'Field `Query.noAncestor` uses `@gql.authorize.byAncestor`' \
   "$tmp_dir/invalid-result.json" >/dev/null
 grep -F 'Field `SharedSelection.value` uses `@gql.authorize.byAncestor`' \
   "$tmp_dir/invalid-result.json" >/dev/null
+grep -F 'Field `SubscriptionEvent.value` uses `@gql.authorize.byAncestor`' \
+  "$tmp_dir/invalid-result.json" >/dev/null
 grep -F '`@gql.authorize.byAncestor` is currently supported on concrete object types' \
   "$tmp_dir/invalid-result.json" >/dev/null
 grep -F 'Required authorization coverage does not support subscription field `Subscription.events` yet.' \

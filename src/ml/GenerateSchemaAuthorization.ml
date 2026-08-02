@@ -678,7 +678,11 @@ let ancestorReachability ~processedSchema (schemaState : schemaState) =
               ~parentTypeName:typ.displayName ~fieldName:field.name
           in
           let plan = Hashtbl.find schemaState.authorizationPlans coordinate in
-          let localBoundaries = localAuthorizationBoundaries coordinate plan in
+          let localBoundaries =
+            if typ.id = "subscription" then
+              AncestorAuthorizationBoundaries.empty
+            else localAuthorizationBoundaries coordinate plan
+          in
           let outgoing =
             {
               hasUnprotectedPath =
