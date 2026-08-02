@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.3.2
+
 - Support `@gql.authorize.byAncestor` defaults on interface types and fields,
   including transitive interface inheritance, concrete overrides, and
   per-concrete-field path validation.
