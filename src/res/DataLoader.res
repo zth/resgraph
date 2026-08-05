@@ -40,8 +40,8 @@ module Plain = {
 
   type batchFn<'key, 'value> = array<'key> => promise<array<'value>>
 
-  @new @module("dataloader")
-  external make: (batchFn<'key, 'value>, ~options: options=?) => t<'key, 'value> = "default"
+  @new @module("./dataLoaderCompat.cjs")
+  external make: (batchFn<'key, 'value>, ~options: options=?) => t<'key, 'value> = "DataLoader"
 
   /**
    * Loads a key, returning a `promise` for the value represented by that key.
@@ -108,7 +108,7 @@ type options = {
   name?: string,
 }
 
-@module("./stableStringify.mjs")
+@module("./stableStringify.cjs")
 external stableStringifyValue: 'any => 'any = "stableStringify"
 
 let mapOptions = options => {

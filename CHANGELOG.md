@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.3.4
+
+- Fix CommonJS DataLoader construction and provide CommonJS-safe connection,
+  base64, and stable-stringify helpers across the supported Node.js range.
+
 ## 1.3.3
 
 - Publish both ESM (`.mjs`) and CommonJS (`.js`) runtime artifacts so generated
