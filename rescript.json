@@ -16,10 +16,15 @@
   "package-specs": [
     {
       "module": "esmodule",
-      "in-source": true
+      "in-source": true,
+      "suffix": ".mjs"
+    },
+    {
+      "module": "commonjs",
+      "in-source": true,
+      "suffix": ".js"
     }
   ],
-  "suffix": ".mjs",
   "dependencies": ["rescript-nodejs", "@glennsl/rescript-fetch"],
   "compiler-flags": ["-open NodeJs"]
 }

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.3.3
+
+- Publish both ESM (`.mjs`) and CommonJS (`.js`) runtime artifacts so generated
+  consumers can load ResGraph after production-only dependency installation.
+
 ## 1.3.2
 
 - Support `@gql.authorize.byAncestor` defaults on interface types and fields,

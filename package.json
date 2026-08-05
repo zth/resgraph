@@ -1,13 +1,14 @@
 {
   "name": "resgraph",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Build GraphQL servers in ReScript.",
   "main": "index.js",
   "scripts": {
     "prepublish": "npm run build",
     "build": "rescript clean && npm run res:build && esbuild --external:vscode-jsonrpc --external:chokidar --platform=node --format=esm --bundle cli/Cli.mjs --outfile=dist/Cli.mjs --minify --tree-shaking",
     "res:build": "rescript",
-    "res:watch": "rescript -w"
+    "res:watch": "rescript -w",
+    "test:package": "node tests/package-runtime-outputs.mjs"
   },
   "bin": {
     "resgraph": "dist/Cli.mjs"
@@ -27,21 +28,21 @@
     "node": ">=20.11.0"
   },
   "peerDependencies": {
-    "rescript": ">=12.0.0",
-    "@glennsl/rescript-fetch": ">=0.2.0"
+    "@glennsl/rescript-fetch": ">=0.2.0",
+    "rescript": ">=12.3.0"
   },
   "dependencies": {
+    "@glennsl/rescript-fetch": "^0.2.2",
     "chokidar": "^3.5.3",
     "graphql-language-service": "^5.1.6",
-    "vscode-jsonrpc": "^5.0.1",
     "rescript-nodejs": "^16.1.0",
-    "@glennsl/rescript-fetch": "^0.2.2"
+    "vscode-jsonrpc": "^5.0.1"
   },
   "devDependencies": {
-    "dataloader": "^2.2.2",
-    "rescript": "^12.0.0",
     "chalk": "^5.2.0",
-    "esbuild": "^0.23.1"
+    "dataloader": "^2.2.2",
+    "esbuild": "^0.23.1",
+    "rescript": "^12.3.0"
   },
   "files": [
     "bin/*",
