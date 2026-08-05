@@ -74,6 +74,6 @@ type connectionArgs = {
   ...backwardConnectionArgs,
 }
 
-@module("./graphqlRelayConnections.mjs")
+@module("./graphqlRelayConnections.cjs")
 external connectionFromArray: (array<'node>, ~args: connectionArgs) => connection<edge<'node>> =
   "connectionFromArray"
